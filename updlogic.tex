@@ -1,0 +1,28 @@
+\section{Update Logic}
+\subsection*{Update Metadata} 
+We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
+
+\subsection*{Update Logic Application}
+\subsubsection*{Conflict Resolution}
+How do we ensure that multiple concurrent requests for updates are handled simultaneously in a way that
+\begin{itemize}
+\item conflicts are resolved and the adopted updates are consistent, 
+\item so that no contradictory updates are to be deployed at the same time
+\item Community splits over controversial updates are avoided
+\end{itemize}
+
+\subsubsection*{Dependencies}
+How do we impose respect for update dependencies, so that the system reaches a consistent state? 
+
+\subsubsection*{Update Policies per type of updates}
+\begin{itemize}
+\item How do we discriminate between different types of updates (e.g., software vs. protocol, bug-fix vs. change request)
+\item We need to provide a different deployment path for each Type of Update. For example, critical hot-fixes might need to bypass some of the governance steps.
+\item We need to incorporate into our update logic the notions of bug Severity and “Required Speed of Deployment”
+\end{itemize}
+
+\subsection*{Decentralized Storage}
+Update code and metadata must be stored in a decentralized manner and cannot be stored in the ledger. Storing updates in the cloud in centrally-owned servers undermines openness and decentralization. We need a secure P2P database/file-system solution that is smoothly integrated with the ledger.
+
+\subsection*{Update Security Guarantees}
+How do we ensure that the downloaded software is secure and the same with the Update Proposal that has been voted?

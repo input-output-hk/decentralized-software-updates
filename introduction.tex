@@ -1,0 +1,39 @@
+\section{Introduction}
+Software updates are everyware. The most vital aspect for the sustainability of any software system is its ability to effectively and swiftly adapt to changes (i.e., software updates). Therefore the adoption of changes is in the heart of the lifecycle of any system and blockchain systems are no exception. Software updates might be triggered by a plethora of different reasons. 
+
+Typically, the main driver for a change will be a change request, or a new feature request by the user community. These type of changes will be planned for inclusion in some future release and then implemented and properly tested prior to deployment into production. In addition, another major source of changes is the correction of bugs and errors of the system. The latter usually produce the so-called \enquote{hot-fixes}, which are handled in a totally different manner than the former. Depending on the severity level of the problem, there are different levels of reaction and methods for the deployment of the correction patch into production. 
+
+More specifically for blockchain systems, a typical source of changes are enhancements at the consensus protocol level and/or at the consensus rules level. The former usually aim at reinforcing the protocol against a broader scope of adversary attacks, while the latter usually are triggered through the enhancement of the information and the semantics of this information embedded within each transaction and/or a block. 
+
+Finally, there are also more radical changes, which are usually caused by the introduction of new research ideas that try to solve significant problems (e.g., scalability issues, interoperability issues, etc.) and the advent of new technology, which becomes relevant. These type of changes usually introduce new concepts and are not just enhancements and thus trigger a major change to the system.
+
+\noindent\textbf{Context of this paper}. In this paper our focus is on the update mechanism of permissionless stake-based blockchain systems. We try to overcome known shortcomings of today's update methods for blockchain systems and propose a logical architecture for an update mechanism for stake-based ledgers. Our architecture covers all the components of a typical blockchain system and demonstrates how can such a mechanism be smoothly incorporated into each layer of the blockchain system. We describe in detail the various enhancements and changes in the existing components and then proceed into describing new components such as the governernance component, or the update-logic component. Our aim is to cover all aspects of software updating, from update proposal submission to update deployment and activation. Finally, we implement our logical architecture into a prototype update system for the Cardano blockchain. We then discuss various implementation issues and the prototype architecture.
+
+\noindent\textbf{Problem Definition}
+The traditional way of handling software updates is neither decentralized nor secure
+\begin{itemize}
+\item No standard way to propose updates
+\item Not a decentralized and democratic way to reach at a consensus on update priorities. Only \enquote{social consensus} is reached via social media. This is unstable and prone to chain splits.
+\item No essential auditing and verifiability of the agreement
+\item No standard way to record the immutable history of all these events (proposals,agreement, \item activation of updates)
+\item No standard method for security guarantees for the software installed
+\item No standard way to resolve conflicts and respect dependencies 
+\item No standard Update metadata
+\item One-size-fits-all for all \enquote{types} of changes (bugs,CRs)
+\item Hard-forks are the norm
+\end{itemize}
+
+\noindent\textbf{Limitations of Existing Solutions}
+Good examples of governance:
+\begin{itemize}
+\item Treasury paper (https://eprint.iacr.org/2018/435)
+\item Dash Governance  - https://www.dash.org/governance/ 
+\item Decred Governance - https://docs.decred.org/governance/consensus-rules-voting/
+
+\end{itemize}
+
+Bitcoin and Ethereum use a \enquote{Social Governance} scheme, which basically means that decisions on update proposals is reached through discussions on social media. This type of informal guidance is  too unstable and prone to chain splits, or prone to becoming too de-facto centralized [https://vitalik.ca/general/2017/12/17/voting.html]
+
+\noindent\textbf{Goal of the paper}
+
+\noindent\textbf{Outline of the paper}
