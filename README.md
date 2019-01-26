@@ -1,2 +1,1 @@
-A paper constructing proof-of-work sidechains using Non-Interactive Proofs of
-Proof-of-Work.
+A paper about decentralized software updates for blockchain systems.
