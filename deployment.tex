@@ -4,6 +4,13 @@ What is an activation event and how do we handle it. When should it be triggered
 
 How do we ensure that Participants who have been inactive when some update was deployed are  prevented from getting locked out of the system?
 
+Also, deployment/activation time must vary according to the type of change. We see the following ''change categories'':
+\begin{itemize}
+\item Bug-fix vs. Change Request
+\item Consensus Protocol impact vs. No Impact
+\item High severity vs. Low severity
+\end{itemize}
+
 \subsection*{Rollbacks}
 How can we smoothly rollback an update, in the case of a problem?
 

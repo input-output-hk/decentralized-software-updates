@@ -1,7 +1,23 @@
 \newif\ifanonymous
 \newif\ifshort
-%\anonymoustrue
+\anonymoustrue
 %\shorttrue
+
+
+%\documentclass[sigconf, anonymous]{acmart}
+%\usepackage{preamble}
+%
+%\fancyhf{} % Remove fancy page headers 
+%\fancyhead[C]{Anonymous submission \#9999 to ACM CCS 2019} % TODO: replace 9999 with your paper number
+%\fancyfoot[C]{\thepage}
+%
+%\setcopyright{none} % No copyright notice required for submissions
+%\acmConference[Anonymous Submission to ACM CCS 2019]{ACM Conference on Computer and Communications Security}{Due 15 May 2019}{London, UK}
+%\acmYear{2017}
+%
+%\settopmatter{printacmref=false, printccs=true, printfolios=true} % We want page numbers on submissions
+%
+%%%\ccsPaper{9999} % TODO: replace with your paper number once obtained
 
 
 \documentclass[sigconf, anonymous]{acmart}
@@ -13,15 +29,16 @@
 
 \setcopyright{none} % No copyright notice required for submissions
 \acmConference[Anonymous Submission to ACM CCS 2019]{ACM Conference on Computer and Communications Security}{Due 15 May 2019}{London, UK}
-\acmYear{2017}
+\acmYear{2019}
 
 \settopmatter{printacmref=false, printccs=true, printfolios=true} % We want page numbers on submissions
 
-%%\ccsPaper{9999} % TODO: replace with your paper number once obtained
+
 
 \begin{document}
 %\title{Template for ACM CCS 2017} % TODO: replace with your title
 \import{./}{title.tex}
+
 
 \import{./}{abstract.tex}
 
@@ -45,7 +62,7 @@
 
 \keywords{updates; sidechains; governance} % TODO: replace with your keywords
 
-\maketitle
+%\maketitle
 
 %\input{ccs-body} % TODO: replace with your brilliant paper!
 

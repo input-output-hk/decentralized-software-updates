@@ -6,9 +6,33 @@
 \item Need to define the vote transaction
 \end{itemize}
 
-\subsection*{Delegation Protocol}
+\textbf{Pre-voting Stage:}
 \begin{itemize}
-\item A voting delegation protocol must be proposed to ensure voting for proposals even when there exist stakeholders that are not at a position to vote for themselves and need to delegate their voting right to some other user. 
+\item All users should be able to submit an Update Proposal.
+\item Update Proposals include source code and appropriate metadata describing sufficiently the Update.
+\item An \textbf{incentive scheme} must be in place that will guarantee that users wont submit malicious updates 
+\item Voters should be able to delegate their voting right (proportional to their stake) for a specific Update Proposal to some other user, without loosing the ownership of their value.
+\end{itemize}
+
+\textbf{Voting Stage:}
+\begin{itemize}
+\item All users should be able to vote for or against an Update Proposal
+\item The voting power must be proportional to stake.
+\item An \textbf{incentive scheme} must be in place that will guarantee that users will vote in such a way that the Update Priorities set will be beneficial to the Blockchain system.
+\end{itemize}
+
+\textbf{Post-voting Stage:}
+\begin{itemize}
+\item A tallying procedure must be defined that will guarantee a secure and trusted election result for each Update Proposal
+\item In order for an Update Proposal to become adopted there should be a minimum percent of stake that has voted for this proposal and a minimum percent of abstaining stake. These thresholds must be differentiated according to the type of change (bug-fix, change request, severity etc.) and to the Update Policy adopted for this proposal.
+\item Deployment and Activation. See corresponding paragraph below.
+\end{itemize}
+
+
+\subsection*{Delegation Protocol}
+In the case where a voter does not want to vote for an update proposal, or does not have the necessary expertise to evaluate a proposal and reach at a decision, he should have the ability to delegate his voting right to some other user. We need a delegation scheme within our voting protocol that will ensure a secure delegation mechanism that will result to a secure voting protocol.  
+\begin{itemize}
+\item A secure voting delegation protocol must be proposed to ensure voting for proposals even when there exist stakeholders that are not at a position to vote for themselves and need to delegate their voting right to some other user. 
 \item Also we need to describe if there is any connection of this delegation with the mining delegation.
 \item Also, what happens when a stakeholder is not live during update proposal voting
 \end{itemize}
