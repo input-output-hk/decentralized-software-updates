@@ -1,25 +1,41 @@
-\section{Deployment / Activation}
-\subsection*{Update Activation}
-What is an activation event and how do we handle it. When should it be triggered, how is it applied and how do we record it?
+\section{Update Activation}
 
-How do we ensure that Participants who have been inactive when some update was deployed are  prevented from getting locked out of the system?
+We have seen that Update software is automatically downloaded to a node, when an Update Proposal is revealed to the network. This takes place at the \emph{issuance-time}. 
 
-Also, deployment/activation time must vary according to the type of change. We see the following ''change categories'':
-\begin{itemize}
-\item Bug-fix vs. Change Request
-\item Consensus Protocol impact vs. No Impact
-\item High severity vs. Low severity
-\end{itemize}
+After the issuance-time, as we have seen the voting for an Update Proposal takes place. If a proposal is rejected, then the Update Proposal is deleted. If the issuer wishes to put forth the proposal again, potentially modified in some form, he/she needs to issue a new Update Proposal, with a different hash. If a proposal is adopted, then each client waits for the activation slot to arrive, which is defined as:
+\begin{verbatim}
+activation_time = voting_end_time + activation_delay
+\end{verbatim}
 
-\subsection*{Rollbacks}
-How can we smoothly rollback an update, in the case of a problem?
+When the activation slot or a later slot arrives, but prior to processing any blocks pertaining to the activation slot or later, the Update Proposal is installed. This software upgrade takes place automatically. For honest nodes that are offline at the activation slot and fail to upgrade, this upgrade, as well as all missing upgrades, will take place automatically whenever they come back online from the already downloaded update software. 
 
-\subsection*{Hard/Soft/Velvet forks and Sidechains}
-\begin{itemize}
-\item When is a soft fork acceptable?
-\item When is a hard fork acceptable?
-\item When should a velvet fork be used?
-\item When should the sidechain mechanism be used?
-\item Basic Research results on sidechains for PoS ledgers
-\item Sidechains and governance in the presence of multiple updates. Can we have multiple “update sidechains” running in parallel?
-\end{itemize}
+At this point, we differentiate between Update Proposals that impact the consensus rules (e.g., a proposal for a new block size) and those that don't (e.g., some code refactoring). For the former we defer the actual activation of the new consensus rules for the new\_cons\_time slot, while for the latter the software upgrade essentially activates the change in tandem with the software installation. So the new consensus rules activation takes place at:
+\begin{verbatim}
+new_cons_time = activation_time + new_cons_delay
+\end{verbatim}
+
+%At this point, the user can be asked to confirm the update in the Wallet UI (this final end-user confirmation can be a preference in the client options). However, rejecting an adopted update will cause the wallet to remain unable to process blocks pertaining to slots at or after the activation time, and hence users will be required to apply the update. Please note that, in the case of a change in the consensus rule, at the activation slot, only the software is installed, the new consensus rules will not be activated yet. This will take place at the new\_consensus\_time slot.
+
+%\subsection*{Update Activation}
+%What is an activation event and how do we handle it. When should it be triggered, how is it applied and how do we record it?
+%
+%How do we ensure that Participants who have been inactive when some update was deployed are  prevented from getting locked out of the system?
+
+\subsection*{Activation of Hard, Soft and Velvet forks}
+\todo{Nikos: 
+How does the Activation part of our protocol differentiate in the presence of a hard, soft and velvet fork?}
+
+
+\todo{Nikos: A formal definition of the 3 types is due, accompanied with appropriate citations}
+
+\subsection*{Activation via Sidechains}
+\todo{Nikos: Are we proposing sidechains as an alternative Activation mechanism? For what types of updates?}
+
+%\begin{itemize}
+%\item When is a soft fork acceptable?
+%\item When is a hard fork acceptable?
+%\item When should a velvet fork be used?
+%\item When should the sidechain mechanism be used?
+%\item Basic Research results on sidechains for PoS ledgers
+%\item Sidechains and governance in the presence of multiple updates. Can we have multiple ''update sidechains'' running in parallel?
+%\end{itemize}

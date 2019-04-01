@@ -1,0 +1,28 @@
+\section{Decentralized Consent-Based Development}
+To the best of our knowledge all blockchain systems today, even the ones that implement a governance model \citep{decred, dash}, follow a centralized software development model. In this model, software updates are implemented by a central authority (the key maintainer). Even in the context of an open source development model, where the actual implementation takes place by some volunteer from the community, it is the central authority who decides on the submitted code. 
+
+Moreover, from a security perspective, it the the central authority that signs the update code prior to releasing it to the community. So the code is considered trusted exactly because every node can verify that it has been signed by the central authority.
+
+This model of development entails the risk of a centralized point of attack. If the central authority is compromised, then the whole network risks to upgrade to malicious software that could potentially bring down the blockchain system. Even more importantly, the central development model undermines the decentralization benefits of any governance model that is followed.
+
+We envision a decentralized consent-based software development model, where software updates can be developed by anyone (like in an open source development model) but also the decision of which update source-code will be merged into the main branch will be based on consensus. 
+
+\subsection*{Decentralized Storage}
+Update code and metadata must be stored in a decentralized manner and cannot be stored in the ledger. Storing updates in the cloud in centrally-owned servers undermines openness and decentralization. We need a secure P2P database/file-system solution that is smoothly integrated with the ledger.
+
+We propose that the Update Proposal is uploaded to a content-addressable \cite{contentaddr} file system, for which we support multiple Delivery Drivers. The drivers are the following:
+
+\begin{itemize}
+\item[IPFS:]The file is uploaded to the peer-to-peer IPFS content-addressable file system. This allows third parties to distribute updates without the approval of trusted third parties. All Update Proposals MUST be uploaded to IPFS. The rest of the drivers are optional.
+
+\item[HTTP transport:] The file is uploaded to a central HTTP server maintained by IOHK which makes the update accessible in case IPFS is not accessible. The HTTP service must provide a RESTful API with a configurable base URL and respond to content-addressable file requests.
+\end{itemize}
+
+The content-addressing is based on a cryptographically secure hash; in our case, we use IPFS's hash. The same hash is used for all drivers.
+
+\subsection*{Update Security Guarantees}
+
+\emph{Delivery Driver Security}: The hash of the Update Proposal posted on the blockchain must match the hash of the Update Proposal downloaded by the client. This ensures that the Delivery Driver operator, if any, does not tamper with the Update Proposal contents.
+
+The above security property ensures that any malicious Delivery Driver operator or adversarial network man-in-the-middle cannot tamper with the update content to introduce backdoors. Furthermore, the above property ensures that it is the same Update Package which was voted on that is being downloaded and installed.
+
