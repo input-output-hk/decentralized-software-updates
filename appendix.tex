@@ -1,1 +1,49 @@
-\section{appendix}
+%\section{appendix}
+\subsection{Definition of Update Proposal Metadata}
+We define an Update Proposal to be a .tar file containing the update information and necessary files. The Update Proposal MUST contain a JSON document, the Update Manifest, named ''manifest.json'', which must exist at the root of the Update Proposal tree and constitutes the heart of the update meta-data. It can contain additional files and folders which are referenced by the manifest.
+
+\begin{itemize}
+
+\item[\textbf{name:}]A computer-readable name for the proposal for reference; this must only consist of the characters \verb;[a-z0-9_];.
+
+\item[\textbf{title:}] A human-readable title of the proposal
+
+\item[\textbf{description:}] A human-readable description of the proposal. This is recommended to be limited to one paragraph. A more extended rationale and discussion can be provided in the \emph{url} (see below).
+
+\item[\textbf{url:}] (optional) A URL pointing to a discussion forum in which the proposal is discussed and social consensus is reached. The URL can contain a BIP/EIP/RFC-style document, comments, and so on. It can be on reddit, GitHub, or other public fora that are typically used for such purposes. This URL is only used for human purposes and does not play any role in the actual update.
+
+\item[\textbf{sw\_version\_from:}] This is the software version that is required in order to apply this Update Proposal.
+
+\item[\textbf{sw\_version\_to:}] This is the software version after the activation of this Update Proposal
+
+\item[\textbf{prot\_version\_from:}] This is the consensus protocol version that is required in order to apply this Update Proposal.
+
+\item[\textbf{prot\_version\_to:}] This is the consensus protocol after the activation of the consensus rules changes of this Update Proposal.
+
+\item[\textbf{voting\_delay:}] Integer. The number of slots after the inclusion of the Update Proposal on the blockchain at which the signalling period starts.
+
+\item[voting\_duration:] Integer. The number of slots the voting period duration will equal to.
+
+\item[\textbf{activation\_delay:}] Integer. The number of slots after the voting period is over at which the activation slot occurs.
+
+\item[\textbf{consensus\_type:}] One of ''soft'', ''hard'', ''velvet'', or ''sidechain'', indicating the consensus rules change type for this version.
+\todo{Nikos: I think that sidechains is not a type of consensus rules changes as the rest, is a deployment mechanism}
+
+\item[\textbf{update\_type:}] One of ''Change Request'', ''New Feature'', or ''Bug Fix''. It denotes the type of the update.
+
+\item[\textbf{urgency:}] One of ''low'', ''medium'', or ''high''. It denotes the required speed of deployment. Hot fixes and bug fixes pertaining to security-critical updates must be marked as ''high''. All other updates must be marked as ''medium'' or ''low''. ''medium'' is reserved for minor version updates and bugfixes which are not security-critical, but may be affecting user experience. ''low'' is reserved for major version updates as well as any new features.
+
+\item[\textbf{tags:}] (optional) An array of tags. Each tag is a string satisfying the regular expression \verb;[a-z0-9_];. These tags can be used for selective governance vote delegation.
+
+\item[\textbf{apply:}] The filename of an ansible playbook \cite[ansible], which resides within the Update Proposal, to be executed when the update is to be applied. It is recommended to place the playbook in the root directory of the Update Proposal and call it \verb;apply.yml;.
+
+\item[\textbf{unapply:}] (optional) The filename of an ansible playbook, which resides within the Update Proposal, to be executed when the update is to be uninstalled. It is recommended to place the playbook in the root directory of the Update Proposal and call it \verb;unapply.yml;.
+
+\item[\textbf{depends:}] An array of strings containing the hashes of Update Proposals which must be applied prior to the particular Update Proposal. The current update cannot be applied unless the Update Proposals in depends have been installed. An empty array means that there are no dependencies.
+
+\item[\textbf{recommends:}] An array of strings containing the hashes of Update Proposals which are recommended to have been applied prior to the particular Update Proposal. While not necessary if the user doesn’t want to install them, these updates will work well if installed prior to the current update.
+
+\item[\textbf{conflicts:}] An array of strings containing the hashes of Update Proposals which conflict with the new proposal. If any updates in the conflicts array have already been installed, the current update cannot be installed, unless the updates have been uninstalled. An empty array means that there are no conflicts.
+
+
+\end{itemize}

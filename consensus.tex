@@ -1,9 +1,20 @@
-\section{Consensus}
+\section{Update Consensus}
+As we have seen, the various Update Events are stored as new type transactions into blocks and thus are committed to the blockchain, along with the ''common'' transactions. This means that the update protocol's consensus mechanism coincides with that of the Blockchain, in which the update events are stored.
+
+\todo{Nikos: Our ''update events'' are stored into regular blocks and thus follow the blockchain consensus. So the order of the update events, which essentially defines what update will be applied first and what second, follows the blockchain consensus. How do we know that this order of events respects the dependencies and conflicts recorded in the Update Proposal metadata?
+We need to have validation rules that will order update events in such a way that will not allow invalid upgrade paths and that will lead to a global ''update consensus'', where all nodes follow the same upgrade path} 
+
 \subsection*{Integration with Proof-of-Stake Protocols}
 \begin{itemize}
-\item How is the voting protocol integrated with a PoS protocol?
-\item How is the change of stake distribution affects the update governance?
-\item Can we integrate also with PoW protocols? Is our protocol “consensus agnostic”?
+\item How does the voting protocol integrate with a PoS protocol?
+\item How does the change of stake distribution affect the update governance?
+\item Can we integrate also with PoW protocols? Is our protocol ''consensus agnostic''?
 \end{itemize}
 
+
 \subsection*{Integration with the Ouroboros Family of Protocols}
+\begin{itemize}
+\item Time Synchronization (Epochs, Slots etc.)
+\item Randomness generated in each epoch (do we need it?)
+\item Chain validation and consensus
+\end{itemize}

@@ -1,39 +1,95 @@
 \section{Update Governance}
+The arrival of a UIRT transaction essentially signals the start of the voting period for the specific Update Proposal. A user can configure their node to determine whether they wish to vote on Update Packages, or whether they wish to delegate their votes, in which case they are allowing others to vote in their stead. They are given the following options:
+
+\begin{itemize}
+\item[\textbf{Vote locally:}] When a UIRT is received, the user is notified by their client and is expected to issue their vote.
+\item[\textbf{Vote delegation:}] When a UIRT is received, the user adopts the vote of the key that they delegate their vote to. The key that they delegate to which takes the final decision is called the \emph{Voting Leader}.
+\end{itemize}
+
+\subsubsection*{Voting locally} 
+
+The user's vote can be issued by selecting the ''upvote'' or ''downvote'' button after inspecting the proposal details, including the title, description, and Update Package contents. It should be clearly communicated to the user that they are expected to technically validate the contents of the package or rely on someone to do so. If they wish to vote locally but do not have the technical skills to audit the details of the Update Proposal, they should ensure that the person who vouches for the proposal that they will vote for includes the Update Proposal hash and communicates it in a secure manner. Unlike Bitcoin and Ethereum, votes can be both ''for'' or ''against''. This is necessary for allowing vote delegation to be revocable prior to being cast.
+
+\subsubsection*{Voting delegation}
+
+Delegation is different for mining and for voting; a certain key can delegate for mining to a specific pool and for voting on a specific voting leader. Furthermore, it is possible to do multi-step delegation in which a user delegates to a key, which delegates to a different key, as many times as needed. Multi-step delegation is politically necessary to implement the principle of \emph{re-delegation} of \emph{liquid democracy} \cite{liqdemocracy}.
+
+Delegation does not have a barrier to entry. This is according to the principle of Low barrier to participation of liquid democracy. Contrary to mining pools, the key to which delegation is made does not need to hold any stake.
+
+When delegating one's vote, the Voting Leader is required to cast their vote at least 12k slots prior to the voting period end. When a Voting Leader casts their vote, the adopters of that vote are notified of the leader's opinion and can revoke their vote delegation prior to it being cast (and vote contrary to the leader's opinion).
+Voting delegation can follow specific specialization rules. The voting delegation can be configured by proposal tags through a set of rules. These rules, in their simplest form, can assign a general delegatee, as well as more specific delegatees per tag, urgency, or consensus type. For instance, one could indicate that their general delegatee is Alice, while Update Proposals tagged as Hard Forks are delegated to Bob.
+
+Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
+
 \subsection*{Voting Protocol}
+We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
+
+\begin{verbatim}
+voting_begin_time = issuance_time + voting_delay
+\end{verbatim}
+
+The voting period ends at the slot index indicated by voting\_end\_time, which is defined as follows:
+
+\begin{verbatim}
+voting_end_time = voting_begin_time + voting_duration
+\end{verbatim}
+
+The voting transaction contains the following data:
 \begin{itemize}
-\item A voting protocol must be proposed that will enable an update consensus on. I.e., a community agreement on the priorities of the Update Proposals. 
-\item The protocol must be secure and provide an incentivization scheme that will guarantee safety for the voting results, in an open and truly decentralized setting.
-\item Need to define the vote transaction
+\item[\textbf{proposal:}] The hash of the proposal which this vote references.
+\item[\textbf{confidence:}] Boolean. ''true'', if the vote is in favour of the proposal, or ''false'', if the vote is against the proposal.
+\item[\textbf{pk:}] The public key which is casting the vote.
+\item[\textbf{sig:}] A cryptographic signature made with pk on the plaintext consisting of the tuple (proposal, confidence).
 \end{itemize}
 
-\textbf{Pre-voting Stage:}
-\begin{itemize}
-\item All users should be able to submit an Update Proposal.
-\item Update Proposals include source code and appropriate metadata describing sufficiently the Update.
-\item An \textbf{incentive scheme} must be in place that will guarantee that users wont submit malicious updates 
-\item Voters should be able to delegate their voting right (proportional to their stake) for a specific Update Proposal to some other user, without loosing the ownership of their value.
-\end{itemize}
+Note that in order to vote, one does not need to generate a block. This is so that delegates can vote despite not having sufficient stake to mine.
 
-\textbf{Voting Stage:}
-\begin{itemize}
-\item All users should be able to vote for or against an Update Proposal
-\item The voting power must be proportional to stake.
-\item An \textbf{incentive scheme} must be in place that will guarantee that users will vote in such a way that the Update Priorities set will be beneficial to the Blockchain system.
-\end{itemize}
+After the slot voting\_end\_time has arrived, the votes are tallied and an outcome is decided. First, the local votes are counted. The tallying is performed as follows: For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the staking key for that transaction has been tallied on a local vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every UPVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{local stake in favour} and the \emph{local stake against}. Together, these form the \emph{participating local stake}.
 
-\textbf{Post-voting Stage:}
-\begin{itemize}
-\item A tallying procedure must be defined that will guarantee a secure and trusted election result for each Update Proposal
-\item In order for an Update Proposal to become adopted there should be a minimum percent of stake that has voted for this proposal and a minimum percent of abstaining stake. These thresholds must be differentiated according to the type of change (bug-fix, change request, severity etc.) and to the Update Policy adopted for this proposal.
-\item Deployment and Activation. See corresponding paragraph below.
-\end{itemize}
+Subsequently, the delegated votes are counted. For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; \verb;- 12k; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discounted and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a local vote; if the delegating key has also cast a local vote, then the local vote is counted instead of the delegated vote. For each delegatable UPVT which has been counted, the stake delegating to it which hasn't issued a local vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{participating delegated stake}.
+
+The sum of the local stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{participating stake}. The stake which is not included in the participating stake is the \emph{abstaining stake}.
+
+The proposal is marked as \emph{adopted} at the end of the voting period if the abstaining stake is less than 50\% of the total stake and the stake in favour is more than 75\% of the participating stake. Otherwise, the proposal is marked as \emph{rejected}.
+\todo{Nikos: we need to conclude on the thresholds}
+
+
+%\begin{itemize}
+%\item A voting protocol must be proposed that will enable an update consensus on. I.e., a community agreement on the priorities of the Update Proposals. 
+%\item The protocol must be secure and provide an incentivization scheme that will guarantee safety for the voting results, in an open and truly decentralized setting.
+%\item Need to define the vote transaction
+%\end{itemize}
+%
+%\textbf{Pre-voting Stage:}
+%\begin{itemize}
+%\item All users should be able to submit an Update Proposal.
+%\item Update Proposals include source code and appropriate metadata describing sufficiently the Update.
+%\item An \textbf{incentive scheme} must be in place that will guarantee that users wont submit malicious updates 
+%\item Voters should be able to delegate their voting right (proportional to their stake) for a specific Update Proposal to some other user, without loosing the ownership of their value.
+%\end{itemize}
+%
+%\textbf{Voting Stage:}
+%\begin{itemize}
+%\item All users should be able to vote for or against an Update Proposal
+%\item The voting power must be proportional to stake.
+%\item An \textbf{incentive scheme} must be in place that will guarantee that users will vote in such a way that the Update Priorities set will be beneficial to the Blockchain system.
+%\end{itemize}
+%
+%\textbf{Post-voting Stage:}
+%\begin{itemize}
+%\item A tallying procedure must be defined that will guarantee a secure and trusted election result for each Update Proposal
+%\item In order for an Update Proposal to become adopted there should be a minimum percent of stake that has voted for this proposal and a minimum percent of abstaining stake. These thresholds must be differentiated according to the type of change (bug-fix, change request, severity etc.) and to the Update Policy adopted for this proposal.
+%\item Deployment and Activation. See corresponding paragraph below.
+%\end{itemize}
 
 
 \subsection*{Delegation Protocol}
-In the case where a voter does not want to vote for an update proposal, or does not have the necessary expertise to evaluate a proposal and reach at a decision, he should have the ability to delegate his voting right to some other user. We need a delegation scheme within our voting protocol that will ensure a secure delegation mechanism that will result to a secure voting protocol.  
-\begin{itemize}
-\item A secure voting delegation protocol must be proposed to ensure voting for proposals even when there exist stakeholders that are not at a position to vote for themselves and need to delegate their voting right to some other user. 
-\item Also we need to describe if there is any connection of this delegation with the mining delegation.
-\item Also, what happens when a stakeholder is not live during update proposal voting
-\end{itemize}
+\todo{Nikos: We need to define the exact process for voting key delegation, the delegation protocol and the respective transactions.}
+
+%In the case where a voter does not want to vote for an update proposal, or does not have the necessary expertise to evaluate a proposal and reach at a decision, he should have the ability to delegate his voting right to some other user. We need a delegation scheme within our voting protocol that will ensure a secure delegation mechanism that will result to a secure voting protocol.  
+%\begin{itemize}
+%\item A secure voting delegation protocol must be proposed to ensure voting for proposals even when there exist stakeholders that are not at a position to vote for themselves and need to delegate their voting right to some other user. 
+%\item Also we need to describe if there is any connection of this delegation with the mining delegation.
+%\item Also, what happens when a stakeholder is not live during update proposal voting
+%\end{itemize}
 

@@ -1,8 +1,14 @@
 \section{Update Logic}
-\subsection*{Update Metadata} 
-We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
+\subsection*{Update Proposal Metadata} 
+An Update Proposal is inherently accompanied by meta-information that describes the proposal and sets it into the appropriate context. Therefore, we could say that every Update Proposal comprises a rich set of update meta-data that ultimately should drive the whole upgrade process.
 
-\subsection*{Update Logic Application}
+The update meta-data provide basic information such as the name and a description for the Update Proposal. Moreover, they declare the urgency of the update as well as its type (Change Request or bug-fix), in order to guide the prioritization of the update. They provide values for critical parameters of the Update protocol (e.g., the \verb;voting_duration;), as well as declare the type of consensus rule changes (hard fork, soft fork, velvet fork etc.). Finally, they declare the dependencies and the potential conflicts with other Update Proposals, which is a very useful information that should guide the software deployment process. This metadata-driven update process is  based on the notion of \emph{Update Policy}, which we will discuss further in the following subsections.
+A complete list of our proposed list of Update Proposal meta-data can be found in the Appendix. 
+
+
+%We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
+
+\subsection*{Software Deployment}
 \subsubsection*{Conflict Resolution}
 How do we ensure that multiple concurrent requests for updates are handled simultaneously in a way that
 \begin{itemize}
@@ -13,16 +19,27 @@ How do we ensure that multiple concurrent requests for updates are handled simul
 
 \subsubsection*{Dependencies}
 How do we impose respect for update dependencies, so that the system reaches a consistent state? 
+\todo{Nikos: Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
 
 \subsubsection*{Update Policies per type of updates}
+An \emph{Update Policy} is defined as the pair \emph{(Speed of Deployment, Method of Deployment)}. We need to differentiate the speed of deployment and the method of deployment based on: a) the type of change (bug -fix or change request), b) the part of the system that is affected by the change (consensus rules impact, or only software impact) and c) the urgency of the change (severity level)
+
+\todo{Nikos: We have 3 levels of speed: high, medium and low. What are our different deployment methods?}
+
 \begin{itemize}
 \item How do we discriminate between different types of updates (e.g., software vs. protocol, bug-fix vs. change request)
 \item We need to provide a different deployment path for each Type of Update. For example, critical hot-fixes might need to bypass some of the governance steps.
-\item We need to incorporate into our update logic the notions of bug Severity and “Required Speed of Deployment”
+\item We need to incorporate into our update logic the notions of bug Severity and ''Required Speed of Deployment''
 \end{itemize}
 
-\subsection*{Decentralized Storage}
-Update code and metadata must be stored in a decentralized manner and cannot be stored in the ledger. Storing updates in the cloud in centrally-owned servers undermines openness and decentralization. We need a secure P2P database/file-system solution that is smoothly integrated with the ledger.
+Also, deployment/activation time must vary according to the type of change. We see the following ''change categories'':
+\begin{itemize}
+\item Bug-fix vs. Change Request
+\item Consensus Protocol impact vs. No Impact
+\item High severity vs. Low severity
+\end{itemize}
 
-\subsection*{Update Security Guarantees}
-How do we ensure that the downloaded software is secure and the same with the Update Proposal that has been voted?
+\subsection*{Rollbacks}
+How can we smoothly rollback an update, in the case of a problem?
+
+

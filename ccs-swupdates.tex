@@ -23,6 +23,9 @@
 \documentclass[sigconf, anonymous]{acmart}
 \usepackage{preamble}
 
+%\usepackage{todonotes}
+\usepackage[obeyFinal,section]{easy-todo}
+
 \fancyhf{} % Remove fancy page headers 
 \fancyhead[C]{Anonymous submission \#9999 to ACM CCS 2019} % TODO: replace 9999 with your paper number
 \fancyfoot[C]{\thepage}
@@ -71,18 +74,21 @@
 \import{./}{logicarch.tex}
 \import{./}{ledgerenh.tex}
 \import{./}{governance.tex}
+\import{./}{deployment.tex}
 \import{./}{consensus.tex}
 \import{./}{updlogic.tex}
-\import{./}{deployment.tex}
+\import{./}{development.tex}
+\import{./}{privacy.tex}
 \import{./}{prototype.tex}
 \import{./}{conclusion.tex}
+
+% \listoftodos
 
 \ifshort\else
 \appendix
 \section*{Appendix}
 \import{./}{appendix.tex}
 \fi
-
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{ccs-sample}
