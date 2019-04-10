@@ -22,7 +22,8 @@ Voting delegation can follow specific specialization rules. The voting delegatio
 Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
 
 \subsection*{Voting Protocol}
-We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
+We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. 
+The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
 
 \begin{verbatim}
 voting_begin_time = issuance_time + voting_delay
@@ -43,6 +44,16 @@ The voting transaction contains the following data:
 \end{itemize}
 
 Note that in order to vote, one does not need to generate a block. This is so that delegates can vote despite not having sufficient stake to mine.
+\mnote{Michele: The voters need to pay a transaction to vote}.
+\paragraph{Assumptions.} We require the parties that cast a vote to remain active during all the voting
+period. This is a critical requirement since we want our protocol to be secure against \emph{adaptive corruption}. Roughly, this assumption ensures that at the moment of the tally the majority
+of the stake involved in the voting process is controlled by honest parties.
+We note that the latter holds due to the fact that the stake considered during the tally is the stake 
+that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
+the tally, without taking into account the stake that the voters had in the moment that the votes were casted.  
+
+
+\mnote{Do we allow also negative votes?}
 
 After the slot voting\_end\_time has arrived, the votes are tallied and an outcome is decided. First, the local votes are counted. The tallying is performed as follows: For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the staking key for that transaction has been tallied on a local vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every UPVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{local stake in favour} and the \emph{local stake against}. Together, these form the \emph{participating local stake}.
 
@@ -52,7 +63,7 @@ The sum of the local stake in favour and delegated stake in favour forms the \em
 
 The proposal is marked as \emph{adopted} at the end of the voting period if the abstaining stake is less than 50\% of the total stake and the stake in favour is more than 75\% of the participating stake. Otherwise, the proposal is marked as \emph{rejected}.
 \todo{Nikos: we need to conclude on the thresholds}
-
+\mnote{Let's go for the 50\% for now.}
 
 %\begin{itemize}
 %\item A voting protocol must be proposed that will enable an update consensus on. I.e., a community agreement on the priorities of the Update Proposals. 
