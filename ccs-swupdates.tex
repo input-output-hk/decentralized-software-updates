@@ -1,6 +1,6 @@
 \newif\ifanonymous
 \newif\ifshort
-\anonymoustrue
+%\anonymoustrue
 %\shorttrue
 
 
@@ -35,7 +35,9 @@
 \acmYear{2019}
 
 \settopmatter{printacmref=false, printccs=true, printfolios=true} % We want page numbers on submissions
+
 \newcommand{\mnote}[1]{{\color{blue}\small\sc Michele: #1}}
+\newcommand{\nnote}[1]{{\color{purple}\small\sc Nikos: #1}}
 
 
 \begin{document}
@@ -44,6 +46,7 @@
 
 
 \import{./}{abstract.tex}
+
 
 %\begin{abstract}
 %Your abstract should go here. You will also need to upload a plain-text abstract into the web submission form.
@@ -69,8 +72,8 @@
 
 %\input{ccs-body} % TODO: replace with your brilliant paper!
 
-\import{./}{abstract.tex}
 \import{./}{introduction.tex}
+\import{./}{lifecycle.tex}
 \import{./}{logicarch.tex}
 \import{./}{ledgerenh.tex}
 \import{./}{governance.tex}
