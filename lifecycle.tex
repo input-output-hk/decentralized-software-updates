@@ -8,10 +8,26 @@ An \emph{Update Proposal (UP)} is the unit of change for the blockchain software
     \label{lifecycle}
 \end{figure}
 
+\subsection{Ideation Phase}
+\nnote{The primary goal of this phase is to set the priorities and define the road-map for the system evolution}
+
+\subsection{Implementation Phase}
+\nnote{When source code is submitted for approval this is conceptually equivalent to a Github pull request}
+
+\nnote{The source code in order to be voted must include all previous approved UPs up to the moment of UP submission. This is conceptually equivalent to a merge of a Pull Request (i.e., of a branch implementing the UP) to the master (i.e., main) base branch, which accumulates all approved UPs. Although, in our case there is no single master branch, instead there are multiple different ''versions'' of master branches and the community must reach at a consensus, which one will prevail.}
+
+\subsection{Approval Phase}
+
+\nnote{The voter at this phase votes for three things: a) for the correspondence of the source code to the CIP (i.e., authenticity testing / security auditing), b) For the inclusion from the new source code of all previous approved UPs (i.e., regression testing), c) The correctness of the new code (i.e., testing)}
+
+\nnote{If there is also a binary upload for a specific platform for a UP, then the approval must vote for the authenticity and safety of the binaries as well. This might require a re-delegation to a specialized team for the specific platform. So this could be a separate vote}
+
+\subsection{Activation Phase}
+
 A UP starts its life as an idea for improvement of the blockchain system, which is recorded in a human readable simple text document, called the \emph{CIP}, which stands for \emph{Cardano Improvement Proposal}\footnote{We have used the Cardano \citep{cardano} blockchain system as an example of a stake-based ledger.}. A CIP includes basic information about a UP, such as the title, a basic description, the author(s) etc. Its sole purpose is to justify the necessity of the proposed software update and try to raise awareness and support from the community of users.
 
 A CIP is initially uploaded to some external (to the blockchain system) decentralized storage solution\footnote{We will come back to this in the corresponding section} and a hash id is generated, in order to uniquely identify it. This hash id is committed to the blockchain in a two-step approach following a hash-based commitment scheme, in order to preserve the rightful authorship of the CIP.
 
-Once the CIP is revealed a voting period for the specific proposal is initiated. Any stakeholder is eligible to vote for a CIP and the voting power will be proportional to his/her stake. Note that since a CIP is a document justifying the purpose and benefit of a proposed software update, it should not require in general sufficient technical expertise, in order for a stakeholder to review it and decide on his/her vote. A CIP after the voting period can either voted or rejected. Details on the voting protocol can be found in the relevant section.
+Once the CIP is revealed a voting period for the specific proposal is initiated. Any stakeholder is eligible to vote for a CIP and the voting power will be proportional to his/her stake. Note that since a CIP is a document justifying the purpose and benefit of a proposed software update, it should not require in general sufficient technical expertise, in order for a stakeholder to review it and decide on his/her vote. However, in the case that the evaluation of a CIP requires greater technical depth, then a voting delegation mechanism exists. This means that a stakeholder can delegate his/her voting rights to an appropriate group of experts. A CIP after the voting period can either voted or rejected. Details on the voting protocol can be found in the relevant section.
 
 
