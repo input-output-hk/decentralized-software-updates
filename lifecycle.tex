@@ -1,33 +1,59 @@
-\section{The Lifecycle of an Update Proposal}
-An \emph{Update Proposal (UP)} is the unit of change for the blockchain software. It must have a clear goal of what it tries to achieve and why it would be beneficial if applied to the system. Moreover it should have a clear scope. In Figure \ref{lifecycle}, we depict the full lifecycle of an Update Proposal.
+\section{The Lifecycle of Software Update}
+A \emph{software update (SU)} is the unit of change for the blockchain software. It must have a clear goal of what it tries to achieve and why it would be beneficial, if applied to the system. Moreover, it should have a clear scope. In Figure \ref{lifecycle}, we depict the full lifecycle of a software update following a decentralized approach.
+In this lifecycle, we identify four distinct phases: a) the \emph{ideation phase}, b) the \emph{implementation phase}, c) the \emph{approval phase} and d) the \emph{activation phase}. In this section, we briefly outline each phase and at the subsequent sections we provide all necessary details for realizing each phase in a decentralized setting.
+
+Interestingly, the phases in the lifecycle of a SU are essentially independent from the approach (centralized or decentralized) that we follow. They constitute intuitive steps in a software lifecycle process that starts from the initial idea conception and ends at the actual activation of the change on the client software. Based on this observation, one can examine each phase and compare the traditional centralized approach, used to implement it, to its decentralized alternative. 
 
 \begin{figure}[H]
-    \caption{The Lifecycle of an Update Proposal (UP)}
+    \caption{The lifecycle of a software update (a decentralized approach)}
     \centering
-    \includegraphics[width=0.9 \columnwidth,keepaspectratio]{figures/Update_Proposal_Lifecycle.pdf}
+    \includegraphics[width=0.9 \columnwidth,keepaspectratio]{figures/lifecycle_phases.pdf}
     \label{lifecycle}
 \end{figure}
 
-\subsection{Ideation Phase}
-\nnote{The primary goal of this phase is to set the priorities and define the road-map for the system evolution}
+\subsection{Ideation}
+%\paragraph{Scope of the phase.} 
+A SU starts as an idea. Someone captures the idea of implementing a change that will serve a specific purpose (fix a bug, implement a new feature, provide a change in the functionality, perform some optimization etc.). 
+The primary goal of this phase is to capture the idea behind a SU, then record the justification and scope of the SU in some appropriate documentation and finally come to a decision on the priority that will be given to this SU. 
+%In Figure \ref{lifecycle}, we call this documentation a \emph{SIP (Software  \footnote{''Software'' and ''System'' are two terms that could be considered equivalent for the scope of this paper and we intend to use them interchangeably. For example, a SIP could also stand for a System Improvement Proposal} Improvement Document)}.
 
-\subsection{Implementation Phase}
+%\paragraph{Centralized approach.}
+Traditionally, in the centralized approach, a SU is proposed by some central authority (original author, group of authors, package maintainer etc.), who essentially records the need for a specific SU and then decides when (or, in which version) this could be released. In many cases, (e.g., Bitcoin \cite{bitcoin}, Ethereum \cite{ethereum}) the relevant SU justification document (called BIP, or EIP respectively) is submitted to the community, in order to be discussed. Even when this ''social alignment'' step is included in this phase, the ultimate decision (which might take place at a later phase in the lifecycle), for the proposed SU, is taken by the central authority. Therefore, the road-map for the system evolution is effectively decided centrally. Moreover, this social consensus approach is informal (i.e., not part of a protocol, or output of an algorithm) and is not recorded on-chain as an immutable historical event.
+
+%\paragraph{Decentralized approach.}
+The ideation phase in the decentralized approach is depicted in Figure \ref{ideation}.
+
+\begin{figure}[H]
+    \caption{The ideation phase.}
+    \centering
+    \includegraphics[width=0.9 \columnwidth,keepaspectratio]{figures/ideation_phase.pdf}
+    \label{ideation}
+\end{figure}
+
+In the decentralized setting a SU starts its life as an idea for improvement of the blockchain system, which is recorded in a human readable simple text document, called the \emph{SIP (Software  \footnote{''Software'' and ''System'' are two terms that could be considered equivalent for the scope of this paper and we intend to use them interchangeably. For example, a SIP could also stand for a System Improvement Proposal} Improvement Document)}. The SU life starts by submitting the corresponding SIP to the blockchain. Any stakeholder can potentially submit a SIP and thus propose a SU. 
+%\emph{CIP}, which stands for \emph{Cardano Improvement Proposal}\footnote{We have used the Cardano \citep{cardano} blockchain system as an example of a stake-based ledger.}. 
+
+A SIP includes basic information about a SU, such as the title, a basic description, the author(s) etc. Its sole purpose is to justify the necessity of the proposed software update and try to raise awareness and support from the community of users. A SIP must also include all necessary information that will enable the SU validation against previous SUs (e.g., update dependencies or update conflict issues), or against prerequisites in order to be applied.
+
+A SIP is initially uploaded to some external (to the blockchain system) decentralized storage solution\footnote{We will come back to this in the corresponding section} and a hash id is generated, in order to uniquely identify it. This hash id is committed to the blockchain in a two-step approach following a hash-based commitment scheme, in order to preserve the rightful authorship of the SIP.
+
+Once the SIP is revealed a voting period for the specific proposal is initiated. Any stakeholder is eligible to vote for a SIP and the voting power will be proportional to his/her stake. Note that since a SIP is a document justifying the purpose and benefit of the proposed software update, it should not require in general sufficient technical expertise, in order for a stakeholder to review it and decide on his/her vote. However, in the case that the evaluation of a SIP requires greater technical depth, then a voting delegation mechanism exists. This means that a stakeholder can delegate his/her voting rights to an appropriate group of experts. A SIP after the voting period can either be voted or rejected. Details on the voting and delegation protocols can be found in the relevant section.
+
+Note that in the decentralized approach the ideation phase could very well be implemented by a treasury system (e.g., similar to the one proposed by Bingsheng et al. \cite{cryptoeprint:2018:435}). This would enable additionally the appropriate management of the funding of each SU.
+
+\subsection{Implementation}
 \nnote{When source code is submitted for approval this is conceptually equivalent to a Github pull request}
 
 \nnote{The source code in order to be voted must include all previous approved UPs up to the moment of UP submission. This is conceptually equivalent to a merge of a Pull Request (i.e., of a branch implementing the UP) to the master (i.e., main) base branch, which accumulates all approved UPs. Although, in our case there is no single master branch, instead there are multiple different ''versions'' of master branches and the community must reach at a consensus, which one will prevail.}
 
-\subsection{Approval Phase}
+\subsection{Approval}
 
 \nnote{The voter at this phase votes for three things: a) for the correspondence of the source code to the CIP (i.e., authenticity testing / security auditing), b) For the inclusion from the new source code of all previous approved UPs (i.e., regression testing), c) The correctness of the new code (i.e., testing)}
 
 \nnote{If there is also a binary upload for a specific platform for a UP, then the approval must vote for the authenticity and safety of the binaries as well. This might require a re-delegation to a specialized team for the specific platform. So this could be a separate vote}
 
-\subsection{Activation Phase}
+\subsection{Activation}
 
-A UP starts its life as an idea for improvement of the blockchain system, which is recorded in a human readable simple text document, called the \emph{CIP}, which stands for \emph{Cardano Improvement Proposal}\footnote{We have used the Cardano \citep{cardano} blockchain system as an example of a stake-based ledger.}. A CIP includes basic information about a UP, such as the title, a basic description, the author(s) etc. Its sole purpose is to justify the necessity of the proposed software update and try to raise awareness and support from the community of users.
 
-A CIP is initially uploaded to some external (to the blockchain system) decentralized storage solution\footnote{We will come back to this in the corresponding section} and a hash id is generated, in order to uniquely identify it. This hash id is committed to the blockchain in a two-step approach following a hash-based commitment scheme, in order to preserve the rightful authorship of the CIP.
-
-Once the CIP is revealed a voting period for the specific proposal is initiated. Any stakeholder is eligible to vote for a CIP and the voting power will be proportional to his/her stake. Note that since a CIP is a document justifying the purpose and benefit of a proposed software update, it should not require in general sufficient technical expertise, in order for a stakeholder to review it and decide on his/her vote. However, in the case that the evaluation of a CIP requires greater technical depth, then a voting delegation mechanism exists. This means that a stakeholder can delegate his/her voting rights to an appropriate group of experts. A CIP after the voting period can either voted or rejected. Details on the voting protocol can be found in the relevant section.
 
 
