@@ -22,7 +22,8 @@ How do we impose respect for update dependencies, so that the system reaches a c
 \todo{Nikos: Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
 
 \subsubsection*{Update Policies per type of updates}
-An \emph{Update Policy} is defined as the pair \emph{(Speed of Deployment, Method of Deployment)}. We need to differentiate the speed of deployment and the method of deployment based on: a) the type of change (bug -fix or change request), b) the part of the system that is affected by the change (consensus rules impact, or only software impact) and c) the urgency of the change (severity level)
+An \emph{Update Policy} is defined as the pair \emph{(Speed of Activation, Method of Deployment)}. We need to differentiate the speed of deployment and the method of deployment based on: a) the type of change (bug -fix or change request), b) the part of the system that is affected by the change (consensus rules impact, or only software impact), c) the urgency of the change (severity level)
+and d) soft vs. hard forks
 
 \todo{Nikos: We have 3 levels of speed: high, medium and low. What are our different deployment methods?}
 
