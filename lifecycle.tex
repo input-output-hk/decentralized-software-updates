@@ -30,7 +30,7 @@ The ideation phase in the decentralized approach is depicted in Figure \ref{idea
     \label{ideation}
 \end{figure}
 
-In the decentralized setting a SU starts its life as an idea for improvement of the blockchain system, which is recorded in a human readable simple text document, called the \emph{SIP (Software  \footnote{''Software'' and ''System'' are two terms that could be considered equivalent for the scope of this paper and we intend to use them interchangeably. For example, a SIP could also stand for a System Improvement Proposal} Improvement Document)}. The SU life starts by submitting the corresponding SIP to the blockchain by means of a special fee-supported transaction. Any stakeholder can potentially submit a SIP and thus propose a SU. 
+In the decentralized setting, a SU starts its life as an idea for improvement of the blockchain system, which is recorded in a human readable simple text document, called the \emph{SIP (Software  \footnote{''Software'' and ''System'' are two terms that could be considered equivalent for the scope of this paper and we intend to use them interchangeably. For example, a SIP could also stand for a System Improvement Proposal} Improvement Document)}. The SU life starts by submitting the corresponding SIP to the blockchain by means of a special fee-supported transaction. Any stakeholder can potentially submit a SIP and thus propose a SU. 
 %\emph{CIP}, which stands for \emph{Cardano Improvement Proposal}\footnote{We have used the Cardano \citep{cardano} blockchain system as an example of a stake-based ledger.}. 
 
 A SIP includes basic information about a SU, such as the title, a description, the author(s) etc. Its sole purpose is to justify the necessity of the proposed software update and try to raise awareness and support from the community of users. A SIP must also include all necessary information that will enable the SU validation against previous SUs (e.g., update dependencies or update conflict issues), or against any prerequisites required, in order to be applied.
@@ -53,7 +53,7 @@ Note that in the decentralized approach the ideation phase could very well be im
 The voting of a SIP is the green light signal for entering the implementation phase. This is the period where the actual implementation of a SIP takes place. So one could very roughly imagine this phase as a box, where a SIP comes in as input and source code implementing the SIP comes out as output.
 
 %\paragraph{Scope of this phase.}
-The scope of this phase is twofold: a) to develop the source code changes that implement a specific voted SIP and b) to execute a second voting delegation round, in order to identify the experts that will approve the new source code. At the end of this phase, the developer creates a bundle comprising the new source code and the accompanied metadata, which we call an \emph{update proposal (UP)}. The newly created UP must be submitted for approval, in order to move forward.
+The scope of this phase is twofold: a) to develop the source code changes that implement a specific voted SIP and b) to execute a second voting delegation round, in order to identify the experts that will approve the new source code. At the end of this phase, the developer creates a bundle comprising the new source code, the accompanied metadata and optionally produced binaries, which we call an \emph{update proposal (UP)}. The newly created UP must be submitted for approval, in order to move forward.
 
 %\paragraph{Centralized approach.}
 In the centralized setting, it is typical (in the context of an open source software development model), when a developer wants to implement a change, first to download from a central code repository the version of the source code that will be the base for the implementation and then, when the implementation is finished, to upload it to the same central code repository and submit a pull-request. The latter is essentially a call for approval for the submitted code. The central authority responsible for the maintenance of the code-base, must review the submitted code and decide, if it will be accepted, or not. Therefore, in the centralized approach the implementation phase ends with the submission of a pull-request.
@@ -69,7 +69,7 @@ a) there is not a centrally-owned code repository (since there is not a central 
     \label{implementation}
 \end{figure}
 
-In Figure \ref{implementation} we depict the decentralized implementation phase. Similar to the centralized case, the implementation of a change must be based on some existing code, which we call the base source code, which the developer must download locally, in order to initiate the implementation. However, in the decentralized setting there is not a centrally-owned code repository. All the approved versions of the code are committed into the blockchain. Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the developer-owned code repository provided in the UP metadata. We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution.
+In Figure \ref{implementation} we depict the decentralized implementation phase. Similar to the centralized case, the implementation of a change must be based on some existing code, which we call the base source code and the developer must download locally, in order to initiate the implementation. However, in the decentralized setting there is not a centrally-owned code repository. All the approved versions of the code are committed into the blockchain. Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the developer-owned code repository provided in the UP metadata. We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution.
 
 It is true that the review of source code is a task that requires extensive technical skills and experience. Therefore, it is not a task that can be assumed by the broad base of the stakeholders community. A voting delegation mechanism at this point must be in place, to enable the delegation of the strenuous code-approval task to some group of experts. In a similar logic with the delegation process, within the ideation phase, discussed above, the delegation process could be leveraged to implement different update policies per type of software update.
 
@@ -78,9 +78,54 @@ As we have seen, the voting approval of a SIP signals the beginning of the imple
 
 \subsection{Approval}
 
-\nnote{The voter at this phase votes for three things: a) for the correspondence of the source code to the CIP (i.e., authenticity testing / security auditing), b) For the inclusion from the new source code of all previous approved UPs (i.e., regression testing), c) The correctness of the new code (i.e., testing)}
+%\nnote{The voter at this phase votes for three things: a) for the correspondence of the source code to the CIP (i.e., authenticity testing / security auditing), b) For the inclusion from the new source code of all previous approved UPs (i.e., regression testing), c) The correctness of the new code (i.e., testing)}
 
-\nnote{If there is also a binary upload for a specific platform for a UP, then the approval must vote for the authenticity and safety of the binaries as well. This might require a re-delegation to a specialized team for the specific platform. So this could be a separate vote}
+%\nnote{If there is also a binary upload for a specific platform for a UP, then the approval must vote for the authenticity and safety of the binaries as well. This might require a re-delegation to a specialized team for the specific platform. So this could be a separate vote}
+
+%\paragraph{Scope of this phase.}
+The submission of an UP to the blockchain, as we have seen, is the semantic equivalent to a pull-request, in the decentralized approach. It is a call for approval. Indeed, the main goal of the approval phase is to approve the proposed new code; but what exactly is the approver called to approve for?
+
+The submitted UP, which as we have seen, is a bundle consisting of source code, metadata and optionally produced binaries, must satisfy certain properties, in order to be approved:
+\begin{itemize}
+\item
+\emph{Correctness and accuracy.} The UP implements correctly (i.e., without bugs) and accurately (i.e., with no divergences) the changes described in the corresponding voted SIP.
+
+\item \emph{Continuity.} Nothing else has changed beyond the scope of the corresponding SIP and everything that worked in the base version for this UP, it continues to work, as it did (as long as it was not in the scope of the SIP to be changed).
+
+\item \emph{Authenticity and safety.} The submitted new code is free of any malware and it is safe to be downloaded and installed by the community; and by downloading it, one downloads the original authentic code that has been submitted in the first place.
+
+\item \emph{Fulfillment of update constraints.} We call the dependencies of an UP to other UPs, the potential conflicts of an UP with other UPs and in general all the prerequisites of an UP, in order to be successfully deployed, \emph{update constraints}. The fulfillment, or not, of all the update constraints for an UP, determines the feasibility of this UP.
+\end{itemize}
+
+%essentially carries along some promises: a) the promise that implements correctly (i.e., without bugs) and accurately (i.e., with no divergences) the changes described in the corresponding voted SIP; b) the promise that nothing else has changed beyond the scope of the corresponding SIP and that everything that worked in the base version for this UP, it continues to work, as it did and c) that the submitted new code is free of any malware and it is safe to be downloaded and installed by the community.
+
+%\paragraph{Centralized approach.}
+From the centralized approach perspective the above properties of the new code that the approver has to verify and approve are not uncommon. In fact, one could argue that these are the standard quality controls in any software development model. The first property has to do with testing; testing that verifies that the changes described in the SIP have been implemented correctly and accurately. In the centralized approach this means that the main maintainer of the code has to validate that the new code successfully passes specific test cases, either by reviewing test results, of executed test cases, or by running tests on his/her own. Regardless, of the testing methodology or type of test employed (unit test, property-based test, system integration test, stress test etc.), this is the basic tool that helps the central authority to decide on the correctness and accuracy of the new code. 
+
+The second property for approving the new code has to do with not breaking something that used to work in the past. In software testing parlance, this is known as regression testing. Again, in the centralized approach, it is the main maintainer's responsibility to verify the successful results of regression tests run against the new code. 
+
+The third property has to do with the security of the new code and the authenticity of the downloaded software. The former calls for the security auditing of the new code. The latter, in the centralized case, is easy. Since, there is a trusted central authority (i.e., the main code maintainer), the only thing that is required, is for this authority to produce new binaries based on the approved source code, sign them and also the source code with his/her private key and distribute the signed code to the community. Then, the users only have to verify that their downloaded source code, or binaries, has been signed by the trusted party and if yes, then to safely proceed to the installation.
+
+Finally, the last property that has to be validated by the approver pertains to the fulfillment of the update constraints. All the prerequisites of an UP must be evaluated and also the potential conflicts triggered by the deployment of an UP must be considered. For example, an UP might be based on a version of the software that has been depreciated, or rejected; or, similarly, it might be based on a version that has not yet been approved. Moreover, it might require the existence of third party libraries that it is not possible to incorporate into the software (e.g., they require licenses, or are not trusted). Then, we have the potential conflicts problem. What if the deployment of an UP cancels a previously approved UP, without this cancellation to be clearly stated in the scope of the corresponding SIP? All these are issues that typically a code maintainer takes into consideration, in order to reach at a decision for a new piece of code.
+
+%\paragraph{Decentralized approach.}
+Once more, the essential part that differentiates the decentralized from the centralized approach is the lack of the central authority. All the properties that have to be validated basically remain the same but in this case the approval must be a collective decision.
+
+\begin{figure}[H]
+    \caption{The approval phase.}
+    \centering
+    \includegraphics[width=0.9 \columnwidth,keepaspectratio]{figures/approval_phase.pdf}
+    \label{approval}
+\end{figure}
+
+The approval phase in the decentralized approach is depicted in Figure \ref{approval}. As we have seen, an UP is a bundle consisting of source code, update metadata and optionally binaries produced from the source code, aiming at a specific platform (e.g., Windows, Linux, MacOS etc.). The update metadata have to include basic information about the update, its justification, they have to clearly state all update constraints and finally declare the type of the change (e.g., bug-fix, or change request, soft/hard fork etc.) and priority, in order to enable the appropriate \emph{update policy} (we will return to these concept in the relevant section). The UP bundle is uploaded to some developer-owned code repository and a unique hash id, from hashing the content of the UP is produced. This UP hash id is submitted to the blockchain, along with a link to the code repository.
+
+Similar to the ideation phase (where the corresponding SIP was submitted), the submission of a UP is a special fee-supported transaction that can be submitted by any stakeholder. The UP is committed to the blockchain following again a hash based commitment scheme, in order to preserve the rightful authorship of the UP.
+
+Once the UP is revealed the delegated experts (remember the delegation that took place during the implementation phase) for this UP, will essentially assume the role of the main code maintainer that we described in the centralized setting. In other words, they have to download the source code, metadata and possible binaries and validate the aforementioned properties. The tools (e.g., testing) that the experts have available for doing the validation are no different than the tools used by the main maintainer in the centralized approach. Moreover, if binaries for a specific platform have been uploaded by the UP submitter, then the delegated experts must go through the process of reproducing a binary from the source code and verifying that it matches (based on a hash code comparison) the one submitted. If not, then the submitted binary must be rejected and this will cause a rejection of the UP as a whole. So there must be some extra caution when binaries are submitted along with source code, since the metadata need to include sufficient information for the approver to be able to reproduce the same binaries per platform.
+
+Therefore the revealing of a UP, initiates a voting period for the specific proposal, in which the delegated experts must validate \emph{all} the UP properties posed and approve, or reject it, with their vote. Any stakeholder is eligible to vote for an UP and the voting power will be proportional to his/her stake. If a stakeholder wishes to cast a vote, although he/she has already delegated this right to an expert, then this vote will override the delegates vote. Votes are specialized fee-supported transactions, which are committed to the blockchain. We will return to the voting protocol in the relevant section.
+
 
 \subsection{Activation}
 
