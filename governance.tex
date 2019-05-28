@@ -21,7 +21,7 @@ Voting delegation can follow specific specialization rules. The voting delegatio
 
 Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
 
-\subsection*{Voting Protocol}
+\subsection{Voting Protocol}
 We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. 
 The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
 
@@ -94,7 +94,7 @@ The proposal is marked as \emph{adopted} at the end of the voting period if the 
 %\end{itemize}
 
 
-\subsection*{Delegation Protocol}
+\subsection{Delegation Protocol}
 The delegation protocol will be used in order to 
 a) Help voters when technical expertise is required and
 b) Realize the concept of update policies (i.e., enabling different deployment speeds for different types of SUs).

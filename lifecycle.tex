@@ -126,9 +126,37 @@ Once the UP is revealed the delegated experts (remember the delegation that took
 
 Therefore the revealing of a UP, initiates a voting period for the specific proposal, in which the delegated experts must validate \emph{all} the UP properties posed and approve, or reject it, with their vote. Any stakeholder is eligible to vote for an UP and the voting power will be proportional to his/her stake. If a stakeholder wishes to cast a vote, although he/she has already delegated this right to an expert, then this vote will override the delegates vote. Votes are specialized fee-supported transactions, which are committed to the blockchain. We will return to the voting protocol in the relevant section.
 
-
 \subsection{Activation}
 
+%\paragraph{Scope of this phase.}
+The final phase in the lifecycle of a software update, depicted in Figure \ref{lifecycle}, is the activation phase. This is a preparatory phase before the changes actually take effect. It is the phase, where we let the nodes do all the manual steps necessary, in order to upgrade to an approved UP and at the end, send a signal to their peers that they are ready for the changes to be activated. Thus, the activation phase is clearly a signaling period. Its primary purpose is for the nodes to signal upgrade readiness, before the actual changes take effect (i.e., activate). 
 
+Why do we need such a signaling period in the first place? Why is not the approval phase enough to trigger the activation of the changes? The problem lies in that there are manual steps involved for upgrading to the new software, such as downloading and building the software from source code, which entail delays that are difficult to foresee and standardize. This results into the need for a synchronization mechanism between the nodes that upgrade concurrently. The lack of such a synchronization between the nodes, prior to activation, might cause a chain split. This synchronization mechanism exactly is the activation phase and for this, it is considered very important. 
 
+Clearly, the activation phase is not aimed as a re-approval phase for the UP. It is there to allow a smooth incorporation of the software update into the network. Therefore it becomes relevant only for those UPs that impact the consensus and can risk a chain split. For UPs that don't impact the consensus (e.g., a code refactoring, or some short of optimization, or even a change in the consensus protocol rules, which is a velvet fork \cite{velvet}) there is essentially no need for an activation phase and the change can activate, as soon as the software upgrade takes place.
+
+%\paragraph{Centralized approach.}
+Traditionally, when a software update needs to be activated and it is known that it is likely to cause a chain split, a specific target date, or better, a target block number is set, so that all the nodes to get synchronized. Indeed, this is a practice followed by Ethereum \cite{ethereum}. All major releases have been announced enough time before the activation, which takes place when a specific block number arrives (i.e., the corresponding block is mined). All nodes must have upgraded by then, otherwise they will be left behind. In Bitcoin \cite{bitcoin}, there also exists a signaling mechanism\footnote{see BIP-9 at https://github.com/bitcoin/bips/blob/master/bip-0009.mediawiki}. In this case, the activation takes place, only if a specific percentage of blocks (95\%) within a retargeting period of 2016 blocks, signal readiness for the upgrade. 
+
+%\paragraph{Decentralized approach.}
+Once the UP approval result has been buried under a sufficient number of blocks (i.e., the stabilization period passes), then the activation period is initiated. In Figure \ref{activation}, we depict the activation period in the decentralized setting.
+
+\begin{figure}[H]
+    \caption{The activation phase.}
+    \centering
+    \includegraphics[width=0.9 \columnwidth,keepaspectratio]{figures/activation_phase.pdf}
+    \label{activation}
+\end{figure}
+
+The first step in the activation phase is the installation of the software update. Typically, as soon as the UP approval is stabilized in the blockchain, the GUI of the client software (e.g., the wallet) prompts the user to download and install the update, using the link that accompanies the UP. If in the UP bundle there exist an approved binary, then the user can download and install this, otherwise the user must download the approved source code. In the latter case, there exist an extra step of producing the binary code from the source code. In any case, it is important to note that the new software is just installed but not activated. It will remain in a latent state until the actual activation takes place.
+
+For the nodes participating in the consensus protocol the installation of a software update means that they are ready to activate, but wait to synchronize with their other peers. To this end, they initiate signaling. This means that every new block issued will be stamped with the new version of the software, signifying their readiness for the new update.
+
+When the first block with the new version appears, we enter the adoption period for the specific UP. During the adoption period the following conditions have to be met, in order for the activation to take place: a) The number of blocks with a signal must exceed a specific threshold, b) the update constraints for the specific UP must be fulfilled and c) the adoption time period must not be exceeded, otherwise the UP will become expired. 
+
+The blocks generated in a proof-of stake protocol are proportional to the stake and therefore, we can assume that the signaling mechanism is also proportional to the stake. We can also assume that the honest stake majority, will follow the protocol and eventually will upgrade and thus signal this event with their generated blocks. This means that the minimum expected percent of signals (i.e., the activation threshold) cannot be other that the minimum percent of honest stake majority required by the proof-of-stake consensus protocol. Of course, as we have noted above, for changes that don't impact the protocol, the activation threshold could be zero; meaning that even if only one node upgrades, then the changes can be immediately activated.
+
+Moreover, the adoption time period is not fixed for all UPs. It varies based on the type of the change, which is something recorded in the UP metadata. One size does not fit all, and this is indeed true for the adoption time period of UPs. For example, major updates that require a lot of manual steps, or significant build time, or even hardware upgrade, should be adopted in a sufficient period of time, while small updates should be activated more swiftly.
+
+Finally, before the actual activation of a change, the validation of all the update constraints must take place once more. This is true, although we make the assumption that from the approval phase all relevant update constraints' issues (like conflicts, or dependencies) have been considered. The fact that the adoption period might require significant time for a UP, whose update constraints were fulfilled at the approval phase, while concurrently there are other UPs that become activated, means that the conditions might have changed and the update constraints must be reevaluated to make sure that no problems will arise upon activation of a UP.
 
