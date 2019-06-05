@@ -1,13 +1,35 @@
 \section{Ledger Enhancements}
 
-\subsection*{Recording the History of Updates}
-We use the ledger as the single version of the truth for software updates. To this end, we enhance the ledger with new types of events to be permanently recorded in the immutable history of updates. An update starts its life with the issuance of an \emph{Update Proposal} by a stakeholder. This proposal must achieve the consensus of the majority of stake, through a voting mechanism, in order to become adopted. In this section, we will follow the course of an Update Proposal through out its full lifecycle.
+\subsection{Recording the History of Updates}
+%\paragraph{motivation - what we want to do}
+The historical tracking of software updates is very important. This is not only for the obvious reasons of reporting and statistical analysis but also for troubleshooting. Maintaining a log of all SUs is critical, when something has gone wrong and we want to investigate the root-cause. We use the ledger as the single version of the truth for software updates. But why is this necessary? Why we could not just use some off-chain logging mechanism to record all update events?
 
-\todo{Nikos: What events will be stored 
-as transactions in the ledger? 
-Candidates are: Update Proposals, Votes ,Delegations ,Activations}
+In a centralized setting, a simple logging mechanism would be enough. However, software updates in a decentralized setting, as we have seen, have a decentralized governance mechanism. In this case, we do not need only to record what software updates and when, these have been applied, but also how and when, they have been approved by the community. Moreover, this historical fact must be an immutable event that cannot be tampered with, because that would alter the evolution history of the system. Finally, in the decentralized approach there is no central owner of the code and thus, this history cannot be under central control. The historical records  must be stored in some repository, which must be inherently distributed. So, for these reasons, we propose the ledger as the home for the events generated in the lifecycle of a software update.
 
-\subsection*{Update Proposals}
+%\paragraph{scope}
+To this end, we enhance the ledger with new types of events to be permanently recorded in the immutable history of updates. Moreover, we propose the maintenance of some local stake for software updates. This stake will provide necessary information to the update protocol without the need to access old blocks for reading individual events. This state can be calculated anytime from the events stored on the blockchain and therefore there is no need to store it on-chain. In this section, we will follow the course of a software update through out its lifecycle, as this has been described in the previous section, and describe in detail the events that will be generated along the way and those that need to be stored on-chain, in the distributed ledger, as well as to be maintained as local state.
+
+%\todo{Nikos: What events will be stored 
+%as transactions in the ledger? 
+%Candidates are: Update Proposals, Votes ,Delegations ,Activations}
+
+\subsection{Software Improvement Proposals}
+   A software update starts its life with the issuance of a \emph{SIP document} by a stakeholder. This proposal must achieve the consensus of the majority of stake, through a voting mechanism, in order to become adopted... 
+\subsubsection{Submission}
+\subsubsection{Voting}
+\subsubsection{Local State}
+
+\subsection{Update Proposals}
+\subsubsection{Submission}
+\subsubsection{Voting}
+\subsubsection{Local State}
+
+\subsection{Activation Events}
+\subsubsection{Signals}
+\subsubsection{Adoption}
+\subsubsection{Local State}
+
+\subsection*{Update Proposals - Old stuff}
 An Update Proposal can be issued by any party that owns stake. The party first creates the Update Proposal, hashes it, and uploads it to a decentralized storage service (to be discussed in later sections). Subsequently, they place the Update Proposal on the Blockchain.
 
 We introduce a new type of transaction, an \emph{Update Issuance Commit Transaction (UICT)}, which commits the Update Proposal to the blockchain. Since it is a transaction it will be included into a block and thus into the ledger. The UICT contains the following data:
@@ -43,7 +65,7 @@ The reason why the Update Proposal is issued on the blockchain in two stages, wi
 
 The slot at which the UIRT of an Update Proposal has been included is referred to as the \emph{issuance-time} of the proposal. After a UIRT transaction is validated, the node automatically attempts to download the Update Proposal, by hash, from the Decentralized Storage service. The node hashes the downloaded content to ensure that the hash included in the blockchain matches the hash of the downloaded content.
 
-\subsection*{Update Proposal Validation}
+\subsection*{Update Proposal Validation  - Old stuff}
 \todo{Nikos: We need to define the rules for a legitimate Update Proposal}
 For example, a legitimate Update Proposal cannot have a dependency with an Update Proposal who has not been activated yet. So the version requirement of an Update Proposal must be the current adopted version.
 \begin{verbatim}
@@ -53,6 +75,3 @@ prot_version_from == current_prot_version
 \end{verbatim}
 
 \todo{Nikos: Just validating an Update Proposal when it is revealed is not enough. It has to remain valid also right before activation}
-
-\subsection*{Update Proposal Lifecycle}
-\todo{Nikos: We need a state diagram of the various states in the life of an update proposal. What are the valid states?}

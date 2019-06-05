@@ -1,4 +1,33 @@
 \section{Update Governance}
+
+\nnote{In this section we need to describe the mechanism that we use for governing the software update process, namely: voting, delegation and how we eventually reach at a consensus}
+
+\subsection{Voting for Software Updates}
+
+\nnote{this subsection must include both the SIP and the UP voting according to the lifecycle}
+
+\nnote{we need to talk about all the details and assumptions of the voting protocol, e.g.,stake distribution changes, fees, honest majority assumption, voting threshold etc.}
+
+\subsection{Delegation}
+
+\subsubsection{Delegation for Technical Expertise}
+
+\nnote{E.g., for code review and approval we can adopt a default delegation scheme}
+
+\subsubsection{Delegation for Update Specialization}
+  
+\nnote{Describe how we use delegation for enabling voting for specialized UPs (e.g., platform specific)}
+
+\subsubsection{Default Delegation for Availability}
+   
+\nnote{describe how we solve the availability problem based on default delegation}
+
+\subsection{Update Consensus Protocol}
+
+\nnote{Need to describe how we eventually reach a consensus for the priorities of the updates that will be applied. We need a high level description of our protocol.}
+\nnote{Also, integration with the PoS consensus protocol must be described in this section}
+
+\section*{Update Governance -- old stuff}
 The arrival of a UIRT transaction essentially signals the start of the voting period for the specific Update Proposal. A user can configure their node to determine whether they wish to vote on Update Packages, or whether they wish to delegate their votes, in which case they are allowing others to vote in their stead. They are given the following options:
 
 \begin{itemize}
@@ -21,7 +50,7 @@ Voting delegation can follow specific specialization rules. The voting delegatio
 
 Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
 
-\subsection{Voting Protocol}
+\subsection*{Voting Protocol -- old stuff}
 We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. 
 The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
 
@@ -94,7 +123,7 @@ The proposal is marked as \emph{adopted} at the end of the voting period if the 
 %\end{itemize}
 
 
-\subsection{Delegation Protocol}
+\subsection*{Delegation Protocol - old stuff}
 The delegation protocol will be used in order to 
 a) Help voters when technical expertise is required and
 b) Realize the concept of update policies (i.e., enabling different deployment speeds for different types of SUs).
