@@ -1,6 +1,12 @@
 \section{Update Governance}
 
-\nnote{In this section we need to describe the mechanism that we use for governing the software update process, namely: voting, delegation and how we eventually reach at a consensus}
+%\nnote{In this section we need to describe the mechanism that we use for governing the software update process, namely: voting, delegation and how we eventually reach at a consensus}
+
+%\paragraph{What is update governance. Why we should care?}
+With the term \emph{update governance} we mean the processes used to control the software updates mechanism. As we have seen, in the centralized setting, update governance is quite straightforward. The mere existence of a central authority (owner of the code) simplifies decision making significantly. On the other side, in the decentralized approach, we have seen that all decision-making procedures have been replaced by a voting process, where a decision is taken collectively by the whole stake. Thus, we are dealing with a \emph{decentralized governance model}.
+
+%\paragraph{What is the scope of the sections that follow?}
+It is true that in the decentralized setting the tools that one has at one's disposal for controlling the software updates process, but more importantly, for leading the participating stakeholders at an \emph{update consensus}, i.e., to reach at an agreement regarding the acceptance or not of the updates and the order (i.e., priorities), by which these will be applied,  are the voting and delegation mechanisms. In this section, we describe both of these mechanisms and end with a high-level description of the software updates protocol that encompasses them.
 
 \subsection{Voting for Software Updates}
 
@@ -9,10 +15,19 @@
 \nnote{we need to talk about all the details and assumptions of the voting protocol, e.g.,stake distribution changes, fees, honest majority assumption, voting threshold etc.}
 
 \subsection{Delegation}
-
+Each stakeholder has the right to participate in the update protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval or rejection of SIPs or UPs and the signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation rights to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
 \subsubsection{Delegation for Technical Expertise}
+%\nnote{E.g., for code review and approval we can adopt a default delegation scheme}
+One of the first practical challenges that one faces, when dealing with the decentralized governance of software updates is the requirement of technical expertise, in order to assess a specific software update proposal. Indeed, even at the SIP level, many of the software update proposals are too technical for the majority of stake to understand. Moreover, during the UP approval phase, the approver is called for approving or rejecting the submitted source code, which is certainly a task only for experts.
 
-\nnote{E.g., for code review and approval we can adopt a default delegation scheme}
+Our proposal for a solution to this problem is to enable delegation for technical expertise. Stakeholders will be able to delegate their right to participate in the update protocol to an expert pool. A delegation to an expert pool comprises the following distinct responsibilities:
+\begin{itemize}
+\item The submission of any SIP
+\item The voting for a specific SIP
+\item The submission of a UP for a specific SIP
+\item The approval of a UP
+\item The upgrade signaling for a specific UP
+\end{itemize}
 
 \subsubsection{Delegation for Update Specialization}
   
@@ -21,6 +36,8 @@
 \subsubsection{Default Delegation for Availability}
    
 \nnote{describe how we solve the availability problem based on default delegation}
+
+\subsubsection{Delegation Mechanics}
 
 \subsection{Update Consensus Protocol}
 
