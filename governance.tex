@@ -6,7 +6,7 @@
 With the term \emph{update governance} we mean the processes used to control the software updates mechanism. As we have seen, in the centralized setting, update governance is quite straightforward. The mere existence of a central authority (owner of the code) simplifies decision making significantly. On the other side, in the decentralized approach, we have seen that all decision-making procedures have been replaced by a voting process, where a decision is taken collectively by the whole stake. Thus, we are dealing with a \emph{decentralized governance model}.
 
 %\paragraph{What is the scope of the sections that follow?}
-It is true that in the decentralized setting the tools that one has at one's disposal for controlling the software updates process, but more importantly, for leading the participating stakeholders at an \emph{update consensus}, i.e., to reach at an agreement regarding the acceptance or not of the updates and the order (i.e., priorities), by which these will be applied,  are the voting and delegation mechanisms. In this section, we describe both of these mechanisms and end with a high-level description of the software updates protocol that encompasses them.
+It is true that in the decentralized setting the tools that one has at one's disposal for controlling the software updates process, but more importantly, for leading the participating stakeholders towards an \emph{update consensus}, i.e., to reach at an agreement regarding the acceptance, or not, of the updates and the order (i.e., priorities), by which these will be applied,  are the voting and delegation mechanisms. In this section, we describe both of these mechanisms and end with a description of the software updates protocol that encompasses them.
 
 \subsection{Voting for Software Updates}
 
@@ -15,29 +15,55 @@ It is true that in the decentralized setting the tools that one has at one's dis
 \nnote{we need to talk about all the details and assumptions of the voting protocol, e.g.,stake distribution changes, fees, honest majority assumption, voting threshold etc.}
 
 \subsection{Delegation}
-Each stakeholder has the right to participate in the update protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval or rejection of SIPs or UPs and the signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation rights to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
+Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs and last the adoption signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation rights to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
 \subsubsection{Delegation for Technical Expertise}
 %\nnote{E.g., for code review and approval we can adopt a default delegation scheme}
-One of the first practical challenges that one faces, when dealing with the decentralized governance of software updates is the requirement of technical expertise, in order to assess a specific software update proposal. Indeed, even at the SIP level, many of the software update proposals are too technical for the majority of stake to understand. Moreover, during the UP approval phase, the approver is called for approving or rejecting the submitted source code, which is certainly a task only for experts.
+One of the first practical challenges that one faces, when dealing with the decentralized governance of software updates is the requirement of technical expertise, in order to assess a specific software update proposal. Indeed, even at the SIP level, many of the software update proposals are too technical for the majority of stake to understand. Moreover, during the UP approval phase, the approver is called for approving, or rejecting, the submitted source code, which is certainly a task only for experts.
 
-Our proposal for a solution to this problem is to enable delegation for technical expertise. Stakeholders will be able to delegate their right to participate in the update protocol to an expert pool. A delegation to an expert pool comprises the following distinct responsibilities:
+Our proposal for a solution to this problem is to enable delegation for technical expertise. Stakeholders will be able to delegate their right to participate in the update protocol to an \emph{expert pool}. The proposed delegation to an expert pool comprises the following distinct responsibilities:
 \begin{itemize}
-\item The submission of any SIP
 \item The voting for a specific SIP
-\item The submission of a UP for a specific SIP
-\item The approval of a UP
-\item The upgrade signaling for a specific UP
+\item The voting for a special category of SIPs 
+\item The voting for any SIP
+\item The approval of a specific UP
+\item The approval of a special category of UPs
+\item The approval of any UP
+\item The adoption signaling for a specific UP
 \end{itemize}
+As you can see, we distinguish delegation for voting for a SIP document and that for approving an UP. We could have defined delegation for SIP voting to imply also the approval of the corresponding UP. However, since both have a totally different scope, there might be a need to delegate to different expert pools for these two. Indeed, a SIP is an update proposal justification document and the expert who is called to vote for, or against, a specific SIP, must have a good sense of the road-map of the system. On the contrary, the approval of a UP is a very technical task, which deals with the review and testing of a piece of code against some declared requirements (i.e., the corresponding SIP) and has nothing to do with the software road-map.
 
-\subsubsection{Delegation for Update Specialization}
-  
-\nnote{Describe how we use delegation for enabling voting for specialized UPs (e.g., platform specific)}
+We allow voting for a specific SIP/UP, or for any SIP/UP. In the former case, the id of the specific SIP/UP must be submitted along with the delegation. In the latter case, if one wants to override the ''any'' delegation for a specific SIP/UP, then this is possible via the submission of a new delegation for a specific SIP/UP. 
+
+There is also delegation for special categories of SIP/UPs, as well as the delegation for the adoption signaling. These will be the topics that we will describe next.
+
+\subsubsection{Delegation for Specialization}
+%\nnote{Describe how we use delegation for enabling voting for specialized UPs (e.g., platform specific)}
+One size does not fit all and surely, all software updates are not the same. There are many different angles (a.k.a. dimensions) by which one can view software updates and distinguish them into different categories. For example, the reason for a SU can be such an angle (or dimension). A SU can be a bug-fix (or security fix), or it can be a change request (or a new feature request). Another dimension is the priority (high/medium/low) of the SU. Furthermore, in blockchain systems, a typical dimension for distinguishing SUs is the impact to the consensus protocol (impact/no-impact). Moreover, for those SUs that impact the consensus protocol, the type of change that they trigger (soft/hard fork) is another dimension. For those SUs that do not impact the consensus protocol another dimension could be, if they are platform specific (e.g., applicable only to Linux, Windows, MacOS etc.). 
+
+All these are valid ways to categorize software updates to certain categories. However, special categories might justify some specialized treatment. We do not propose any specific set of categories in this paper. However, we do propose that: a) software updates are tagged with a specific category and b) to use delegation for enabling specialized treatment on special categories.
+
+Let us consider for example security fixes. It is common sense, that security fixes are software updates that: a) have a high priority and b) require significant technical expertise to be evaluated. Therefore, by having a special expert pool as a \emph{default delegate} for this category of software updates (both SIPs and UPs) enables: a) a faster path to activation and b) sufficient expertise for the evaluation of such SUs.The former is due to the omission of the delegation step in the process and that the evaluation (i.e., voting of SIPs/UPs) will take place generally in shorter times; exactly because this is a specialized and experienced expert pool that deals only with security fixes; we assume that they can do it faster than anybody else.
+
+So, for software updates with a special tag, our proposal is, to have default specialized expert pools that will participate in the software updates protocol on behalf of the \emph{whole stake}. Of course, this default delegation based on SU tagging can be overridden. Any stakeholder can submit a different delegation for a specific SIP/UP regardless of its tag. Note that the ''any'' delegation described in the previous subsection does not override delegation for specialization. What about software updates without a special tag? These will be the topic of discussion of the next subsection.
 
 \subsubsection{Default Delegation for Availability}
-   
-\nnote{describe how we solve the availability problem based on default delegation}
+%\nnote{describe how we solve the availability problem based on default delegation}
+
+Blockchain protocols based on the Proof-of-Stake (PoS) paradigm are by nature dependent on the active participation of the digital assets' owners --i.e., stakeholders-- (Karakostas et. al. \citep{stakepools}). Practically, we cannot expect stakeholders to continuously participate actively in the software updates protocol. Some users might lack the expertise to do so, or might not have enough stake (or technical expertise) to keep their node up-and-running and connected to the network forever.
+
+One option to overcome this problem, which is typical in PoS protocols, is to enable stake representation, thus allowing users to delegate their participation rights to other participants and, in the process, to form
+''stake pools''(\cite{stakepools)}). The core idea is that stake pool operators are always online and perform
+the required actions on behalf of regular users, while the users retain the ownership of their
+assets (\cite{stakepools}). 
+
+In this paper, we propose to utilize the stake pools mechanism for our software updates protocol in tandem with the consensus protocol. In particular, we propose to allow each stakeholder to define a default delegate for participating in the software updates protocol from the list of available stake pools that participate in the core consensus protocol. This will be a ''baseline'' representative of each stakeholder to the software updates protocol, just for the sake of maintaining the participation to the protocol at a sufficient level and minimizing the risks of non-participation. A stakeholder will be able at any time to override this default delegation. In addition, delegation to stake pools will not impact delegation to expert pools, due to specialization, described in the previous subsection.
+
+Therefore, for each stakeholder, all software updates without a special category tag that have not been explicitly delegated to some expert pool, will be \emph{by default} delegated to the same stake pool that the stakeholder has delegated to run the  PoS consensus protocol. This will allow the stakeholder to be able to abstain from the software updates protocol, for periods of time, without causing a problem. This also has another suitable consequence.
+
+We have seen that one of the responsibilities of a stakeholder that participates in the software updates protocol, at the activation phase, is to signal the adoption of a UP. This signal is placed within each generated block after the node upgrades. We know that in a PoS consensus protocol blocks are generated by the stakeholders (with possibility proportional to their stake) and in a more realistic setting by the stake pools, which have been delegated to do so. So in practice, the stake pools are called for signaling the adoption event, merely because they are the block issuers. Therefore, the choice of stake pools as the default delegates for the software updates protocol, fits nicely with the fact that stake pools will be responsible for signaling adoption anyway. If a stakeholder has not delegated his participation to the PoS consensus protocol and is chosen to generate a block, then he/she will also be responsible for signaling the adoption of a specific UP. In other words, adoption signaling simply follows the delegation of the PoS consensus protocol.
 
 \subsubsection{Delegation Mechanics}
+\nnote{how we register delegation, how we unregister, rewards, fees, ...}
 
 \subsection{Update Consensus Protocol}
 
