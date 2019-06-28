@@ -16,7 +16,7 @@ It is true that in the decentralized setting the tools that one has at one's dis
 
 \subsection{Delegation}
 Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs and last the adoption signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation rights to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
-\subsubsection{Delegation for Technical Expertise}
+\subsubsection{Delegation for Technical Expertise}\label{delfortech}
 %\nnote{E.g., for code review and approval we can adopt a default delegation scheme}
 One of the first practical challenges that one faces, when dealing with the decentralized governance of software updates is the requirement of technical expertise, in order to assess a specific software update proposal. Indeed, even at the SIP level, many of the software update proposals are too technical for the majority of stake to understand. Moreover, during the UP approval phase, the approver is called for approving, or rejecting, the submitted source code, which is certainly a task only for experts.
 
@@ -82,20 +82,20 @@ Symmetrically, there is also a de-registration certificate for a stake key, whic
 
 \paragraph{Delegation registration.} 
 In order to register the delegation of stake from one party (source) to another (target), a delegation certificate must be issued and posted to the blockchain by the source party. This certificate publicly announces to the network that the source party wishes to delegate its stake rights (for participation in the proof-of-stake protocol) to the target party and this is recorded forever in the immutable history of the blockchain. 
-At a minimum a delegation certificate consists of the following information:
+At a minimum, a delegation certificate consists of the following information:
 $$
 (H(vks_{source}), H(vks_{target}), \sigma_{sks_{source}}(m))
 $$ 
-Where, $H(vks_{source})$ is the hash of the source party's public key, $H(vks_{target})$ is the hash of the target party's public key and $\sigma_{sks_{source}}(m)$ is the signature of the text $m$ of the transaction (within which the delegation certificate is embedded) by the source party's private key $sks_{source}$, which authorizes the certificate and plays the role of a witness.
+Where, $H(vks_{source})$ is the hash of the source party's public staking key, $H(vks_{target})$ is the hash of the target party's public staking key and $\sigma_{sks_{source}}(m)$ is the signature of the text $m$ of the transaction (within which the delegation certificate is embedded) by the source party's private staking key $sks_{source}$, which authorizes the certificate and plays the role of a witness.
 
-If at some point, the source party wishes to re-delegate to some other party, or even to participate in the protocol on its own, then it must simply issue a new delegation certificate. For self-participation in the protocol a party must issue a delegation certificate to its own \emph{private stake pool}\footnote{A \emph{private stake pool} is a trivial case of a stake pool. By treating self-staking as a special case of stake pool delegation is a design decision for simplicity \cite{deldesign}.}. The delegation certificate is revoked when the source staking key is de-registered.
+If at some point, the source party wishes to re-delegate to some other party, or even to participate in the protocol on its own, then it must simply issue a new delegation certificate. For self-participation in the protocol a party must issue a delegation certificate to its own \emph{private stake pool}\footnote{A \emph{private stake pool} is a trivial case of a stake pool. By treating self-staking as a special case of stake pool delegation is a design decision for the sake of simplicity \cite{deldesign}.}. If the source staking key is de-registered, then the delegation certificate is revoked.
 
-\subsubsection*{Delegation to an Expert Pool.}
-We have seen that by default the participation rights in the software updates protocol are delegated to the stake pool that the delegation for participation in the proof-of-stake consensus protocol has taken place. So by default, some stake pool will participate in the software updates protocol. Now we will discuss the case where a stakeholder wants to override the default behavior and explicitly delegate to an expert pool.
+\subsubsection*{Delegation to an Expert Pool}
+We have seen that by default, the participation rights in the software updates protocol are delegated to the stake pool that the delegation for participation in the proof-of-stake consensus protocol has taken place. So by default, some stake pool will participate in the software updates protocol. Next, we will discuss the case where a stakeholder wants to override the default behavior and explicitly delegate to an expert pool.
 
 An expert pool is an entity consisting of one or more experts, who are willing to participate in the software updates protocol as delegates of other stakeholders. Their main task is to vote for (or against) SIPs and to approve (or reject) UPs. We call them ''experts'', because they need to have sufficient technical expertise, in order to evaluate a software update.
 
-In order to enable delegation to an expert pool we extend the delegation certificate presented above, with additional information. In particular, a delegation certificate to an expert pool is defined as:
+In order to enable delegation to an expert pool, we extend the delegation certificate presented above, with additional information. In particular, a delegation certificate to an expert pool is defined as the following tuple:
 \begin{align*}
 (H(vks_{source}), \\
  H(vks_{target}), \\
@@ -105,35 +105,64 @@ In order to enable delegation to an expert pool we extend the delegation certifi
  <category>)
 \end{align*}
 
-In this case, the $H(vks_{target})$ is the address of the expert pool. We have extended the delegation certificate to include a boolean flag $SU_{Flag}$, which denotes if the delegation pertains to a SIP or a UP. We have explained above the rationale for distinguishing delegation for these two. Finally the hash $H(<SIP/UP>)$ is the hash of the content of the SIP or UP in question and plays the role of the unique id for this SIP or UP respectively. Note that if instead of a specific SIP/UP id, a special value is provided for this field (e.g., '*'), then this corresponds to a delegation for \emph{any} SU of this type (SIP or UP). Finally, if the SU id field is empty (or $NULL$, it depends on the implementation), then we take into account the last field, which specifies the \emph{category} of the SU (e.g., security-fix, linux-update, etc.) that, we wish to delegate for. This will be a simple string value among a fixed set of values (the list of acknowledged SU categories).
+In this case, the $H(vks_{target})$ is the hash of the public staking key of the expert pool. We have extended the delegation certificate to include a boolean flag $SU_{Flag}$, which denotes, if the delegation pertains to a SIP, or an UP. We have explained previously (see subsection \ref{delfortech}), the rationale for distinguishing the delegation for these two. Finally, the hash $H(<SIP/UP>)$ is the hash of the content of the SIP, or UP, in question and plays the role of the unique id for this SIP, or UP respectively. Note that if instead of a specific SIP/UP id, a special value is provided for this field (e.g., '*'), then this corresponds to a delegation for \emph{any} SU of this type (SIP or UP). Finally, if the SU id field is empty (or $NULL$, it depends on the implementation), then we take into account the last field, which specifies the \emph{category} of the SU (e.g., ''security-fix'', ''linux-update'', etc.) that, we wish to delegate for. This will be a simple string value chosen from a fixed set of values (a list of acknowledged SU categories). 
 
-\subsubsection*{Expert Pool Registration.}
-In order for someone to publicly announce his/her intention to play the role of an expert, or run an expert pool, two things are required: a)to issue an expert pool registration certificate and b)to provide appropriate \emph{metadata} describing the expert pool.
+In summary, with this certificate, a party can delegate its participation rights in the software updates protocol to an expert pool: a) for a specific software update (SIP or UP), b) for a specific category of software updates, or c) for any software update. Of course, in order for this delegation registration to be valid, the target expert pool must have first appropriately registered in the blockchain. This is the topic to be discussed next.
+
+\subsubsection*{Expert Pool Registration}
+In order for someone to publicly announce his/her intention to play the role of an expert, or equivalently, to run an expert pool, two things are required: a)to issue an expert pool registration certificate and b)to provide appropriate \emph{metadata} describing the expert pool.
 
 \paragraph{Expert pool registration certificate.}
+The certificate contains all the information that is relevant for the execution of the protocol. At its most basic form these comprise the following:
+\begin{itemize}
+\item $vks_{expool}$: This is the public staking key of the expert pool. This must be used as the target public key in the delegation certificate, as discussed in the previous subsection.
+
+\item $[H(vks_{sup_1}), H(vks_{sup_2}), ...,H(vks_{sup_p})] $: A list of $p$ public staking key hashes that aggregate to $P$ total stake. This is called the \emph{pledged stake} of the expert pool and is provided by some stakeholders that we call the \emph{expert pool supporters}. An expert pool registration must be backed up by some (pledged) stake $P$. This is simply a promise made by the expert pool that the pool will receive at least this minimum support by the stake of the supporters. For an expert pool to participate in the software updates (SU) protocol and get rewarded for this, it must be delegated at least $P$ stake from these $p$ stakeholders. If this threshold $P$ is not met (i.e., the pool is delegated less stake than $P$ from the list of $p$ stakeholders mentioned in the certificate), then no participation in the software updates protocol is allowed and thus, no rewards will be payed to the Expert pool. Note that this list in this certificate is not a delegation. The pledged stake must explicitly declare the delegation via issuing distinct delegation certificates, as described above.
+
+\item $(<URL>, H(<metadata>))$: A URL pointing to the metadata describing the expert pool and a content hash of these metadata. The URL points to some storage server and the hash of the content retrieved must match the one stored in the certificate for the pool registration to be considered as valid.
+
+\item $[\sigma_{sks_{expool}}(m),\sigma_{sks_{sup_1}}(m),...,\sigma_{sks_{sup_p}}(m)]$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ and by all the $p$ supporter stakeholders $sks_{sup_i}, i \in [1,p]$, on the text $m$ of the transaction that includes the certificate.  
+\end{itemize} 
+
+Symmetrically, there should be also an \emph{expert pool retirement certificate} for allowing an expert pool to cease to operate. This should include the public staking key of the expert pool, as well as a time indication (e.g., expressed in block number, or an epoch number etc.) of when the pool will cease to operate.
 
 \paragraph{Expert pool metadata.}
+The expert pool metadata are necessary information that describe sufficiently an expert pool, so as the stakeholders community can decide, which expert pool to choose for their delegations. Typically, this information will be displayed by the wallet application, in order to assist the users to select the expert pool of their choice. Examples of useful information to be included in the expert pool metadata are the name of the pool, a short description, the area of expertise, the years of expertise, preferences to specific SU categories, URLs to sites that exhibit the claimed experience and in general any information that can help the stakeholders to choose the appropriate delegate for the right software update.
+
+\paragraph{Pledged stake rationale.}
+In a centralized setting, a new expert pool, in order to establish a certain level of trust from the community of stakeholders, on its credentials, would typically provide some reference from a trusted third party authority. In the decentralized approach, the role of this trusted party that certifies for a new expert pool is assumed by the \emph{supporters stake}. In other words, the \emph{pledged stake} is the stake that supports a new expert pool on registration. This stake is beyond the stake that might (or might not) be owned by the expert pool staking key. It is a way for some of the stake to say that we trust this new expert pool and we are willing to support it by delegating our stake to it. It is therefore, a promise for a minimum of stake delegation to be received from the beginning of operation of the expert pool. It is also a hard prerequisite for allowing the participation of the expert pool in the software updates protocol. Conveniently, it also prevents from a specific type of attack, namely a sybil attack, as we will discuss briefly.
 
 \paragraph{Chain delegation}
 \nnote{Do we allow chain delegation? Can a stake pool delegate further to some other party?}
 
-
-\subsubsection*{Security Considerations}
+\subsubsection*{Security Considerations} 
 
 \paragraph{Certificate replay attacks.}
-Interestingly, it also prevents against a certificate replay attack. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in UTxO accounting blockchains, a transaction cannot be replayed (a UTxO can be only spent once), similarly a certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}.
+For all our certificates, namely: stake key registration, delegation registration and expert pool registration, we have provided signatures of the text of the transaction that includes them (as transaction metadata), signed by the party(ies) authorized to issue the certificate. This is a design choice made in \cite{deldesign} that prevents against a certificate replay attack. In this attack, an attacker re-publishes an old certificate, in order for example to change a delegation to a new expert pool. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in blockchains with a UTxO accounting model, a transaction cannot be replayed (a UTxO can be only spent once), similarly the specific certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}, where the transaction that includes the certificate must be issued from a specific whitelisted address. Of course there are other common solutions like the counter-based mechanism (known as the \emph{nonce}) used in Ethereum \cite{ethereum}.
 
 \paragraph{Sybil attacks.}
+The attack in this case has to do with an adversary who tries to register too many expert pools, in order to gain control of the stake via delegations. The pledged stake described above provides and incentive-based protection mechanism against this type of attack, which has been proposed in Bruenjes et. al. \cite{incentives} and also is described in Kant et. al. \citep{deldesign}. In particular, the commitment of specific stake from the expert pool supporters, in the form of the pledged stake, which is published and stored forever in the blockchain, prevents (indirectly) an adversary to register too many expert pools. Moreover, the fact that the reward of the expert pool could be proportional to the pledged stake, de-incentivizes adversaries to try to register many expert pools with a very small pledged stake. 
 
-\paragraph{Identity theft.}
-
-\subsubsection*{Fees and rewards.}
-%\paragraph{Fees and rewards.}
+%\paragraph{Identity theft.}
 
 \subsection{Update Consensus Protocol}
+A cryptographic modeling of our software updates protocol, in order to prove its security properties. \nnote{do we need something like that?}
+%\nnote{Need to describe how we eventually reach a consensus for the priorities of the updates that will be applied. We need a high level description of our protocol.}
+%\nnote{Also, integration with the PoS consensus protocol must be described in this section}
 
-\nnote{Need to describe how we eventually reach a consensus for the priorities of the updates that will be applied. We need a high level description of our protocol.}
-\nnote{Also, integration with the PoS consensus protocol must be described in this section}
+\subsection{Fees and rewards}
+\subsubsection{Fees}
+\begin{itemize}
+\item Describe the events of the protocol that are implemented as transactions. 
+\item Who are these transactions paying? The treasury system?
+\item Fees prevent DoS attacks
+\end{itemize}
+
+\subsubsection{Rewards}
+The ideation phase (treasury system) elects some project to fund. In the budget of this project there a portion for the reward of voters and approvers (who might be stake pools or expert pools)
+The reward schemes must be based on \cite{incentives} to guarantee that we will end up with k pools, instead of only one big one.
+Rewards $r(s,p)$ for expert pools will be dependent on the total stake $s$ controlled by the pool and on the pledged stake $p$.
+
 
 \section*{Update Governance -- old stuff}
 The arrival of a UIRT transaction essentially signals the start of the voting period for the specific Update Proposal. A user can configure their node to determine whether they wish to vote on Update Packages, or whether they wish to delegate their votes, in which case they are allowing others to vote in their stead. They are given the following options:
@@ -231,17 +260,17 @@ The proposal is marked as \emph{adopted} at the end of the voting period if the 
 %\end{itemize}
 
 
-\subsection*{Delegation Protocol - old stuff}
-The delegation protocol will be used in order to 
-a) Help voters when technical expertise is required and
-b) Realize the concept of update policies (i.e., enabling different deployment speeds for different types of SUs).
-
-
-\todo{Nikos: We need to define the exact process for voting key delegation, the delegation protocol and the respective transactions.}
-
-\nnote{Realizing our delegation protocol via liquid democracy and statement voting by Bingsheng Zhang et al.
-https://eprint.iacr.org/2017/616
-}
+%\subsection*{Delegation Protocol - old stuff}
+%The delegation protocol will be used in order to 
+%a) Help voters when technical expertise is required and
+%b) Realize the concept of update policies (i.e., enabling different deployment speeds for different types of SUs).
+%
+%
+%\todo{Nikos: We need to define the exact process for voting key delegation, the delegation protocol and the respective transactions.}
+%
+%\nnote{Realizing our delegation protocol via liquid democracy and statement voting by Bingsheng Zhang et al.
+%https://eprint.iacr.org/2017/616
+%}
 
 %In the case where a voter does not want to vote for an update proposal, or does not have the necessary expertise to evaluate a proposal and reach at a decision, he should have the ability to delegate his voting right to some other user. We need a delegation scheme within our voting protocol that will ensure a secure delegation mechanism that will result to a secure voting protocol.  
 %\begin{itemize}
