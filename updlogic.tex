@@ -1,4 +1,25 @@
 \section{Update Logic}
+\paragraph{Activation Phase} 
+the activation phase is not a re-approval phase, it is just there to guard against chain split.s
+
+
+It is not relevant to UPs that dont impact consensus (adoption threshold = 0%)
+For those that do impact, adoption threshold = the honest stake threshold assumption of the consensus protocol. We make the assumption that if a UP is approved then all honest stake will eventually upgrade.
+
+
+To mitigate risk of chain split by accident (activation too early), we propose the concept of the \emph{activation lag}.
+
+
+\paragraph{Update Policies} 
+An update policy is a way to customize the activation speed of a SU based on the “type” of the SU, which is deduced by the SU’s metadata. We want to follow a metadata-driven activation approach. 
+An update policy can be enabled by two things:
+A) Delegation to expert pools
+B) adoption threshold (activation phase) and activation lag (activation phase)
+Activation lag is determined by
+Deployment complexity
+Soft/Hard fork type of change
+
+
 \subsection*{Update Proposal Metadata} 
 An Update Proposal is inherently accompanied by meta-information that describes the proposal and sets it into the appropriate context. Therefore, we could say that every Update Proposal comprises a rich set of update meta-data that ultimately should drive the whole upgrade process.
 

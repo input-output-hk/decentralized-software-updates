@@ -9,10 +9,48 @@ With the term \emph{update governance} we mean the processes used to control the
 It is true that in the decentralized setting the tools that one has at one's disposal for controlling the software updates process, but more importantly, for leading the participating stakeholders towards an \emph{update consensus}, i.e., to reach at an agreement regarding the acceptance, or not, of the updates and the order (i.e., priorities), by which these will be applied,  are the voting and delegation mechanisms. In this section, we describe both of these mechanisms and end with a description of the software updates protocol that encompasses them.
 
 \subsection{Voting for Software Updates}
+%\nnote{this subsection must include both the SIP and the UP voting according to the lifecycle}
 
-\nnote{this subsection must include both the SIP and the UP voting according to the lifecycle}
+%\nnote{we need to talk about all the details and assumptions of the voting protocol, e.g.,stake distribution changes, fees, honest majority assumption, voting threshold etc.}
+\subsubsection{Voting for SIPs and UPs}
+Voting is the main vehicle for driving democracy and in our case is indeed the main mechanism for decision making in a decentralized setting for software updates. During the lifecycle of a software update, we have identified two phases, where a voting process is required. The first appears in the ideation phase and has to do with the approval of SIPs, while the second lies in the approval phase and deals with the approval of submitted source code and metadata (optionally binaries also), namely the UP bundle. Apart from the fact that the object of the voting process differs in these two phases, everything else is the same, so in the text that follows, whatever we describe pertains to both of the voting phases, unless explicitly specified.
 
-\nnote{we need to talk about all the details and assumptions of the voting protocol, e.g.,stake distribution changes, fees, honest majority assumption, voting threshold etc.}
+%\paragraph{What is a vote}
+\emph{A vote} is a fee-based transaction that lives for a specific period of time called the \emph{voting period}. In particular, after the object of voting (a SIP or a UP) has been submitted to the blockchain (initially encrypted and then at a second step revealed - based on a commit-reveal scheme),% it has been buried under a sufficient number of blocks, in order to be confirmed and finally it has been revealed, 
+then the voting period for this software update begins. 
+
+We acknowledge the fact that not all software updates are equal and therefore, we cannot have a fixed voting period. Moreover, software updates (especially UPs, which are essentially source code) are complex technical objects, where sufficient time must be provided for their evaluation. Therefore, the voting period must be adaptive to the complexity of the specific software update. We propose to have a metadata-driven voting period duration, based on the size of the software update, expressed as required man-effort in the accompanying metadata. So the voting period duration $v_{duration}(su_{size})$ , which can be expressed as a number of blocks (or slots), is a function of the software update size (e.g., expressed in man-days).
+
+%The voting period ends after $voting\_delay$ blocks, which is a parameter to the software updates protocol.
+
+We introduce a \emph{vote} as a new transaction type that can only be included in a block during the voting period. The core information conveyed by the vote transaction is summarized in the following tuple:
+\begin{align*}
+( H(<SIP/UP>), \\
+  SU_{Flag}, \\
+  <confidence>, \\
+  vks_{source}, \\
+ \sigma_{sks_{source}}(m))
+\end{align*}
+$H(<SIP/UP>$ is the hash of the content of the SIP/UP and plays the role of the unique id of a software update. $SU_{Flag}$ is a boolean flag (SIP/UP), which discriminates an SIP vote from an UP vote. $<confidence>$ is the vote per se, expressed as a three-valued flag (for/against/abstain). $vks_{source}$ is the public key of the party casting the vote. Finally, $\sigma_{sks_{source}}(m)$ is the cryptographic signature, signed with the private key corresponding to $vks_{source}$, on the transaction text $m$.
+
+Anyone who owns stake has a legitimate right to vote and this vote will count proportionally with the owned stake. Furthermore, as we will describe in detail in the next section, the rights to vote can also be delegated to another party. However, we want to give the power to a stakeholder to override the vote of his/her delegate. Therefore, if within the same voting period appear both a personal vote and a delegate's vote, for the same software update, then the personal vote will prevail.
+
+Moreover, as we have stated above, we acknowledge the fact that software updates are complex entities and their evaluation is a challenging task. This is true especially, when someone has to evaluate source code. Therefore, we cannot exclude the possibility that a voter/evaluator changes his/her mind after voting for a specific SU (for example, the evaluator identifies a software bug after voting positively for a software update). We want to provide the flexibility to the evaluators to change their minds. Therefore, we allow for a voter to vote multiple times, within a voting period for a specific software update. At the end, we count only the last vote of a specific public key in the voting period for a specific software update.
+
+\subsubsection{Voting Results}
+
+\subsubsection{On Thresholds and Assumptions}
+ p
+\nnote{
+- 3-valued vote YES/NO/ABSTAIN.
+- We assume that the honest stake threshold actively participates (i.e., votes) - either directly or through delegation.
+- Voting period is metadata driven based on the size (man-effort) of the SU
+- Tally result: a) honest stake threshold YES = approve, b) honest stake threshold NO = reject, c) honest stake threshold ABSTAIN = extend voting for one more voting period, d) No majority result = extend for one more voting period (if this has already happened for n times, then SU expires)
+- Why we need abstain? A voter can use it as an indirect way to request more time for evaluation (especially useful for complex UPs)
+- What if I dont like the vote of my delegate? Then I can issue a personal vote and that will override the delegates vote.
+- We allow a user to vote many times within a voting period (i.e. to change his mind). This is because we are dealing with the evaluation of complex technical issues (such as source code), so we need this sort of flexibility. We always take into account the last vote within a voting period.
+}
+
 
 \subsection{Delegation}
 Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs and last the adoption signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation rights to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
