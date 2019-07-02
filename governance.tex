@@ -23,7 +23,7 @@ We acknowledge the fact that not all software updates are equal and therefore, w
 
 %The voting period ends after $voting\_delay$ blocks, which is a parameter to the software updates protocol.
 
-We introduce a \emph{vote} as a new transaction type that can only be included in a block during the voting period. The core information conveyed by the vote transaction is summarized in the following tuple:
+We introduce a \emph{vote} as a new transaction type, the \emph{Software Update Vote Transaction (SUVT)} that can only be included in a block during the voting period. The core information conveyed by the vote transaction is summarized in the following tuple:
 \begin{align*}
 ( H(<SIP/UP>), \\
   SU_{Flag}, \\
@@ -33,24 +33,63 @@ We introduce a \emph{vote} as a new transaction type that can only be included i
 \end{align*}
 $H(<SIP/UP>$ is the hash of the content of the SIP/UP and plays the role of the unique id of a software update. $SU_{Flag}$ is a boolean flag (SIP/UP), which discriminates an SIP vote from an UP vote. $<confidence>$ is the vote per se, expressed as a three-valued flag (for/against/abstain). $vks_{source}$ is the public key of the party casting the vote. Finally, $\sigma_{sks_{source}}(m)$ is the cryptographic signature, signed with the private key corresponding to $vks_{source}$, on the transaction text $m$.
 
-Anyone who owns stake has a legitimate right to vote and this vote will count proportionally with the owned stake. Furthermore, as we will describe in detail in the next section, the rights to vote can also be delegated to another party. However, we want to give the power to a stakeholder to override the vote of his/her delegate. Therefore, if within the same voting period appear both a personal vote and a delegate's vote, for the same software update, then the personal vote will prevail.
+Anyone who owns stake has a legitimate right to vote and this vote will count proportionally with the owned stake. Furthermore, as we will describe in detail in the next section, the rights to vote can also be delegated to another party. However, we want to give the power to a stakeholder to override the vote of his/her delegate. Therefore, if within the same voting period appear both a private vote and a delegate's vote, for the same software update, then the private vote will prevail.
 
 Moreover, as we have stated above, we acknowledge the fact that software updates are complex entities and their evaluation is a challenging task. This is true especially, when someone has to evaluate source code. Therefore, we cannot exclude the possibility that a voter/evaluator changes his/her mind after voting for a specific SU (for example, the evaluator identifies a software bug after voting positively for a software update). We want to provide the flexibility to the evaluators to change their minds. Therefore, we allow for a voter to vote multiple times, within a voting period for a specific software update. At the end, we count only the last vote of a specific public key in the voting period for a specific software update.
 
 \subsubsection{Voting Results}
+After the end of the voting period for a specific software update, the votes are tallied and an outcome is decided. First, the private votes are counted. The tallying is performed as follows: For each slot within the voting period, if a block was adopted pertaining to that slot, each SUVT in that block is examined. If the staking key for that transaction has been tallied on a private vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every SUVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{private stake in favour}, the \emph{private stake against} and the \emph{private abstaining stake}. 
 
-\subsubsection{On Thresholds and Assumptions}
- p
-\nnote{
-- 3-valued vote YES/NO/ABSTAIN.
-- We assume that the honest stake threshold actively participates (i.e., votes) - either directly or through delegation.
-- Voting period is metadata driven based on the size (man-effort) of the SU
-- Tally result: a) honest stake threshold YES = approve, b) honest stake threshold NO = reject, c) honest stake threshold ABSTAIN = extend voting for one more voting period, d) No majority result = extend for one more voting period (if this has already happened for n times, then SU expires)
-- Why we need abstain? A voter can use it as an indirect way to request more time for evaluation (especially useful for complex UPs)
-- What if I dont like the vote of my delegate? Then I can issue a personal vote and that will override the delegates vote.
-- We allow a user to vote many times within a voting period (i.e. to change his mind). This is because we are dealing with the evaluation of complex technical issues (such as source code), so we need this sort of flexibility. We always take into account the last vote within a voting period.
-}
+Subsequently, the delegated votes are counted. For each slot within the voting period, if a block was adopted pertaining to that slot, each SUVT in that block is examined. If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discounted and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a private vote; if the delegating key has also cast a private vote, then the private vote is counted instead of the delegated vote. For each delegatable SUVT which has been counted, the stake delegating to it which hasn't issued a private vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{delegated abstaining stake}.
 
+The sum of the private stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{abstaining stake}.
+
+Assuming that the \emph{honest stake threshold assumption} of the underlying proof-of-stake consensus protocol is $h$, then at the end of the tallying, a software update (i.e., a SIP or an UP) is marked one of the following:
+\begin{itemize}
+
+\item \emph{Approved}. When the $stake\ in\ favour >= h$
+
+\item \emph{Rejected}. When the $stake\ against >= h$
+
+\item \emph{No-Quorum}. When the $abstaining\ stake >= h$. In this case, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv$ times, which is a protocol parameter. After that the software update becomes \emph{expired}.
+
+\item \emph{No-Majority}. In this case none of the previous cases has appeared. Essentially there is no majority result. Similarly, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv$ times, which is a protocol parameter. After that the software update becomes expired.
+
+\item \emph{Expired}. This is the state of a software update that has gone through $rv$ consecutive voting periods but still it has failed to get approved or rejected.
+\end{itemize}
+
+As you can see, in our proposal we have chosen a three-value logic for our vote (''for/against/abstain''). In this way, apart from the actual result, we can extract the real sentiment (positive, negative, neutral) of the community for a specific software update. This is very important in a decentralized governance model, because it clearly shows the appeal of a software update proposal to the stakeholders. If we did not allow negative votes, then the negative feeling would be hidden under the abstaining stake. 
+
+Moreover, the ''abstain'' vote is a sign that the stakeholder has not formed an opinion for, or against, a specific software update. However, it might also denote that the evaluator has not made yet a decision and maybe he/she needs more time. Therefore, the abstain vote can be also used as a way to say that the evaluation of the SU has not finished, a conclusion can not be drawn yet and indirectly submit a request for a time extension (i.e., a new voting period).
+
+\subsubsection{On Assumptions and Thresholds}
+%\nnote{- 3-valued vote YES/NO/ABSTAIN.
+%- We assume that the honest stake threshold actively participates (i.e., votes) - either directly or through delegation.
+%- Voting period is metadata driven based on the size (man-effort) of the SU
+%- Tally result: a) honest stake threshold YES = approve, b) honest stake threshold NO = reject, c) honest stake threshold ABSTAIN = extend voting for one more voting period, d) No majority result = extend for one more voting period (if this has already happened for n times, then SU expires)
+%- Why we need abstain? A voter can use it as an indirect way to request more time for evaluation (especially useful for complex UPs)
+%- What if I dont like the vote of my delegate? Then I can issue a personal vote and that will override the delegates vote.
+%- We allow a user to vote many times within a voting period (i.e. to change his mind). This is because we are dealing with the evaluation of complex technical issues (such as source code), so we need this sort of flexibility. We always take into account the last vote within a voting period.
+%}
+
+%\paragraph{Assumptions.} We require the parties that cast a vote to remain active during all the voting
+%period. This is a critical requirement since we want our protocol to be secure against \emph{adaptive corruption}. Roughly, this assumption ensures that at the moment of the tally the majority
+%of the stake involved in the voting process is controlled by honest parties.
+%We note that the latter holds due to the fact that the stake considered during the tally is the stake 
+%that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
+%the tally, without taking into account the stake that the voters had in the moment that the votes were casted.
+We require that for each voting period and for every software update submitted, there are always at least $h$ honest parties, actively participating in the voting process (i.e., submitting a vote with a value of ''for/against/abstain''), where $h$ is the \emph{honest stake threshold assumption} of the underlying proof-of-stake protocol. In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software update protocol (and especially the voting phases), also make the same assumption with the consensus protocol, of $h$ honest stake being active at all time. 
+
+Moreover, the stake considered during the tally is the stake that the voters have at that moment. That is, we only consider the stake of the voters at the moment of the tally, without taking into account the stake that the voters had in the moment that the votes were casted. Therefore, the stake distribution is not known at the moment where the voting takes place, which is a security measure against voters' coercion.
+
+With respect to the voting threshold, we have seen that for a software update (either a SIP, or an UP) to get approved the following condition should hold: $stake\ in\ favour >= h$. Our voting mechanism, from a security perspective, has essentially two goals: a) a software update that is not approved by the stake majority will never be applied and b)  a software update that it is approved by the stake majority will be eventually applied.
+
+Let's assume that we imposed another threshold: 
+$$stake\ in\ favour >= h + d$$, where $d > 0$. We know that we have at least $h$ honest parties actively voting. Then, since we need more that $h$ votes for the SU to get approved, then the adversaries could block the approval, either by voting 'against', or 'abstain', or by not voting at all.
+
+Similarly, if we imposed as a threshold $$stake\ in\ favour >= h - d$$, where $d > 0$, then the adversaries could potentially approve a malicious SU (assuming that we have $h-d$ adversary stake), if the honest stake does not vote a unanimous rejection (i.e., some part of the honest stake votes ''against'' and the rest part votes ''abstain''). 
+
+In other words, the  $stake\ in\ favour >= h$ threshold that we have chosen, guarantees that the adversaries cannot block a good software update, since there is enough honest stake majority to approve it. Moreover, due to the \emph{liveness} property of the underlying consensus protocol, all honest parties' votes will be eventually committed to the blockchain, as long as the tallying takes place after a stabilization period. At the same time, the adversaries cannot approve a malicious software update, since they do not have the majority to approve a malicious software update.
 
 \subsection{Delegation}
 Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs and last the adoption signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation rights to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
@@ -206,73 +245,74 @@ The ideation phase (treasury system) elects some project to fund. In the budget 
 The reward schemes must be based on \cite{incentives} to guarantee that we will end up with k pools, instead of only one big one.
 Rewards $r(s,p)$ for expert pools will be dependent on the total stake $s$ controlled by the pool and on the pledged stake $p$.
 
-
-\section*{Update Governance -- old stuff}
-The arrival of a UIRT transaction essentially signals the start of the voting period for the specific Update Proposal. A user can configure their node to determine whether they wish to vote on Update Packages, or whether they wish to delegate their votes, in which case they are allowing others to vote in their stead. They are given the following options:
-
-\begin{itemize}
-\item[\textbf{Vote locally:}] When a UIRT is received, the user is notified by their client and is expected to issue their vote.
-\item[\textbf{Vote delegation:}] When a UIRT is received, the user adopts the vote of the key that they delegate their vote to. The key that they delegate to which takes the final decision is called the \emph{Voting Leader}.
-\end{itemize}
-
-\subsubsection*{Voting locally} 
-
-The user's vote can be issued by selecting the ''upvote'' or ''downvote'' button after inspecting the proposal details, including the title, description, and Update Package contents. It should be clearly communicated to the user that they are expected to technically validate the contents of the package or rely on someone to do so. If they wish to vote locally but do not have the technical skills to audit the details of the Update Proposal, they should ensure that the person who vouches for the proposal that they will vote for includes the Update Proposal hash and communicates it in a secure manner. Unlike Bitcoin and Ethereum, votes can be both ''for'' or ''against''. This is necessary for allowing vote delegation to be revocable prior to being cast.
-
-\subsubsection*{Voting delegation}
-
-Delegation is different for mining and for voting; a certain key can delegate for mining to a specific pool and for voting on a specific voting leader. Furthermore, it is possible to do multi-step delegation in which a user delegates to a key, which delegates to a different key, as many times as needed. Multi-step delegation is politically necessary to implement the principle of \emph{re-delegation} of \emph{liquid democracy} \cite{liqdemocracy}.
-
-Delegation does not have a barrier to entry. This is according to the principle of Low barrier to participation of liquid democracy. Contrary to mining pools, the key to which delegation is made does not need to hold any stake.
-
-When delegating one's vote, the Voting Leader is required to cast their vote at least 12k slots prior to the voting period end. When a Voting Leader casts their vote, the adopters of that vote are notified of the leader's opinion and can revoke their vote delegation prior to it being cast (and vote contrary to the leader's opinion).
-Voting delegation can follow specific specialization rules. The voting delegation can be configured by proposal tags through a set of rules. These rules, in their simplest form, can assign a general delegatee, as well as more specific delegatees per tag, urgency, or consensus type. For instance, one could indicate that their general delegatee is Alice, while Update Proposals tagged as Hard Forks are delegated to Bob.
-
-Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
-
-\subsection*{Voting Protocol -- old stuff}
-We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. 
-The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
-
-\begin{verbatim}
-voting_begin_time = issuance_time + voting_delay
-\end{verbatim}
-
-The voting period ends at the slot index indicated by voting\_end\_time, which is defined as follows:
-
-\begin{verbatim}
-voting_end_time = voting_begin_time + voting_duration
-\end{verbatim}
-
-The voting transaction contains the following data:
-\begin{itemize}
-\item[\textbf{proposal:}] The hash of the proposal which this vote references.
-\item[\textbf{confidence:}] Boolean. ''true'', if the vote is in favour of the proposal, or ''false'', if the vote is against the proposal.
-\item[\textbf{pk:}] The public key which is casting the vote.
-\item[\textbf{sig:}] A cryptographic signature made with pk on the plaintext consisting of the tuple (proposal, confidence).
-\end{itemize}
-
-Note that in order to vote, one does not need to generate a block. This is so that delegates can vote despite not having sufficient stake to mine.
-\mnote{Michele: The voters need to pay a transaction to vote}.
-\paragraph{Assumptions.} We require the parties that cast a vote to remain active during all the voting
-period. This is a critical requirement since we want our protocol to be secure against \emph{adaptive corruption}. Roughly, this assumption ensures that at the moment of the tally the majority
-of the stake involved in the voting process is controlled by honest parties.
-We note that the latter holds due to the fact that the stake considered during the tally is the stake 
-that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
-the tally, without taking into account the stake that the voters had in the moment that the votes were casted.  
-
-
-\mnote{Do we allow also negative votes?}
-
-After the slot voting\_end\_time has arrived, the votes are tallied and an outcome is decided. First, the local votes are counted. The tallying is performed as follows: For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the staking key for that transaction has been tallied on a local vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every UPVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{local stake in favour} and the \emph{local stake against}. Together, these form the \emph{participating local stake}.
-
-Subsequently, the delegated votes are counted. For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; \verb;- 12k; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discounted and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a local vote; if the delegating key has also cast a local vote, then the local vote is counted instead of the delegated vote. For each delegatable UPVT which has been counted, the stake delegating to it which hasn't issued a local vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{participating delegated stake}.
-
-The sum of the local stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{participating stake}. The stake which is not included in the participating stake is the \emph{abstaining stake}.
-
-The proposal is marked as \emph{adopted} at the end of the voting period if the abstaining stake is less than 50\% of the total stake and the stake in favour is more than 75\% of the participating stake. Otherwise, the proposal is marked as \emph{rejected}.
-\todo{Nikos: we need to conclude on the thresholds}
-\mnote{Let's go for the 50\% for now.}
+%------------------------------------------------
+%\section*{Update Governance -- old stuff}
+%The arrival of a UIRT transaction essentially signals the start of the voting period for the specific Update Proposal. A user can configure their node to determine whether they wish to vote on Update Packages, or whether they wish to delegate their votes, in which case they are allowing others to vote in their stead. They are given the following options:
+%
+%\begin{itemize}
+%\item[\textbf{Vote locally:}] When a UIRT is received, the user is notified by their client and is expected to issue their vote.
+%\item[\textbf{Vote delegation:}] When a UIRT is received, the user adopts the vote of the key that they delegate their vote to. The key that they delegate to which takes the final decision is called the \emph{Voting Leader}.
+%\end{itemize}
+%
+%\subsubsection*{Voting locally} 
+%
+%The user's vote can be issued by selecting the ''upvote'' or ''downvote'' button after inspecting the proposal details, including the title, description, and Update Package contents. It should be clearly communicated to the user that they are expected to technically validate the contents of the package or rely on someone to do so. If they wish to vote locally but do not have the technical skills to audit the details of the Update Proposal, they should ensure that the person who vouches for the proposal that they will vote for includes the Update Proposal hash and communicates it in a secure manner. Unlike Bitcoin and Ethereum, votes can be both ''for'' or ''against''. This is necessary for allowing vote delegation to be revocable prior to being cast.
+%
+%\subsubsection*{Voting delegation}
+%
+%Delegation is different for mining and for voting; a certain key can delegate for mining to a specific pool and for voting on a specific voting leader. Furthermore, it is possible to do multi-step delegation in which a user delegates to a key, which delegates to a different key, as many times as needed. Multi-step delegation is politically necessary to implement the principle of \emph{re-delegation} of \emph{liquid democracy} \cite{liqdemocracy}.
+%
+%Delegation does not have a barrier to entry. This is according to the principle of Low barrier to participation of liquid democracy. Contrary to mining pools, the key to which delegation is made does not need to hold any stake.
+%
+%When delegating one's vote, the Voting Leader is required to cast their vote at least 12k slots prior to the voting period end. When a Voting Leader casts their vote, the adopters of that vote are notified of the leader's opinion and can revoke their vote delegation prior to it being cast (and vote contrary to the leader's opinion).
+%Voting delegation can follow specific specialization rules. The voting delegation can be configured by proposal tags through a set of rules. These rules, in their simplest form, can assign a general delegatee, as well as more specific delegatees per tag, urgency, or consensus type. For instance, one could indicate that their general delegatee is Alice, while Update Proposals tagged as Hard Forks are delegated to Bob.
+%
+%Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
+%
+%\subsection*{Voting Protocol -- old stuff}
+%We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. 
+%The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
+%
+%\begin{verbatim}
+%voting_begin_time = issuance_time + voting_delay
+%\end{verbatim}
+%
+%The voting period ends at the slot index indicated by voting\_end\_time, which is defined as follows:
+%
+%\begin{verbatim}
+%voting_end_time = voting_begin_time + voting_duration
+%\end{verbatim}
+%
+%The voting transaction contains the following data:
+%\begin{itemize}
+%\item[\textbf{proposal:}] The hash of the proposal which this vote references.
+%\item[\textbf{confidence:}] Boolean. ''true'', if the vote is in favour of the proposal, or ''false'', if the vote is against the proposal.
+%\item[\textbf{pk:}] The public key which is casting the vote.
+%\item[\textbf{sig:}] A cryptographic signature made with pk on the plaintext consisting of the tuple (proposal, confidence).
+%\end{itemize}
+%
+%Note that in order to vote, one does not need to generate a block. This is so that delegates can vote despite not having sufficient stake to mine.
+%\mnote{Michele: The voters need to pay a transaction to vote}.
+%\paragraph{Assumptions.} We require the parties that cast a vote to remain active during all the voting
+%period. This is a critical requirement since we want our protocol to be secure against \emph{adaptive corruption}. Roughly, this assumption ensures that at the moment of the tally the majority
+%of the stake involved in the voting process is controlled by honest parties.
+%We note that the latter holds due to the fact that the stake considered during the tally is the stake 
+%that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
+%the tally, without taking into account the stake that the voters had in the moment that the votes were casted.  
+%
+%
+%\mnote{Do we allow also negative votes?}
+%
+%After the slot voting\_end\_time has arrived, the votes are tallied and an outcome is decided. First, the local votes are counted. The tallying is performed as follows: For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the staking key for that transaction has been tallied on a local vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every UPVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{local stake in favour} and the \emph{local stake against}. Together, these form the \emph{participating local stake}.
+%
+%Subsequently, the delegated votes are counted. For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; \verb;- 12k; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discounted and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a local vote; if the delegating key has also cast a local vote, then the local vote is counted instead of the delegated vote. For each delegatable UPVT which has been counted, the stake delegating to it which hasn't issued a local vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{participating delegated stake}.
+%
+%The sum of the local stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{participating stake}. The stake which is not included in the participating stake is the \emph{abstaining stake}.
+%
+%The proposal is marked as \emph{adopted} at the end of the voting period if the abstaining stake is less than 50\% of the total stake and the stake in favour is more than 75\% of the participating stake. Otherwise, the proposal is marked as \emph{rejected}.
+%\todo{Nikos: we need to conclude on the thresholds}
+%\mnote{Let's go for the 50\% for now.}
+%------------------------------------------------
 
 %\begin{itemize}
 %\item A voting protocol must be proposed that will enable an update consensus on. I.e., a community agreement on the priorities of the Update Proposals. 

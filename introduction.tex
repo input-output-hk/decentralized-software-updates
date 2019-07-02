@@ -55,7 +55,8 @@ Therefore, in the context of software updates for public stake-based blockchain 
 \paragraph{Goal of the paper.}
 Our primary goal in this paper, is to propose a secure software update mechanism that will enable a decentralized approach to the blockchain software updates problem. We want to examine all phases in the lifecycle of a software update and propose decentralized alternatives that are practical and can be adopted in the real world. To this end, we investigate the smooth incorporation of such a decentralized software update mechanism into the architecture of a blockchain system and implement a prototype that realizes our ideas in practice. From a security perspective, our proposal must ensure that:
 %...A safe and secure decentralized software update system. %In other words, a system that will ensure that: 
-a) any stakeholder will always be able to submit an update proposal to be voted by the stakeholders community, b) it will prevent any update proposal that is not approved by the stake majority to be applied and c) it will provide guarantees for the authenticity and safety of the downloaded software.
+a) any stakeholder will always be able to submit an update proposal to be voted by the stakeholders community, b) an update proposal that is not approved by the stake majority will never be applied, c) an update proposal that it is approved by the stake majority will be eventually applied
+and d) it will provide guarantees for the authenticity and safety of the downloaded software.
 
 \paragraph{Outline of the paper.}
 %\noindent\textbf{Outline of the paper}
