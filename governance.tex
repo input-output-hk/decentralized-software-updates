@@ -18,7 +18,6 @@ Voting is the main vehicle for driving democracy and in our case is indeed the m
 %\paragraph{What is a vote}
 \emph{A vote} is a fee-based transaction that lives for a specific period of time called the \emph{voting period}. In particular, after the object of voting (a SIP or a UP) has been submitted to the blockchain (initially encrypted and then at a second step revealed - based on a commit-reveal scheme),% it has been buried under a sufficient number of blocks, in order to be confirmed and finally it has been revealed, 
 then the voting period for this software update begins. 
-\mnote{Do we need a commit-reveal scheme?}
 
 We acknowledge the fact that not all software updates are equal and therefore, we cannot have a fixed voting period. Moreover, software updates (especially UPs, which are essentially source code) are complex technical objects, where sufficient time must be provided for their evaluation. Therefore, the voting period must be adaptive to the complexity of the specific software update. We propose to have a \emph{metadata-driven} voting period duration, based on the size of the software update, expressed as required man-effort in the accompanying metadata of the software update. So the voting period duration $v_{duration}(su_{size})$ , which can be expressed as a number of blocks (or slots), is a function of the software update size (e.g., expressed in man-days).
 
@@ -46,27 +45,17 @@ Subsequently, the delegated votes are counted. For each slot within the voting p
 The sum of the private stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{abstaining stake}.
 
 Assuming that the \emph{honest stake threshold assumption} of the underlying proof-of-stake consensus protocol is $h$, then at the end of the tallying, a software update (i.e., a SIP or an UP) is marked one of the following:
-\mnote{Who does the tally? A committee?}
 \begin{itemize}
 
 \item \emph{Approved}. When the $stake\ in\ favour \geq h$
 
 \item \emph{Rejected}. When the $stake\ against \geq h$
 
-<<<<<<< HEAD
-\item \emph{No-Quorum}. When the $abstaining\ stake >= h$. In this case, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv$ times, which is a protocol parameter. After that the software update becomes \emph{expired}.
-\mnote{I suggest to use different threshold for the 3 different cases.}
-
-\item \emph{No-Majority}. In this case none of the previous cases has appeared. Essentially there is no majority result. Similarly, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv$ times, which is a protocol parameter. After that the software update becomes expired.
-\mnote{What is the difference between no-quorum and no-majority?}
-\item \emph{Expired}. This is the state of a software update that has gone through $rv$ consecutive voting periods but still it has failed to get approved or rejected.
-=======
 \item \emph{No-Quorum}. When the $abstaining\ stake \geq h$. In this case, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-quorum}$ times, which is a protocol parameter. After that, the software update becomes \emph{expired}.
 
 \item \emph{No-Majority}. In this case none of the previous cases has appeared. Essentially, there is no majority result. Similarly, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-majority}$ times, which is a protocol parameter. After that, the software update becomes expired.
 
 \item \emph{Expired}. This is the state of a software update that has gone through $rv_{no-quorum}$ (or $rv_{no-majority}$) consecutive voting periods, but still it has failed to get approved or rejected.
->>>>>>> 38e2985dde05415c902c4d22ce0c1398c18dce1e
 \end{itemize}
 
 As you can see, in our proposal we have chosen a three-value logic for our vote (for/against/abstain). In this way, apart from the actual result, we can extract the real sentiment (positive, negative, neutral) of the community for a specific software update. This is very important in a decentralized governance model, because it clearly shows the appeal of a software update proposal to the stakeholders. If we did not allow negative votes, then the negative feeling would be hidden under the abstaining stake. 
@@ -89,14 +78,7 @@ Moreover, the ''abstain'' vote is a sign that the stakeholder has not formed an 
 %We note that the latter holds due to the fact that the stake considered during the tally is the stake 
 %that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
 %the tally, without taking into account the stake that the voters had in the moment that the votes were casted.
-<<<<<<< HEAD
-We require that for each voting period and for every software update submitted, there are always at least $h$ honest parties, actively participating in the voting process (i.e., submitting a vote with a value of ''for/against/abstain''), where $h$ is the \emph{honest stake threshold assumption} of the underlying proof-of-stake protocol. In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software update protocol (and especially the voting phases), also make the same assumption with the consensus protocol, of $h$ honest stake being active at all time. 
-\mnote{There should be not relation between $h$ and the assumptions required by the consensus protocol, right?
-For example, we might decide to have $h=80\%$, which does not corresponds to the portion of honest parties
-that are running the consensus protocol.}
-=======
 We require that for each voting period and for every software update submitted, there are always at least $h$ honest parties, actively participating in the voting process (i.e., submitting a vote with a value of for/against/abstain), where $h$ is the \emph{honest stake threshold assumption} of the underlying proof-of-stake protocol. In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake pools}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software update protocol (and especially the voting phases), also make the same assumption with the consensus protocol, that of $h$ honest stake being active at all time. 
->>>>>>> 38e2985dde05415c902c4d22ce0c1398c18dce1e
 
 Moreover, the stake considered during the tally is the stake that the voters have at that moment. That is, we only consider the stake of the voters at the moment of the tally, without taking into account the stake that the voters had in the moment that the votes were casted. Therefore, the stake distribution is not known at the moment where the voting takes place, which is a security measure against voters' coercion.
 
@@ -213,12 +195,7 @@ In summary, with this certificate, a party can delegate its participation right 
 In order for someone to publicly announce his/her intention to play the role of an expert, or equivalently, to run an expert pool, two things are required: a)to issue an expert pool registration certificate and b)to provide appropriate \emph{metadata} describing the expert pool.
 
 \paragraph{Expert pool registration certificate.}
-<<<<<<< HEAD
-\mnote{I am not sure that I have understood this part. Maybe let's talk about that during the meeting}
-The certificate contains all the information that is relevant for the execution of the protocol. At its most basic form these comprise the following:
-=======
 The certificate contains all the information that is relevant for the execution of the protocol. At its most basic form this certificate comprises the following:
->>>>>>> 38e2985dde05415c902c4d22ce0c1398c18dce1e
 \begin{itemize}
 \item $vks_{expool}$: This is the public staking key of the expert pool. This must be used as the target public key in the delegation certificate, as discussed in the previous subsection.
 
