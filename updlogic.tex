@@ -1,16 +1,48 @@
 \section{Update Logic}
+%\nnote{
+%Activation Phase
+%the activation phase is not a re-approval phase, it is just there to guard against chain split.s
+%It is not relevant to UPs that dont impact consensus (adoption threshold = 0%)
+%For those that do impact, adoption threshold = the honest stake threshold assumption of the consensus protocol. We make the assumption that if a UP is approved then all honest stake will eventually upgrade.
+%To mitigate risk of chain split by accident (activation too early), we propose the concept of the activation lag.
+%}
+%\paragraph{What is Update Logic}
+%Update Logic = Metadata-Driven Software Updates
+We have pointed out many times that software updates are not all the same. There are many different perspectives for viewing SUs, which call for a specialized \emph{software update policy}. Software updates can be distinguished by the following dimensions:
+\begin{itemize}
+\item Reason of change (a bug-fix versus a Change Request).
+\item Priority of change (high/medium/low).
+\item Size of change (typically in man-effort required to be implemented).
+\item Impact of change (e.g., impacts the consensus protocol or not).
+\item Type of (protocol) change (hard/soft/velvet fork)
+\item Platform-specific change (Linux, Windows MacOS etc.)
+\end{itemize}
+To this end, we propose a \emph{software update logic} that is \emph{metadata driven}. A ''logic'' that can distinguish one SU from another and apply the appropriate update policy. In the section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
+
+\subsection{Update Proposal Metadata} 
+An Update Proposal is inherently accompanied by meta-information that describes the proposal and sets it into the appropriate context. Therefore, we could say that every Update Proposal comprises a rich set of update meta-data that ultimately should drive the whole upgrade process.
+
+The update meta-data provide basic information such as the name and a description for the Update Proposal. Moreover, they declare the urgency of the update as well as its type (Change Request or bug-fix), in order to guide the prioritization of the update. They provide values for critical parameters of the Update protocol (e.g., the \verb;voting_duration;), as well as declare the type of consensus rule changes (hard fork, soft fork, velvet fork etc.). Finally, they declare the dependencies and the potential conflicts with other Update Proposals, which is a very useful information that should guide the software deployment process. This metadata-driven update process is  based on the notion of \emph{Update Policy}, which we will discuss further in the following subsections.
+A complete list of our proposed list of Update Proposal meta-data can be found in the Appendix. 
+
+%We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
+
+\subsection{The Activation Phase Revisited}
+
 \paragraph{Activation Phase} 
 the activation phase is not a re-approval phase, it is just there to guard against chain split.s
 
-
-It is not relevant to UPs that dont impact consensus (adoption threshold = 0%)
+It is not relevant to UPs that dont impact consensus (adoption threshold = 0\%)
 For those that do impact, adoption threshold = the honest stake threshold assumption of the consensus protocol. We make the assumption that if a UP is approved then all honest stake will eventually upgrade.
 
-
+\subsubsection{The Activation Lag}
 To mitigate risk of chain split by accident (activation too early), we propose the concept of the \emph{activation lag}.
 
+\subsubsection{On Activation Thresholds}
 
-\paragraph{Update Policies} 
+
+\subsection{Update Policies} 
+\subsubsection{Update Policies Realized}
 An update policy is a way to customize the activation speed of a SU based on the “type” of the SU, which is deduced by the SU’s metadata. We want to follow a metadata-driven activation approach. 
 An update policy can be enabled by two things:
 A) Delegation to expert pools
@@ -19,17 +51,9 @@ Activation lag is determined by
 Deployment complexity
 Soft/Hard fork type of change
 
+\subsubsection{Update Constraints}
 
-\subsection*{Update Proposal Metadata} 
-An Update Proposal is inherently accompanied by meta-information that describes the proposal and sets it into the appropriate context. Therefore, we could say that every Update Proposal comprises a rich set of update meta-data that ultimately should drive the whole upgrade process.
-
-The update meta-data provide basic information such as the name and a description for the Update Proposal. Moreover, they declare the urgency of the update as well as its type (Change Request or bug-fix), in order to guide the prioritization of the update. They provide values for critical parameters of the Update protocol (e.g., the \verb;voting_duration;), as well as declare the type of consensus rule changes (hard fork, soft fork, velvet fork etc.). Finally, they declare the dependencies and the potential conflicts with other Update Proposals, which is a very useful information that should guide the software deployment process. This metadata-driven update process is  based on the notion of \emph{Update Policy}, which we will discuss further in the following subsections.
-A complete list of our proposed list of Update Proposal meta-data can be found in the Appendix. 
-
-
-%We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
-
-\subsection*{Software Deployment}
+%\subsection*{Software Deployment}
 \subsubsection*{Conflict Resolution}
 How do we ensure that multiple concurrent requests for updates are handled simultaneously in a way that
 \begin{itemize}
@@ -42,7 +66,7 @@ How do we ensure that multiple concurrent requests for updates are handled simul
 How do we impose respect for update dependencies, so that the system reaches a consistent state? 
 \todo{Nikos: Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
 
-\subsubsection*{Update Policies per type of updates}
+\subsubsection*{Update Policies per type of updates -- old stuff}
 An \emph{Update Policy} is defined as the pair \emph{(Speed of Activation, Method of Deployment)}. We need to differentiate the speed of deployment and the method of deployment based on: a) the type of change (bug -fix or change request), b) the part of the system that is affected by the change (consensus rules impact, or only software impact), c) the urgency of the change (severity level)
 and d) soft vs. hard forks
 
@@ -61,7 +85,5 @@ Also, deployment/activation time must vary according to the type of change. We s
 \item High severity vs. Low severity
 \end{itemize}
 
-\subsection*{Rollbacks}
+\subsubsection{Rollbacks}
 How can we smoothly rollback an update, in the case of a problem?
-
-
