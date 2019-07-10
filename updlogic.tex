@@ -34,6 +34,7 @@ A software update is inherently accompanied by meta-information that describes t
 \paragraph{Update prerequisites.} In this part we define other prerequisites apart from the ones that have to do with other software updates that we have discussed before and therefore we can consider them as prerequisites from ''external'' factors. For example, platform requirements, or specific hardware requirements, in order for a software update to be applied successfully, should be mentioned in this section of the metadata.
 \paragraph{Budget information.} Last but not least, comes the budget information. This is extremely useful information, especially if the update system is backed up by a treasury system \cite{treasury} that will assume the funding of the implementation of the software update.
 %\end{itemize}
+
 We have described different aspects of meta-information that could accompany a software update. The purpose was not to propose a complete list of metadata but rather to point out how important is the software update mechanism to be metadata driven. To this end, in the following subsections, we provide examples of exploitation of software update metadata in the phase of activation.
 
 
@@ -52,7 +53,16 @@ We have described different aspects of meta-information that could accompany a s
 
 %We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
 
-\subsection{The Activation Phase Revisited}
+\subsection{Update Policies} 
+An update policy is a way to customize the activation speed of a SU based on the type of the SU, which is deduced by the SU’s metadata. We want to follow a metadata-driven activation approach. 
+An update policy can be enabled by two things:
+A) Delegation to expert pools
+B) adoption threshold (activation phase) and activation lag (activation phase)
+Activation lag is determined by
+Deployment complexity
+Soft/Hard fork type of change
+
+\subsubsection{The Adoption Threshold}
 
 \paragraph{Activation Phase} 
 the activation phase is not a re-approval phase, it is just there to guard against chain split.s
@@ -63,23 +73,18 @@ For those that do impact, adoption threshold = the honest stake threshold assump
 \subsubsection{The Activation Lag}
 To mitigate risk of chain split by accident (activation too early), we propose the concept of the \emph{activation lag}.
 
-\subsubsection{On Activation Thresholds}
+
+%\subsection{The Activation Phase Revisited}
 
 
-\subsection{Update Policies} 
-\subsubsection{Update Policies Realized}
-An update policy is a way to customize the activation speed of a SU based on the “type” of the SU, which is deduced by the SU’s metadata. We want to follow a metadata-driven activation approach. 
-An update policy can be enabled by two things:
-A) Delegation to expert pools
-B) adoption threshold (activation phase) and activation lag (activation phase)
-Activation lag is determined by
-Deployment complexity
-Soft/Hard fork type of change
+\subsection{Update Constraints}
 
-\subsubsection{Update Constraints}
+\subsubsection{Dependencies}
+How do we impose respect for update dependencies, so that the system reaches a consistent state? 
+\todo{Nikos: Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
 
-%\subsection*{Software Deployment}
-\subsubsection*{Conflict Resolution}
+
+\subsubsection{Conflict Resolution}
 How do we ensure that multiple concurrent requests for updates are handled simultaneously in a way that
 \begin{itemize}
 \item conflicts are resolved and the adopted updates are consistent, 
@@ -87,28 +92,27 @@ How do we ensure that multiple concurrent requests for updates are handled simul
 \item Community splits over controversial updates are avoided
 \end{itemize}
 
-\subsubsection*{Dependencies}
-How do we impose respect for update dependencies, so that the system reaches a consistent state? 
-\todo{Nikos: Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
 
-\subsubsection*{Update Policies per type of updates -- old stuff}
-An \emph{Update Policy} is defined as the pair \emph{(Speed of Activation, Method of Deployment)}. We need to differentiate the speed of deployment and the method of deployment based on: a) the type of change (bug -fix or change request), b) the part of the system that is affected by the change (consensus rules impact, or only software impact), c) the urgency of the change (severity level)
-and d) soft vs. hard forks
-
-\todo{Nikos: We have 3 levels of speed: high, medium and low. What are our different deployment methods?}
-
-\begin{itemize}
-\item How do we discriminate between different types of updates (e.g., software vs. protocol, bug-fix vs. change request)
-\item We need to provide a different deployment path for each Type of Update. For example, critical hot-fixes might need to bypass some of the governance steps.
-\item We need to incorporate into our update logic the notions of bug Severity and ''Required Speed of Deployment''
-\end{itemize}
-
-Also, deployment/activation time must vary according to the type of change. We see the following ''change categories'':
-\begin{itemize}
-\item Bug-fix vs. Change Request
-\item Consensus Protocol impact vs. No Impact
-\item High severity vs. Low severity
-\end{itemize}
-
-\subsubsection{Rollbacks}
+\subsection{Rollbacks}
 How can we smoothly rollback an update, in the case of a problem?
+
+
+%\subsubsection*{Update Policies per type of updates -- old stuff}
+%An \emph{Update Policy} is defined as the pair \emph{(Speed of Activation, Method of Deployment)}. We need to differentiate the speed of deployment and the method of deployment based on: a) the type of change (bug -fix or change request), b) the part of the system that is affected by the change (consensus rules impact, or only software impact), c) the urgency of the change (severity level)
+%and d) soft vs. hard forks
+%
+%\todo{Nikos: We have 3 levels of speed: high, medium and low. What are our different deployment methods?}
+%
+%\begin{itemize}
+%\item How do we discriminate between different types of updates (e.g., software vs. protocol, bug-fix vs. change request)
+%\item We need to provide a different deployment path for each Type of Update. For example, critical hot-fixes might need to bypass some of the governance steps.
+%\item We need to incorporate into our update logic the notions of bug Severity and ''Required Speed of Deployment''
+%\end{itemize}
+%
+%Also, deployment/activation time must vary according to the type of change. We see the following ''change categories'':
+%\begin{itemize}
+%\item Bug-fix vs. Change Request
+%\item Consensus Protocol impact vs. No Impact
+%\item High severity vs. Low severity
+%\end{itemize}
+
