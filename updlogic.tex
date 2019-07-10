@@ -10,20 +10,45 @@
 %Update Logic = Metadata-Driven Software Updates
 We have pointed out many times that software updates are not all the same. There are many different perspectives for viewing SUs, which call for a specialized \emph{software update policy}. Software updates can be distinguished by the following dimensions:
 \begin{itemize}
-\item Reason of change (a bug-fix versus a Change Request).
-\item Priority of change (high/medium/low).
-\item Size of change (typically in man-effort required to be implemented).
-\item Impact of change (e.g., impacts the consensus protocol or not).
-\item Type of (protocol) change (hard/soft/velvet fork)
+\item Reason of change (a bug-fix, or a security-fix versus a change request, or a new feature request).
+\item Priority of change (e.g., high/medium/low).
+\item Size of change (e.g., man-effort required to be implemented).
+\item Impact of change (e.g., whether it impacts the consensus protocol, or not).
+\item Type of protocol change (hard/soft/velvet fork)
 \item Platform-specific change (Linux, Windows MacOS etc.)
 \end{itemize}
 To this end, we propose a \emph{software update logic} that is \emph{metadata driven}. A ''logic'' that can distinguish one SU from another and apply the appropriate update policy. In the section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
 
-\subsection{Update Proposal Metadata} 
-An Update Proposal is inherently accompanied by meta-information that describes the proposal and sets it into the appropriate context. Therefore, we could say that every Update Proposal comprises a rich set of update meta-data that ultimately should drive the whole upgrade process.
+\subsection{Software Update Metadata} 
+A software update is inherently accompanied by meta-information that describes the update and sets it into the appropriate context. Therefore, we could say that every software update comprises a rich set of update meta-data that ultimately should drive the whole upgrade process. We distinguish several categories of metadata that result to a holistic view of a software update. The list of metadata categories presented next is indicative and aims at justifying the concept, therefore it is by no means complete, or restrictive in any way:
+%\begin{itemize}
+%\item
+\paragraph{Basic information.}The software update metadata should provide basic information about the software update, such as its title and a basic description. Also, the metadata should include the unique id of the SU, which can be the content hash of the SU and also the \emph{category tag} that will enable delegation for specialization, as we have described above. Other basic information include, the author of the SU, version information and a link pointing to the storage area, where the software update is stored, as well as a link to the metadata itself. Finally, since in our proposal, we distinguish software updates from SIPs to UPs, the basic metadata information should include a flag to separate one from the other.
+\paragraph{Justification.} This is a very important part of the metadata of a software update, especially if this is a SIP. It is the information, with which the author of the update will try to convince the rest of the stakeholders on the merit of the proposed software update. Missing information in this part, or unclear justification statements, might cause the rejection of a proposal. The reason, the scope and the expected benefits of a software update must be clearly stated in this part.
+\paragraph{Urgency.} This is where the priority requirement of a software update must be declared. If it is a bug-fix for example, then it should specify a severity level, in order to declare the urgency for deployment. Similarly, if it is a change request, a priority specification, will help the stakeholders prioritize the demand.
+\paragraph{Consensus impact.} There are software updates that impact the consensus protocol and others that do not. For the former, it is important to declare the type of the change. If the validation rules of the protocol become less restrictive, then this is a \emph{hard fork} type of change. In this case, non-upgraded nodes reject the new type of blocks and thus there is a significant risk for a chain split. If the validation rules become more restrictive, then this is called a \emph{soft fork} type of change. In this case, the non-upgraded nodes accept the new type of blocks but the blocks generated buy these nodes are not accepted by the upgraded nodes. So, if the old nodes do not eventually upgrade, then they can not continue to issue new blocks. Finally, if the new validation rules are neither more restrictive, nor less restrictive, then we have a \emph{velvet fork} \cite{velvet}. This type of change does not entail the risk of a chain split. Naturally, the type of change is really important, because it signifies the risk for a \emph{chain split}. For example, a hard fork type of change entails much more risk for a chain split, in the case of nodes failing to upgrade on time, than a soft fork, or a velvet fork (which has no risk at all).
+\paragraph{Implementation.} Next comes meta-information on the implementation of the software update. Examples could be if this software update entails code development, or if it is a parameter change. For the latter, a distinction could be made between static and dynamic parameter changes. Essentially, dynamic parameter changes are ''code-less'' software updates - no deployment of new code is required. Other aspects of the implementation have to do with the size and the complexity of a software update. Typically an estimation of the required man-effort for its implementation could be included.
+\paragraph{Deployment.} The deployment of a software update is really critical, especially for those updates that impact the consensus protocol. This is because a lack of synchronization at the deployment phase might result into a \emph{chain split by accident}. This part of the metadata comprises instructions on the deployment process, maybe deployment scripts, or declarative statements of the deployment process (if some automated software provisioning tool is used, e.g., ansible playbooks). Moreover, an estimation of the size of the deployment (in terms of man-effort required), would help to calculate parameters, such as the \emph{activation lag} described later on.
+\paragraph{Rollback.} Symmetrically to the deployment, the metadata must include information for an un-install process, in the case of a problem. The type of information provided is similar to the deployment category.
+\paragraph{Update constraints.} Software updates do not live in vacuum. They are strongly related to one another. In fact, there exist dependencies between software updates that if are not respected, then the upgrade will fail. We call all the dependencies and the conflicts between software updates \emph{update constraints}. It is very crucial to clearly define the update constraints of a software update in its metadata. This will illustrate how feasible is a specific software update. For example, a dependency of a SU on another SU, which has not been implemented yet is a clear indication of non-feasibility.
+\paragraph{Update prerequisites.} In this part we define other prerequisites apart from the ones that have to do with other software updates that we have discussed before and therefore we can consider them as prerequisites from ''external'' factors. For example, platform requirements, or specific hardware requirements, in order for a software update to be applied successfully, should be mentioned in this section of the metadata.
+\paragraph{Budget information.} Last but not least, comes the budget information. This is extremely useful information, especially if the update system is backed up by a treasury system \cite{treasury} that will assume the funding of the implementation of the software update.
+%\end{itemize}
+We have described different aspects of meta-information that could accompany a software update. The purpose was not to propose a complete list of metadata but rather to point out how important is the software update mechanism to be metadata driven. To this end, in the following subsections, we provide examples of exploitation of software update metadata in the phase of activation.
 
-The update meta-data provide basic information such as the name and a description for the Update Proposal. Moreover, they declare the urgency of the update as well as its type (Change Request or bug-fix), in order to guide the prioritization of the update. They provide values for critical parameters of the Update protocol (e.g., the \verb;voting_duration;), as well as declare the type of consensus rule changes (hard fork, soft fork, velvet fork etc.). Finally, they declare the dependencies and the potential conflicts with other Update Proposals, which is a very useful information that should guide the software deployment process. This metadata-driven update process is  based on the notion of \emph{Update Policy}, which we will discuss further in the following subsections.
-A complete list of our proposed list of Update Proposal meta-data can be found in the Appendix. 
+
+%\nnote{categories of metadata:
+%- basic info (name, description, content hash, author description, version info, url, Category tag)
+%- Justification of change (bug-fix, security-fix, CR, benefits from change etc.
+%- Urgency of change (priority, level of severity)
+%- Consensus impact (hard/soft/velvet/no-impact
+%- implementation (method: dynamic/static parameter change, code development, size estimate: man-effort)
+%- Change size (man-effort estimated)
+%- Deployment (complexity man-effort estimated, instructions, ansible playbook)
+%- Uninstall (instructions, ansible playbook)
+%- Budget info
+%- Update Constraints (dependencies to other SUs, prerequisites, conflicts with other SUs)  
+%- Update prerequisites (Platform, HW requirements)}
 
 %We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
 
