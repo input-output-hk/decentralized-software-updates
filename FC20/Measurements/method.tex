@@ -1,0 +1,15 @@
+\section{Measurement Method}
+For the time measurements, we can implement a simulation program that will record the elapsed time of a running software updates protocol executed by $u$ active users.
+
+Some basic requirements for the simulation program are the following:
+\begin{enumerate}
+\item The simulation program is a concurrent program that runs with $u$ instances for $T$ amount of time.
+\item Instances of the program run asynchronously and communicate with each other with messages.
+\item An instance of the program simulates a node running the software updates (SU) protocol. For the rest of this text, we will simply call an instance of the simulation program as \emph{the node}.
+\item The program runs all the phases of the SU protocol.
+\item The program assumes that there are available \emph{all} the functions mentioned in Section \ref{shelley} (Shelley Requirements). For example, whenever a node wants to submit an event, it simply calls $est(u)$ and sleeps for this amount of time.
+\item We assume that each SU is accompanied by a set of metadata that define properties such as the size of the SU that impact the fixed time periods. Essentially based on the size of the SU (expressed in small/medium/large), we can choose from a corresponding set of values for the fixed time periods (e.g., SIP review, Voting Period etc.). Other important information recorded in the metadata is the list of consensus protocol parameters impacted by the SU (for conflict resolution) and the required base version for the SU to be applied (for the dependency checks).
+\item For the steps where the identified method is ''simulation'' in the tables that summarize the time dissection, the program implements the actual processing that takes place.
+\item The program must be based on some configuration-based initialization, where important information such as the stake distribution, the $k$ security parameter, the number of active users $u$, the time period $T$ that the protocol will run etc. are specified.
+\item The program must record into a file, for each SU generated, the end-to-end time from the SU submission to the SU activation.
+\end{enumerate}
