@@ -1,0 +1,381 @@
+\section{Update Governance}
+
+%\nnote{In this section we need to describe the mechanism that we use for governing the software update process, namely: voting, delegation and how we eventually reach at a consensus}
+
+%\paragraph{What is update governance. Why we should care?}
+With the term \emph{update governance} we mean the processes used to control the software updates mechanism. As we have seen, in the centralized setting, update governance is quite straightforward. The mere existence of a central authority (owner of the code) simplifies decision making significantly. On the other side, in the decentralized approach, we have seen that all decision-making procedures have been replaced by a voting process, where a decision is taken collectively by the whole stake. Thus, we are dealing with a \emph{decentralized governance model}. Therefore voting and delegation are key components of a decentralized approach to software updates.
+%\paragraph{What is the scope of the sections that follow?}
+%It is true that in the decentralized setting the tools that one has at one's disposal for controlling the software updates process, but more importantly, for leading the participating stakeholders towards an \emph{update consensus}, i.e., to reach at an agreement regarding the acceptance, or not, of the updates and the order (i.e., priorities), by which these will be applied,  are the voting and delegation mechanisms. 
+In this section, we describe both of these mechanisms and end with a description of the software updates protocol that encompasses them.
+
+
+\subsection{Voting for Software Updates}
+%\nnote{this subsection must include both the SIP and the UP voting according to the lifecycle}
+
+%\nnote{we need to talk about all the details and assumptions of the voting protocol, e.g.,stake distribution changes, fees, honest majority assumption, voting threshold etc.}
+\subsubsection{Voting for SIPs and UPs}
+Voting is the main vehicle for driving democracy and in our case is indeed the main mechanism for decision making in a decentralized setting for software updates. During the lifecycle of a software update, we have identified two phases, where a voting process is required. The first appears in the ideation phase and has to do with the approval of SIPs, while the second lies in the approval phase and deals with the approval of submitted source code and metadata (optionally binaries also), namely the UP bundle. Apart from the fact that the object of the voting process differs in these two phases, everything else is the same, so in the text that follows, whatever we describe pertains to both of the voting phases, unless explicitly specified.
+
+%\paragraph{What is a vote}
+\emph{A vote} is a fee-based transaction that is valid for a specific period of time called the \emph{voting period}. In particular, after the object of voting (a SIP or a UP) has been submitted to the blockchain (initially encrypted and then at a second step revealed - based on a commit-reveal scheme),% it has been buried under a sufficient number of blocks, in order to be confirmed and finally it has been revealed, 
+then the voting period for this software update begins. 
+
+We acknowledge the fact that not all software updates are equal and therefore, we cannot have a fixed voting period. Moreover, software updates (especially UPs, which are essentially source code) are complex technical objects, where sufficient time must be provided for their evaluation. Therefore, the voting period must be adaptive to the complexity of the specific software update. We propose to have a \emph{metadata-driven} voting period duration, based on the size of the software update, expressed as required man-effort in the accompanying metadata of the software update. So the voting period duration $v_{duration}(su_{size})$ , which can be expressed as a number of blocks (or slots), is a function of the software update size (e.g., expressed in man-days).
+
+%The voting period ends after $voting\_delay$ blocks, which is a parameter to the software updates protocol.
+
+We introduce a \emph{vote} as a new transaction type, the \emph{Software Update Vote Transaction (SUVT)} that can only be included in a block during the voting period. The core information conveyed by the vote transaction is summarized in the following tuple:
+\begin{align*}
+( H(<SIP/UP>), \\
+  SU_{Flag}, \\
+  <confidence>, \\
+  vks_{source}, \\
+ \sigma_{sks_{source}}(m))
+\end{align*}
+$H(<SIP/UP>$ is the hash of the content of the SIP/UP and plays the role of the unique id of a software update. $SU_{Flag}$ is a boolean flag (SIP/UP), which discriminates an SIP vote from an UP vote. $<confidence>$ is the vote per se, expressed as a three-valued flag (for/against/abstain). $vks_{source}$ is the public key of the party casting the vote. Finally, $\sigma_{sks_{source}}(m)$ is the cryptographic signature, signed with the private key corresponding to $vks_{source}$, on the transaction text $m$.
+
+Anyone who owns stake has a legitimate right to vote and this vote will count proportionally with the owned stake. Furthermore, as we will describe in detail in the next section, the right to vote can also be delegated to another party. However, we want to give the power to a stakeholder to override the vote of his/her delegate. Therefore, if within the same voting period appear both a private vote and a delegate's vote, for the same software update, then the private vote will prevail.
+
+Moreover, as we have stated above, we acknowledge the fact that software updates are complex entities and their evaluation is a challenging task. This is true especially, when someone has to evaluate source code. Therefore, we cannot exclude the possibility that a voter/evaluator changes his/her mind after voting for a specific SU (for example, the evaluator identifies a software bug after voting positively for a software update). We want to provide the flexibility to the evaluators to change their minds. Therefore, we allow for a voter to vote multiple times, within a voting period for a specific software update. At the end, we count only the last vote of a specific public key in the voting period for a specific software update.
+
+\subsubsection{Voting Results}
+After the end of the voting period for a specific software update and after we allow some stabilization period (in order to ensure that all votes have been committed into the blockchain), the votes are tallied and an outcome is decided. First, the private votes are counted. The tallying is performed as follows: For each slot within the voting period, if a block was issued pertaining to that slot, each SUVT in that block is examined. If the staking key for that transaction has been tallied on a private vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every SUVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{private stake in favour}, the \emph{private stake against} and the \emph{private abstaining stake}. 
+
+Subsequently, the delegated votes are counted. For each slot within the voting period, if a block was adopted pertaining to that slot, each SUVT in that block is examined. If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discounted and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a private vote; if the delegating key has also cast a private vote, then the private vote is counted instead of the delegated vote. For each delegatable SUVT which has been counted, the stake delegating to it which hasn't issued a private vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{delegated abstaining stake}.
+
+The sum of the private stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{abstaining stake}.
+
+Suppose that the \emph{honest stake threshold assumption} of our software updates protocol is $h$, then at the end of the tallying, a software update (i.e., a SIP or an UP) is marked one of the following:
+\begin{itemize}
+
+\item \emph{Approved}. When the $stake\ in\ favour \geq h$
+
+\item \emph{Rejected}. When the $stake\ against \geq h$
+
+\item \emph{No-Quorum}. When the $abstaining\ stake \geq h$. In this case, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-quorum}$ times, which is a protocol parameter. After that, the software update becomes \emph{expired}.
+
+\item \emph{No-Majority}. In this case none of the previous cases has appeared. Essentially, there is no majority result. Similarly, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-majority}$ times, which is a protocol parameter. After that, the software update becomes expired.
+
+\item \emph{Expired}. This is the state of a software update that has gone through $rv_{no-quorum}$ (or $rv_{no-majority}$) consecutive voting periods, but still it has failed to get approved or rejected.
+\end{itemize}
+
+In our proposal we have chosen a three-value logic for our vote (for/against/abstain). In this way, apart from the actual result, we can extract the real sentiment (positive, negative, neutral) of the community for a specific software update. This is very important in a decentralized governance model, because it clearly shows the appeal of a software update proposal to the stakeholders. If we did not allow negative votes, then the negative feeling would be hidden under the abstaining stake. 
+
+Moreover, the \say{abstain} vote is a sign that the stakeholder has not formed an opinion for, or against, a specific software update. However, it might also denote that the evaluator has not made yet a decision and maybe he/she needs more time. Therefore, the abstain vote can be also used as a way for the evaluator to say that the evaluation of the SU has not finished, a conclusion can not be drawn yet and indirectly submit a request for a time extension (i.e., a new voting period).
+
+\subsubsection{On Assumptions and Thresholds}
+%\nnote{- 3-valued vote YES/NO/ABSTAIN.
+%- We assume that the honest stake threshold actively participates (i.e., votes) - either directly or through delegation.
+%- Voting period is metadata driven based on the size (man-effort) of the SU
+%- Tally result: a) honest stake threshold YES = approve, b) honest stake threshold NO = reject, c) honest stake threshold ABSTAIN = extend voting for one more voting period, d) No majority result = extend for one more voting period (if this has already happened for n times, then SU expires)
+%- Why we need abstain? A voter can use it as an indirect way to request more time for evaluation (especially useful for complex UPs)
+%- What if I dont like the vote of my delegate? Then I can issue a personal vote and that will override the delegates vote.
+%- We allow a user to vote many times within a voting period (i.e. to change his mind). This is because we are dealing with the evaluation of complex technical issues (such as source code), so we need this sort of flexibility. We always take into account the last vote within a voting period.
+%}
+
+%\paragraph{Assumptions.} We require the parties that cast a vote to remain active during all the voting
+%period. This is a critical requirement since we want our protocol to be secure against \emph{adaptive corruption}. Roughly, this assumption ensures that at the moment of the tally the majority
+%of the stake involved in the voting process is controlled by honest parties.
+%We note that the latter holds due to the fact that the stake considered during the tally is the stake 
+%that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
+%the tally, without taking into account the stake that the voters had in the moment that the votes were casted.
+We require that for each voting period and for every software update submitted, there are always at least $h$ honest parties, actively participating in the voting process (i.e., submitting a vote with a value of for/against/abstain), where $h$ is the \emph{honest stake threshold assumption} of our software updates protocol. In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake pools}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software update protocol (and especially the voting phases), similarly (in-concept) to the underlying consensus protocol, make the assumption that $h$ percent of honest stake is being active at all time. 
+
+If the underlying consensus protocol has an honest stake threshold $x$ (e.g., $x$ = 51\%), then we require $h \geq x$. The rationale behind this is that the software updates protocol is built \emph{on top} the consensus protocol, since all the software updates protocol events are essentially transactions committed into the blockchain. Therefore, the software updates protocol cannot require less honest stake than the consensus protocol on which it is based. However, there might be cases (i.e., software updates), where a greater majority is required for the voting process and therefore a greater percent of honest stake $h$ might be used for the software updates protocol.
+
+Moreover, the stake considered during the tally is the stake that the voters have at that moment. That is, we only consider the stake of the voters at the moment of the tally, without taking into account the stake that the voters had in the moment that the votes were casted. Therefore, the stake distribution is not known at the moment where the voting takes place, which is a security measure against voters' coercion.
+
+With respect to the voting threshold, we have seen that for a software update (either a SIP, or an UP) to get approved the following condition should hold: $stake\ in\ favour >= h$. Our voting mechanism, from a security perspective, has essentially two goals: a) a software update that is not approved by the stake majority will never be applied and b)  a software update that it is approved by the stake majority will be eventually applied.
+
+Let's assume that we imposed another threshold: 
+$$stake\ in\ favour \geq h + d$$, where $d > 0$. We know that we have at least $h$ honest parties actively voting. Then, since we need more that $h$ votes for the SU to get approved, then the adversaries could block the approval, either by voting 'against', or 'abstain', or by not voting at all.
+
+Similarly, if we imposed as a threshold $$stake\ in\ favour \geq h - d$$, where $d > 0$, then the adversaries could potentially approve a malicious SU (assuming that we have $h-d$ adversary stake), if the honest stake does not vote a unanimous rejection (i.e., some part of the honest stake votes \say{against} and the rest part votes \say{abstain}). 
+
+In other words, the  $stake\ in\ favour \geq h$ threshold that we have chosen, guarantees that the adversaries cannot block a good software update, since there is enough honest stake majority to approve it. Moreover, due to the \emph{liveness} property of the underlying consensus protocol, all honest parties' votes will be eventually committed to the blockchain, as long as the tallying takes place after a stabilization period. At the same time, the adversaries cannot approve a malicious software update, since they do not have the majority to approve a malicious software update.
+
+\subsection{Delegation}
+Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs and finally the adoption signaling, when an upgrade has taken place. In this section, we discuss the delegation of the protocol participation right to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
+\subsubsection{Delegation for Technical Expertise}\label{delfortech}
+%\nnote{E.g., for code review and approval we can adopt a default delegation scheme}
+One of the first practical challenges that one faces, when dealing with the decentralized governance of software updates is the requirement of technical expertise, in order to assess a specific software update proposal. Indeed, even at the SIP level, many of the software update proposals are too technical for the majority of stake to understand. Moreover, during the UP approval phase, the approver is called for approving, or rejecting, the submitted source code, which is certainly a task only for experts.
+
+Our proposal for a solution to this problem is to enable delegation for technical expertise. Stakeholders will be able to delegate their right to participate in the update protocol to an \emph{expert pool}. The proposed delegation to an expert pool comprises the following distinct responsibilities:
+\begin{itemize}
+\item The voting for a specific SIP
+\item The voting for a special category of SIPs 
+\item The voting for any SIP
+\item The approval of a specific UP
+\item The approval of a special category of UPs
+\item The approval of any UP
+%\item The adoption signaling for a specific UP
+\end{itemize}
+As you can see, we distinguish delegation for voting for a SIP document and that for approving an UP. We could have defined delegation for SIP voting to imply also the approval of the corresponding UP. However, since both have a totally different scope, there might be a need to delegate to different expert pools for these two. Indeed, a SIP is an update proposal justification document and the expert who is called to vote for, or against, a specific SIP, must have a good sense of the road-map of the system. On the contrary, the approval of a UP is a very technical task, which deals with the review and testing of a piece of code against some declared requirements (i.e., the corresponding SIP) and has nothing to do with the software road-map.
+
+We allow voting for a specific SIP/UP, or for \emph{any} SIP/UP. In the former case, the id of the specific SIP/UP must be submitted along with the delegation certificate. In the latter case, if one wants to override the \say{any} delegation and delegate to some other party for a specific SIP/UP, then this is possible via the submission of a new delegation for the specific SIP/UP. 
+
+There is also delegation for special categories of SIP/UPs, as well as the delegation for the adoption signaling. These will be the topics that we will describe next.
+
+\subsubsection{Delegation for Specialization}
+%\nnote{Describe how we use delegation for enabling voting for specialized UPs (e.g., platform specific)}
+One size does not fit all and surely, all software updates are not the same. There are many different angles (a.k.a. dimensions) by which one can view software updates and distinguish them into different categories. For example, the reason for a SU can be such an angle (i.e., dimension). A SU can be a bug-fix (or security fix), or it can be a change request (or a new feature request). Another dimension is the priority (high/medium/low) of the SU. Furthermore, in blockchain systems, a typical dimension for distinguishing SUs is the impact to the consensus protocol (impact/no-impact). Moreover, for those SUs that impact the consensus protocol, the type of change that they trigger (soft/hard fork) is another dimension. For those SUs that do not impact the consensus protocol another dimension could be, if they are platform specific (e.g., applicable only to Linux, Windows, MacOS etc. versions of the client software). 
+
+All these are valid ways to categorize software updates to certain categories. However, special categories might justify some specialized treatment. We do not propose any specific set of categories in this paper. However, we do propose that: a) software updates are tagged with a specific category and b) to use delegation for enabling specialized treatment on special categories.
+
+Let us consider for example security fixes. It is common sense, that security fixes are software updates that: a) have a high priority and b) require significant technical expertise to be evaluated. Therefore, by having a special expert pool as a \emph{default delegate} for this category of software updates (both SIPs and UPs) enables: a) a faster path to activation and b) sufficient expertise for the evaluation of such SUs.The former is due to the omission of the delegation step in the process and that the evaluation (i.e., voting of SIPs/UPs) will take place generally in shorter times; exactly because this is a specialized and experienced expert pool that deals only with security fixes; we assume that they can do it faster than anybody else.
+
+So, for software updates with a special tag, our proposal is, to have default specialized expert pools that will participate in the software updates protocol on behalf of the
+ %\emph{whole stake}
+ delegated stake. Of course, this default delegation based on SU tagging can be overridden. Any stakeholder can submit a different delegation for a specific SIP/UP regardless of its tag. 
+%Note that the ''any'' delegation described in the previous subsection does not override delegation for specialization.
+What about software updates without a special tag? These will be the topic of discussion of the next subsection.
+
+\subsubsection{Default Delegation for Availability}\label{defaultdel}
+%\nnote{describe how we solve the availability problem based on default delegation}
+
+Blockchain protocols based on the Proof-of-Stake (PoS) paradigm are by nature dependent on the active participation of the digital assets' owners --i.e., stakeholders-- (Karakostas et. al. \cite{stakepools}). Practically, we cannot expect stakeholders to continuously participate actively in the software updates protocol. Some users might lack the expertise to do so, or might not have enough stake (or technical expertise) to keep their node up-and-running and connected to the network forever.
+
+One option to overcome this problem, which is typical in PoS protocols, is to enable stake representation, thus allowing users to delegate their participation rights to other participants and, in the process, to form
+\say{stake pools}(\cite{stakepools}). The core idea is that stake pool operators are always online and perform
+the required actions on behalf of regular users, while the users retain the ownership of their
+assets (\cite{stakepools}). 
+
+In this paper, we propose to utilize the stake pools mechanism for our software updates protocol in tandem with the consensus protocol. In particular, we propose to allow each stakeholder to define a default delegate for participating in the software updates protocol from the list of available stake pools that participate in the core consensus protocol. This will be a \say{baseline} representative of each stakeholder to the software updates protocol, just for the sake of maintaining the participation to the protocol at a sufficient level and minimizing the risks of non-participation. This delegate will coincide with the delegate for the participation in the consensus protocol. A stakeholder will be able at any time to override this default delegation. A delegation to an expert pool for a specific software update, or a specific category of software updates, due to specialization, described in the previous section, will override the default delegation to a stake pool.
+%In addition, delegation to stake pools will not impact delegation to expert pools, due to specialization, described in the previous subsection.
+
+Therefore,  all software updates without a special category tag that have not been included into an explicit delegation certificate, will be managed (by default delegation) by the same stake pool that the stakeholder has delegated to run the  proof-of-stake consensus protocol. This will allow the stakeholder to be able to abstain from the software updates protocol, for periods of time, without causing a problem. This delegation to stake pools has also another advantage that we discuss next.
+
+We have seen that one of the responsibilities of a stakeholder that participates in the software updates protocol, at the activation phase, is to signal the adoption of a UP. This signal is placed within each generated block after the node upgrades. We know that in a proof-of-stake consensus protocol blocks are generated by the stakeholders (with possibility proportional to their stake) and in a more realistic setting by the stake pools, which have been delegated to do so. So in practice, the stake pools are called for signaling the adoption event, merely because they are the block issuers. Therefore, the choice of stake pools as the default delegates for the software updates protocol, fits nicely with the fact that stake pools will be responsible for signaling adoption anyway. If a stakeholder has not delegated his participation to the proof-of-stake consensus protocol and is chosen to generate a block, then he/she will also be responsible for signaling the adoption of a specific UP. In other words, adoption signaling simply follows the delegation of the proof-of-stake consensus protocol and ignores delegation to expert pools.
+
+\subsubsection{Delegation Mechanics}
+%\nnote{how we register delegation, how we unregister, rewards, fees, ...}
+For the realization of the stake pool delegation mechanism that we described above, we closely follow the work of Karakostas et al. \cite{stakepools}, so we refer the interested reader to this work for all the relevant details. In this subsection, we would like to focus
+on the most basic mechanics (i.e., technical details) that will enable such a delegation mechanism to work. Please note that many of our ideas are based on the design of the delegation mechanism for the Cardano blockchain system \cite{deldesign}.
+
+\paragraph{Staking keys.}
+Following the Karakostas et. al. \cite{stakepools} approach, we separate for each address the control over the movement of funds (i.e., executing common transactions, such as payments) and that over the right for participation in the proof-of-stake protocol and consequently, in the software updates protocol, due to the ownership of stake. Intuitively, this separation of control is necessary, since we only want to delegate the management of stake to some other party, by means of participation in the software updates protocol and not the management of the funds owned by this stake. This is achieved in practice by assuming that each address consists of two pair of keys: a) a \emph{payment key pair} $K^p = (skp,vkp)$ and b) a \emph{staking key pair} $K^s = (sks, vks)$. With the former a stakeholder can receive and send payments, while with the latter a stakeholder can participate in the proof-of-stake consensus protocol and in the software updates protocol. $skp$ and $sks$ are the secret keys for signing, while $vkp$ and $vks$ are the public keys used to verify signatures.
+
+\subsubsection*{Stake Delegation}
+In its simplest form, delegation of stake from some party A to another party B (typically a stake pool) for participation in the proof-of-stake consensus protocol, also delegates the right for participation in the software updates protocol as well. The rationale of this has been described in Subsection \ref{defaultdel} and it holds only on the assumption that there is no explicit delegation to some expert pool. So in the rest of this text, when we refer to stake delegation, we mean for the participation in both the proof-of-stake consensus protocol and the software updates protocol, unless an explicit statement is made for delegation to an experts pool.
+
+At its core, the delegation of stake to some other party, essentially requires two things: a) stake registration and b) issuance of a delegation certificate:
+
+\paragraph{Stake key registration.}
+This step is a public declaration of a party that it wishes to exercise its right for participation in the proof-of-stake protocol, due to its ownership of stake. In order for a stakeholder to exercise these rights, he/she must first issue a stake key registration certificate. This is a signed message stored in the metadata of a transaction and thus it is published to the blockchain. The key registration certificate must contain the public staking key $vks$, and the signature of the text of the transaction $m$ by the staking private key $sks$, which is the rightful owner of the stake. In other words, the key registration certificate $r$ is the pair: $r = (vks, \sigma_{sks}(m))$. The signature $\sigma$ of the certificate, authorizes the registration and  plays the role of a witness. 
+%Interestingly, it also prevents against a certificate replay attack. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in UTxO accounting blockchains, a transaction cannot be replayed (a UTxO can be only spent once), similarly a certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}. 
+Symmetrically, there is also a de-registration certificate for a stake key, which is a declaration that a party no longer wishes to participate in the proof-of-stake protocol.
+
+\paragraph{Delegation registration.} 
+In order to register the delegation of stake from one party (source) to another (target), a delegation certificate must be issued and posted to the blockchain by the source party. This certificate publicly announces to the network that the source party wishes to delegate its stake right (for participation in the proof-of-stake protocol) to the target party and this is recorded forever in the immutable history of the blockchain. 
+At a minimum, a delegation certificate consists of the following information:
+$$
+(H(vks_{source}), H(vks_{target}), \sigma_{sks_{source}}(m))
+$$ 
+Where, $H(vks_{source})$ is the hash of the source party's public staking key, $H(vks_{target})$ is the hash of the target party's public staking key and $\sigma_{sks_{source}}(m)$ is the signature of the text $m$ of the transaction (within which the delegation certificate is embedded) by the source party's private staking key $sks_{source}$, which authorizes the certificate and plays the role of a witness.
+
+If at some point, the source party wishes to re-delegate to some other party, or even to participate in the protocol on its own, then it must simply issue a new delegation certificate. For self-participation in the protocol, a party must issue a delegation certificate to its own \emph{private stake pool}\footnote{A \emph{private stake pool} is a trivial case of a stake pool. By treating self-staking as a special case of stake pool delegation is a design decision for the sake of simplicity \cite{deldesign}.}. If the source staking key is de-registered, then the delegation certificate is revoked.
+
+\subsubsection*{Delegation to an Expert Pool}
+We have seen that by default, the participation right in the software updates protocol is delegated to the stake pool that the delegation for participation in the proof-of-stake consensus protocol has taken place. So by default, some stake pool will participate in the software updates protocol. Next, we will discuss the case where a stakeholder wants to override the default behavior and explicitly delegate to an expert pool.
+
+An expert pool is an entity consisting of one or more experts, who are willing to participate in the software updates protocol as delegates of other stakeholders. Their main task is to vote for (or against) SIPs and to approve (or reject) UPs. We call them \say{experts}, because they need to have sufficient technical expertise, in order to evaluate a software update.
+
+In order to enable delegation to an expert pool, we extend the delegation certificate presented above, with additional information. In particular, a delegation certificate to an expert pool is defined as the following tuple:
+\begin{align*}
+(H(vks_{source}), \\
+ H(vks_{target}), \\
+ \sigma_{sks_{source}}(m), \\
+ SU_{Flag}, \\
+ H(<SIP/UP>), \\
+ <category>)
+\end{align*}
+
+In this case, the $H(vks_{target})$ is the hash of the public staking key of the expert pool. We have extended the delegation certificate to include a boolean flag $SU_{Flag}$, which denotes, if the delegation pertains to a SIP, or an UP. We have explained previously (see subsection \ref{delfortech}), the rationale for distinguishing the delegation for these two. Finally, the hash $H(<SIP/UP>)$ is the hash of the content of the SIP, or UP, in question and plays the role of the unique id for this SIP, or UP respectively. Note that if instead of a specific SIP/UP id, a special value is provided for this field (e.g., '*'), then this corresponds to a delegation for \emph{any} SU of this type (SIP or UP). Finally, if the SU id field is empty (or $NULL$, it depends on the implementation), then we take into account the last field, which specifies the \emph{category} of the SU (e.g., \say{security-fix}, \say{linux-update}, etc.) that, we wish to delegate for. This will be a simple string value chosen from a fixed set of values (a list of acknowledged SU categories). 
+
+In summary, with this certificate, a party can delegate its participation right in the software updates protocol to an expert pool: a) for a specific software update (SIP or UP), b) for a specific category of software updates, or c) for any software update. Of course, in order for this delegation registration to be valid, the target expert pool must have been appropriately registered first in the blockchain. This is the topic to be discussed next.
+
+\subsubsection*{Expert Pool Registration}
+In order for someone to publicly announce his/her intention to play the role of an expert, or equivalently, to run an expert pool, two things are required: a)to issue an expert pool registration certificate and b)to provide appropriate \emph{metadata} describing the expert pool.
+
+\paragraph{Expert pool registration certificate.}
+The certificate contains all the information that is relevant for the execution of the protocol. At its most basic form this certificate comprises the following:
+\begin{itemize}
+\item $vks_{expool}$: This is the public staking key of the expert pool. This must be used as the target public key in the delegation certificate, as discussed in the previous subsection.
+
+%\item $[H(vks_{sup_1}), H(vks_{sup_2}), ...,H(vks_{sup_p})] $: A list of $p$ public staking key hashes that aggregate to $P$ total stake. This is called the \emph{pledged stake} of the expert pool and is provided by some stakeholders that we call the \emph{expert pool supporters}. An expert pool registration must be backed up by some (pledged) stake $P$. This is simply a promise made by the expert pool that the pool will receive at least this minimum support by the stake of the supporters. For an expert pool to participate in the software updates (SU) protocol and get rewarded for this, it must be delegated at least $P$ stake from these $p$ stakeholders. If this threshold $P$ is not met (i.e., the pool is delegated less stake than $P$ from the list of $p$ stakeholders mentioned in the certificate), then no participation in the software updates protocol is allowed and thus, no rewards will be payed to the Expert pool. Note that this list in this certificate is not a delegation. The pledged stake must explicitly declare the delegation via issuing distinct delegation certificates, as described above.
+
+\item $(<URL>, H(<metadata>))$: A URL pointing to the metadata describing the expert pool and a content hash of these metadata. The URL points to some storage server and the hash of the content retrieved must match the one stored in the certificate for the pool registration to be considered as valid.
+
+%\item $[\sigma_{sks_{expool}}(m),\sigma_{sks_{sup_1}}(m),...,\sigma_{sks_{sup_p}}(m)]$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ and by all the $p$ supporter stakeholders $sks_{sup_i}, i \in [1,p]$, on the text $m$ of the transaction that includes the certificate.  
+
+\item $\sigma_{sks_{expool}}(m)$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ on the text $m$ of the transaction that includes the certificate.  
+
+\end{itemize} 
+
+Symmetrically, there should be also an \emph{expert pool retirement certificate} for allowing an expert pool to cease to operate. This should include the public staking key of the expert pool, as well as a time indication (e.g., expressed in block number, or an epoch number etc.) of when the pool will cease to operate.
+
+\paragraph{Expert pool metadata.}
+The expert pool metadata are necessary information that describe sufficiently an expert pool, so as the stakeholders community can decide, which expert pool to choose for their delegations. Typically, this information will be displayed by the wallet application, in order to assist the users to select the expert pool of their choice. Examples of useful information to be included in the expert pool metadata are the name of the pool, a short description, the area of expertise, the years of expertise, preferences to specific SU categories, URLs to sites that exhibit the claimed experience and in general any information that can help the stakeholders to choose the appropriate delegate for the right software update.
+
+%\paragraph{Pledged stake rationale.}
+%In a centralized setting, a new expert pool, in order to establish a certain level of trust on its credentials from the community of stakeholders, would typically provide some reference/certification from a trusted third party authority. In the decentralized approach, the role of this trusted party that certifies for a new expert pool is assumed by the \emph{supporters stake}. In other words, the \emph{pledged stake} is the stake that supports a new expert pool on registration. This stake is beyond the stake that might (or might not) be owned by the expert pool staking key. It is a way for some of the stake to say that we trust this new expert pool and we are willing to support it by delegating our stake to it. It is therefore, a promise for a minimum of stake delegation to be received from the beginning of operation of the expert pool. It is also a hard prerequisite for allowing the participation of the expert pool in the software updates protocol. Conveniently, it also prevents from a specific type of attack, namely a sybil attack, as we will discuss briefly.
+
+\subsubsection*{Miscellaneous Considerations}  
+
+\paragraph{Chain delegation.}
+%\nnote{Do we allow chain delegation? Can a stake pool delegate further to some other party?}
+Chain delegation is the notion of having multiple certificates chained together, so that the source
+key of one certificate is the delegate key of the previous one. In principle there is no reason to prevent the formation of delegation chains. However, an implementation of this proposal must take into account the possibility to form (deliberately or by accident) delegation cycles. This means that a target delegate ends up to be one of the sources. In this case, the delegation is essentially canceled and the system should detect it and prevent it pro-actively.
+%In principle, we could allow chain delegation with the following restrictions:
+%\begin{itemize}
+%\item no cycles allowed
+%\item ''Any'' delegation is not allowed by expert pools. (is similar in concept with subcontracting in a project. A subcontractor cannot assume the whole project, only a part of it, otherwise there is no role for the prime contractor).
+%\end{itemize}
+
+%\subsubsection*{Security Considerations} 
+
+\paragraph{Certificate replay attacks.}
+For all our certificates, namely: stake key registration, delegation registration and expert pool registration, we have provided signatures of the text of the encompassing transaction (the certificates are included as transaction metadata), signed by the party(ies) authorized to issue the certificate. This is a design choice made in \cite{deldesign} that prevents against a certificate replay attack. In this attack, an attacker re-publishes an old certificate, in order for example to change a delegation to a new expert pool. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in blockchains with a UTxO accounting model, a transaction cannot be replayed (a UTxO can be only spent once), similarly the specific certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}, where the transaction that includes the certificate must be issued from a specific whitelisted address. Of course there are other common solutions like the counter-based mechanism (known as the \emph{nonce}) used in Ethereum \cite{ethereum}.
+
+%\paragraph{Sybil attacks.}
+%The attack in this case has to do with an adversary who tries to register too many expert pools, in order to gain control of the stake via delegations. The pledged stake described above provides an incentive-based protection mechanism against this type of attack, which has been proposed in Bruenjes et. al. \cite{incentives} and also is described in Kant et. al. \citep{deldesign}. In particular, the commitment of specific stake from the expert pool supporters, in the form of the pledged stake, which is published and stored forever in the blockchain, prevents (indirectly) an adversary to register too many expert pools. Moreover, the fact that the reward of the expert pool could be proportional to the pledged stake, de-incentivizes adversaries to try to register many expert pools with a very small pledged stake. 
+
+\paragraph{Identity theft.}
+Significant expertise on difficult technical issues is not a skill that is easy to acquire. Moreover, experience comes after a long period (probably many years) of struggle with technical issues. Therefore, real specialists on a technical domain are hard to find and for this reason they are invaluable. Typically, these experts are well-known and well-respected figures in the community. Therefore, such a well-known expert is expected to receive a significant amount of delegations, if he/she chooses to register an expert pool. This fact makes expert pool registration susceptible to identity theft. This is the case where an expert pool falsely claims to be the famous \say{expert A}, just for the sake of receiving the delegations drawn from the fame of the expert. This identity assurance problem is external to the software updates protocol and also to the underlying consensus protocol and thus some out-of-band solution could be adopted. For example, a famous expert, could post his/her public key (or its fingerprint) to social media, so that the people who follow him/her, will know, which is the genuine key that they can delegate to. Of course, other similar in concept, solutions can be exploited as well. However at the end of the day, in a decentralized setting, it is the stake via delegation that will be the ultimate judge of an expert pool.
+
+%\subsection{Update Consensus Protocol}
+%A cryptographic modeling of our software updates protocol, in order to prove its security properties. \nnote{do we need something like that?}
+
+%\nnote{Need to describe how we eventually reach a consensus for the priorities of the updates that will be applied. We need a high level description of our protocol.}
+%\nnote{Also, integration with the PoS consensus protocol must be described in this section}
+
+%\subsection{Fees and rewards}
+%\subsubsection{Fees}
+%\begin{itemize}
+%\item Describe the events of the protocol that are implemented as transactions. 
+%\item Who are these transactions paying? The treasury system?
+%\item Fees prevent DoS attacks
+%\end{itemize}
+
+%\subsubsection{Rewards}
+%The ideation phase (treasury system) elects some project to fund. In the budget of this project there a portion for the reward of voters and approvers (who might be stake pools or expert pools)
+%The reward schemes must be based on \cite{incentives} to guarantee that we will end up with k pools, instead of only one big one.
+%Rewards $r(s,p)$ for expert pools will be dependent on the total stake $s$ controlled by the pool and on the pledged stake $p$.
+
+%------------------------------------------------
+%\section*{Update Governance -- old stuff}
+%The arrival of a UIRT transaction essentially signals the start of the voting period for the specific Update Proposal. A user can configure their node to determine whether they wish to vote on Update Packages, or whether they wish to delegate their votes, in which case they are allowing others to vote in their stead. They are given the following options:
+%
+%\begin{itemize}
+%\item[\textbf{Vote locally:}] When a UIRT is received, the user is notified by their client and is expected to issue their vote.
+%\item[\textbf{Vote delegation:}] When a UIRT is received, the user adopts the vote of the key that they delegate their vote to. The key that they delegate to which takes the final decision is called the \emph{Voting Leader}.
+%\end{itemize}
+%
+%\subsubsection*{Voting locally} 
+%
+%The user's vote can be issued by selecting the ''upvote'' or ''downvote'' button after inspecting the proposal details, including the title, description, and Update Package contents. It should be clearly communicated to the user that they are expected to technically validate the contents of the package or rely on someone to do so. If they wish to vote locally but do not have the technical skills to audit the details of the Update Proposal, they should ensure that the person who vouches for the proposal that they will vote for includes the Update Proposal hash and communicates it in a secure manner. Unlike Bitcoin and Ethereum, votes can be both ''for'' or ''against''. This is necessary for allowing vote delegation to be revocable prior to being cast.
+%
+%\subsubsection*{Voting delegation}
+%
+%Delegation is different for mining and for voting; a certain key can delegate for mining to a specific pool and for voting on a specific voting leader. Furthermore, it is possible to do multi-step delegation in which a user delegates to a key, which delegates to a different key, as many times as needed. Multi-step delegation is politically necessary to implement the principle of \emph{re-delegation} of \emph{liquid democracy} \cite{liqdemocracy}.
+%
+%Delegation does not have a barrier to entry. This is according to the principle of Low barrier to participation of liquid democracy. Contrary to mining pools, the key to which delegation is made does not need to hold any stake.
+%
+%When delegating one's vote, the Voting Leader is required to cast their vote at least 12k slots prior to the voting period end. When a Voting Leader casts their vote, the adopters of that vote are notified of the leader's opinion and can revoke their vote delegation prior to it being cast (and vote contrary to the leader's opinion).
+%Voting delegation can follow specific specialization rules. The voting delegation can be configured by proposal tags through a set of rules. These rules, in their simplest form, can assign a general delegatee, as well as more specific delegatees per tag, urgency, or consensus type. For instance, one could indicate that their general delegatee is Alice, while Update Proposals tagged as Hard Forks are delegated to Bob.
+%
+%Delegation is designated prior to the voting process and performed even if the users other than the voting leader are offline. The exact process for voting key delegation, the delegation protocol and the respective transactions will be discussed in the corresponding section.
+%
+%\subsection*{Voting Protocol -- old stuff}
+%We introduce a new transaction type, the \emph{Update Proposal Vote Transaction (UPVT)}, which locally votes for a proposal. UPVTs can only be included during the voting period. 
+%The voting period begins at the slot index indicated by voting\_begin\_time, which is defined as follows:
+%
+%\begin{verbatim}
+%voting_begin_time = issuance_time + voting_delay
+%\end{verbatim}
+%
+%The voting period ends at the slot index indicated by voting\_end\_time, which is defined as follows:
+%
+%\begin{verbatim}
+%voting_end_time = voting_begin_time + voting_duration
+%\end{verbatim}
+%
+%The voting transaction contains the following data:
+%\begin{itemize}
+%\item[\textbf{proposal:}] The hash of the proposal which this vote references.
+%\item[\textbf{confidence:}] Boolean. ''true'', if the vote is in favour of the proposal, or ''false'', if the vote is against the proposal.
+%\item[\textbf{pk:}] The public key which is casting the vote.
+%\item[\textbf{sig:}] A cryptographic signature made with pk on the plaintext consisting of the tuple (proposal, confidence).
+%\end{itemize}
+%
+%Note that in order to vote, one does not need to generate a block. This is so that delegates can vote despite not having sufficient stake to mine.
+%\mnote{Michele: The voters need to pay a transaction to vote}.
+%\paragraph{Assumptions.} We require the parties that cast a vote to remain active during all the voting
+%period. This is a critical requirement since we want our protocol to be secure against \emph{adaptive corruption}. Roughly, this assumption ensures that at the moment of the tally the majority
+%of the stake involved in the voting process is controlled by honest parties.
+%We note that the latter holds due to the fact that the stake considered during the tally is the stake 
+%that the voters have at that moment. That is, we only consider the stake of the voters at the moment of
+%the tally, without taking into account the stake that the voters had in the moment that the votes were casted.  
+%
+%
+%\mnote{Do we allow also negative votes?}
+%
+%After the slot voting\_end\_time has arrived, the votes are tallied and an outcome is decided. First, the local votes are counted. The tallying is performed as follows: For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the staking key for that transaction has been tallied on a local vote previously, the previous vote is discounted and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every UPVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{local stake in favour} and the \emph{local stake against}. Together, these form the \emph{participating local stake}.
+%
+%Subsequently, the delegated votes are counted. For each slot between \verb;voting_begin_time; (inclusive) and \verb;voting_end_time; \verb;- 12k; (exclusive), if a block was adopted pertaining to that slot, each UPVT in that block is examined. If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discounted and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a local vote; if the delegating key has also cast a local vote, then the local vote is counted instead of the delegated vote. For each delegatable UPVT which has been counted, the stake delegating to it which hasn't issued a local vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{participating delegated stake}.
+%
+%The sum of the local stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{participating stake}. The stake which is not included in the participating stake is the \emph{abstaining stake}.
+%
+%The proposal is marked as \emph{adopted} at the end of the voting period if the abstaining stake is less than 50\% of the total stake and the stake in favour is more than 75\% of the participating stake. Otherwise, the proposal is marked as \emph{rejected}.
+%\todo{Nikos: we need to conclude on the thresholds}
+%\mnote{Let's go for the 50\% for now.}
+%------------------------------------------------
+
+%\begin{itemize}
+%\item A voting protocol must be proposed that will enable an update consensus on. I.e., a community agreement on the priorities of the Update Proposals. 
+%\item The protocol must be secure and provide an incentivization scheme that will guarantee safety for the voting results, in an open and truly decentralized setting.
+%\item Need to define the vote transaction
+%\end{itemize}
+%
+%\textbf{Pre-voting Stage:}
+%\begin{itemize}
+%\item All users should be able to submit an Update Proposal.
+%\item Update Proposals include source code and appropriate metadata describing sufficiently the Update.
+%\item An \textbf{incentive scheme} must be in place that will guarantee that users wont submit malicious updates 
+%\item Voters should be able to delegate their voting right (proportional to their stake) for a specific Update Proposal to some other user, without loosing the ownership of their value.
+%\end{itemize}
+%
+%\textbf{Voting Stage:}
+%\begin{itemize}
+%\item All users should be able to vote for or against an Update Proposal
+%\item The voting power must be proportional to stake.
+%\item An \textbf{incentive scheme} must be in place that will guarantee that users will vote in such a way that the Update Priorities set will be beneficial to the Blockchain system.
+%\end{itemize}
+%
+%\textbf{Post-voting Stage:}
+%\begin{itemize}
+%\item A tallying procedure must be defined that will guarantee a secure and trusted election result for each Update Proposal
+%\item In order for an Update Proposal to become adopted there should be a minimum percent of stake that has voted for this proposal and a minimum percent of abstaining stake. These thresholds must be differentiated according to the type of change (bug-fix, change request, severity etc.) and to the Update Policy adopted for this proposal.
+%\item Deployment and Activation. See corresponding paragraph below.
+%\end{itemize}
+
+
+%\subsection*{Delegation Protocol - old stuff}
+%The delegation protocol will be used in order to 
+%a) Help voters when technical expertise is required and
+%b) Realize the concept of update policies (i.e., enabling different deployment speeds for different types of SUs).
+%
+%
+%\todo{Nikos: We need to define the exact process for voting key delegation, the delegation protocol and the respective transactions.}
+%
+%\nnote{Realizing our delegation protocol via liquid democracy and statement voting by Bingsheng Zhang et al.
+%https://eprint.iacr.org/2017/616
+%}
+
+%In the case where a voter does not want to vote for an update proposal, or does not have the necessary expertise to evaluate a proposal and reach at a decision, he should have the ability to delegate his voting right to some other user. We need a delegation scheme within our voting protocol that will ensure a secure delegation mechanism that will result to a secure voting protocol.  
+%\begin{itemize}
+%\item A secure voting delegation protocol must be proposed to ensure voting for proposals even when there exist stakeholders that are not at a position to vote for themselves and need to delegate their voting right to some other user. 
+%\item Also we need to describe if there is any connection of this delegation with the mining delegation.
+%\item Also, what happens when a stakeholder is not live during update proposal voting
+%\end{itemize}
+
