@@ -17,7 +17,7 @@ We have pointed out many times that software updates are not all the same. There
 \item Type of protocol change (hard/soft/velvet fork)
 \item Platform-specific change (Linux, Windows MacOS etc.)
 \end{itemize}
-To this end, we propose a \emph{software update logic} that is \emph{metadata driven}. A \say{logic} that can distinguish one SU from another and apply the appropriate update policy. In the section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
+We propose a \emph{software update logic} that is \emph{metadata driven}. A \say{logic} that can distinguish one SU from another and apply the appropriate \emph{update policy}. In the section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
 
 \subsection{Software Update Metadata} 
 A software update is inherently accompanied by meta-information that describes the update and sets it into the appropriate context. Therefore, we could say that every software update comprises a rich set of update meta-data that ultimately should drive the whole upgrade process. We distinguish several categories of metadata that result to a holistic view of a software update. The list of metadata categories presented next is indicative and aims at justifying the concept, therefore it is by no means complete, or restrictive in any way:
@@ -35,7 +35,7 @@ A software update is inherently accompanied by meta-information that describes t
 \paragraph{Budget information.} Last but not least, comes the budget information. This is extremely useful information, especially if the update system is backed up by a treasury system \cite{treasury} that will assume the funding of the implementation of the software update.
 %\end{itemize}
 
-We have described different aspects of meta-information that could accompany a software update. The purpose was not to propose a complete list of metadata but rather to point out how important is the software update mechanism to be metadata driven. To this end, in the following subsections, we provide examples of exploitation of software update metadata in the phase of activation.
+We have described different aspects of meta-information that could accompany a software update. The purpose was not to propose a complete list of metadata but rather to point out how important is the software update mechanism to be metadata driven. In the following subsections, we provide examples of such exploitation of software update metadata in the phase of activation.
 
 
 %\nnote{categories of metadata:
@@ -54,24 +54,63 @@ We have described different aspects of meta-information that could accompany a s
 %We need to define the set of update metadata that we need to maintain, in order to implement various \emph{update policies}, achieve conflict resolution, respect update dependencies and in general support the full scope of the Updating Process. These metadata will be included in the Update Proposal (see the Update Manifest below)
 
 \subsection{Update Policies} 
-An update policy is a way to customize the activation speed of a SU based on the type of the SU, which is deduced by the SU's metadata. We want to follow a metadata-driven activation approach. 
-An update policy can be enabled by two things:
-A) Delegation to expert pools
-B) adoption threshold (activation phase) and activation lag (activation phase)
-Activation lag is determined by
-Deployment complexity
-Soft/Hard fork type of change
+An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata (i.e., by the software update context). For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update.
+In the following subsections we discuss the factors that impact the activation speed of a software update and thus enable update policies and propose ways to guard against chain splits.
+ 
+% In our proposal, we enable update policies and at the same time guard against chain splits in three ways: a) With the delegation to expert pools, b) with appropriate adjustment of the \emph{adoption threshold} and c) with the use of the \emph{activation lag}.
+% We have discussed in the delegation section why it is important critical categories of software updates to be delegated to expert pools and why this will enable overall a faster time to activation. In the next subsections, we discuss the adoption threshold and the activation lag.
+
+%An update policy is a way to customize the activation speed of a SU based on the type of the SU, which is deduced by the SU's metadata. We want to follow a metadata-driven activation approach. 
+%An update policy can be enabled by two things:
+%A) Delegation to expert pools
+%B) adoption threshold (activation phase) and activation lag (activation phase)
+%Activation lag is determined by
+%Deployment complexity
+%Soft/Hard fork type of change
 
 \subsubsection{The Adoption Threshold}
+We make the assumption that if a UP is approved, then all honest stake will eventually upgrade. However, if we want to be fast and flexible in our updating policies, then we cannot wait until all honest stake upgrades. What is the minimum necessary percent of stake to have upgraded, before the actual activation of the change takes place, in order to avoid a chain split? The \emph{adoption threshold} is used in the activation phase and corresponds exactly to the minimum percent of stake that is necessary to have signaled upgrade readiness, before the actual activation of a software update takes place. It is essentially a synchronization mechanism that ensures that a sufficient percent of stake has upgraded and thus it is safe to actually activate the changes. It is therefore a guard against chain splits. Please note that the adoption threshold is only relevant for software updates that impact the consensus protocol. For all other software updates the activation can take place immediately after the upgrade.
 
-\paragraph{Activation Phase} 
-the activation phase is not a re-approval phase, it is just there to guard against chain split.s
+Let us assume that the adoption threshold of our software updates protocol is called $\tau_A$. %In order to enable update policies, we need to be able to adjust $\tau_A$ based on each software update's metadata. 
+What would be the appropriate values for $\tau_A$? Take into account that by adjusting the value of $\tau_A$, we risk to cause a chain split for two distinct reasons: a) A too-low value of $\tau_A$ might result to a \emph{too-early activation}, which will result to the partition of the honest stake in two and a potential chain split\footnote{A partition of the honest stake also undermines the security of the underlying consensus protocol which assumes a minimum threshold $x$ of honest stake.}  and b) a too-high value of $\tau_A$ might result to a \emph{too-late activation}, giving the opportunity to adversaries to block an activation by refusing to signal. %Clearly the former is a safety problem, while the latter is a security problem. 
+What is the allowable range of values for $\tau_A$, in order to mitigate these risks?
 
-It is not relevant to UPs that dont impact consensus (adoption threshold = 0\%)
-For those that do impact, adoption threshold = the honest stake threshold assumption of the consensus protocol. We make the assumption that if a UP is approved then all honest stake will eventually upgrade.
+As we have seen from the voting section, we assume that the honest stake threshold of our software updates protocol is $h$. Also, in the same section we have seen that, if $x$ is the honest stake threshold of the underlying consensus protocol then $h \geq x$. Let us also assume that the actual percent of honest stake is $h_a$. Then, since $h$ is the minimum threshold, the following will hold: $ h_a \geq h$. Therefore, $h_a \geq x$. For the values that $\tau_A$ could take, we distinguish three distinct cases:
+\begin{enumerate}
+\item $\tau_A < x$
+\item $\tau_A > h_a$
+\item $ x \leq \tau_A \leq h_a$
+\end{enumerate}
+We know by definition that the minimum percent of honest stake that we can tolerate is $x$. In the first case, we allow the activation of changes to take place before this minimum of honest stake has the chance to upgrade. Thus, we risk to activate too-early, we partition the honest stake in two and therefore cause a chain split \say{by accident}. In the second case, we impose an adoption threshold $\tau_A$ that is greater than the actual honest stake. Therefore, in order to activate, we need to wait not only for the honest stake to upgrade but also for some part of the adversary stake, which of course may refuse to do. Therefore, by activating too-late, we give the opportunity to the adversary to block the activation forever.
+
+Finally, in the third case, we do not have the risk of the activation blocking by an adversary, because we do not depend on the adversary's signals to meet the $\tau_A$ threshold. We depend only on honest stake and we have assumed from the beginning that all honest stake will eventually upgrade (and thus signal). However, we still run the risk to activate too-early and cause a chain split, but this time not \say{by accident}, but as an attack. Let us assume that, at a specific run, we achieve to meet the stake threshold $\tau_A$ of signals. This stake, in general, will comprise some honest part and some adversary part, $\tau_A = S_{honest} + S_{adversary}$. Clearly, in order to be safe from an accidental chain split, we need $S_{honest} \geq x$. This way the \emph{longest chain rule} will ensure that the upgraded honest stake will produce the prevailing chain of blocks. So in order to be safe, as a minimum we need $S_{honest} = x$. In conclusion, in order to avoid both of the two problems described above, the adoption threshold $\tau_A$ can take values in the range $x \leq \tau_A \leq h_a$, with the assumption that the honest stake that will signal, when the threshold is met, will be at least $x$ ($S_{honest} \geq x$) , i.e., at least equal to the honest stake threshold of the consensus protocol. 
+
+The possible attack that we mentioned above in the case where $x \leq \tau_A \leq h_a$ is the adversary to hurry to signal for a change, so that the threshold $\tau_A$ is met, without (at least) $x$ honest stake to have enough time to complete the upgrade (i.e., $S_{honest} < x$). Thus a too-early activation will take place and the honest stake will be partitioned for some time, risking a chain split and also running the consensus protocol without the $x$ honest stake assumption.
+
+In order to prevent this type of attack, we need to give more time to honest stake to upgrade, since we have assumed that all honest stake will eventually upgrade. However, we have seen from the analysis above that if we set the adoption threshold too high, we risk from the activation blocking attack. Therefore, we cannot use the adoption threshold for this purpose. We need a way to delay the activation of changes
+even though the $\tau_A$ threshold has been met. This is exactly the topic of the next subsection.
+
+%Then, the inequity $ x \leq \tau_A \leq h_a$ can be expressed as $ x \leq S_{honest} + S_{adversary} \leq h_a$, which can be expressed as $x \leq x + S_{adversary} \leq h_a$. The left part holds obviously and therefore we need $x + S_{adversary} \leq h_a$, which can be expressed as $S_{adversary} \leq h_a - x$. Therefore, the condition that we need, in order to ensure that the adoption threshold $\tau_A$ does not risk a safety nor a security problem is:
+%$$
+%x \leq \tau_A \leq h_a \quad \textrm{(1)} \quad \land \quad   S_{adversary} \leq h_a - x \quad \textrm{(2)}
+%$$
+%The (2) inequality means that the adversary stake who has signaled must be below the gap between actual honest stake $h_a$ and minimum honest stake $x$. If we assume that $h_a = x$ then the above two conditions become:
+%$$
+%\tau_A = x \quad \textrm{(3)} \quad \land \quad   S_{adversary} = 0 \quad \textrm{(4)}
+%$$
+
+
+%\paragraph{Activation Phase} 
+%the activation phase is not a re-approval phase, it is just there to guard against chain split.s
+%It is not relevant to UPs that dont impact consensus (adoption threshold = 0\%)
+%For those that do impact, adoption threshold = the honest stake threshold assumption of the consensus protocol. We make the assumption that if a UP is approved then all honest stake will eventually upgrade.
 
 \subsubsection{The Activation Lag}
 To mitigate risk of chain split by accident (activation too early), we propose the concept of the \emph{activation lag}.
+
+Activation lag is determined by
+Deployment complexity
+Soft/Hard fork type of change
 
 
 %\subsection{The Activation Phase Revisited}
@@ -81,7 +120,7 @@ To mitigate risk of chain split by accident (activation too early), we propose t
 
 \subsubsection{Dependencies}
 How do we impose respect for update dependencies, so that the system reaches a consistent state? 
-\todo{Nikos: Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
+\nnote{Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
 
 
 \subsubsection{Conflict Resolution}
