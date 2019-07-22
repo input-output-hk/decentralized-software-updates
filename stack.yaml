@@ -11,6 +11,7 @@ extra-deps:
       - byron/ledger/executable-spec
   - tasty-hedgehog-1.0.0.1
   - bimap-0.4.0@sha256:d56712c094d40b4666e30d35fb0dad4058a2b753c5af4574f062237b2f7d5b67,1619
+  - generic-monoid-0.1.0.0@sha256:00d1a7b7ff0890a3e3cba4032be24fe377c26e5e45d73afcacd42c98abb3b7e3,818
 
 nix:
   shell-file: nix/stack-shell.nix
