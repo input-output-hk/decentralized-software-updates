@@ -85,11 +85,15 @@ instance HasTrace IDEATION where
     pure $! Bimap.fromList
          $  fmap (Core.vKey &&& Core.sKey)
          $  fmap Core.keyPair
-         $  fmap Core.Owner $ [0 .. 1000]
+         $  fmap Core.Owner $ [0 .. 10]
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
-  sigGen _maybePredicateFailure participants Data.State { submittedSIPs } =
+  sigGen
+    _maybePredicateFailure
+    participants
+    Data.State { submittedSIPs, revealedSIPs }
+    =
     Gen.frequency [ (1, generateASubmission)
                   , (1, generateARevelation)
                   ]
@@ -101,8 +105,9 @@ instance HasTrace IDEATION where
         $ Set.toList
         $ dom participants
         where
-          nextId = maximum $ 0 : ids
-          ids = Set.toList $ Set.map Data.id submittedSIPs
+          nextId = maximum $ 0 : fmap (1+) ids
+          ids =  Set.toList (Set.map Data.id submittedSIPs)
+              ++ Set.toList (Set.map Data.id revealedSIPs)
 
       generateARevelation =
         case Set.toList submittedSIPs of
