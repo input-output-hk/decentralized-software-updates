@@ -3,6 +3,7 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
+import Data.Word (Word64)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           Data.Set (Set)
@@ -12,8 +13,10 @@ import qualified Ledger.Core as Core
 
 -- | System improvement proposal
 data SIP =
-  SIP { author :: Core.VKey
-        -- ^ Who submitted the proposal
+  SIP { id :: Word64
+      -- ^ Submission proposal id.
+      , author :: Core.VKey
+      -- ^ Who submitted the proposal.
       }
   deriving (Eq, Show, Ord)
 
