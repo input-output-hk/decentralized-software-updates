@@ -23,7 +23,6 @@ library
                       -Wincomplete-record-updates
                       -Wincomplete-uni-patterns
                       -Wredundant-constraints
-                      -threaded
 
 test-suite ledger-rules-test
   hs-source-dirs: test
@@ -48,3 +47,5 @@ test-suite ledger-rules-test
                -- The 4 megabytes stack bound and 150 megabytes heap bound were
                -- determined ad-hoc.
                "-with-rtsopts=-K4m -M150m"
+               -threaded
+               -rtsopts
