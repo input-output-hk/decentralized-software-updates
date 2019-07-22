@@ -1,0 +1,12 @@
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/d673b92f2a2d9354d102514d0a0fa74f8248b14a/snapshot.yaml
+
+extra-deps:
+  - tasty-hedgehog-1.0.0.1
+  - git: https://github.com/input-output-hk/cardano-ledger-specs
+    commit: 52d8b21bf882353627fc23d1d0928ef671bac3af
+    subdirs:
+      - byron/semantics/executable-spec
+      - byron/ledger/executable-spec
+
+nix:
+  shell-file: nix/stack-shell.nix
