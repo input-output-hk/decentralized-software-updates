@@ -1,0 +1,5 @@
+https://github.com/input-output-hk/cardano-ledger-specs 52d8b21bf882353627fc23d1d0928ef671bac3af byron/semantics/executable-spec 0h4fm95blwbv87qp14zgswny9izwhcxbiwmbm7842jinvr3c0glk small-steps small-steps.nix
+https://github.com/input-output-hk/cardano-ledger-specs 52d8b21bf882353627fc23d1d0928ef671bac3af byron/ledger/executable-spec 0h4fm95blwbv87qp14zgswny9izwhcxbiwmbm7842jinvr3c0glk cs-ledger cs-ledger.nix
+https://github.com/well-typed/cborg 80fbe0ee5e67a5622e2cb9eaa9d8594a2214322d cborg 1khd1v9yh6jdkcvzvknvhxpc1qvxvww0pp7c43w4hbvdyhs1q8wh cborg cborg.nix
+https://github.com/input-output-hk/cardano-crypto 3c707936ba0a665375acf5bd240dc4b6eaa6c0bc . 0g8ln8k8wx4csdv92bz09pr7v9dp4lcyv1334b09c9rgwdwhqg1b cardano-crypto cardano-crypto.nix
+http://github.com/well-typed/canonical-json ddfe3593b80b5ceb88842bb7a6f2268df75d2c2f . 02fzn1xskis1lc1pkz0j92v6ipd89ww0k2p3dvwpm3yap5dpnm7k canonical-json canonical-json.nix

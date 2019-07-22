@@ -1,0 +1,15 @@
+steps:
+  - label: 'stack rebuild'
+    command:
+      - "rm -rf /build/decentralized-software-updates"
+      - "cp -R . /build/decentralized-software-updates"
+      - "cd /build/decentralized-software-updates"
+      - "nix-build ci/buildkite -o stack-rebuild"
+      - "./stack-rebuild"
+    agents:
+      system: x86_64-linux
+
+  - label: 'check-hydra'
+    command: 'ci/check-hydra.sh'
+    agents:
+      system: x86_64-linux
