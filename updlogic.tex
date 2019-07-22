@@ -31,7 +31,7 @@ A software update is inherently accompanied by meta-information that describes t
 \paragraph{Deployment.} The deployment of a software update is really critical, especially for those updates that impact the consensus protocol. This is because a lack of synchronization at the deployment phase might result into a chain split \say{by accident}. This part of the metadata comprises instructions on the deployment process, maybe deployment scripts, or declarative statements of the deployment process (if some automated software provisioning tool is used, e.g., ansible playbooks). Moreover, an estimation of the size of the deployment (in terms of man-effort required), would help to calculate parameters, such as the \emph{activation lag} described later on.
 \paragraph{Rollback.} Symmetrically to the deployment, the metadata must include information for an un-install process, in the case of a problem. The type of information provided is similar to the deployment category.
 \paragraph{Update constraints.} Software updates do not live in vacuum. They are strongly related to one another. In fact, there exist dependencies between software updates that if they are not followed, then the upgrade will fail. We call all the dependencies and the conflicts between software updates \emph{update constraints}. It is very crucial to clearly define the update constraints of a software update in its metadata. This will illustrate how feasible is a specific software update. For example, a dependency of a SU on another SU, which has not been implemented yet, is a clear indication of non-feasibility. Also, if two candidate software updates both change the value of the same protocol parameter, then they are in direct conflict and some sort of resolution should take place.
-\paragraph{Update prerequisites.} In this part, we define other prerequisites apart from the ones that have to do with other software updates that we have discussed before and therefore, we can consider them as prerequisites from \say{external} factors. For example, platform requirements, or specific hardware requirements, in order for a software update to be applied successfully, should be mentioned in this section of the metadata.
+\paragraph{Update prerequisites.} In this part, we define other prerequisites apart from the ones that have to do with other software updates that we have discussed before and therefore, we can consider them as prerequisites from \say{external} factors. For example, platform requirements, software requirements (e.g., external libraries), or specific hardware requirements, in order for a software update to be applied successfully, should be mentioned in this section of the metadata.
 \paragraph{Budget information.} Last but not least, comes the budget information. This is extremely useful information, especially, if the update system is backed up by a treasury system \cite{treasury} that will assume the funding of the implementation of the software update.
 %\end{itemize}
 
@@ -117,19 +117,31 @@ As we have seen from the metadata subsection, we propose both of these two impor
 
 
 \subsection{Update Constraints}
+With the term \emph{update constraints}, we mean all the prerequisites of a software update for a successful deployment and in particular those that deal with other software updates. 
+More specifically, we are interested in \emph{dependencies} with other software updates and \emph{conflicts} with other software updates. 
+
+These constraints should be stated, if possible, even from the ideation phase, where the software update is just a SIP, but certainly, they must be declared in the metadata part of a UP. Essentially, a unique constraint is a predicate, which evolves, as the software update matures from an SIP to a UP,  and which is evaluated in three phases: a) at the ideation, b)the approval and c) at the activation phase. This evaluation acts as a filter, to protect from software updates that should not be activated due to missing prerequisites, or due to conflicts with other software updates.
 
 \subsubsection{Dependencies}
-How do we impose respect for update dependencies, so that the system reaches a consistent state? 
-\nnote{Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
+Commonly, software dependencies are expressed in terms of version requirements. For example a software update defines in its metadata, on which versions of the software it is applicable and therefore anyone who downloads it, knows if it can be applied, or not. In concept, the proposed method is not far from this idea.
 
+Each instance of the blockchain system is uniquely characterized by a version number. This version number will be based on some versioning scheme, which can be as elaborate as required by the software needs. Every time a software update is activated in the activation phase the current version of the system changes to some new value. The value that the version will reach after the activation of the software updates is also recorded in the update metadata. The current version of the system is also evident in each generated block. Also, as we have seen in the activation phase and the signaling mechanism, blocks are also marked with the to-be version of the system, after the upgrade takes effect. Finally, for each software update the base version(s) should be clearly stated in the metadata. These are the versions that this update can be applied with no problem. 
+
+All in all, for each software update we know on what versions it is applicable, to what version it will take the system to and what is the current version of the system. These are sufficient information (even in the centralized setting) for any approver to judge for the applicability of a software update.
+
+%
+%How do we impose adherence to update dependencies, so that the system reaches a consistent state? 
+%\nnote{Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
+%
 
 \subsubsection{Conflict Resolution}
-How do we ensure that multiple concurrent requests for updates are handled simultaneously in a way that
-\begin{itemize}
-\item conflicts are resolved and the adopted updates are consistent, 
-\item so that no contradictory updates are to be deployed at the same time
-\item Community splits over controversial updates are avoided
-\end{itemize}
+%How do we ensure that multiple concurrent requests for updates are handled simultaneously in a way that
+%\begin{itemize}
+%\item conflicts are resolved and the adopted updates are consistent, 
+%\item so that no contradictory updates are to be deployed at the same time
+%\item Community splits over controversial updates are avoided
+%\end{itemize}
+
 
 
 \subsection{Rollbacks}
