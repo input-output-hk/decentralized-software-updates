@@ -35,7 +35,10 @@ let
       # Add dependencies
       {
         packages.decentralized-updates.components.tests = {
-          unit.build-tools = [ jormungandr ];
+            unit.build-tools = [
+                # Example: test dependencies of decentralized-updates
+                # jormungandr
+            ];
         };
 
         # How to set environment variables for builds
