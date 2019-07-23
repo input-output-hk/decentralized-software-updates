@@ -5,6 +5,27 @@
 The executable specifications for the update mechanism can be found in the
 [`executable-spec`](executable-spec/) folder.
 
+To test the executable specifications run:
+
+```sh
+stack test --nix --file-watch
+```
+
+To play with the generated traces you can use the `ghci` repl. For instance, if
+using `stack` you can enter the repl as follows:
+
+```sh
+stack --nix repl decentralized-updates
+```
+
+Once in the repl, one can obtain a random trace as follows:
+
+```sh
+λ > import  Control.State.Transition.Generator
+λ > :set -XTypeApplications
+λ > randomTrace @IDEATION 100
+```
+
 ### Contributing
 
 Make sure:

@@ -15,11 +15,22 @@
       buildType = "Simple";
       };
     components = {
-      "library" = { depends = [ (hsPkgs.base) (hsPkgs.small-steps) ]; };
+      "library" = {
+        depends = [
+          (hsPkgs.base)
+          (hsPkgs.containers)
+          (hsPkgs.generic-monoid)
+          (hsPkgs.bimap)
+          (hsPkgs.hedgehog)
+          (hsPkgs.small-steps)
+          (hsPkgs.cs-ledger)
+          ];
+        };
       tests = {
         "ledger-rules-test" = {
           depends = [
             (hsPkgs.base)
+            (hsPkgs.hedgehog)
             (hsPkgs.tasty)
             (hsPkgs.tasty-hunit)
             (hsPkgs.tasty-hedgehog)
