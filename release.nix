@@ -7,9 +7,7 @@
 }:
 
 with (import iohkLib.release-lib) {
-  # TODO: remove line below, and uncomment the next line
-  inherit (import ../default.nix {}) pkgs;
-  # inherit (import ./nix/iohk-common.nix {}) pkgs;
+  inherit (import ./nix/iohk-common.nix {}) pkgs;
 
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
   packageSet = import decentralized-updates;
