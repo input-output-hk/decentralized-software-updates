@@ -1,43 +1,65 @@
-let
-  lib = (import ./lib.nix).pkgs.lib;
-  commitIdFromGitRepo = import ./nix/commit-id.nix { inherit lib; };
-in { customConfig ? {}
-, target ? builtins.currentSystem
-, gitrev ? commitIdFromGitRepo ./.git
+{ system ? builtins.currentSystem
+, crossSystem ? null
+, config ? {}
+# Import IOHK common nix lib
+, iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
+# Use nixpkgs pin from iohkLib
+, pkgs ? iohkLib.pkgs
 }:
 
-# Generated targets include anything from stack.yaml (via nix-tools:stack-to-nix and the nix/regenerate.sh script)
-# or cabal.project (via nix-tools:plan-to-nix), including all
-# version overrides specified there.
-#
-# Nix-tools stack-to-nix will generate the `nix/.stack-pkgs.nix`
-# file which is imported from the `nix/pkgs.nix` where further
-# customizations outside of the ones in stack.yaml/cabal.project
-# can be specified as needed for nix/ci.
-#
-# Please run `nix/regenerate.sh` after modifying stack.yaml
-# or relevant part of cabal configuration files.
-# When switching to recent stackage or hackage package version,
-# you might also need to update the iohk-nix common lib. You
-# can do so by running the `nix/update-iohk-nix.sh` script.
-#
-# More information about iohk-nix and nix-tools is available at:
-# https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix-toolification.org#for-a-stackage-project
+with import ./nix/util.nix { inherit pkgs; };
 
 let
-  system = if target != "x86_64-windows" then target else builtins.currentSystem;
-  crossSystem = if target == "x86_64-windows" then lib.systems.examples.mingwW64 else null;
-  # commonLib provides iohk-nix tooling and extra libraries specific to cardano-sl.
-  commonLib = import ./lib.nix;
-  # nixTools contains all the haskell binaries and libraries built by haskell.nix
-  nixTools = import ./nix/nix-tools.nix {};
-  # scripts contains startup scripts for proxy
-  scripts = import ./nix/scripts.nix {
-    inherit commonLib nixTools customConfig;
+  haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
+  src = iohkLib.cleanSourceHaskell ./.;
+
+  # You can declare packages from from iohk-nix required by the build. Example:
+  #
+  # inherit (iohkLib.rust-packages.pkgs) jormungandr;
+
+  # Import the Haskell package set.
+  haskellPackages = import ./nix/default.nix {
+    inherit pkgs haskell src;
+    # Pass in any extra programs necessary for the build as function arguments.
+    # Here you candeclare packages required by the build, e.g.:
+    # inherit jormungandr;
+    # inherit (pkgs) cowsay;
+    # Provide cross-compiling secret sauce
+    inherit (iohkLib.nix-tools) iohk-extras iohk-module;
   };
-  # NixOS tests run a proxy and validate it listens
-  nixosTests = import ./nix/nixos/tests { inherit (commonLib) pkgs; };
+
 in {
-  inherit scripts nixosTests;
-  inherit (nixTools) nix-tools;
+  inherit pkgs iohkLib src haskellPackages;
+  inherit (haskellPackages.decentralized-updates.identifier) version;
+
+  # Grab the executable component of our package.
+  inherit (haskellPackages.decentralized-updates.components.exes)
+    decentralized-updates;
+
+  tests = collectComponents "tests" isDecentralizedUpdates haskellPackages;
+  benchmarks = collectComponents "benchmarks" isDecentralizedUpdates haskellPackages;
+
+  # This provides a development environment that can be used with nix-shell or
+  # lorri. See https://input-output-hk.github.io/haskell.nix/user-guide/development/
+  shell = haskellPackages.shellFor {
+    name = "decentralized-updates-shell";
+    # List all local packages in the project.
+    packages = ps: with ps; [
+      decentralized-updates
+    ];
+    # These programs will be available inside the nix-shell.
+    buildInputs =
+      with pkgs.haskellPackages; [ hlint stylish-haskell weeder ghcid lentil ]
+      # You can add your own packages to the shell.
+      ++ [  ];
+  };
+
+  # If you need to run CI check scripts, you could use something like:
+  #
+  # checks.lint-fuzz = pkgs.callPackage ./nix/check-lint-fuzz.nix {};
+  #
+  # See `skeleton` project at https://github.com/input-output-hk/iohk-nix/
+  #
+
+  docs = import ./docs/default.nix { inherit pkgs; };
 }
