@@ -1,35 +1,46 @@
+{ supportedSystems ? [ "x86_64-linux" "x86_64-darwin" ]
+, supportedCrossSystems ? [ "x86_64-linux" ]
+, scrubJobs ? true
+, decentralized-updates ? { outPath = ./.; rev = "abcdef"; }
+, projectArgs ? { config = { allowUnfree = false; inHydra = true; }; }
+, iohkLib ? import ./nix/iohk-common.nix {}
+}:
+
+with (import iohkLib.release-lib) {
+  # TODO: remove line below, and uncomment the next line
+  inherit (import ../default.nix {}) pkgs;
+  # inherit (import ./nix/iohk-common.nix {}) pkgs;
+
+  inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
+  packageSet = import decentralized-updates;
+  gitrev = decentralized-updates.rev;
+};
+
+with pkgs.lib;
+
 let
-  commonLib = import ./lib.nix;
-  default = import ./default.nix {};
-  # Path of nix-tools jobs that we want to evict from release.nix:
-  disabled = [
-    # FIXME: those tests freeze on darwin hydra agents:
-  ];
-in
-{ decentralized-updates ? { outPath = ./.; rev = "acdef"; }, ... }@args:
-commonLib.pkgs.lib.mapAttrsRecursiveCond
-(as: !(as ? "type" && as.type == "derivation"))
-(path: v: if (builtins.elem path disabled) then null else v)
-(commonLib.nix-tools.release-nix {
-  package-set-path = ./nix/nix-tools.nix;
-  _this = decentralized-updates;
+  testsSupportedSystems = [ "x86_64-linux" ];
+  collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
-  # packages from our stack.yaml or plan file (via nix/pkgs.nix) we
-  # are interested in building on CI via nix-tools.
-  packages = [ "decentralized-updates" ];
+  inherit (systems.examples) mingwW64 musl64;
 
-  # The required jobs that must pass for ci not to fail:
-  required-name = "required";
-  extraBuilds = {
-    inherit (default) nixosTests;
-  };
-  required-name = "decentralized-software-updates-required-checks";
-  required-targets = jobs: [
-    # Tests
-    jobs.nix-tools.tests.decentralized-updates.update-rules-test.x86_64-linux
-    jobs.nix-tools.tests.decentralized-updates.update-rules-test.x86_64-darwin
-    # windows cross compilation targets
-    jobs.nix-tools.tests.x86_64-pc-mingw32-decentralized-updates.update-rules-test.x86_64-linux
-    ];
+  jobs = {
+    native = mapTestOn (packagePlatforms project);
+    "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross project);
+  }
+  // {
+    # This aggregate job is what IOHK Hydra uses to update
+    # the CI status in GitHub.
+    required = mkRequiredJob (
+      collectTests jobs.native.tests ++
+      collectTests jobs.native.benchmarks ++
+      # Add your project executables to this list if any:
+      [ # jobs.native.decentralized-updates.x86_64-linux
+      ]
+    );
+  }
+  # Build the shell derivation in Hydra so that all its dependencies
+  # are cached.
+  // mapTestOn (packagePlatforms { inherit (project) shell; });
 
-} (builtins.removeAttrs args ["decentralized-software-updates"])
+in jobs
