@@ -4,7 +4,7 @@ We have seen that the lifecycle of a software update comprises four distinct pha
 \begin{figure}[h!]
     \caption{The lifecycle of a software update (a decentralized approach)}
     \centering
-    \includegraphics[width=\textwidth]{../../figures/lifecycle_phases.pdf}
+    \includegraphics[width=\textwidth]{figures/lifecycle_phases.pdf}
    % \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/lifecycle_phases.pdf}
     \label{lifecycle}
 \end{figure}
@@ -16,7 +16,7 @@ Let us take as an example the ideation phase and try to dissect the elapsed time
 \begin{figure}[h!]
     \caption{The ideation phase.}
     \centering
-    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{../../figures/ideation_phase.pdf}
+    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/ideation_phase.pdf}
     \label{ideation}
 \end{figure}
 
@@ -29,7 +29,7 @@ Let us take as an example the ideation phase and try to dissect the elapsed time
 \hline
 \hline
 \textbf{TIME} & $est(u)$ & $est(u)$ & Fixed (i.e., parameter), or a function of SU size & Depends on number of open SUs & Fixed (i.e., parameter), or a function of SU size + $stable(k)$ & Depends on number of votes, which depends on number of users $u$ \\
-\hline 
+\hline
 \textbf{METHOD} & Shelley measurements & Shelley measurements & Fixed & Simulation & Fixed & Simulation \\
 \hline
 \end{tabu}
@@ -46,14 +46,14 @@ In table \ref{ideation_dis}, we record the \emph{sequential steps} that a softwa
 
 \paragraph{Voting.} The voting period in the simplest form is a flat fixed time period, which could be determined by a protocol parameter. If we want to elaborate it, we could say that it depends on the size of SU (the bigger the SU, the longer it takes to the community to decide). Again, like in the review step above, we could define three distinct voting periods corresponding to three distinct sizes of SUs (small, medium and large). Also, we need to consider a $stable(k)$ period of time, following at the end of the voting period, in order for all the votes to be stably committed to the blockchain.
 
-\paragraph{Tallying.} This is indeed the most complicated step to measure. The tallying step starts immediately after the stabilization period following the voting period and it roughly comprises the following steps: 
+\paragraph{Tallying.} This is indeed the most complicated step to measure. The tallying step starts immediately after the stabilization period following the voting period and it roughly comprises the following steps:
 \begin{itemize}
 \item Search for vote transactions in a specific slot window (the SU's voting period)
 \item For each voter's key get the last vote only (ignore the previous ones).
 \item For the voter's key on the selected vote find the corresponding stake (We assume that the stake distribution is computed and kept as a local state).
 \item  Sum the total stake from the gathered votes.
 \end{itemize}
-This process depends on the number of votes (i.e., transactions) committed to the blockchain within the voting period window. The number of votes is directly depended on the number of users $u$ participating in the protocol. %Of course, we could maintain the vote result as a local state (a result aggregate per SU) and aggregate the votes as they arrive from the network, in parallel to the voting period. 
+This process depends on the number of votes (i.e., transactions) committed to the blockchain within the voting period window. The number of votes is directly depended on the number of users $u$ participating in the protocol. %Of course, we could maintain the vote result as a local state (a result aggregate per SU) and aggregate the votes as they arrive from the network, in parallel to the voting period.
 Note that the voting result might trigger a new voting period for an SU (in the case of no-quorum and no-majority).
 
 \subsection{The Implementation Phase}
@@ -62,7 +62,7 @@ In figure \ref{implementation} we depict the implementation phase.
 \begin{figure}[h!]
     \caption{The implementation phase.}
     \centering
-    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{../../figures/implementation_phase.pdf}
+    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/implementation_phase.pdf}
     \label{implementation}
 \end{figure}
 
@@ -77,7 +77,7 @@ In table \ref{implementation_dis}, we summarize the time dissection of a softwar
 \hline
 \hline
 \textbf{TIME} & Fixed (i.e., parameter), or a function of SU size & $est(u)$ \\
-\hline 
+\hline
 \textbf{METHOD} & Fixed & Shelley measurements \\
 \hline
 \end{tabu}
@@ -93,7 +93,7 @@ In figure \ref{approval} we depict the approval phase.
 \begin{figure}[h!]
     \caption{The approval phase.}
     \centering
-    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{../../figures/approval_phase.pdf}
+    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/approval_phase.pdf}
     \label{approval}
 \end{figure}
 
@@ -108,7 +108,7 @@ In table \ref{approval_dis}, we summarize the time dissection of a software upda
 \hline
 \hline
 \textbf{TIME} & $est(u)$ & $est(u)$ & Fixed (i.e., parameter), or a function of SU size & Depends on number of open SUs & Fixed (i.e., parameter), or a function of SU size + $stable(k)$ & Depends on number of votes, which depends on number of users $u$ \\
-\hline 
+\hline
 \textbf{METHOD} & Shelley measurements & Shelley measurements & Fixed & Simulation & Fixed & Simulation \\
 \hline
 \end{tabu}
@@ -125,11 +125,11 @@ In figure \ref{activation} we depict the activation phase.
 \begin{figure}[h!]
     \caption{The activation phase.}
     \centering
-    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{../../figures/activation_phase.pdf}
+    \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/activation_phase.pdf}
     \label{activation}
 \end{figure}
 
-In table \ref{activation_dis}, we summarize the time dissection of a software update in the activation phase. 
+In table \ref{activation_dis}, we summarize the time dissection of a software update in the activation phase.
 
 \begin{table} [h!]
 \centering
@@ -140,7 +140,7 @@ In table \ref{activation_dis}, we summarize the time dissection of a software up
 \hline
 \hline
 \textbf{TIME} & Fixed (i.e., parameter), or a function of SU size & $sst(u)$ & Depends on number of signals, which depends on number of users $u$  & Fixed (i.e., parameter), or a function of SU size \\
-\hline 
+\hline
 \textbf{METHOD} & Fixed & Shelley measurements & Simulation & Fixed \\
 \hline
 \end{tabu}
