@@ -27,10 +27,6 @@ in {
   inherit pkgs iohkLib src haskellPackages;
   inherit (haskellPackages.decentralized-updates.identifier) version;
 
-  # Grab the executable component of our package.
-  inherit (haskellPackages.decentralized-updates.components.exes)
-    decentralized-updates;
-
   tests = util.collectComponents "tests" util.isDecentralizedUpdates haskellPackages;
   benchmarks = util.collectComponents "benchmarks" util.isDecentralizedUpdates haskellPackages;
 
@@ -49,5 +45,4 @@ in {
       ++ [  ];
   };
 
-  docs = pkgs.callPackage ./docs/default.nix {};
 }
