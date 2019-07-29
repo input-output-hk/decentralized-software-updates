@@ -1,3 +1,7 @@
+################################################################################
+# See `skeleton` project at https://github.com/input-output-hk/iohk-nix/
+################################################################################
+
 { system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
@@ -7,23 +11,14 @@
 , pkgs ? iohkLib.pkgs
 }:
 
-with import ./nix/util.nix { inherit pkgs; };
-
 let
-  haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
+  haskell = pkgs.callPackage iohkLib.nix-tools.haskell {};
   src = iohkLib.cleanSourceHaskell ./.;
-
-  # You can declare packages from from iohk-nix required by the build. Example:
-  #
-  # inherit (iohkLib.rust-packages.pkgs) jormungandr;
+  util = pkgs.callPackage ./nix/util.nix {};
 
   # Import the Haskell package set.
-  haskellPackages = import ./nix/default.nix {
+  haskellPackages = import ./nix/pkgs.nix {
     inherit pkgs haskell src;
-    # Pass in any extra programs necessary for the build as function arguments.
-    # Here you candeclare packages required by the build, e.g.:
-    # inherit jormungandr;
-    # inherit (pkgs) cowsay;
     # Provide cross-compiling secret sauce
     inherit (iohkLib.nix-tools) iohk-extras iohk-module;
   };
@@ -36,8 +31,8 @@ in {
   inherit (haskellPackages.decentralized-updates.components.exes)
     decentralized-updates;
 
-  tests = collectComponents "tests" isDecentralizedUpdates haskellPackages;
-  benchmarks = collectComponents "benchmarks" isDecentralizedUpdates haskellPackages;
+  tests = util.collectComponents "tests" util.isDecentralizedUpdates haskellPackages;
+  benchmarks = util.collectComponents "benchmarks" util.isDecentralizedUpdates haskellPackages;
 
   # This provides a development environment that can be used with nix-shell or
   # lorri. See https://input-output-hk.github.io/haskell.nix/user-guide/development/
@@ -54,12 +49,5 @@ in {
       ++ [  ];
   };
 
-  # If you need to run CI check scripts, you could use something like:
-  #
-  # checks.lint-fuzz = pkgs.callPackage ./nix/check-lint-fuzz.nix {};
-  #
-  # See `skeleton` project at https://github.com/input-output-hk/iohk-nix/
-  #
-
-  docs = import ./docs/default.nix { inherit pkgs; };
+  docs = pkgs.callPackage ./docs/default.nix {};
 }

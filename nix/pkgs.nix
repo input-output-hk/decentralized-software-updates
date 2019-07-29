@@ -1,3 +1,7 @@
+############################################################################
+# Builds Haskell packages with Haskell.nix
+############################################################################
+
 { pkgs
 
 # haskell.nix
@@ -6,9 +10,8 @@
 # Filtered sources of this project
 , src
 
-# Example: test dependencies of decentralized-updates
-# , jormungandr
-# , cowsay
+# Test dependencies of decentralized-updates.
+# Change these to what's required for your project.
 
 # Customisations for cross-compiling
 , iohk-extras ? {}
@@ -23,6 +26,8 @@ let
   # Grab the compiler name from stack-to-nix output.
   compiler = (stack-pkgs.extras {}).compiler.nix-name;
 
+  # This creates the Haskell package set.
+  # https://input-output-hk.github.io/haskell.nix/user-guide/projects/
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
@@ -35,10 +40,7 @@ let
       # Add dependencies
       {
         packages.decentralized-updates.components.tests = {
-            unit.build-tools = [
-                # Example: test dependencies of decentralized-updates
-                # jormungandr
-            ];
+          unit.build-tools = [ ];
         };
 
         # How to set environment variables for builds
@@ -48,35 +50,15 @@ let
         packages.decentralized-updates.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
-      # Misc. build fixes for dependencies
-      {
-        # Cut down iohk-monitoring deps
-        packages.iohk-monitoring.flags = {
-          disable-ekg = true;
-          disable-examples = true;
-          disable-graylog = true;
-          disable-gui = true;
-          disable-prometheus = true;
-          disable-systemd = true;
-        };
-
-        # Katip has Win32 (>=2.3 && <2.6) constraint
-        packages.katip.doExactConfig = true;
-      }
-
-      # the iohk-module will supply us with the necessary
+      # The iohk-module will supply us with the necessary
       # cross compilation plumbing to make Template Haskell
-      # work when cross compiling.  For now we need to
-      # list the packages that require template haskell
-      # explicity here.
+      # work when cross compiling.
       iohk-module
     ];
+
     pkg-def-extras = [
+      # iohk-extras contains package overrides and patches per ghc version.
       iohk-extras.${compiler}
-      (hackage: { packages = {
-        "transformers" = (((hackage.transformers)."0.5.6.2").revisions).default;
-        "process" = (((hackage.process)."1.6.5.0").revisions).default;
-      }; })
     ];
   };
 
