@@ -20,11 +20,10 @@ let
   testsSupportedSystems = [ "x86_64-linux" ];
   collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
-  inherit (systems.examples) mingwW64 musl64;
+  inherit (systems.examples) musl64;
 
   jobs = {
     native = mapTestOn (packagePlatforms project);
-    "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross project);
   }
   // {
     # This aggregate job is what IOHK Hydra uses to update
