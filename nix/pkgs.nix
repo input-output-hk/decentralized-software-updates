@@ -33,21 +33,8 @@ let
     modules = [
       # Add source filtering to local packages
       {
-        packages.decentralized-updates.src = src;
+        packages.decentralized-updates.src = src + /executable-spec;
         # packages.another-package = src + /another-package;
-      }
-
-      # Add dependencies
-      {
-        packages.decentralized-updates.components.tests = {
-          unit.build-tools = [ ];
-        };
-
-        # How to set environment variables for builds
-        # packages.decentralized-updates.preBuild = "export NETWORK=testnet";
-
-        # fixme: Workaround for https://github.com/input-output-hk/haskell.nix/issues/207
-        packages.decentralized-updates.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
       # The iohk-module will supply us with the necessary
