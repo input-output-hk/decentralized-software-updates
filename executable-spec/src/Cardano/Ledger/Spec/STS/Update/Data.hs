@@ -7,7 +7,7 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
---import Data.Word (Word64)
+import Data.Word (Word64)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           Data.Set (Set)
@@ -21,7 +21,7 @@ import           Data.Map.Strict (Map)
 
 
 -- |A unique ID of a software update
-newtype UpId = UpId { getUpId :: Integer --Word64
+newtype UpId = UpId { getUpId :: Word64
                     }
   deriving (Show, Eq, Ord, Hashable, Generic)
 
