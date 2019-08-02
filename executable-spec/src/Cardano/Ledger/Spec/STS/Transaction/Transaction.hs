@@ -12,12 +12,11 @@ import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
-import           Control.State.Transition (Environment, IRC (IRC),
-                     PredicateFailure, STS, Signal, State, TRC (TRC),
-                     Threshold (Threshold), initialRules, judgmentContext,
-                     transitionRules, (?!))
+import           Control.State.Transition (Environment, PredicateFailure, STS,
+                     Signal, State, TRC (TRC), initialRules, judgmentContext,
+                     transitionRules)
 
-import           Ledger.Core (Slot (Slot), (⨃))
+import           Ledger.Core (Slot, (⨃))
 
 data TRANSACTION
 
@@ -26,7 +25,7 @@ newtype Transaction = Transaction { text :: Text }
   deriving (Eq, Ord, Show)
 
 instance HeapWords Transaction where
-  heapWords (Transaction tx) = heapWords tx
+  heapWords (Transaction text) = heapWords text
 
 data St = St { submitted :: Map Transaction Slot }
   deriving (Eq, Show)

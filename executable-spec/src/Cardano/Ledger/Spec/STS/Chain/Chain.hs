@@ -7,7 +7,8 @@
 -- ticks.
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
-import           Data.Word (Word64)
+import           Data.Function ((&))
+import           Data.List (scanl')
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
@@ -21,6 +22,7 @@ import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import           Ledger.Core (Slot (Slot))
 
+import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
 import qualified Cardano.Ledger.Spec.STS.Transaction.Transaction as Dummy
 
 
@@ -36,19 +38,16 @@ data St
 data Env
   = Env
     { initialSlot :: !Slot
-    , maximumBlockSize :: WordCount
+    , maximumBlockSize :: !WordCount
     -- ^ Maximum block size. For now we measure this in number of 'Word's using
     -- 'heapWords' from 'Cardano.Prelude.HeapWords'.
     }
   deriving (Eq, Show)
 
-newtype WordCount = WordCount Word64
-  deriving (Eq, Num, Ord, Show)
-
 data Block
   = Block
     { slot :: !Slot
-    , transactions :: [Transaction]
+    , transactions :: ![Transaction]
     }
     deriving (Eq, Show)
 
@@ -57,6 +56,9 @@ instance HeapWords Block where
 
 data Transaction = Dummy Dummy.Transaction
   deriving (Eq, Show)
+
+unDummy :: Transaction -> Dummy.Transaction
+unDummy (Dummy t ) = t
 
 instance HeapWords Transaction where
   heapWords (Dummy dummyTx) = heapWords dummyTx
@@ -89,13 +91,10 @@ instance STS CHAIN where
           , block@Block{ slot }) <- judgmentContext
       currentSlot < slot
         ?! BlockSlotNotIncreasing (CurrentSlot currentSlot) slot
-      blockSize block < maximumBlockSize
-        ?! MaximumBlockSizeExceeded (blockSize block) (Threshold maximumBlockSize)
+      size block < maximumBlockSize
+        ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
       pure $! St { currentSlot = slot }
     ]
-
-blockSize :: Block -> WordCount
-blockSize = WordCount . fromIntegral . heapWords
 
 -- | Type wrapper that gives more information about what the 'Slot' represents.
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
@@ -105,11 +104,11 @@ instance HasTrace CHAIN where
   envGen _traceLength = Env <$> gCurrentSlot <*> gMaxBlockSize
     where
       gCurrentSlot = Slot <$> Gen.integral (Range.constant 0 100)
-      -- For now we fix the maximum block size to 1 KiB.
-      gMaxBlockSize = pure 1024
+      -- For now we fix the maximum block size to 32 words.
+      gMaxBlockSize = pure 32
 
 
-  sigGen _ _ St { currentSlot } =
+  sigGen _ Env { maximumBlockSize } St { currentSlot } =
     Block <$> gNextSlot <*> gTransactions
     where
       -- We'd expect the slot increment to be close to 1, even for large Gen's
@@ -118,6 +117,21 @@ instance HasTrace CHAIN where
         where
           Slot s = currentSlot
 
-      -- TODO: make sure the generated transactions fit in the maximum block size.
+      -- We generate a list of transactions that fit in the maximum block size.
       gTransactions =
-        fmap Dummy <$> Gen.list (Range.constant 0 1000) Dummy.genTransaction
+        fitTransactions <$> Gen.list (Range.constant 0 100) Dummy.genTransaction
+
+        where
+          -- Fit the transactions that fit in the given maximum block size.
+          fitTransactions :: [Dummy.Transaction] -> [Transaction]
+          fitTransactions txs = zip txs (tail sizes)
+                              -- We subtract to account for the block constructor
+                              -- and the 'Word64' value of the slot.
+                              & takeWhile ((< maximumBlockSize - 5) . snd)
+                              & fmap fst
+                              & fmap Dummy
+            where
+              -- We compute the cumulative sum of the transaction sizes. We add 3 to
+              -- account for the list constructor.
+              sizes :: [WordCount]
+              sizes = scanl' (\acc tx -> acc + size tx + 3) 0 txs
