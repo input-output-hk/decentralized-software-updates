@@ -1,13 +1,13 @@
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 import           Control.Exception
 import           Control.Monad.Trans.Maybe
-import qualified Data.Text                 as T
+import qualified Data.Text as T
 import           Safe
-import           System.Exit               (exitWith)
+import           System.Exit (exitWith)
 import           Turtle
 
 data BuildkiteEnv = BuildkiteEnv
@@ -41,6 +41,7 @@ buildStep = do
     , "--haddock"
     , "--haddock-internal"
     , "--no-haddock-deps"
+    , "--pedantic"
     ]
   buildAndTest = stackBuild $ ["--tests"] ++ buildArgs
   build        = stackBuild $ ["--no-run-tests"] ++ buildArgs
