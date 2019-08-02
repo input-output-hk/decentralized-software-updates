@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
@@ -13,7 +14,7 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           Data.Set (Set)
 import           GHC.Generics (Generic)
 import           Data.Text (Text)
-import           Numeric.Natural (Natural)
+--import           Numeric.Natural (Natural)
 import           Data.Hashable (Hashable)
 import qualified Data.Hashable as H
 import qualified Ledger.Core as Core
@@ -21,25 +22,25 @@ import           Data.Map.Strict (Map)
 
 
 -- |A unique ID of a software update
-newtype UpId = UpId { getUpId :: Word64
-                    }
-  deriving (Show, Eq, Ord, Hashable, Generic)
+-- newtype UpId = UpId { getUpId :: Word64}
+--   deriving (Show, Eq, Ord, Hashable, Generic)
 
-instance Core.HasHash (UpId) where
-  hash (UpId i) = Core.Hash $ H.hash i
+-- instance Core.HasHash (UpId) where
+--   hash (UpId i) = Core.Hash $ H.hash i
 
-instance Num UpId where
-  (+) a b = UpId $ (getUpId a) + (getUpId b)
+-- instance Num UpId where
+--   (+) a b = UpId $ (getUpId a) + (getUpId b)
 
 -- | Protocol version
-data ProtVer = ProtVer
-  { _pvMaj :: Natural
+data ProtVer = ProtVer Word64
+{-  { _pvMaj :: Natural
   , _pvMin :: Natural
-  , _pvAlt :: Natural
-  } deriving (Eq, Generic, Ord, Show, Hashable)
+  , _pvAlt :: Word64
+  }
+-}  deriving (Eq, Generic, Ord, Show, Hashable)
 
 -- | Application version
-newtype ApVer = ApVer Natural
+newtype ApVer = ApVer Word64
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Num, Hashable)
 
@@ -51,26 +52,32 @@ data ParamName =
   | EpochSize
   deriving (Eq, Generic, Ord, Show, Hashable)
 
+-- Flag to distinguish between `SIP`s that impact or not the
+-- underlying consensus protocol
+data ConcensusImpact = Impact | NoImpact
+  deriving (Eq, Generic, Ord, Show, Hashable)
+
 -- | Metadata structure for SIP
 data SIPMetadata =
-  SIPMetadata { versionFrom :: (ProtVer, ApVer)
+  SIPMetadata { versionFrom :: !(ProtVer, ApVer)
                 -- ^ The version the this SIP has been based on
-              , versionTo :: (ProtVer, ApVer)
+              , versionTo :: !(ProtVer, ApVer)
               -- ^ the version after the SIP takes effect
-              , impactsConsensus :: Bool
+              , impactsConsensus :: !ConcensusImpact
               -- ^ Flag to determine an impact on the underlying consensus protocol
-              , impactsParameters :: [ParamName]
+              , impactsParameters :: !([ParamName])
               -- ^ List of protocol parameters impacted
               } deriving (Eq, Generic, Ord, Show, Hashable)
 
 -- | Contents of a SIP
 data SIPData =
-  SIPData {  url :: Text
-            -- ^ URL pointing at the SIP
-          , metadata :: SIPMetadata
-            -- ^ SIP Metadata
+  SIPData {  url :: !Text
+            -- ^ URL pointing at the server where the SIP is stored
+          , metadata :: !SIPMetadata
+            -- ^ SIP Metadata (only core metadata,
+            -- the rest are on the server pointed by the url)
           }
-  | NullSIPData
+
   deriving (Eq, Generic, Ord, Show, Hashable)
 
 instance Core.HasHash (SIPData) where
@@ -78,14 +85,17 @@ instance Core.HasHash (SIPData) where
 
 -- | System improvement proposal
 data SIP =
-  SIP { id :: UpId
+  SIP { --id :: !UpId
       -- ^ Submission proposal id.
-      , sipHash :: Core.Hash
+        sipHash :: !Core.Hash
       -- ^ Hash of the SIP contents (`SIPData`)
-      , author :: Core.VKey
+      -- also plays the role of a SIP unique id
+      , author :: !Core.VKey
       -- ^ Who submitted the proposal.
-      , salt :: Int
+      , salt :: !Int
       -- ^ The salt used during the commit phase
+      , sipPayload :: SIPData
+      -- ^ The actual contents of the SIP.
       }
   deriving (Eq, Generic, Ord, Show, Hashable)
 
@@ -99,12 +109,12 @@ newtype Commit = Commit { getCommit :: Core.Hash}
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit =
-  SIPCommit { _commit :: Commit
+  SIPCommit { commit :: !Commit
             -- ^ A salted commitment (a hash) to the SIP id, the public key
             -- and the `hash` `SIP` (H(salt||pk||H(SIP)))
-            , _author :: Core.VKey
+            , _author :: !Core.VKey
             -- ^ Who submitted the proposal.
-            , _upSig :: Core.Sig Commit
+            , upSig :: !(Core.Sig Commit)
             -- ^ A signature on commit by the author public key
             }
   deriving (Eq, Show, Ord)
@@ -114,17 +124,24 @@ calcCommit :: SIP -> Commit
 calcCommit sip =
   Commit $
     Core.hash $
-      -- Limit calculation of commit only to the id and author field, otherwise you dont get a match at reveal signal!
-      --(myshow . salt $ sip)
-      (myshow . Cardano.Ledger.Spec.STS.Update.Data.id $ sip)
+      -- Calculation of commit based on the following fields.
+      (myshow . salt $ sip)
+      --`mappend` (myshow . Cardano.Ledger.Spec.STS.Update.Data.id $ sip)
       `mappend` (myshow . author $ sip)
-      --`mappend` (myshow . Core.hash $ sip)
+      --`mappend` (myshow . sipHash $ sip)
+      `mappend` (myshow . Core.hash $ sip)
 
 -- | Ideation phase state
 data State
   = State
     { commitedSIPs :: !(Map Commit SIPCommit)
+      -- ^ These are the encrypted SIPs that are submitted at the commit phase
+      -- of an SIP submission
     , submittedSIPs :: !(Set SIP)
+      -- ^ These are the SIPs that we need to generate for the testing to
+      -- take place. From these both the commitedSIP's as well as the revealedSIPs
+      -- will be created. This state is not part of the update protocol, it is used
+      -- only for SIP generation purposes.
     , revealedSIPs :: !(Set SIP)
     }
   deriving (Eq, Show, Generic)

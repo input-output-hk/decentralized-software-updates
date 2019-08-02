@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -20,14 +21,14 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import           Cardano.Ledger.Spec.STS.Update.Data (Signal (Reveal, Submit),
-                      SIPData(..), revealedSIPs, submittedSIPs, commitedSIPs)
+                      SIP(..), SIPData(..), revealedSIPs, submittedSIPs, commitedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import           Ledger.Core (dom, (∈), (∉), hash)
 import qualified Ledger.Core as Core
 import qualified Data.Map.Strict as Map
---import qualified Debug.Trace as Debug
+-- import qualified Debug.Trace as Debug
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
@@ -70,7 +71,7 @@ instance STS IDEATION where
         Submit sipc sip -> do
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
           sip ∉ submittedSIPs ?! SIPAlreadySubmitted sip
-          pure $! st { commitedSIPs = Map.insert (Data._commit sipc) (sipc) commitedSIPs
+          pure $! st { commitedSIPs = Map.insert (Data.commit sipc) (sipc) commitedSIPs
                      , submittedSIPs = Set.insert sip submittedSIPs
                      }
         Reveal sip -> do
@@ -79,13 +80,14 @@ instance STS IDEATION where
           sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
 
           -- debug
-          -- let !dummy3 = Debug.trace ("calcCommit: " ++ show (Data.calcCommit sip)) True
+          -- let !dummy3 = Debug.trace ("calcCommit: " ++ show (Data.calcCommit sip) ++ " " ++ (show $ Data.salt sip)) True
           --     !dummy4 = Debug.trace ("LookUpCommit: " ++ show (Map.lookup (Data.calcCommit sip) commitedSIPs)) True
 
-          case Map.lookup (Data.calcCommit sip) commitedSIPs of
-            Nothing -> False
-            Just _ -> True
-            ?! SIPFailedToBeRevealed sip
+          -- case Map.lookup (Data.calcCommit sip) commitedSIPs of
+          --   Nothing -> False
+          --   Just _ -> True
+          --   ?! SIPFailedToBeRevealed sip
+          (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
                   }
@@ -107,57 +109,64 @@ instance HasTrace IDEATION where
   sigGen
     _maybePredicateFailure
     participants
-    Data.State { submittedSIPs, revealedSIPs } = do
+    Data.State { submittedSIPs } = do
       owner <- newOwner
-      Gen.frequency [ (1, generateASubmission owner)
-                    , (1, generateARevelation)
-                    ]
-
+      -- generate the new SIP and pass it to generateASubmission "by value"
+      -- otherwise you get non-deterministic SIP!
+      newsip <- newSIP owner
+      Gen.frequency [ (1, generateASubmission newsip owner)
+                    , (1, generateARevelation)]
       where
-        !newOwner = -- (fmap (Data.author) newSIP)
+        newOwner =
           Gen.element
           $ Set.toList
           $ dom participants
 
+        newSIP newowner = (SIP)
+          -- <$> pure nextId
+          -- <*> newSipHash
+          <$> newSipHash
+          <*> pure newowner
+          <*> newSalt
+          <*> newSipData
+          where
+            -- nextId = maximum $ (Data.UpId 0) : fmap ((Data.UpId 1)+) ids
+            -- ids =  Set.toList (Set.map Data.id submittedSIPs)
+            --     ++ Set.toList (Set.map Data.id revealedSIPs)
+            newSalt = Gen.int (constant 0 100)
+            newSipHash = (fmap hash) newSipData -- NullSIPData
+            newSipData = (SIPData) <$> (Gen.text (constant 1 50) Gen.alpha) <*> (newSIPMetadata)
+            newSIPMetadata = (Data.SIPMetadata)
+              <$> (
+                  ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
+                        <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
+                  )
+              <*> (
+                  ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
+                        <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
+                  )
+              <*> (Gen.element [Data.Impact, Data.NoImpact])
+              <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
+
         -- Generate a submission taking a participant that hasn't submitted a proposal yet
-        generateASubmission owner = do
+        generateASubmission nsip owner = do
           -- debug
-          -- ncommit <- newCommit
-          -- let
+          --let
           --   !dummy1 = Debug.trace ("owner: " ++ show owner) True
           --   !dummy2 = Debug.trace ("newCommit: " ++ show ncommit) True
-
+          --   !dummy5 = Debug.trace ("newSIP: " ++ show nsip) True
           (Submit)
             <$>
               ((Data.SIPCommit) <$> newCommit <*> (pure owner) <*> newSignature)
             <*>
-              (newSIP)
+              (pure nsip)
           where
             newSignature = (Core.sign) <$> skey <*> newCommit
 
-            newCommit = fmap (Data.calcCommit) newSIP
-              -- fmap (Data.Commit) $
-              --   fmap (hash) $ -- newSIP
-              --   (++) <$> (fmap (show . Data.salt) newSIP) <*> (
-              --    (++) <$> (fmap (show) (pure owner)) <*> (fmap (show . hash) newSIP)
-              --   )
+            newCommit = fmap (Data.calcCommit) (pure nsip)
 
             -- Do a Bimap lookup to get the sk from the vk
             skey = (!) <$>  (pure participants) <*> (pure owner)
-
-            newSIP =
-              ( <*> newSalt)
-              $ fmap (Data.SIP nextId newHash)
-              $ pure owner
-              -- $ Gen.element
-              -- $ Set.toList
-              -- $ dom participants
-              where
-                nextId = maximum $ (Data.UpId 0) : fmap ((Data.UpId 1)+) ids
-                ids =  Set.toList (Set.map Data.id submittedSIPs)
-                    ++ Set.toList (Set.map Data.id revealedSIPs)
-                newSalt = Gen.int (constant 0 100)
-                newHash = hash NullSIPData
 
         generateARevelation =
           case Set.toList submittedSIPs of
