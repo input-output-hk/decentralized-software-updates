@@ -12,6 +12,8 @@
         "terminal-progress-bar" = (((hackage.terminal-progress-bar)."0.4.1").revisions)."ba857f3424ddb1034125163a9a384e9baab22e55de968259b046892c20ec0526";
         } // {
         decentralized-updates = ./decentralized-updates.nix;
+        cardano-prelude = ./cardano-prelude.nix;
+        cardano-prelude-test = ./cardano-prelude-test.nix;
         small-steps = ./small-steps.nix;
         cs-ledger = ./cs-ledger.nix;
         cborg = ./cborg.nix;
