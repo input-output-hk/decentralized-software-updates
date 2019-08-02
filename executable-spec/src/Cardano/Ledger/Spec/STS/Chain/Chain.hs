@@ -8,7 +8,6 @@
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Data.Function ((&))
-import           Data.List (scanl')
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
@@ -134,4 +133,4 @@ instance HasTrace CHAIN where
               -- We compute the cumulative sum of the transaction sizes. We add 3 to
               -- account for the list constructor.
               sizes :: [WordCount]
-              sizes = scanl' (\acc tx -> acc + size tx + 3) 0 txs
+              sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs

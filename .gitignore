@@ -44,3 +44,9 @@ auto/
 specs/**/result*
 result*
 specs/**/.ghc.environment.x86_64-linux-*
+
+# Profiling
+*.hp
+*.prof
+*.prof.*
+*.profiterole.*

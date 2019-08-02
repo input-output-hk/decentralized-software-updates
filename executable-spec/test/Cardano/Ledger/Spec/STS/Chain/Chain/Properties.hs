@@ -11,4 +11,4 @@ import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 
 onlyValidSignalsAreGenerated :: Property
 onlyValidSignalsAreGenerated =
-  withTests 100 $ TransitionGenerator.onlyValidSignalsAreGenerated @CHAIN 100
+  withTests 100 $ TransitionGenerator.onlyValidSignalsAreGenerated @CHAIN 1000

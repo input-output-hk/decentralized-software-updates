@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Simple STS that emulates transactions different from update transactions.
@@ -50,4 +51,4 @@ instance STS TRANSACTION where
     ]
 
 genTransaction :: Gen Transaction
-genTransaction = Transaction <$> Gen.text (Range.constant 0 100) Gen.ascii
+genTransaction = Transaction <$> Gen.prune (Gen.text (Range.linear 0 25) Gen.ascii)
