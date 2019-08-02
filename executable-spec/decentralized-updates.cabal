@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Cardano.Ledger.Spec.STS.Chain.Chain
                      , Cardano.Ledger.Spec.STS.Chain.Data
+                     , Cardano.Ledger.Spec.STS.Transaction.Transaction
                      , Cardano.Ledger.Spec.STS.Update.Ideation
                      , Cardano.Ledger.Spec.STS.Update.Data
   build-depends:       base >=4.11 && <5

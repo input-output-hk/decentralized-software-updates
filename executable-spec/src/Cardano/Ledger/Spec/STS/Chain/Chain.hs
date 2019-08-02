@@ -21,6 +21,8 @@ import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import           Ledger.Core (Slot (Slot))
 
+import qualified Cardano.Ledger.Spec.STS.Transaction.Transaction as Dummy
+
 
 data CHAIN
 
@@ -53,11 +55,11 @@ data Block
 instance HeapWords Block where
   heapWords (Block (Slot s) transactions) = heapWords2 s transactions
 
-data Transaction = Transaction
+data Transaction = Dummy Dummy.Transaction
   deriving (Eq, Show)
 
 instance HeapWords Transaction where
-  heapWords Transaction = 0
+  heapWords (Dummy dummyTx) = heapWords dummyTx
 
 instance STS CHAIN where
 
@@ -116,4 +118,6 @@ instance HasTrace CHAIN where
         where
           Slot s = currentSlot
 
-      gTransactions = pure []
+      -- TODO: make sure the generated transactions fit in the maximum block size.
+      gTransactions =
+        fmap Dummy <$> Gen.list (Range.constant 0 1000) Dummy.genTransaction
