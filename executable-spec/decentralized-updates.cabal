@@ -25,7 +25,8 @@ library
                      , hedgehog >= 1.0
                      , text
                      , hashable
-                     -- Local deps
+                     -- Cardano specific imports
+                     , cardano-prelude
                      , small-steps
                      , cs-ledger
   default-language:    Haskell2010
@@ -46,6 +47,7 @@ test-suite ledger-rules-test
                      , tasty
                      , tasty-hunit
                      , tasty-hedgehog
+                     -- Cardano specific imports
                      , decentralized-updates
                      , cs-ledger
                      , small-steps
