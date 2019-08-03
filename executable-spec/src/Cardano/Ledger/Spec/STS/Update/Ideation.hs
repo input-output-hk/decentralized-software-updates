@@ -87,6 +87,7 @@ instance STS IDEATION where
           --   Nothing -> False
           --   Just _ -> True
           --   ?! SIPFailedToBeRevealed sip
+          --
           (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
