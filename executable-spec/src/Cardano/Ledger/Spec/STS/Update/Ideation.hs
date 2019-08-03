@@ -78,7 +78,7 @@ instance STS IDEATION where
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
           sip ∈ submittedSIPs ?! NoSIPToReveal sip
           sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
-
+          --
           -- debug
           -- let !dummy3 = Debug.trace ("calcCommit: " ++ show (Data.calcCommit sip) ++ " " ++ (show $ Data.salt sip)) True
           --     !dummy4 = Debug.trace ("LookUpCommit: " ++ show (Map.lookup (Data.calcCommit sip) commitedSIPs)) True
