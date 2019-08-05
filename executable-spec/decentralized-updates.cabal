@@ -21,6 +21,8 @@ library
                      , generic-monoid
                      , bimap >= 0.4.0
                      , hedgehog >= 1.0
+                     , text
+                     , hashable
                      -- Local deps
                      , small-steps
                      , cs-ledger

@@ -22,6 +22,8 @@
           (hsPkgs.generic-monoid)
           (hsPkgs.bimap)
           (hsPkgs.hedgehog)
+          (hsPkgs.text)
+          (hsPkgs.hashable)
           (hsPkgs.small-steps)
           (hsPkgs.cs-ledger)
           ];
