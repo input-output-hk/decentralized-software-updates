@@ -86,7 +86,7 @@ instance Core.HasHash (SIPData) where
 -- | System improvement proposal
 data SIP =
   SIP { --id :: !UpId
-      -- ^ Submission proposal id.
+        -- Submission proposal id.
         sipHash :: !Core.Hash
       -- ^ Hash of the SIP contents (`SIPData`)
       -- also plays the role of a SIP unique id
