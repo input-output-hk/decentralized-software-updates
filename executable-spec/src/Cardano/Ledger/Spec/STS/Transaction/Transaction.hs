@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Simple STS that emulates transactions different from update transactions.
@@ -13,9 +15,9 @@ import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
-import           Control.State.Transition (Environment, PredicateFailure, STS,
-                     Signal, State, TRC (TRC), initialRules, judgmentContext,
-                     transitionRules)
+import           Control.State.Transition (Embed, Environment, PredicateFailure,
+                     STS, Signal, State, TRC (TRC), initialRules,
+                     judgmentContext, trans, transitionRules, wrapFailed)
 
 import           Ledger.Core (Slot, (⨃))
 
@@ -47,8 +49,36 @@ instance STS TRANSACTION where
   transitionRules = [
     do
       TRC (currentSlot, St { submitted }, tx) <- judgmentContext
-      pure $ St { submitted = submitted ⨃ [(tx, currentSlot)] }
+      pure $! St { submitted = submitted ⨃ [(tx, currentSlot)] }
     ]
 
 genTransaction :: Gen Transaction
 genTransaction = Transaction <$> Gen.prune (Gen.text (Range.linear 0 25) Gen.ascii)
+
+data TRANSACTIONS
+
+instance STS TRANSACTIONS where
+
+  type Environment TRANSACTIONS = Slot
+
+  type State TRANSACTIONS = St
+
+  type Signal TRANSACTIONS = [Transaction]
+
+  data PredicateFailure TRANSACTIONS = NoFailures
+    deriving (Eq, Show)
+
+  initialRules = []
+
+  transitionRules = [
+    do
+      TRC (env, st, txs) <- judgmentContext
+      case txs of
+        [] -> pure $! st
+        (tx:txs') -> do
+          st' <- trans @TRANSACTION $ TRC(env, st, tx)
+          trans @TRANSACTIONS $ TRC (env, st', txs')
+    ]
+
+instance Embed TRANSACTION TRANSACTIONS where
+  wrapFailed = error "TRANSACTION shouldn't fail"

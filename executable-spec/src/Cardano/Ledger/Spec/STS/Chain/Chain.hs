@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Simple block-chain mock, to bundle transactions into blocks, including slot
@@ -8,20 +10,22 @@
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Data.Function ((&))
+import           Data.Map.Strict (Map)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
 import           Cardano.Prelude (HeapWords, heapWords, heapWords2)
 
-import           Control.State.Transition (Environment, IRC (IRC),
+import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      Threshold (Threshold), initialRules, judgmentContext,
-                     transitionRules, (?!))
+                     trans, transitionRules, wrapFailed, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import           Ledger.Core (Slot (Slot))
 
 import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
+import           Cardano.Ledger.Spec.STS.Transaction.Transaction (TRANSACTIONS)
 import qualified Cardano.Ledger.Spec.STS.Transaction.Transaction as Dummy
 
 
@@ -30,6 +34,7 @@ data CHAIN
 data St
   = St
     { currentSlot :: !Slot
+    , submitted :: Map Dummy.Transaction Slot
     }
   deriving (Eq, Show)
 
@@ -79,21 +84,32 @@ instance STS CHAIN where
   initialRules = [
     do
       IRC Env { initialSlot } <- judgmentContext
-      pure $! St { currentSlot = initialSlot }
+      pure $! St { currentSlot = initialSlot
+                 , submitted = mempty
+                 }
     ]
 
 
   transitionRules = [
     do
       TRC ( Env { maximumBlockSize }
-          , St { currentSlot }
-          , block@Block{ slot }) <- judgmentContext
+          , St { currentSlot, submitted }
+          , block@Block{ slot, transactions }) <- judgmentContext
       currentSlot < slot
         ?! BlockSlotNotIncreasing (CurrentSlot currentSlot) slot
       size block < maximumBlockSize
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
-      pure $! St { currentSlot = slot }
+      Dummy.St submitted' <- trans @TRANSACTIONS $ TRC ( slot
+                                                       , Dummy.St submitted
+                                                       , unDummy <$> transactions
+                                                       )
+      pure $! St { currentSlot = slot
+                 , submitted = submitted'
+                 }
     ]
+
+instance Embed TRANSACTIONS CHAIN where
+  wrapFailed = error "TRANSACTIONS shouldn't fail"
 
 -- | Type wrapper that gives more information about what the 'Slot' represents.
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
