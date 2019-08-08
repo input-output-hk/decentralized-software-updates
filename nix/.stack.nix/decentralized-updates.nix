@@ -24,6 +24,7 @@
           (hsPkgs.hedgehog)
           (hsPkgs.text)
           (hsPkgs.hashable)
+          (hsPkgs.cardano-prelude)
           (hsPkgs.small-steps)
           (hsPkgs.cs-ledger)
           ];
