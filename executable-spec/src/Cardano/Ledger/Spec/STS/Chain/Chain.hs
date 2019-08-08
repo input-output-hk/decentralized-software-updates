@@ -58,11 +58,12 @@ data Block
 instance HeapWords Block where
   heapWords (Block (Slot s) transactions) = heapWords2 s transactions
 
-data Transaction = Dummy Dummy.Transaction
+data Transaction
+  = Dummy Dummy.Transaction
   deriving (Eq, Show)
 
 unDummy :: Transaction -> Dummy.Transaction
-unDummy (Dummy t ) = t
+unDummy (Dummy t) = t
 
 instance HeapWords Transaction where
   heapWords (Dummy dummyTx) = heapWords dummyTx
@@ -126,9 +127,12 @@ instance HasTrace CHAIN where
   sigGen _ Env { maximumBlockSize } St { currentSlot } =
     Block <$> gNextSlot <*> gTransactions
     where
-      -- We'd expect the slot increment to be close to 1, even for large Gen's
-      -- size numbers.
-      gNextSlot =  Slot . (s +) <$> Gen.integral (Range.exponential 1 10)
+      -- We'd expect the slot increment to be 1 with high probability.
+      --
+      -- TODO: check the exact probability of having an empty slot.
+      gNextSlot =  Slot . (s +) <$> Gen.frequency [ (99, pure 1)
+                                                  , (1, pure 2)
+                                                  ]
         where
           Slot s = currentSlot
 
