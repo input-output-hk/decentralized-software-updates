@@ -19,7 +19,9 @@ import           Data.Hashable (Hashable)
 import qualified Data.Hashable as H
 import qualified Ledger.Core as Core
 import           Data.Map.Strict (Map)
-
+import           Ledger.Core (Slot (Slot))
+import           Data.Bimap (Bimap, (!))
+import           Cardano.Prelude (HeapWords, heapWords, heapWords2, heapWords3, heapWords4)
 
 -- |A unique ID of a software update
 -- newtype UpId = UpId { getUpId :: Word64}
@@ -39,10 +41,16 @@ data ProtVer = ProtVer Word64
   }
 -}  deriving (Eq, Generic, Ord, Show, Hashable)
 
+instance HeapWords ProtVer where
+  heapWords _ = 1
+
 -- | Application version
 newtype ApVer = ApVer Word64
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Num, Hashable)
+
+instance HeapWords ApVer where
+  heapWords _ = 1
 
 -- | Consensus Protocol Parameter Name
 data ParamName =
@@ -52,10 +60,16 @@ data ParamName =
   | EpochSize
   deriving (Eq, Generic, Ord, Show, Hashable)
 
+instance HeapWords ParamName where
+  heapWords _ = 1
+
 -- Flag to distinguish between `SIP`s that impact or not the
 -- underlying consensus protocol
 data ConcensusImpact = Impact | NoImpact
   deriving (Eq, Generic, Ord, Show, Hashable)
+
+instance HeapWords ConcensusImpact where
+  heapWords _ = 1
 
 -- | Metadata structure for SIP
 data SIPMetadata =
@@ -69,6 +83,9 @@ data SIPMetadata =
               -- ^ List of protocol parameters impacted
               } deriving (Eq, Generic, Ord, Show, Hashable)
 
+instance HeapWords SIPMetadata where
+  heapWords (SIPMetadata f t c p) = heapWords4 f t c p
+
 -- | Contents of a SIP
 data SIPData =
   SIPData {  url :: !Text
@@ -77,8 +94,10 @@ data SIPData =
             -- ^ SIP Metadata (only core metadata,
             -- the rest are on the server pointed by the url)
           }
-
   deriving (Eq, Generic, Ord, Show, Hashable)
+
+instance HeapWords SIPData where
+  heapWords (SIPData u m) = heapWords2 u m
 
 instance Core.HasHash (SIPData) where
   hash a = Core.Hash $ H.hash a
@@ -99,6 +118,9 @@ data SIP =
       }
   deriving (Eq, Generic, Ord, Show, Hashable)
 
+instance HeapWords SIP where
+  heapWords (SIP (Core.Hash i) (Core.VKey (Core.Owner n)) s p) = heapWords4 (heapWords i) (heapWords n) s p
+
 instance Core.HasHash (SIP) where
   hash a = Core.Hash $ H.hash a
 
@@ -106,6 +128,9 @@ instance Core.HasHash (SIP) where
 -- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
 newtype Commit = Commit { getCommit :: Core.Hash}
   deriving (Show, Eq, Ord)
+
+instance HeapWords Commit where
+  heapWords (Commit (Core.Hash i)) = heapWords i
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit =
@@ -119,6 +144,9 @@ data SIPCommit =
             }
   deriving (Eq, Show, Ord)
 
+instance HeapWords SIPCommit where
+  heapWords (SIPCommit c (Core.VKey (Core.Owner n)) (Core.Sig cm (Core.Owner nn)))  = heapWords3 c (heapWords n) (heapWords2 cm nn)
+
 -- | Calculate a `Commit` from a `SIP`
 calcCommit :: SIP -> Commit
 calcCommit sip =
@@ -131,10 +159,26 @@ calcCommit sip =
       --`mappend` (myshow . sipHash $ sip)
       `mappend` (myshow . Core.hash $ sip)
 
+-- | Ideation phase environment
+data EnvIdeation
+  = EnvIdeation
+    { stakeholders :: Bimap Core.VKey Core.SKey
+      -- ^ The set of participants, identified by their signing
+      -- and verifying keys. There is a one-to-one correspondence
+      -- between the signing and verifying keys, hence
+      -- the use of 'Bimap'
+    , currSlot :: Slot
+      -- ^ The current slot in the blockchain
+    }
+  deriving (Eq, Show)
+
 -- | Ideation phase state
-data State
-  = State
-    { commitedSIPs :: !(Map Commit SIPCommit)
+data StIdeation
+  = StIdeation
+    { txToSlot :: Map UpdateTx Slot
+      -- ^ Every Update transaction is included into
+      -- a `Block`, which has been generated at a specific `Slot`.
+    , commitedSIPs :: !(Map Commit SIPCommit)
       -- ^ These are the encrypted SIPs that are submitted at the commit phase
       -- of an SIP submission
     , submittedSIPs :: !(Set SIP)
@@ -145,14 +189,62 @@ data State
     , revealedSIPs :: !(Set SIP)
     }
   deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup State
-  deriving Monoid via GenericMonoid State
+  deriving Semigroup via GenericSemigroup StIdeation --State
+  deriving Monoid via GenericMonoid StIdeation -- State
 
--- | Ideation signals.
-data Signal
+-- | The union of all types that are update events.
+-- All update events must be an instance of this.
+class UpdateEvent a where
+
+-- | A software update transaction
+data UpdateTx
+  = Ideation IdeationTx
+  -- | Implementation ImplementationTx
+  -- | Approval  ApprovalTx
+  -- | Activation  ActivationTx
+  deriving (Eq, Ord, Show)
+
+instance HeapWords UpdateTx where
+  heapWords (Ideation ideationtx) = heapWords ideationtx
+  -- heapWords (Implementation impltx) = heapWords impltx
+  -- heapWords (Approval apptx) = heapWords apptx
+  -- heapWords (Activation acttx) = heapWords acttx
+
+
+instance UpdateEvent UpdateTx where
+
+-- | An Ideation phase transaction
+data IdeationTx
   = Submit SIPCommit SIP
   | Reveal SIP
   deriving (Eq, Ord, Show)
+
+instance HeapWords IdeationTx where
+  heapWords (Submit sipcommit sip) = heapWords2 sipcommit sip
+  heapWords (Reveal sip) = heapWords sip
+
+instance UpdateEvent IdeationTx where
+
+-- | TODO: An Implementation phase transaction
+data ImplementationTx
+
+instance UpdateEvent ImplementationTx where
+
+-- | TODO: An Approval phase transaction
+data ApprovalTx
+
+instance UpdateEvent ApprovalTx where
+
+-- | TODO: An Activation phase transaction
+data ActivationTx
+
+instance UpdateEvent ActivationTx where
+
+-- | Ideation signals.
+-- data Signal
+--   = Submit SIPCommit SIP
+--   | Reveal SIP
+--   deriving (Eq, Ord, Show)
 
 -- | A newtype string that is an instance of `HasHash`
 newtype MyString = MyString { str :: String }

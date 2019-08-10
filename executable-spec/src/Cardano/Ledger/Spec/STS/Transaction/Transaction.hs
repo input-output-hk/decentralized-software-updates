@@ -14,14 +14,11 @@ import           Data.Text (Text)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
 
 import           Ledger.Core (Slot, (⨃))
-
-data TRANSACTION
 
 -- | Dummy transaction, containing some text.
 newtype Transaction = Transaction { text :: Text }
@@ -30,7 +27,9 @@ newtype Transaction = Transaction { text :: Text }
 instance HeapWords Transaction where
   heapWords (Transaction text) = heapWords text
 
-data St = St { submitted :: Map Transaction Slot }
+data TRANSACTION
+
+data St = St { txToSlot :: Map Transaction Slot }
   deriving (Eq, Show)
 
 instance STS TRANSACTION where
@@ -48,37 +47,37 @@ instance STS TRANSACTION where
 
   transitionRules = [
     do
-      TRC (currentSlot, St { submitted }, tx) <- judgmentContext
-      pure $! St { submitted = submitted ⨃ [(tx, currentSlot)] }
+      TRC (currentSlot, St { txToSlot }, tx) <- judgmentContext
+      pure $! St { txToSlot = txToSlot ⨃ [(tx, currentSlot)] }
     ]
 
 genTransaction :: Gen Transaction
 genTransaction = Transaction <$> Gen.prune (Gen.text (Range.linear 0 25) Gen.ascii)
 
-data TRANSACTIONS
+-- data TRANSACTIONS
 
-instance STS TRANSACTIONS where
+-- instance STS TRANSACTIONS where
 
-  type Environment TRANSACTIONS = Slot
+--   type Environment TRANSACTIONS = Slot
 
-  type State TRANSACTIONS = St
+--   type State TRANSACTIONS = St
 
-  type Signal TRANSACTIONS = [Transaction]
+--   type Signal TRANSACTIONS = [Transaction]
 
-  data PredicateFailure TRANSACTIONS = NoFailures
-    deriving (Eq, Show)
+--   data PredicateFailure TRANSACTIONS = NoFailures
+--     deriving (Eq, Show)
 
-  initialRules = []
+--   initialRules = []
 
-  transitionRules = [
-    do
-      TRC (env, st, txs) <- judgmentContext
-      case txs of
-        [] -> pure $! st
-        (tx:txs') -> do
-          st' <- trans @TRANSACTION $ TRC(env, st, tx)
-          trans @TRANSACTIONS $ TRC (env, st', txs')
-    ]
+--   transitionRules = [
+--     do
+--       TRC (env, st, txs) <- judgmentContext
+--       case txs of
+--         [] -> pure $! st
+--         (tx:txs') -> do
+--           st' <- trans @TRANSACTION $ TRC(env, st, tx)
+--           trans @TRANSACTIONS $ TRC (env, st', txs')
+--     ]
 
-instance Embed TRANSACTION TRANSACTIONS where
-  wrapFailed = error "TRANSACTION shouldn't fail"
+-- instance Embed TRANSACTION TRANSACTIONS where
+--   wrapFailed = error "TRANSACTION shouldn't fail"
