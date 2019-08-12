@@ -1,8 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -20,15 +19,15 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
-import           Cardano.Ledger.Spec.STS.Update.Data (Signal (Reveal, Submit),
-                      SIP(..), SIPData(..), revealedSIPs, submittedSIPs, commitedSIPs)
+import           Cardano.Ledger.Spec.STS.Update.Data (SIP (..), SIPData (..),
+                     Signal (Reveal, Submit), commitedSIPs, revealedSIPs,
+                     submittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
-import           Ledger.Core (dom, (∈), (∉), hash)
-import qualified Ledger.Core as Core
 import qualified Data.Map.Strict as Map
--- import qualified Debug.Trace as Debug
+import           Ledger.Core (dom, hash, (∈), (∉))
+import qualified Ledger.Core as Core
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
@@ -78,16 +77,6 @@ instance STS IDEATION where
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
           sip ∈ submittedSIPs ?! NoSIPToReveal sip
           sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
-          --
-          -- debug
-          -- let !dummy3 = Debug.trace ("calcCommit: " ++ show (Data.calcCommit sip) ++ " " ++ (show $ Data.salt sip)) True
-          --     !dummy4 = Debug.trace ("LookUpCommit: " ++ show (Map.lookup (Data.calcCommit sip) commitedSIPs)) True
-
-          -- case Map.lookup (Data.calcCommit sip) commitedSIPs of
-          --   Nothing -> False
-          --   Just _ -> True
-          --   ?! SIPFailedToBeRevealed sip
-          --
           (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
@@ -124,16 +113,11 @@ instance HasTrace IDEATION where
           $ dom participants
 
         newSIP newowner = (SIP)
-          -- <$> pure nextId
-          -- <*> newSipHash
           <$> newSipHash
           <*> pure newowner
           <*> newSalt
           <*> newSipData
           where
-            -- nextId = maximum $ (Data.UpId 0) : fmap ((Data.UpId 1)+) ids
-            -- ids =  Set.toList (Set.map Data.id submittedSIPs)
-            --     ++ Set.toList (Set.map Data.id revealedSIPs)
             newSalt = Gen.int (constant 0 100)
             newSipHash = (fmap hash) newSipData -- NullSIPData
             newSipData = (SIPData) <$> (Gen.text (constant 1 50) Gen.alpha) <*> (newSIPMetadata)
@@ -151,11 +135,6 @@ instance HasTrace IDEATION where
 
         -- Generate a submission taking a participant that hasn't submitted a proposal yet
         generateASubmission nsip owner = do
-          -- debug
-          --let
-          --   !dummy1 = Debug.trace ("owner: " ++ show owner) True
-          --   !dummy2 = Debug.trace ("newCommit: " ++ show ncommit) True
-          --   !dummy5 = Debug.trace ("newSIP: " ++ show nsip) True
           (Submit)
             <$>
               ((Data.SIPCommit) <$> newCommit <*> (pure owner) <*> newSignature)
