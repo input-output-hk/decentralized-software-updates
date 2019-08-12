@@ -13,7 +13,6 @@ import           Data.Bimap (Bimap)
 import           Data.Function ((&))
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
@@ -21,7 +20,7 @@ import           GHC.Generics (Generic)
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen, HasTrace, envGen, genTrace)
+import           Control.State.Transition.Generator (sigGen, genTrace)
 import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
 
 import           Ledger.Core (Slot)
@@ -120,12 +119,6 @@ instance Embed Dummy.TRANSACTION TRANSACTION where
 
 instance Embed IDEATION TRANSACTION where
   wrapFailed = IdeationFailure
-
-
-instance HasTrace TRANSACTION where
-  -- TODO: define this
-  envGen = undefined
-
 
 
 -- | Generate a list of 'Transaction's that fit in the given maximum size.
