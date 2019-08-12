@@ -21,7 +21,8 @@ import           GHC.Generics (Generic)
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen)
+import           Control.State.Transition.Generator (sigGen, HasTrace, envGen, genTrace)
+import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
 
 import           Ledger.Core (Slot)
 import qualified Ledger.Core as Core
@@ -112,11 +113,20 @@ instance STS TRANSACTION where
           pure st { ideationSt = ideationSt' }
     ]
 
+
 instance Embed Dummy.TRANSACTION TRANSACTION where
   wrapFailed = error "Dummy.TRANSACTION shouldn't fail"
 
+
 instance Embed IDEATION TRANSACTION where
   wrapFailed = IdeationFailure
+
+
+instance HasTrace TRANSACTION where
+  -- TODO: define this
+  envGen = undefined
+
+
 
 -- | Generate a list of 'Transaction's that fit in the given maximum size.
 transactionsGen
@@ -124,8 +134,9 @@ transactionsGen
   -> Environment TRANSACTIONS
   -> State TRANSACTIONS
   -> Gen [Transaction]
-transactionsGen maximumSize (Env { participants }) (St { ideationSt })  =
-  fitTransactions <$> Gen.list (Range.constant 0 50) transactionGen
+transactionsGen maximumSize env st
+  =   fitTransactions . traceSignals OldestFirst
+  <$> genTrace @TRANSACTION 30 env st transactionGen
 
   where
     -- Fit the transactions that fit in the given maximum block size.
@@ -141,9 +152,7 @@ transactionsGen maximumSize (Env { participants }) (St { ideationSt })  =
         sizes :: [WordCount]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen :: Gen Transaction
-    transactionGen =
-      -- TODO: determine the probability of occurrence of update transactions.
+    transactionGen _ (Env { participants }) (St { ideationSt }) =
       Gen.frequency [ (9, Dummy <$> Dummy.genTransaction)
                     , (1, Ideation <$> sigGen @IDEATION Nothing participants ideationSt)
                     ]
