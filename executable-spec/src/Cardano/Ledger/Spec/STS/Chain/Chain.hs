@@ -9,6 +9,9 @@
 -- ticks.
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
+import           Control.Arrow ((&&&))
+import           Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
@@ -21,8 +24,10 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import           Ledger.Core (Slot (Slot))
+import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.STS.Chain.Transactions (TRANSACTIONS)
+import           Cardano.Ledger.Spec.STS.Chain.Transactions (TRANSACTION,
+                     TRANSACTIONS)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transactions as Transactions
 import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
 
@@ -35,20 +40,21 @@ data Env
     , maximumBlockSize :: !WordCount
     -- ^ Maximum block size. For now we measure this in number of 'Word's using
     -- 'heapWords' from 'Cardano.Prelude.HeapWords'.
+    , participants :: Bimap Core.VKey Core.SKey
     }
   deriving (Eq, Show)
 
 data St
   = St
     { currentSlot :: !Slot
-    , transactionsSt :: Transactions.St
+    , transactionsSt :: State TRANSACTIONS
     }
   deriving (Eq, Show)
 
 data Block
   = Block
     { slot :: !Slot
-    , transactions :: ![Transactions.Transaction]
+    , transactions :: ![Signal TRANSACTION]
     }
     deriving (Eq, Show)
 
@@ -67,6 +73,7 @@ instance STS CHAIN where
   data PredicateFailure CHAIN
     = BlockSlotNotIncreasing CurrentSlot Slot
     | MaximumBlockSizeExceeded WordCount (Threshold WordCount)
+    | TransactionsFailure (PredicateFailure TRANSACTIONS)
     deriving (Eq, Show)
 
 
@@ -81,7 +88,7 @@ instance STS CHAIN where
 
   transitionRules = [
     do
-      TRC ( Env { maximumBlockSize }
+      TRC ( Env { maximumBlockSize, participants }
           , St { currentSlot, transactionsSt }
           , block@Block{ slot, transactions }) <- judgmentContext
       currentSlot < slot
@@ -89,7 +96,7 @@ instance STS CHAIN where
       size block < maximumBlockSize
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( slot
+        trans @TRANSACTIONS $ TRC ( Transactions.Env currentSlot participants
                                   , transactionsSt
                                   , transactions
                                   )
@@ -99,22 +106,28 @@ instance STS CHAIN where
     ]
 
 instance Embed TRANSACTIONS CHAIN where
-  wrapFailed = error "TRANSACTIONS shouldn't fail"
+  wrapFailed = TransactionsFailure
 
 -- | Type wrapper that gives more information about what the 'Slot' represents.
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
 
 instance HasTrace CHAIN where
 
-  envGen _traceLength = Env <$> gCurrentSlot <*> gMaxBlockSize
+  envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> participantsGen
     where
-      gCurrentSlot = Slot <$> Gen.integral (Range.constant 0 100)
+      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- For now we fix the maximum block size to 32 words.
-      gMaxBlockSize = pure 32
+      maxBlockSizeGen = pure 32
+      participantsGen = pure
+                      $! Bimap.fromList
+                      $  fmap (Core.vKey &&& Core.sKey)
+                      $  fmap Core.keyPair
+                      $  fmap Core.Owner $ [0 .. 10]
 
-
-  sigGen _ Env { maximumBlockSize } St { currentSlot } =
-    Block <$> gNextSlot <*> gTransactions
+  sigGen _ Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
+    Block <$> gNextSlot
+          <*> gTransactions (Transactions.Env currentSlot participants)
+                            transactionsSt
     where
       -- We'd expect the slot increment to be 1 with high probability.
       --

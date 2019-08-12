@@ -6,7 +6,6 @@
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
 import           Control.Arrow ((&&&))
-import           Control.Monad (mzero)
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
@@ -104,8 +103,14 @@ instance HasTrace IDEATION where
       -- generate the new SIP and pass it to generateASubmission "by value"
       -- otherwise you get non-deterministic SIP!
       newsip <- newSIP owner
-      Gen.frequency [ (1, generateASubmission newsip owner)
-                    , (1, generateARevelation)]
+      case Set.toList submittedSIPs of
+        [] ->
+          generateASubmission newsip owner
+        xs ->
+          -- TODO: determine submission to revelation ration (maybe 50/50 is fine...)
+          Gen.frequency [ (1, generateASubmission newsip owner)
+                        , (1, generateARevelation xs)
+                        ]
       where
         newOwner =
           Gen.element
@@ -148,9 +153,5 @@ instance HasTrace IDEATION where
             -- Do a Bimap lookup to get the sk from the vk
             skey = (!) <$>  (pure participants) <*> (pure owner)
 
-        generateARevelation =
-          case Set.toList submittedSIPs of
-            [] -> mzero -- We cannot generate a revelation, since there are no
-                        -- (SIP) commitments yet, so we retry (in this case
-                        -- eventually we'll generate a submission).
-            xs -> fmap Reveal $ Gen.element xs
+        generateARevelation submittedSIPsList =
+          fmap Reveal $ Gen.element submittedSIPsList
