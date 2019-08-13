@@ -138,6 +138,8 @@ transactionsGen
   -> Gen [Transaction]
 transactionsGen maximumSize env st
   =   fitTransactions . traceSignals OldestFirst
+  -- TODO: check what is a realistic distribution for empty blocks, or disallow
+  -- the generation of empty blocks altogether.
   <$> genTrace @TRANSACTION 30 env st transactionGen
 
   where
@@ -155,6 +157,7 @@ transactionsGen maximumSize env st
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
     transactionGen _ (Env { participants }) (St { ideationSt }) =
+      -- TODO: figure out what a realistic distribution for update payload is.
       Gen.frequency [ (9, Dummy <$> Dummy.genTransaction)
                     , (1, Ideation <$> sigGen @IDEATION Nothing participants ideationSt)
                     ]
