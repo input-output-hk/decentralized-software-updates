@@ -28,5 +28,8 @@ main = defaultMain tests
       [ testProperty
           "Only valid traces are generated"
           Chain.onlyValidSignalsAreGenerated
+      ,  testProperty
+          "Traces are classified"
+          Chain.tracesAreClassified
       ]
     ]

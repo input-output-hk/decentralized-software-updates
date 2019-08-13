@@ -17,19 +17,10 @@ import           Data.Text (Text)
 --import           Numeric.Natural (Natural)
 import           Data.Hashable (Hashable)
 import qualified Data.Hashable as H
-import qualified Ledger.Core as Core
 import           Data.Map.Strict (Map)
 
-
--- |A unique ID of a software update
--- newtype UpId = UpId { getUpId :: Word64}
---   deriving (Show, Eq, Ord, Hashable, Generic)
-
--- instance Core.HasHash (UpId) where
---   hash (UpId i) = Core.Hash $ H.hash i
-
--- instance Num UpId where
---   (+) a b = UpId $ (getUpId a) + (getUpId b)
+import qualified Ledger.Core as Core
+import           Cardano.Prelude (HeapWords, heapWords)
 
 -- | Protocol version
 data ProtVer = ProtVer Word64
@@ -45,14 +36,14 @@ newtype ApVer = ApVer Word64
   deriving newtype (Eq, Ord, Num, Hashable)
 
 -- | Consensus Protocol Parameter Name
-data ParamName =
-    BlockSizeMax
+data ParamName
+  = BlockSizeMax
   | TxSizeMax
   | SlotSize
   | EpochSize
   deriving (Eq, Generic, Ord, Show, Hashable)
 
--- Flag to distinguish between `SIP`s that impact or not the
+-- | Flag to distinguish between `SIP`s that impact or not the
 -- underlying consensus protocol
 data ConcensusImpact = Impact | NoImpact
   deriving (Eq, Generic, Ord, Show, Hashable)
@@ -153,6 +144,12 @@ data Signal
   = Submit SIPCommit SIP
   | Reveal SIP
   deriving (Eq, Ord, Show)
+
+instance HeapWords Signal where
+  -- TODO: define these instances properly.
+  heapWords (Submit _sipCommit _sip) = 2 -- heapWords2 sipCommit sip
+  heapWords (Reveal _sip) = 2 -- heapWords1 sip
+
 
 -- | A newtype string that is an instance of `HasHash`
 newtype MyString = MyString { str :: String }

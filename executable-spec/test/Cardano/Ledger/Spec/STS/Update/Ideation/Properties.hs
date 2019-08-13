@@ -10,4 +10,4 @@ import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 
 onlyValidSignalsAreGenerated :: Property
 onlyValidSignalsAreGenerated =
-  withTests 300 $ TransitionGenerator.onlyValidSignalsAreGenerated @IDEATION 1000
+  withTests 300 $ TransitionGenerator.onlyValidSignalsAreGenerated @IDEATION 100
