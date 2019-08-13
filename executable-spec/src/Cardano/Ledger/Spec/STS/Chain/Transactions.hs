@@ -31,13 +31,16 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.Transaction as Dummy
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 
+
 data TRANSACTIONS
+
 
 data Env =
   Env { currentSlot :: Slot
       , participants :: Bimap Core.VKey Core.SKey
       }
   deriving (Eq, Show)
+
 
 data St =
   St { dummySt :: State Dummy.TRANSACTION
@@ -47,14 +50,17 @@ data St =
   deriving Semigroup via GenericSemigroup St
   deriving Monoid via GenericMonoid St
 
+
 data Transaction
   = Dummy (Signal Dummy.TRANSACTION)
   | Ideation (Signal Ideation.IDEATION)
   deriving (Eq, Show)
 
+
 instance HeapWords Transaction where
   heapWords (Dummy dummyTx) = heapWords1 dummyTx
   heapWords (Ideation ideationTx) = heapWords1 ideationTx
+
 
 instance STS TRANSACTIONS where
 
@@ -79,10 +85,13 @@ instance STS TRANSACTIONS where
           trans @TRANSACTIONS $ TRC (env, st', txs')
     ]
 
+
 instance Embed TRANSACTION TRANSACTIONS where
   wrapFailed = TransactionFailure
 
+
 data TRANSACTION
+
 
 instance STS TRANSACTION where
 

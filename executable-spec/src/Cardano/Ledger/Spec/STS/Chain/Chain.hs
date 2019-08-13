@@ -34,6 +34,7 @@ import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
 
 data CHAIN
 
+
 data Env
   = Env
     { initialSlot :: !Slot
@@ -44,6 +45,7 @@ data Env
     }
   deriving (Eq, Show)
 
+
 data St
   = St
     { currentSlot :: !Slot
@@ -51,12 +53,14 @@ data St
     }
   deriving (Eq, Show)
 
+
 data Block
   = Block
     { slot :: !Slot
     , transactions :: ![Signal TRANSACTION]
     }
     deriving (Eq, Show)
+
 
 instance HeapWords Block where
   heapWords (Block (Slot s) transactions) = heapWords2 s transactions
@@ -105,11 +109,14 @@ instance STS CHAIN where
                  }
     ]
 
+
 instance Embed TRANSACTIONS CHAIN where
   wrapFailed = TransactionsFailure
 
+
 -- | Type wrapper that gives more information about what the 'Slot' represents.
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
+
 
 instance HasTrace CHAIN where
 

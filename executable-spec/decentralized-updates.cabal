@@ -65,6 +65,6 @@ test-suite ledger-rules-test
                        --
                        -- The 4 megabytes stack bound and 150 megabytes heap bound were
                        -- determined ad-hoc.
-                       "-with-rtsopts=-K4m -M250m"
+                       "-with-rtsopts=-K1m -M150m"
                        -threaded
                        -rtsopts
