@@ -20,7 +20,7 @@ import qualified Data.Hashable as H
 import           Data.Map.Strict (Map)
 
 import qualified Ledger.Core as Core
-import           Cardano.Prelude (HeapWords, heapWords, heapWords1, heapWords2)
+import           Cardano.Prelude (HeapWords, heapWords)
 
 -- | Protocol version
 data ProtVer = ProtVer Word64
@@ -147,8 +147,8 @@ data Signal
 
 instance HeapWords Signal where
   -- TODO: define these instances properly.
-  heapWords (Submit sipCommit sip) = 2 -- heapWords2 sipCommit sip
-  heapWords (Reveal sip) = 2 -- heapWords1 sip
+  heapWords (Submit _sipCommit _sip) = 2 -- heapWords2 sipCommit sip
+  heapWords (Reveal _sip) = 2 -- heapWords1 sip
 
 
 -- | A newtype string that is an instance of `HasHash`
