@@ -11,10 +11,20 @@ extra-deps:
       - test
 
   - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: 52d8b21bf882353627fc23d1d0928ef671bac3af
+    commit: a760677a47a8352f27081bce863d2f35d2c5960c
     subdirs:
       - byron/semantics/executable-spec
       - byron/ledger/executable-spec
+
+  # Needed for cardano-ledger-specs
+  - Unique-0.4.7.6
+
+  # Needed for goblins, which is in turn needed for cardano-ledger-specs :(
+  - git: https://github.com/input-output-hk/goblins
+    commit: 6ea969b31c2bbaa7ba78b8e83b53a36bedfae10e
+  - moo-1.2
+  - gray-code-0.3.1
+
   - tasty-hedgehog-1.0.0.1
   - bimap-0.4.0@sha256:d56712c094d40b4666e30d35fb0dad4058a2b753c5af4574f062237b2f7d5b67,1619
   - generic-monoid-0.1.0.0@sha256:00d1a7b7ff0890a3e3cba4032be24fe377c26e5e45d73afcacd42c98abb3b7e3,818

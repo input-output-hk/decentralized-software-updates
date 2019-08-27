@@ -131,7 +131,7 @@ instance HasTrace CHAIN where
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
 
-  sigGen _ Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
+  sigGen Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot
           <*> gTransactions (Transactions.Env currentSlot participants)
                             transactionsSt

@@ -156,8 +156,8 @@ transactionsGen maximumSize env st
         sizes :: [WordCount]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen _ (Env { participants }) (St { ideationSt }) =
+    transactionGen (Env { participants }) (St { ideationSt }) =
       -- TODO: figure out what a realistic distribution for update payload is.
       Gen.frequency [ (9, Dummy <$> Dummy.genTransaction)
-                    , (1, Ideation <$> sigGen @IDEATION Nothing participants ideationSt)
+                    , (1, Ideation <$> sigGen @IDEATION participants ideationSt)
                     ]

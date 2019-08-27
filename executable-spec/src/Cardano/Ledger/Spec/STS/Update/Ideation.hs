@@ -96,7 +96,6 @@ instance HasTrace IDEATION where
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
   sigGen
-    _maybePredicateFailure
     participants
     Data.State { submittedSIPs } = do
       owner <- newOwner

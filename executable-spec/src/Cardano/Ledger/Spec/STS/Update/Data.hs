@@ -20,20 +20,28 @@ import qualified Data.Hashable as H
 import           Data.Map.Strict (Map)
 
 import qualified Ledger.Core as Core
-import           Cardano.Prelude (HeapWords, heapWords)
+import qualified Ledger.Core.Omniscient as Omniscient
+import           Cardano.Prelude (HeapWords, heapWords, heapWords1, heapWords2, heapWords3, heapWords4)
 
 -- | Protocol version
 data ProtVer = ProtVer Word64
+-- TODO: add these components.
 {-  { _pvMaj :: Natural
   , _pvMin :: Natural
   , _pvAlt :: Word64
   }
 -}  deriving (Eq, Generic, Ord, Show, Hashable)
 
+instance HeapWords ProtVer where
+  heapWords (ProtVer version) = heapWords version
+
 -- | Application version
 newtype ApVer = ApVer Word64
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Num, Hashable)
+
+instance HeapWords ApVer where
+  heapWords (ApVer version) = heapWords version
 
 -- | Consensus Protocol Parameter Name
 data ParamName
@@ -43,10 +51,16 @@ data ParamName
   | EpochSize
   deriving (Eq, Generic, Ord, Show, Hashable)
 
+instance HeapWords ParamName where
+  heapWords _ = 0
+
 -- | Flag to distinguish between `SIP`s that impact or not the
 -- underlying consensus protocol
 data ConcensusImpact = Impact | NoImpact
   deriving (Eq, Generic, Ord, Show, Hashable)
+
+instance HeapWords ConcensusImpact where
+  heapWords _ = 0
 
 -- | Metadata structure for SIP
 data SIPMetadata =
@@ -59,6 +73,10 @@ data SIPMetadata =
               , impactsParameters :: !([ParamName])
               -- ^ List of protocol parameters impacted
               } deriving (Eq, Generic, Ord, Show, Hashable)
+
+instance HeapWords SIPMetadata where
+  heapWords (SIPMetadata aVersionFrom aVersionTo aImpactOnConcensus aImpactsParameters)
+    = heapWords4 aVersionFrom aVersionTo aImpactOnConcensus aImpactsParameters
 
 -- | Contents of a SIP
 data SIPData =
@@ -73,6 +91,10 @@ data SIPData =
 
 instance Core.HasHash (SIPData) where
   hash a = Core.Hash $ H.hash a
+
+instance HeapWords SIPData where
+  heapWords (SIPData aUrl aMetadata) = heapWords2 aUrl aMetadata
+
 
 -- | System improvement proposal
 data SIP =
@@ -93,10 +115,20 @@ data SIP =
 instance Core.HasHash (SIP) where
   hash a = Core.Hash $ H.hash a
 
+instance HeapWords SIP where
+  heapWords (SIP aSipHash anAuthor aSalt aSipPayload)  =
+    heapWords4 heapWordsHash heapWordsAuthor aSalt aSipPayload
+    where
+      heapWordsAuthor = heapWords . Core.unOwner . Core.owner $ anAuthor
+      heapWordsHash = heapWords . Core.unHash $ aSipHash
+
 -- | A commitment data type.
 -- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
 newtype Commit = Commit { getCommit :: Core.Hash}
   deriving (Show, Eq, Ord)
+
+instance HeapWords Commit where
+  heapWords (Commit hash) = heapWords . Core.unHash $ hash
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit =
@@ -109,6 +141,17 @@ data SIPCommit =
             -- ^ A signature on commit by the author public key
             }
   deriving (Eq, Show, Ord)
+
+instance HeapWords SIPCommit where
+  heapWords (SIPCommit aCommit anAuthor anUpSig) = heapWords3 aCommit heapWordsAuthor heapWordsUpSig
+    where
+      heapWordsAuthor = heapWords . Core.unOwner . Core.owner $ anAuthor
+      -- For all practical purposes, the heap words taken by the SIP author are
+      -- the same taken by signature author (which should agree for a valid
+      -- signature).
+      heapWordsUpSig = heapWords2 heapWordsData heapWordsAuthor
+        where
+          heapWordsData = heapWords . Omniscient.signatureData $ anUpSig
 
 -- | Calculate a `Commit` from a `SIP`
 calcCommit :: SIP -> Commit
@@ -146,10 +189,8 @@ data Signal
   deriving (Eq, Ord, Show)
 
 instance HeapWords Signal where
-  -- TODO: define these instances properly.
-  heapWords (Submit _sipCommit _sip) = 2 -- heapWords2 sipCommit sip
-  heapWords (Reveal _sip) = 2 -- heapWords1 sip
-
+  heapWords (Submit sipCommit sip) = heapWords2 sipCommit sip
+  heapWords (Reveal sip) = heapWords1 sip
 
 -- | A newtype string that is an instance of `HasHash`
 newtype MyString = MyString { str :: String }
