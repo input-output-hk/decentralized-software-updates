@@ -90,6 +90,8 @@ instance STS CHAIN where
     ]
 
 
+  -- TODO: do we need to model the __liveness__ assumption of the underlying
+  -- protocol: honest party votes will be eventually comitted to the chain.
   transitionRules = [
     do
       TRC ( Env { maximumBlockSize, participants }
@@ -123,8 +125,8 @@ instance HasTrace CHAIN where
   envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> participantsGen
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- For now we fix the maximum block size to 32 words.
-      maxBlockSizeGen = pure 32
+      -- For now we fix the maximum block size to 2048 words.
+      maxBlockSizeGen = pure 2048
       participantsGen = pure
                       $! Bimap.fromList
                       $  fmap (Core.vKey &&& Core.sKey)

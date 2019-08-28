@@ -83,8 +83,8 @@ data SIPData =
   SIPData {  url :: !Text
             -- ^ URL pointing at the server where the SIP is stored
           , metadata :: !SIPMetadata
-            -- ^ SIP Metadata (only core metadata,
-            -- the rest are on the server pointed by the url)
+            -- ^ SIP Metadata (only core metadata, the rest are on the server
+            -- pointed by the url)
           }
 
   deriving (Eq, Generic, Ord, Show, Hashable)

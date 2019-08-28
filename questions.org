@@ -1,0 +1,11 @@
+* Tallying the votes
+  According to the ~fc20-updates~ paper, votes should be counted when the voting
+  period ends. The problem with this is that:
+  - we will be using more resources for counting all the votes at once. So we
+    will see spikes of CPU usage at the nodes at the end of voting periods. This
+    might be a vulnerability.
+  - if we have a couple of empty slots where counting should have taken place,
+    we have to count votes of several periods at once. This will lead to even
+    more resource consumption.
+
+  Are we ok with this?

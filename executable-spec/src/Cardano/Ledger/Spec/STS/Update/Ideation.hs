@@ -86,8 +86,9 @@ instance HasTrace IDEATION where
 
   envGen _traceLength =
     -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' so that 'trace' can take parameter of an associated type, so
-    -- that each STS can decide which parameters are relevant for its traces.
+    -- 'HasTrace' class so that 'trace' can take parameter of an associated
+    -- type, so that each STS can decide which parameters are relevant for its
+    -- traces.
     pure $! Bimap.fromList
          $  fmap (Core.vKey &&& Core.sKey)
          $  fmap Core.keyPair
