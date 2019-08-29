@@ -16,6 +16,7 @@ import qualified Hedgehog.Gen as Gen
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
+import Data.Set (Set)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
@@ -27,9 +28,17 @@ import           Ledger.Core (Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
 import qualified Cardano.Ledger.Spec.STS.Dummy.Transaction as Dummy
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
+import Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
+import Cardano.Ledger.Spec.STS.Update (UPDATE, ideationSt)
+import qualified Cardano.Ledger.Spec.STS.Update as Update
+import Cardano.Ledger.Spec.STS.Update.Data (UpdatePayload)
+import Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
+import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
+
 
 
 data TRANSACTIONS
@@ -38,28 +47,42 @@ data TRANSACTIONS
 data Env =
   Env { currentSlot :: Slot
       , participants :: Bimap Core.VKey Core.SKey
+      , utxoEnv :: Environment UTXO
       }
   deriving (Eq, Show)
 
 
 data St =
-  St { dummySt :: State Dummy.TRANSACTION
-     , ideationSt :: State IDEATION
+  St { utxoSt :: State UTXO
+     , updateSt :: State UPDATE
      }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup St
   deriving Monoid via GenericMonoid St
 
 
-data Transaction
-  = Dummy (Signal Dummy.TRANSACTION)
-  | Ideation (Signal Ideation.IDEATION)
+-- | Transactions contained in a block.
+data Tx
+  = Tx
+  { body :: TxBody
+  , witnesses :: ![Witness]
+  }
   deriving (Eq, Show)
 
+data TxBody
+  = TxBody
+  { inputs :: !(Set TxIn)
+  , outputs :: ![TxOut]
+  , fees :: !Coin
+  , update :: !UpdatePayload
+    -- ^ Update payload
+  } deriving (Eq, Show)
 
-instance HeapWords Transaction where
-  heapWords (Dummy dummyTx) = heapWords1 dummyTx
-  heapWords (Ideation ideationTx) = heapWords1 ideationTx
+instance HeapWords Tx where
+  -- TODO: consider using the abstract size instead.
+  heapWords _ = 0
+  -- (Dummy dummyTx) = heapWords1 dummyTx
+  -- heapWords (Ideation ideationTx) = heapWords1 ideationTx
 
 
 instance STS TRANSACTIONS where
@@ -68,9 +91,9 @@ instance STS TRANSACTIONS where
 
   type State TRANSACTIONS = St
 
-  type Signal TRANSACTIONS = [Transaction]
+  type Signal TRANSACTIONS = [Tx]
 
-  data PredicateFailure TRANSACTIONS = TransactionFailure (PredicateFailure TRANSACTION)
+  data PredicateFailure TRANSACTIONS = TxFailure (PredicateFailure TRANSACTION)
     deriving (Eq, Show)
 
   initialRules = []
@@ -87,7 +110,7 @@ instance STS TRANSACTIONS where
 
 
 instance Embed TRANSACTION TRANSACTIONS where
-  wrapFailed = TransactionFailure
+  wrapFailed = TxFailure
 
 
 data TRANSACTION
@@ -99,43 +122,55 @@ instance STS TRANSACTION where
 
   type State TRANSACTION = State TRANSACTIONS
 
-  type Signal TRANSACTION = Transaction
+  type Signal TRANSACTION = Tx
 
-  data PredicateFailure TRANSACTION = IdeationFailure (PredicateFailure IDEATION)
+  data PredicateFailure TRANSACTION = UpdateFailure (PredicateFailure UPDATE)
     deriving (Eq, Show)
 
   initialRules = []
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, participants }
-          , st@St { dummySt, ideationSt }
-          , tx
+      TRC ( Env { currentSlot, utxoEnv, participants }
+          , st@St { utxoSt, updateSt }
+          , Tx { body = TxBody { inputs, outputs, fees, update}, witnesses }
           ) <- judgmentContext
-      case tx of
-        Dummy dtx -> do
-          dummySt' <- trans @Dummy.TRANSACTION $ TRC(currentSlot, dummySt, dtx)
-          pure st { dummySt = dummySt' }
-        Ideation itx -> do
-          ideationSt' <- trans @IDEATION $ TRC ( participants, ideationSt, itx )
-          pure st { ideationSt = ideationSt' }
+      -- TODO: keep in mind that some of the update rules will have to be
+      -- triggered in the header validation rules (which we currently don't
+      -- have).
+      --
+      utxoSt' <- trans @UTXO $ TRC (utxoEnv, utxoSt, UTxO.Payload inputs outputs fees)
+      -- UTXO and UPDATE transition systems should be independent, so it
+      -- shouldn't matter which transition is triggered first. Even if the
+      -- update mechanism can change fees, these changes should happen at epoch
+      -- boundaries and at header rules.
+      updateSt' <-
+        trans @UPDATE $
+          TRC ( Update.Env { Update.participants = participants
+                           , Update.implementationEnv = undefined
+                           }
+              , updateSt
+              , update)
+      pure $ St { utxoSt = utxoSt'
+                , updateSt = updateSt'
+                }
     ]
 
 
-instance Embed Dummy.TRANSACTION TRANSACTION where
-  wrapFailed = error "Dummy.TRANSACTION shouldn't fail"
+instance Embed UTXO TRANSACTION where
+  wrapFailed = error "UTXO transition shouldn't fail (yet)"
 
 
-instance Embed IDEATION TRANSACTION where
-  wrapFailed = IdeationFailure
+instance Embed UPDATE TRANSACTION where
+  wrapFailed = UpdateFailure
 
 
--- | Generate a list of 'Transaction's that fit in the given maximum size.
+-- | Generate a list of 'Tx's that fit in the given maximum size.
 transactionsGen
   :: WordCount
   -> Environment TRANSACTIONS
   -> State TRANSACTIONS
-  -> Gen [Transaction]
+  -> Gen [Tx]
 transactionsGen maximumSize env st
   =   fitTransactions . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
@@ -144,7 +179,7 @@ transactionsGen maximumSize env st
 
   where
     -- Fit the transactions that fit in the given maximum block size.
-    fitTransactions :: [Transaction] -> [Transaction]
+    fitTransactions :: [Tx] -> [Tx]
     fitTransactions txs = zip txs (tail sizes)
                           -- We subtract to account for the block constructor
                           -- and the 'Word64' value of the slot.
@@ -156,8 +191,9 @@ transactionsGen maximumSize env st
         sizes :: [WordCount]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen (Env { participants }) (St { ideationSt }) =
+    transactionGen (Env { participants }) (St { updateSt }) =
       -- TODO: figure out what a realistic distribution for update payload is.
-      Gen.frequency [ (9, Dummy <$> Dummy.genTransaction)
-                    , (1, Ideation <$> sigGen @IDEATION participants ideationSt)
-                    ]
+      undefined
+      -- Gen.frequency [ (9, Dummy <$> Dummy.genTransaction)
+      --               , (1, Ideation <$> sigGen @IDEATION participants ideationSt)
+      --               ]

@@ -16,6 +16,7 @@ import qualified Control.State.Transition.Trace as Trace
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
 import qualified Cardano.Ledger.Spec.STS.Chain.Transactions as Transactions
+import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
@@ -38,7 +39,8 @@ tracesAreClassified = withTests 300 $ property $ do
     lastStateReveals :: Trace.Trace CHAIN -> Word64
     lastStateReveals tr = Trace.lastState tr
                         & Chain.transactionsSt
-                        & Transactions.ideationSt
+                        & Transactions.updateSt
+                        & Update.ideationSt
                         & Data.revealedSIPs
                         & length
                         & fromIntegral

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -18,9 +19,9 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
-import           Cardano.Ledger.Spec.STS.Update.Data (SIP (..), SIPData (..),
-                     Signal (Reveal, Submit), commitedSIPs, revealedSIPs,
-                     submittedSIPs)
+import           Cardano.Ledger.Spec.STS.Update.Data
+                     (IdeationPayload (Reveal, Submit), SIP (..), SIPData (..),
+                     commitedSIPs, revealedSIPs, submittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -31,6 +32,26 @@ import qualified Ledger.Core as Core
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
+
+data IDEATIONS
+
+instance STS IDEATIONS where
+
+  type Environment IDEATIONS = Environment IDEATION
+
+  type State IDEATIONS = State IDEATION
+
+  type Signal IDEATIONS = [Signal IDEATION]
+
+  data PredicateFailure IDEATIONS
+    = IdeationFailure (PredicateFailure IDEATION)
+    deriving (Eq, Show)
+
+
+  initialRules = []
+
+  transitionRules = []
+
 
 -- | Ideation phase of system updates
 data IDEATION
@@ -46,7 +67,7 @@ instance STS IDEATION where
 
   type State IDEATION = Data.State
 
-  type Signal IDEATION = Data.Signal
+  type Signal IDEATION = IdeationPayload
 
   -- We have no failures for now.
   data PredicateFailure IDEATION
@@ -81,6 +102,7 @@ instance STS IDEATION where
                   , revealedSIPs = Set.insert sip revealedSIPs
                   }
     ]
+
 
 instance HasTrace IDEATION where
 

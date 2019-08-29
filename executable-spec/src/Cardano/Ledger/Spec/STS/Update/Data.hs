@@ -14,7 +14,6 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           Data.Set (Set)
 import           GHC.Generics (Generic)
 import           Data.Text (Text)
---import           Numeric.Natural (Natural)
 import           Data.Hashable (Hashable)
 import qualified Data.Hashable as H
 import           Data.Map.Strict (Map)
@@ -22,6 +21,25 @@ import           Data.Map.Strict (Map)
 import qualified Ledger.Core as Core
 import qualified Ledger.Core.Omniscient as Omniscient
 import           Cardano.Prelude (HeapWords, heapWords, heapWords1, heapWords2, heapWords3, heapWords4)
+
+
+data UpdatePayload
+  = UpdatePayload
+    { ideationPayload :: ![IdeationPayload]
+    , implementationPayload :: ![ImplementationPayload]
+    } deriving (Eq, Show)
+
+
+data ImplementationPayload = ImplementationPayload
+  deriving (Eq, Show)
+
+
+-- | Ideation signals.
+data IdeationPayload
+  = Submit SIPCommit SIP
+  | Reveal SIP
+  | Vote SIP
+  deriving (Eq, Ord, Show)
 
 -- | Protocol version
 data ProtVer = ProtVer Word64
@@ -50,6 +68,7 @@ data ParamName
   | SlotSize
   | EpochSize
   deriving (Eq, Generic, Ord, Show, Hashable)
+
 
 instance HeapWords ParamName where
   heapWords _ = 0
@@ -182,15 +201,12 @@ data State
   deriving Semigroup via GenericSemigroup State
   deriving Monoid via GenericMonoid State
 
--- | Ideation signals.
-data Signal
-  = Submit SIPCommit SIP
-  | Reveal SIP
-  deriving (Eq, Ord, Show)
 
-instance HeapWords Signal where
-  heapWords (Submit sipCommit sip) = heapWords2 sipCommit sip
-  heapWords (Reveal sip) = heapWords1 sip
+instance HeapWords UpdatePayload where
+  -- TODO: use abstract size here
+  heapWords _ = 0
+  -- (Submit sipCommit sip) = heapWords2 sipCommit sip
+  -- heapWords (Reveal sip) = heapWords1 sip
 
 -- | A newtype string that is an instance of `HasHash`
 newtype MyString = MyString { str :: String }

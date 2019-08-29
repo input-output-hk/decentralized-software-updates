@@ -102,7 +102,7 @@ instance STS CHAIN where
       size block < maximumBlockSize
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( Transactions.Env currentSlot participants
+        trans @TRANSACTIONS $ TRC ( Transactions.Env currentSlot participants undefined
                                   , transactionsSt
                                   , transactions
                                   )
@@ -135,7 +135,7 @@ instance HasTrace CHAIN where
 
   sigGen Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot
-          <*> gTransactions (Transactions.Env currentSlot participants)
+          <*> gTransactions (Transactions.Env currentSlot participants undefined)
                             transactionsSt
     where
       -- We'd expect the slot increment to be 1 with high probability.
