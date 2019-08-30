@@ -6,6 +6,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+
+-- TODO: For the sake of consistency with the other modules this should be
+-- renamed to 'Transaction'
 module Cardano.Ledger.Spec.STS.Chain.Transactions where
 
 import           Cardano.Prelude (HeapWords, heapWords, heapWords1)
@@ -28,12 +31,13 @@ import           Ledger.Core (Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import qualified Cardano.Ledger.Spec.STS.Dummy.Transaction as Dummy
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
+import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 import Cardano.Ledger.Spec.STS.Update (UPDATES, ideationSt)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
@@ -76,10 +80,6 @@ data TxBody
   , fees :: !Coin
   , update :: ![UpdatePayload]
     -- ^ Update payload
-
-  -- TODO: we might want to make this a [UpdatePayload], and Make UpdatePayload
-  -- = SIPCommit | ...| UPCommit | ... in this way we don't need to have empty
-  -- lists for the phases we don't use.
   } deriving (Eq, Show)
 
 instance HeapWords Tx where
@@ -151,10 +151,11 @@ instance STS TRANSACTION where
       updateSt' <-
         trans @UPDATES $
           TRC ( Update.Env { Update.participants = participants
-                           , Update.implementationEnv = undefined
+                           , Update.implementationEnv = Implementation.Env
                            }
               , updateSt
-              , update)
+              , update
+              )
       pure $ St { utxoSt = utxoSt'
                 , updateSt = updateSt'
                 }
@@ -195,9 +196,34 @@ transactionsGen maximumSize env st
         sizes :: [WordCount]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen (Env { participants }) (St { updateSt }) =
+    transactionGen (Env { participants }) (St { updateSt })
       -- TODO: figure out what a realistic distribution for update payload is.
-      undefined
-      -- Gen.frequency [ (9, Dummy <$> Dummy.genTransaction)
-      --               , (1, Ideation <$> sigGen @IDEATION participants ideationSt)
-      --               ]
+      --
+      -- TODO: do we need to model the __liveness__ assumption of the underlying
+      -- protocol? That is, model the fact that honest party votes will be
+      -- eventually comitted to the chain. Or is this implicit once we start
+      -- generating votes uniformly distributed over all the parties (honest and
+      -- otherwise)
+      --
+      -- We do not generate witnesses for now
+      =   (`Tx` [])
+      .   dummyBody
+      <$> Gen.frequency
+            [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
+            , (1, sigGen
+                    @UPDATES
+                    Update.Env { Update.participants = participants
+                               , Update.implementationEnv = Implementation.Env
+                               }
+                    updateSt
+              )
+            ]
+      where
+        -- For now we don't generate inputs and outputs.
+        dummyBody update
+          = TxBody
+            { inputs = mempty
+            , outputs = mempty
+            , fees = Coin
+            , update = update
+            }

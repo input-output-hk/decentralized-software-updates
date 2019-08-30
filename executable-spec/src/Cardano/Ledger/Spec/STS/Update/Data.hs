@@ -178,6 +178,8 @@ calcCommit sip =
       `mappend` (myshow . Core.hash $ sip)
 
 -- | Ideation phase state
+--
+-- TODO: move this into ideation, and rename to St.
 data State
   = State
     { commitedSIPs :: !(Map Commit SIPCommit)

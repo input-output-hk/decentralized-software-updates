@@ -18,7 +18,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
 
 
-data TxIn = TxIn deriving (Eq, Show)
+data TxIn = TxIn deriving (Eq, Ord, Show)
 
 data TxOut = TxOut deriving (Eq, Show)
 

@@ -14,6 +14,7 @@ import           GHC.Generics (Generic)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
+import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -43,4 +44,11 @@ instance STS IMPLEMENTATION where
 
   initialRules = []
 
-  transitionRules = []
+  transitionRules = [ pure $! St () ]
+
+
+instance HasTrace IMPLEMENTATION where
+
+  envGen _ = pure $! Env
+
+  sigGen _env _st = pure $! Data.ImplementationPayload

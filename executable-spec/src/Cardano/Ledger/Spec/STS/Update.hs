@@ -12,9 +12,11 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 
+import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
+import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
 
 import           Cardano.Ledger.Spec.STS.Update.Data (IdeationPayload, ImplementationPayload)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
@@ -24,6 +26,7 @@ import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 
 data UPDATE
 
+
 -- | As we incorporate more phases, like UP (or IMPLEMENTATION), we will be
 -- adding more components to this environment.
 data Env
@@ -32,6 +35,7 @@ data Env
     , implementationEnv :: Environment IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
+
 
 data St
   = St
@@ -107,8 +111,41 @@ instance STS UPDATES where
 
   initialRules = []
 
-  transitionRules = []
+  transitionRules = [
+    do
+      TRC (env, st, updates) <- judgmentContext
+      case updates of
+        [] -> pure $! st
+        (update:updates') ->
+          do
+            st' <- trans @UPDATE $ TRC (env, st, update)
+            trans @UPDATES $ TRC (env, st', updates')
+    ]
 
 
 instance Embed UPDATE UPDATES where
   wrapFailed = UpdateFailure
+
+--------------------------------------------------------------------------------
+-- Trace generators
+--------------------------------------------------------------------------------
+
+instance HasTrace UPDATES where
+
+  envGen traceLength = envGen @UPDATE traceLength
+
+  sigGen env st
+    =   traceSignals OldestFirst
+    <$> genTrace @UPDATE 10 env st (sigGen @UPDATE)
+    -- TODO: we need to determine what is a realistic number of update
+    -- transactions to be expected in a block.
+
+
+instance HasTrace UPDATE where
+
+  envGen traceLength =
+    Env <$> envGen @IDEATION traceLength <*> envGen @IMPLEMENTATION traceLength
+
+  sigGen Env { participants } St { ideationSt } =
+    -- For now we generate ideation payload only.
+    Ideation <$> sigGen @IDEATION participants ideationSt

@@ -29,6 +29,7 @@ import qualified Ledger.Core as Core
 import           Cardano.Ledger.Spec.STS.Chain.Transactions (TRANSACTION,
                      TRANSACTIONS)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transactions as Transactions
+import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
 
 
@@ -41,6 +42,8 @@ data Env
     , maximumBlockSize :: !WordCount
     -- ^ Maximum block size. For now we measure this in number of 'Word's using
     -- 'heapWords' from 'Cardano.Prelude.HeapWords'.
+    --
+    -- TODO: use abstract size instead.
     , participants :: Bimap Core.VKey Core.SKey
     }
   deriving (Eq, Show)
@@ -89,20 +92,23 @@ instance STS CHAIN where
                  }
     ]
 
-
-  -- TODO: do we need to model the __liveness__ assumption of the underlying
-  -- protocol: honest party votes will be eventually comitted to the chain.
   transitionRules = [
     do
       TRC ( Env { maximumBlockSize, participants }
           , St { currentSlot, transactionsSt }
-          , block@Block{ slot, transactions }) <- judgmentContext
+          , block@Block{ slot, transactions }
+          ) <- judgmentContext
       currentSlot < slot
         ?! BlockSlotNotIncreasing (CurrentSlot currentSlot) slot
       size block < maximumBlockSize
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
+      -- TODO: we will need a header transition as well, where the votes are
+      -- tallied.
+
+      -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
+      -- Byron and Shelley rules.
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( Transactions.Env currentSlot participants undefined
+        trans @TRANSACTIONS $ TRC ( Transactions.Env currentSlot participants UTxO.Env
                                   , transactionsSt
                                   , transactions
                                   )
@@ -135,12 +141,13 @@ instance HasTrace CHAIN where
 
   sigGen Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot
-          <*> gTransactions (Transactions.Env currentSlot participants undefined)
+          <*> gTransactions (Transactions.Env currentSlot participants UTxO.Env)
                             transactionsSt
     where
       -- We'd expect the slot increment to be 1 with high probability.
       --
       -- TODO: check the exact probability of having an empty slot.
+      --
       gNextSlot =  Slot . (s +) <$> Gen.frequency [ (99, pure 1)
                                                   , (1, pure 2)
                                                   ]
