@@ -4,12 +4,6 @@ packages:
   - executable-spec
 
 extra-deps:
-  - git: https://github.com/input-output-hk/cardano-prelude
-    commit: 8273fe5f00ac03b0c66ef3841c8e957139ee18f2
-    subdirs:
-      - .
-      - test
-
   - git: https://github.com/input-output-hk/cardano-ledger-specs
     commit: a760677a47a8352f27081bce863d2f35d2c5960c
     subdirs:

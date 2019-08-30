@@ -22,7 +22,6 @@ import           Data.AbstractSize (HasTypeReps)
 
 import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (IdeationPayload, ImplementationPayload)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 
@@ -78,7 +77,7 @@ instance STS UPDATE where
   transitionRules = [
     do
       TRC ( Env { participants, implementationEnv }
-          , St { ideationSt, implementationSt }
+          , st@St { ideationSt, implementationSt }
           , update
           ) <- judgmentContext
 
@@ -87,13 +86,13 @@ instance STS UPDATE where
           do
             ideationSt' <- trans @IDEATION $
               TRC (participants, ideationSt, ideationPayload)
-            pure $ St { ideationSt = ideationSt' }
+            pure $ st { ideationSt = ideationSt' }
         Implementation implementationPayload ->
           do
             implementationSt' <-
               trans @IMPLEMENTATION $
               TRC (implementationEnv, implementationSt, implementationPayload)
-            pure $ St { implementationSt = implementationSt' }
+            pure $ st { implementationSt = implementationSt' }
 
     ]
 

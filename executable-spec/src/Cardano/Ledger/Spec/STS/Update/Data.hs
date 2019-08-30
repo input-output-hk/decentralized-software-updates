@@ -22,7 +22,6 @@ import           Data.Map.Strict (Map)
 import           Data.Typeable   (typeOf)
 
 import qualified Ledger.Core as Core
-import qualified Ledger.Core.Omniscient as Omniscient
 import           Data.AbstractSize (HasTypeReps, typeReps)
 
 import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)

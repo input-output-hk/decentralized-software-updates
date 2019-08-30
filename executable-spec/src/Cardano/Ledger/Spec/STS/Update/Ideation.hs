@@ -11,8 +11,6 @@ import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
-import           GHC.Generics (Generic)
-import           Hedgehog ()
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Range (constant)
 
@@ -20,11 +18,11 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
-import           Data.AbstractSize (HasTypeReps)
 
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (IdeationPayload (Reveal, Submit), SIP (..), SIPData (..),
-                     commitedSIPs, revealedSIPs, submittedSIPs)
+                     (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
+                     SIPData (SIPData), commitedSIPs, revealedSIPs,
+                     submittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -85,6 +83,7 @@ instance STS IDEATION where
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
                   }
+        Vote _ -> error "Define the rules for voting"
     ]
 
 

@@ -28,9 +28,9 @@ import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot (Slot))
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.STS.Chain.Transactions (TRANSACTION,
+import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION,
                      TRANSACTIONS)
-import qualified Cardano.Ledger.Spec.STS.Chain.Transactions as Transactions
+import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 
@@ -110,7 +110,7 @@ instance STS CHAIN where
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( Transactions.Env currentSlot participants UTxO.Env
+        trans @TRANSACTIONS $ TRC ( Transaction.Env currentSlot participants UTxO.Env
                                   , transactionsSt
                                   , transactions
                                   )
@@ -143,7 +143,7 @@ instance HasTrace CHAIN where
 
   sigGen Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot
-          <*> gTransactions (Transactions.Env currentSlot participants UTxO.Env)
+          <*> gTransactions (Transaction.Env currentSlot participants UTxO.Env)
                             transactionsSt
     where
       -- We'd expect the slot increment to be 1 with high probability.
@@ -157,4 +157,4 @@ instance HasTrace CHAIN where
           Slot s = currentSlot
 
       -- We generate a list of transactions that fit in the maximum block size.
-      gTransactions = Transactions.transactionsGen maximumBlockSize
+      gTransactions = Transaction.transactionsGen maximumBlockSize

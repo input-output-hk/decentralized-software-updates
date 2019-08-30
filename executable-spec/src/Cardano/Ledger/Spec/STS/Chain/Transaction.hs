@@ -8,9 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 
--- TODO: For the sake of consistency with the other modules this should be
--- renamed to 'Transaction'
-module Cardano.Ledger.Spec.STS.Chain.Transactions where
+module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
 import           Data.Bimap (Bimap)
 import           Data.Function ((&))
@@ -34,12 +32,9 @@ import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
-import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
-import Cardano.Ledger.Spec.STS.Update (UPDATES, ideationSt)
+import Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
@@ -139,9 +134,9 @@ instance STS TRANSACTION where
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, utxoEnv, participants }
-          , st@St { utxoSt, updateSt }
-          , Tx { body = TxBody { inputs, outputs, fees, update}, witnesses }
+      TRC ( Env { utxoEnv, participants }
+          , St { utxoSt, updateSt }
+          , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
       -- TODO: keep in mind that some of the update rules will have to be
       -- triggered in the header validation rules (which we currently don't
