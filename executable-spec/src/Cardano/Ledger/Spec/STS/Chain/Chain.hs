@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -12,16 +14,16 @@ module Cardano.Ledger.Spec.STS.Chain.Chain where
 import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
+import           GHC.Generics (Generic)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-
-import           Cardano.Prelude (HeapWords, heapWords, heapWords2)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      Threshold (Threshold), initialRules, judgmentContext,
                      trans, transitionRules, wrapFailed, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot (Slot))
 import qualified Ledger.Core as Core
@@ -30,7 +32,7 @@ import           Cardano.Ledger.Spec.STS.Chain.Transactions (TRANSACTION,
                      TRANSACTIONS)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transactions as Transactions
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
-import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
+import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 
 
 data CHAIN
@@ -39,9 +41,9 @@ data CHAIN
 data Env
   = Env
     { initialSlot :: !Slot
-    , maximumBlockSize :: !WordCount
-    -- ^ Maximum block size. For now we measure this in number of 'Word's using
-    -- 'heapWords' from 'Cardano.Prelude.HeapWords'.
+    , maximumBlockSize :: !Size
+    -- ^ Maximum block size. The interpretation of this value depends on the
+    -- instance of 'Sized'.
     --
     -- TODO: use abstract size instead.
     , participants :: Bimap Core.VKey Core.SKey
@@ -62,11 +64,11 @@ data Block
     { slot :: !Slot
     , transactions :: ![Signal TRANSACTION]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic, HasTypeReps)
 
 
-instance HeapWords Block where
-  heapWords (Block (Slot s) transactions) = heapWords2 s transactions
+instance Sized Block where
+  costsList _ = costsList (undefined :: Signal TRANSACTION)
 
 
 instance STS CHAIN where
@@ -79,7 +81,7 @@ instance STS CHAIN where
 
   data PredicateFailure CHAIN
     = BlockSlotNotIncreasing CurrentSlot Slot
-    | MaximumBlockSizeExceeded WordCount (Threshold WordCount)
+    | MaximumBlockSizeExceeded Size (Threshold Size)
     | TransactionsFailure (PredicateFailure TRANSACTIONS)
     deriving (Eq, Show)
 
@@ -131,8 +133,8 @@ instance HasTrace CHAIN where
   envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> participantsGen
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- For now we fix the maximum block size to 2048 words.
-      maxBlockSizeGen = pure 2048
+      -- For now we fix the maximum block size to an abstract size of 100
+      maxBlockSizeGen = pure 100
       participantsGen = pure
                       $! Bimap.fromList
                       $  fmap (Core.vKey &&& Core.sKey)

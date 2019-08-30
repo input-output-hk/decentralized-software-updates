@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -11,7 +12,6 @@
 -- renamed to 'Transaction'
 module Cardano.Ledger.Spec.STS.Chain.Transactions where
 
-import           Cardano.Prelude (HeapWords, heapWords, heapWords1)
 import           Data.Bimap (Bimap)
 import           Data.Function ((&))
 import           Hedgehog (Gen)
@@ -19,6 +19,7 @@ import qualified Hedgehog.Gen as Gen
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
+import           Data.Typeable (typeOf)
 import Data.Set (Set)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -26,13 +27,13 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (sigGen, genTrace)
 import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
+import Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot)
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.STS.Sized (WordCount, size)
+import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
-import qualified Cardano.Ledger.Spec.STS.Dummy.Transaction as Dummy
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import Cardano.Ledger.Spec.STS.Update (UpdatePayload)
@@ -53,7 +54,7 @@ data Env =
       , participants :: Bimap Core.VKey Core.SKey
       , utxoEnv :: Environment UTXO
       }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 
 data St =
@@ -71,7 +72,7 @@ data Tx
   { body :: TxBody
   , witnesses :: ![Witness]
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic, HasTypeReps)
 
 data TxBody
   = TxBody
@@ -80,13 +81,16 @@ data TxBody
   , fees :: !Coin
   , update :: ![UpdatePayload]
     -- ^ Update payload
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic, HasTypeReps)
 
-instance HeapWords Tx where
-  -- TODO: consider using the abstract size instead.
-  heapWords _ = 0
-  -- (Dummy dummyTx) = heapWords1 dummyTx
-  -- heapWords (Ideation ideationTx) = heapWords1 ideationTx
+
+instance Sized Tx where
+  costsList _
+    =  [ (typeOf (undefined :: TxIn), 1)
+       , (typeOf (undefined :: TxOut), 1)
+       , (typeOf (undefined :: Coin), 1)
+       ]
+    ++ costsList (undefined :: UpdatePayload)
 
 
 instance STS TRANSACTIONS where
@@ -172,7 +176,7 @@ instance Embed UPDATES TRANSACTION where
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
 transactionsGen
-  :: WordCount
+  :: Size
   -> Environment TRANSACTIONS
   -> State TRANSACTIONS
   -> Gen [Tx]
@@ -193,7 +197,7 @@ transactionsGen maximumSize env st
       where
         -- We compute the cumulative sum of the transaction sizes. We add 3 to
         -- account for the list constructor.
-        sizes :: [WordCount]
+        sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
     transactionGen (Env { participants }) (St { updateSt })

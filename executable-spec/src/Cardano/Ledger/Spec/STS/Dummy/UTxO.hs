@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
@@ -14,17 +15,19 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           Data.Set (Set)
 
+import           Data.AbstractSize (HasTypeReps)
+
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
 
 
-data TxIn = TxIn deriving (Eq, Ord, Show)
+data TxIn = TxIn deriving (Eq, Ord, Show, Generic, HasTypeReps)
 
-data TxOut = TxOut deriving (Eq, Show)
+data TxOut = TxOut deriving (Eq, Show, Generic, HasTypeReps)
 
-data Coin = Coin deriving (Eq, Show)
+data Coin = Coin deriving (Eq, Show, Generic, HasTypeReps)
 
-data Witness = Witness deriving (Eq, Show)
+data Witness = Witness deriving (Eq, Show, Generic, HasTypeReps)
 
 data Payload
   = Payload
@@ -32,7 +35,7 @@ data Payload
     , outputs :: ![TxOut]
     , fees :: !Coin
     }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic, HasTypeReps)
 
 -- | Dummy UTxO transition system.
 

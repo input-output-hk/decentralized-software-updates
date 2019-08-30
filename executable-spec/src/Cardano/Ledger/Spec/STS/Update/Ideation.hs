@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -10,6 +11,7 @@ import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
+import           GHC.Generics (Generic)
 import           Hedgehog ()
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Range (constant)
@@ -18,6 +20,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import           Data.AbstractSize (HasTypeReps)
 
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit), SIP (..), SIPData (..),
@@ -128,7 +131,7 @@ instance HasTrace IDEATION where
           where
             newSalt = Gen.int (constant 0 100)
             newSipHash = (fmap hash) newSipData -- NullSIPData
-            newSipData = (SIPData) <$> (Gen.text (constant 1 50) Gen.alpha) <*> (newSIPMetadata)
+            newSipData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (newSIPMetadata)
             newSIPMetadata = (Data.SIPMetadata)
               <$> (
                   ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))

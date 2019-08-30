@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -17,7 +18,9 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
+import           Data.AbstractSize (HasTypeReps)
 
+import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (IdeationPayload, ImplementationPayload)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
@@ -50,7 +53,12 @@ data St
 data UpdatePayload
   = Ideation IdeationPayload
   | Implementation ImplementationPayload
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic, HasTypeReps)
+
+instance Sized UpdatePayload where
+  costsList _
+    =  costsList (undefined :: IdeationPayload)
+    ++ costsList (undefined :: ImplementationPayload)
 
 instance STS UPDATE where
 
