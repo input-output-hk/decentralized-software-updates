@@ -32,10 +32,10 @@ import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
 import qualified Cardano.Ledger.Spec.STS.Dummy.Transaction as Dummy
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
+import Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
-import Cardano.Ledger.Spec.STS.Update (UPDATE, ideationSt)
+import Cardano.Ledger.Spec.STS.Update (UPDATES, ideationSt)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import Cardano.Ledger.Spec.STS.Update.Data (UpdatePayload)
 import Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
@@ -54,7 +54,7 @@ data Env =
 
 data St =
   St { utxoSt :: State UTXO
-     , updateSt :: State UPDATE
+     , updateSt :: State UPDATES
      }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup St
@@ -74,8 +74,12 @@ data TxBody
   { inputs :: !(Set TxIn)
   , outputs :: ![TxOut]
   , fees :: !Coin
-  , update :: !UpdatePayload
+  , update :: ![UpdatePayload]
     -- ^ Update payload
+
+  -- TODO: we might want to make this a [UpdatePayload], and Make UpdatePayload
+  -- = SIPCommit | ...| UPCommit | ... in this way we don't need to have empty
+  -- lists for the phases we don't use.
   } deriving (Eq, Show)
 
 instance HeapWords Tx where
@@ -124,7 +128,7 @@ instance STS TRANSACTION where
 
   type Signal TRANSACTION = Tx
 
-  data PredicateFailure TRANSACTION = UpdateFailure (PredicateFailure UPDATE)
+  data PredicateFailure TRANSACTION = UpdatesFailure (PredicateFailure UPDATES)
     deriving (Eq, Show)
 
   initialRules = []
@@ -145,7 +149,7 @@ instance STS TRANSACTION where
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
       updateSt' <-
-        trans @UPDATE $
+        trans @UPDATES $
           TRC ( Update.Env { Update.participants = participants
                            , Update.implementationEnv = undefined
                            }
@@ -161,8 +165,8 @@ instance Embed UTXO TRANSACTION where
   wrapFailed = error "UTXO transition shouldn't fail (yet)"
 
 
-instance Embed UPDATE TRANSACTION where
-  wrapFailed = UpdateFailure
+instance Embed UPDATES TRANSACTION where
+  wrapFailed = UpdatesFailure
 
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.

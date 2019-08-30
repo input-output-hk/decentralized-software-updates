@@ -33,25 +33,6 @@ import qualified Ledger.Core as Core
 -- Updates ideation phase
 --------------------------------------------------------------------------------
 
-data IDEATIONS
-
-instance STS IDEATIONS where
-
-  type Environment IDEATIONS = Environment IDEATION
-
-  type State IDEATIONS = State IDEATION
-
-  type Signal IDEATIONS = [Signal IDEATION]
-
-  data PredicateFailure IDEATIONS
-    = IdeationFailure (PredicateFailure IDEATION)
-    deriving (Eq, Show)
-
-
-  initialRules = []
-
-  transitionRules = []
-
 
 -- | Ideation phase of system updates
 data IDEATION

@@ -23,13 +23,6 @@ import qualified Ledger.Core.Omniscient as Omniscient
 import           Cardano.Prelude (HeapWords, heapWords, heapWords1, heapWords2, heapWords3, heapWords4)
 
 
-data UpdatePayload
-  = UpdatePayload
-    { ideationPayload :: ![IdeationPayload]
-    , implementationPayload :: ![ImplementationPayload]
-    } deriving (Eq, Show)
-
-
 data ImplementationPayload = ImplementationPayload
   deriving (Eq, Show)
 
@@ -201,12 +194,6 @@ data State
   deriving Semigroup via GenericSemigroup State
   deriving Monoid via GenericMonoid State
 
-
-instance HeapWords UpdatePayload where
-  -- TODO: use abstract size here
-  heapWords _ = 0
-  -- (Submit sipCommit sip) = heapWords2 sipCommit sip
-  -- heapWords (Reveal sip) = heapWords1 sip
 
 -- | A newtype string that is an instance of `HasHash`
 newtype MyString = MyString { str :: String }

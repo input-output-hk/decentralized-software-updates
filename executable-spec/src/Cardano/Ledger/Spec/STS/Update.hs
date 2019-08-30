@@ -16,11 +16,10 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
 
-import           Cardano.Ledger.Spec.STS.Update.Data (ideationPayload,
-                     implementationPayload)
+import           Cardano.Ledger.Spec.STS.Update.Data (IdeationPayload, ImplementationPayload)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATIONS)
-import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATIONS)
+import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
+import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 
 
 data UPDATE
@@ -29,20 +28,25 @@ data UPDATE
 -- adding more components to this environment.
 data Env
   = Env
-    { participants :: Environment IDEATIONS
-    , implementationEnv :: Environment IMPLEMENTATIONS
+    { participants :: Environment IDEATION
+    , implementationEnv :: Environment IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
 
 data St
   = St
-    { ideationSt :: State IDEATIONS
-    , implementationSt :: State IMPLEMENTATIONS
+    { ideationSt :: State IDEATION
+    , implementationSt :: State IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup St
   deriving Monoid via GenericMonoid St
 
+
+data UpdatePayload
+  = Ideation IdeationPayload
+  | Implementation ImplementationPayload
+  deriving (Eq, Show)
 
 instance STS UPDATE where
 
@@ -50,11 +54,11 @@ instance STS UPDATE where
 
   type State UPDATE = St
 
-  type Signal UPDATE = Data.UpdatePayload
+  type Signal UPDATE = UpdatePayload
 
   data PredicateFailure UPDATE
-    = IdeationsFailure (PredicateFailure IDEATIONS)
-    | ImplementationsFailure (PredicateFailure IMPLEMENTATIONS)
+    = IdeationsFailure (PredicateFailure IDEATION)
+    | ImplementationsFailure (PredicateFailure IMPLEMENTATION)
     deriving (Eq, Show)
 
   initialRules = []
@@ -63,21 +67,48 @@ instance STS UPDATE where
     do
       TRC ( Env { participants, implementationEnv }
           , St { ideationSt, implementationSt }
-          , Data.UpdatePayload { ideationPayload, implementationPayload }
+          , update
           ) <- judgmentContext
-      ideationSt' <-
-        trans @IDEATIONS $
-             TRC (participants, ideationSt, ideationPayload)
-      implementationSt' <-
-        trans @IMPLEMENTATIONS $
+
+      case update of
+        Ideation ideationPayload ->
+          do
+            ideationSt' <- trans @IDEATION $
+              TRC (participants, ideationSt, ideationPayload)
+            pure $ St { ideationSt = ideationSt' }
+        Implementation implementationPayload ->
+          do
+            implementationSt' <-
+              trans @IMPLEMENTATION $
               TRC (implementationEnv, implementationSt, implementationPayload)
-      pure $ St { ideationSt = ideationSt', implementationSt = implementationSt' }
+            pure $ St { implementationSt = implementationSt' }
 
     ]
 
 
-instance Embed IDEATIONS UPDATE where
+instance Embed IDEATION UPDATE where
   wrapFailed = IdeationsFailure
 
-instance Embed IMPLEMENTATIONS UPDATE where
+instance Embed IMPLEMENTATION UPDATE where
   wrapFailed = ImplementationsFailure
+
+data UPDATES
+
+instance STS UPDATES where
+
+  type Environment UPDATES = Environment UPDATE
+
+  type State UPDATES = State UPDATE
+
+  type Signal UPDATES = [Signal UPDATE]
+
+  data PredicateFailure UPDATES = UpdateFailure (PredicateFailure UPDATE)
+    deriving (Eq, Show)
+
+  initialRules = []
+
+  transitionRules = []
+
+
+instance Embed UPDATE UPDATES where
+  wrapFailed = UpdateFailure

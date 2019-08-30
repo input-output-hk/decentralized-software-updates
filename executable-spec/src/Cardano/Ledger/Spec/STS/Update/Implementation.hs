@@ -18,7 +18,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
-data IMPLEMENTATIONS
+data IMPLEMENTATION
 
 data Env = Env
   deriving (Eq, Show, Generic)
@@ -29,29 +29,18 @@ data St = St ()
   deriving Monoid via GenericMonoid St
 
 
-instance STS IMPLEMENTATIONS where
+instance STS IMPLEMENTATION where
 
-  type Environment IMPLEMENTATIONS = Env
-  -- TODO: this should become
-  --
-  -- > Environment IMPLEMENTATION
+  type Environment IMPLEMENTATION = Env
 
-  type State IMPLEMENTATIONS = St
-  -- TODO: this should become
-  --
-  -- > State IMPLEMENTATION
+  type State IMPLEMENTATION = St
 
-  type Signal IMPLEMENTATIONS = [Data.ImplementationPayload]
-    -- TODO: this should become:
-    --
-    -- > [Signal IMPLEMENTATION]
+  type Signal IMPLEMENTATION = Data.ImplementationPayload
 
-  data PredicateFailure IMPLEMENTATIONS
+  data PredicateFailure IMPLEMENTATION
     = ImplementationFailure
     deriving (Eq, Show)
 
   initialRules = []
 
   transitionRules = []
-
-data IMPLEMENTATION
