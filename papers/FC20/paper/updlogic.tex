@@ -22,7 +22,7 @@ One size does not fit all and surely, all software updates are not the same. The
 \end{itemize}
 These and many other characteristics comprise the essential context of a software update and should be clearly described in the respective metadata, which are reviewed and approved by the stake majority.
 
-We propose a software update logic that is \emph{metadata driven}. A logic that distinguishes one SU from another and applies the appropriate \emph{update policy}. In the section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
+We propose a software update logic that is \emph{metadata driven}. A logic that distinguishes one SU from another and applies the appropriate update policy. In the section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
 
 \subsection{Decentralized Software Update Metadata} 
 A software update is inherently accompanied by meta-information that describes the update and sets it into the appropriate context. Therefore, we could say that every software update comprises a rich set of update meta-data that ultimately should drive the whole upgrade process. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the appendix. % The list of metadata categories presented next is indicative and aims at justifying the concept, therefore it is by no means complete, or restrictive in any way:
@@ -32,7 +32,7 @@ A software update is inherently accompanied by meta-information that describes t
 \subsection{Update Policies} 
 An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata (i.e., by the software update context). For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
 
-In the following subsections, we discuss the factors that impact the activation speed of a software update and thus enable update policies and propose ways to guard against chain splits.
+So far, we have discussed delegation for special categories as a method to speed-up (indirectly) the time to activation for a software update. In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
  
 % In our proposal, we enable update policies and at the same time guard against chain splits in three ways: a) With the delegation to expert pools, b) with appropriate adjustment of the \emph{adoption threshold} and c) with the use of the \emph{activation lag}.
 % We have discussed in the delegation section why it is important critical categories of software updates to be delegated to expert pools and why this will enable overall a faster time to activation. In the next subsections, we discuss the adoption threshold and the activation lag.
@@ -47,13 +47,13 @@ In the following subsections, we discuss the factors that impact the activation 
 
 \subsubsection{The Adoption Threshold}
 %In the lifecycle section, we have described how a software update, after being voted as a SIP, it is submitted again during the approval phase in the form of a UP (source code bundled with metadata), in order to be approved. We make the assumption 
-In our protocol, we assume that if a UP is approved, then all honest stake will eventually upgrade. However, if we want to be fast and flexible in our updating policies, then we cannot wait until all honest stake upgrades. What is the minimum necessary percent of stake to have upgraded, before the actual activation of the change takes place, in order to avoid a chain split? The \emph{adoption threshold} is used in the activation phase and corresponds exactly to the minimum percent of stake that is necessary to have signaled upgrade readiness, before the actual activation of a software update takes place. It is essentially a synchronization mechanism that ensures that a sufficient percent of stake has upgraded and thus it is safe to actually activate the changes. It is therefore a guard against chain splits. Please note that the adoption threshold is only relevant for software updates that impact the consensus protocol. For all other software updates the activation can take place immediately after the upgrade.
+In our protocol, we assume that if a UP is approved, then all honest stake will eventually upgrade. However, if we want to be fast and flexible in our updating policies, then we cannot wait until all honest stake upgrades. What is the minimum necessary percent of stake to have upgraded, before the actual activation of the change takes place, in order to avoid a chain split? The \emph{adoption threshold} is used in the activation phase and corresponds exactly to the minimum percent of stake that is necessary to have signaled activation readiness, before the actual activation of a software update takes place. It is essentially a synchronization mechanism that ensures that a sufficient percent of stake has upgraded and thus it is safe to actually activate the changes. It is therefore a guard against chain splits. Please note that the adoption threshold is only relevant for software updates that impact the consensus protocol. For all other software updates the activation can take place immediately after the upgrade.
 
 Let us assume that the adoption threshold of our software updates protocol is called $\tau_A$. %In order to enable update policies, we need to be able to adjust $\tau_A$ based on each software update's metadata. 
 What would be the appropriate values for $\tau_A$? Take into account that by adjusting the value of $\tau_A$, we risk to cause a chain split for two distinct reasons: a) A too-low value of $\tau_A$ might result to a \emph{too-early activation}, which will result to the partition of the honest stake in two and a potential chain split\footnote{A partition of the honest stake also undermines the security of the underlying consensus protocol which assumes a minimum threshold $x$ of honest stake.}  and b) a too-high value of $\tau_A$ might result to a \emph{too-late activation}, giving the opportunity to adversaries to block an activation by refusing to signal. %Clearly the former is a safety problem, while the latter is a security problem. 
 What is the allowable range of values for $\tau_A$, in order to mitigate these risks?
 
-In order to avoid both of the two problems described above, the adoption threshold $\tau_A$ should take values in the range $x \leq \tau_A \leq h_a$, where $x$ is the theoretical honest stake threshold of the underlying consensus protocol and $h_a$ is the \emph{actual} percent of honest stake (of course $h_a \geq x$). In addition, we assume that the honest stake that has signaled, when the threshold is met, is at least $x$ ($S_{honest} \geq x$) , i.e., at least equal to the honest stake threshold of the consensus protocol. The rationale of this result is explained in the appendix.
+In order to avoid both of the two problems described above, the adoption threshold $\tau_A$ should take values in the range $x \leq \tau_A \leq h_a$, where $x$ is the theoretical honest stake threshold of the underlying consensus protocol and $h_a$ is the \emph{actual} percent of honest stake (of course $h_a \geq x$). In addition, we assume that the honest stake that has signaled, when the threshold is met, is at least $x$ ($S_{honest} \geq x$) , i.e., at least equal to the honest stake threshold of the consensus protocol. The rationale of this result is explained in the appendix, due to space limitations.
 
 A possible attack in the case where $x \leq \tau_A \leq h_a$ is the adversary to hurry to signal for a software update, so that the threshold $\tau_A$ is met, without (at least) $x$ honest stake to have enough time to complete the upgrade (i.e., $S_{honest} < x$). Thus a too-early activation will take place and the honest stake will be partitioned for some time, risking a chain split and also running the consensus protocol without the $x$ honest stake assumption.
 
@@ -67,11 +67,10 @@ we propose the concept of the \emph{activation lag}. The activation lag is a met
 
 The activation lag is determined by two things: a) the deployment complexity of a software update and b) the type of the consensus protocol change (soft/hard fork\footnote{Velvet forks \cite{velvet} do not impact the consensus by causing forks and thus can activate immediately after an upgrade.}).
 For example, there might be software updates that entail a very complex deployment process; one that even maybe a hardware upgrade is required before the software upgrade. In such a case, the activation lag must ensure plenty of time to the stakeholders to upgrade. Similarly, a hard fork type of change, should trigger a greater activation lag than that of a soft fork type of change. 
-
-As we have seen from the metadata subsection, we propose both of these two important aspects to be recorded as essential characteristics of a decentralized software update's metadata. This information will drive the choice of the length of the activation lag and enable a metadata-driven update policy.
+We propose both of these to be recorded as important characteristics of a decentralized software update's metadata. This information will drive the choice of the length of the activation lag and enable a metadata-driven update policy. Of course, these metadata have been approved for their correctness by the stake majority in the Ideation phase.
 
 \subsubsection{Examples of Update Policies}
-In table \ref{update-policies-table}, we present some indicative examples of various update policies. In these examples an update policy is expressed as the triple: (Delegation, Adoption Threshold, Activation Lag). We see, for different examples of SUs, how to achieve the specified activation goal (speed-up or slow-down) with a specific update policy.
+In table \ref{update-policies-table}, we present some indicative examples of various update policies. In these examples an update policy is expressed as the triple: (Delegation, Adoption Threshold, Activation Lag). We see, for different examples of SUs, how to achieve the specified activation goal (speed-up or slow-down) with a specific update policy. Note that the various characteristics of the software update, such as the type of the change, the priority/criticality, etc., that appear in the first column and drive the deployment goal, have been described in the SU metadata and have been reviewed and approved by the stake majority during the Ideation phase.
 \begin{table}[h!]
 \centering
 %\begin{tabular}{|l|l|l|l|l|}
@@ -79,17 +78,19 @@ In table \ref{update-policies-table}, we present some indicative examples of var
 \hline
 \textbf{Type of SU} & \textbf{Goal} & \textbf{Delegation} & $\tau_A$ & \textbf{Activation Lag} \\
 \hline
-Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & None \\
+Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & Low \\
 \hline
 Critical security-fix with high deployment complexity & Speed-up & Special category delegation & $x$ & High \\
 \hline
-Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & None \\
+Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & Low \\
 \hline
 Hard fork type of consensus impact & Delay & Delegation for specific SU  & $h_a$ & High \\
 \hline
 Soft fork type of consensus impact & Small delay & Delegation for specific SU  & $x$ & Low \\
 \hline
-High priority no-consensus impact change request with low deployment complexity & Speed-up & Default Delegation & $x$ & None \\
+High priority, no-consensus impact change request with low deployment complexity & Speed-up & Default Delegation & $x$ & Low \\
+\hline
+Low priority, no-consensus impact change request with high deployment complexity & Delay & Default Delegation & $h_a$ & High \\
 \hline
 %\end{tabular}
 \end{tabu}
