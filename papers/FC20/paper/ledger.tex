@@ -1,0 +1,29 @@
+\subsection{Ledger Consensus}
+Ledger consensus (a.k.a. ``Nakamoto consensus'') is the problem where a set of servers
+(or nodes) operate continuously accepting inputs
+that are called transactions and incorporate them in a public data 
+structure called the {\em ledger}. Clients are able to read the ledger
+and submit transactions to be
+added to it.
+The purpose of ledger consensus is to provide a unique
+view to the ledger for the clients. 
+
+The properties that a ledger consensus protocol must satisfy are as follows:
+
+\begin{itemize}
+
+\item {\em Consistency:} This property mandates that if a client queries
+an honest node's ledger at round $t_1$  
+and receives the response $\mc{L}_1$, 
+then a client querying an honest node's ledger at round $t_2\geq t_1 $
+ receives a response $\mc{L}_2$ that satisfies $\mc{L}_1 \preceq \mc{L}_2$, 
+where $\preceq$ denotes the standard prefix operation. 
+
+\item {\em Liveness:} If a transaction $tx$ is given as input to all honest
+nodes continuously for a certain number of rounds denoted by $u$, 
+and a client queries any honest node's ledger
+after these $u$ rounds, then the node responds with a value
+$\mc{L}$ that includes $tx$.
+
+\end{itemize}
+
