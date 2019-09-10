@@ -1,3 +1,6 @@
+\newcommand{\ignore}[1]{}
+
+
 \ProvidesPackage{preamble}
 
 \usepackage[pdftex]{graphicx}
@@ -7,6 +10,7 @@
 \let\proof\relax
 \let\endproof\relax
 \usepackage{amsthm}
+
 \usepackage{mathtools}
 \usepackage{amssymb}
 \usepackage{lmodern}
@@ -35,6 +39,7 @@
   escapeinside={(*@}{@*)},
   frame=n
 }
+
 \lstdefinestyle{numbers}{numbers=left, stepnumber=1, numberstyle=\tiny, numbersep=10pt}
 \let\origthelstnumber\thelstnumber
 \makeatletter
@@ -44,7 +49,6 @@
      \advance\c@lstnumber-\@ne\relax%
     }%
 }
-
 \newcommand*\Reactivatenumber{%
   \lst@AddToHook{OnNewLine}{%
    \let\thelstnumber\origthelstnumber%
@@ -73,7 +77,8 @@
 \newenvironment{proofsketch}{\noindent \textit{Proof Sketch.}}{\qed \smallskip \ \\}
 
 %eliminate section numbering from \subsection
-\renewcommand{\thesubsection}{\arabic{subsection}}
+%\renewcommand{\thesubsection}{\arabic{subsection}}
+
 
 %page style set to plain
 \pagestyle{plain}
@@ -95,11 +100,17 @@
 \newcommand{\ppt}{{\sc ppt}}
 \newcommand{\poly}{\ensuremath{\textsf{poly}}}
 \newcommand{\negligible}{\nu}
-\newcommand{\ignore}[1]{}
+
 \newcommand{\Gen}{\mathsf{Gen}}
 \newcommand{\Sign}{\mathsf{Sign}}
+\newcommand{\pk}{\mathsf{pk}}
 \newcommand{\Ver}{\mathsf{Ver}}
 \newcommand{\sgen}{\mathsf{Kgen}}
 \newcommand{\zo}[1]{\{0,1\}^{#1}}
 \newcommand{\adv}{\mathcal{A}}
 \def\mc{\mathcal}
+\newcommand{\inp}{\mathsf{Inp}}
+\newcommand{\out}{\mathsf{Oup}}
+\newcommand{\Value}{\mathsf{Value}}
+\newcommand{\tx}{\mathsf{Tx}}
+
