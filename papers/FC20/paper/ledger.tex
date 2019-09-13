@@ -101,8 +101,10 @@ the party $P$ receives the activation command and let $\activep$ be the set of p
 %We note that if a set of parties $\parties$ is such that the assumption $\asmp_2$ holds (e.g. if enough honest parties are willing to maintain $\ledger_2$), then $\ledger_2$ is
 %secure.
 
-Let $t$ be the time at which one of the parties that is running $\ledger_1$ is activated. Informally, a secure activation process guarantees that if the number of parties that are willing to run $\ledger_2$ (i.e. the number of active parties)  
-are such that $\asmp_2[t']=1$ for some $t'>t$, then at time $t'+\Delta$ the state of $\ledger_2$ corresponds to the state of $\ledger_1$ at time $t$. 
+%Let $t$ be the time at which one of the parties that is running $\ledger_1$ is activated. 
+Informally, a secure activation process guarantees that if the number of parties that are willing to run $\ledger_2$ (i.e. the number of active parties)  
+are such that $\asmp_2[t']=1$ for some $t'>t_{P_1}$, then at time $t'+\Delta$ the state of $\ledger_2$ corresponds to the state of $\ledger_1$ at time $t_{P_1}$ plus
+a bounded $\Delta$. 
 The above implies that $\ledger_2$ extends $\ledger_1$ and that $\ledger_2$ is secure (i.e. enjoys consistent and liveness).
 In a nutshell, a secure activation process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
 We now give a more formal definition.
