@@ -1,9 +1,14 @@
-%\begin{abstract}
-\subsection*{Abstract}
-Software updates are a synonym to software evolution and thus are ubiquitous and inevitable to any blockchain platform. In this paper, we propose a general framework for decentralized software updates in distributed ledger systems. Our framework is primarily focused on permission-less stake-based blockchains and aims at providing a solid set of enhancements, covering the full spectrum of a blockchain system, in order to ensure a decentralized but also secure update mechanism for a public ledger. 
-Our main contribution is the proposal of a protocol that solves the decentralized software updates problem for public stake-based ledgers. Our protocol covers the full lifecycle of a software update from the ideation phase to the actual activation in the blockchain system. We propose \say{decentralized alternatives} for every phase in this lifecycle and propose a mechanism that replaces any central authority with the stake majority. Moreover, we cover all types of software updates, from consensus rules changes to simple code changes and from bug-fixes to change requests. Finally, we introduce the concept of \emph{update policies}, to describe the need for different deployment speeds, based on the semantic context (i.e., metadata) of a software update. We implement our ideas in a prototype update system for the Cardano blockchain and discuss implementation issues and validation results.
+\begin{abstract}
+%\subsection*{Abstract}
+Software updates are a synonym to software evolution and thus are ubiquitous and inevitable to any blockchain platform. In this work we propose a general framework for decentralized software updates in distributed ledger systems. Our framework is primarily focused on Proof of Stake blockchains and aims at providing a solid set of enhancements, covering the full spectrum of a blockchain system, in order to ensure a decentralized but also secure update mechanism for a public ledger. 
+Our main contribution is two-fold. First we formally define what it means for a \emph{decentralized} software update system to be secure, and
+then we propose a decentralized secure software update protocol that covers the full lifecycle of a software update from the ideation phase (the moment in which a change to the blockchain protocol is proposed) to the actual activation of the updated blockchain protocols. To the best of our knowledge this is the first work the aims at formalizing the notion of decentralized secure update for blockchain.
+We also discriminate between all known types of software updates, from consensus rules to simple from bug-fixes,
+and provide different update mechanisms that depends on the severity of the updates. 
+
+% Finally, we introduce the concept of \emph{update policies}, to describe the need for different deployment speeds, based on the semantic context (i.e., metadata) %of a software update. We implement our ideas in a prototype update system for the Cardano blockchain and discuss implementation issues and validation results.
 
 
 %Our main contribution is the proposal of a logical architecture that enables a smooth incorporation of updates into all components of a blockchain system. Moreover, we drill down to each component of the architecture and propose specific enhancements and changes. In addition, we describe in detail new components such as the governance module and the update-logic module. For the former, we propose a voting protocol, in order to enable a decentralized update consensus and for the latter, we show how we can implement different update policies for each type of update based on a rich set of update metadata. Finally, we implement our ideas in a prototype update system for the Cardano blockchain and discuss implementation issues and validation results.
 
-%\end{abstract}
+\end{abstract}
