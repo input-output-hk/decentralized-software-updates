@@ -19,14 +19,15 @@ One size does not fit all and surely, all software updates are not the same. The
 %\item Size of change (e.g., man-effort required to be implemented).
 %\item Platform-specific change (Linux, Windows MacOS etc.)
 \end{itemize}
-These and many other characteristics comprise the essential context of a software update and should be clearly described in the respective metadata, which are submitted along the SIPs, or UPs and then reviewed and approved by the stakeholders.
+These and many other characteristics comprise the essential context of a software update and should be clearly described in the respective metadata, which are submitted along the SIPs, or UPs and then reviewed and approved by the stakeholders. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the appendix \ref{appxmetadata}. 
 
-We propose a software update logic that is \emph{metadata-driven}. A logic that distinguishes one SU from another and applies the appropriate \emph{update policy} and evaluates the required \emph{update constraints} based on these metadata. 
+We propose a software update logic that is \emph{metadata-driven}. A logic that distinguishes one SU from another and applies the appropriate \emph{update policy} and evaluates the required \emph{update constraints} (cf. appendix \ref{appdxupdcons}) based on these metadata. 
 %We have seen from the previous sections that the software update metadata are submitted along with the SIP or UP and are approved for their correctness by the stakeholders. Thus we can assume that these metadata safely set the software update \emph{context}, in which our update logic will be applied. 
-In this section, we describe our proposal for achieving such a decentralized metadata-driven, software update mechanism.
+In this section, we describe our proposal for achieving such a \emph{metadata-driven}, decentralized software update mechanism.
 
-\subsection{Decentralized Software Update Metadata} 
-A software update is inherently accompanied by meta-information that describes the update and sets it into the appropriate context. Therefore, we could say that every software update comprises a rich set of update meta-data that ultimately should drive the whole upgrade process. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the appendix \ref{appxmetadata}. 
+%\subsection{Decentralized Software Update Metadata} 
+%A software update is inherently accompanied by meta-information that describes the update and sets it into the appropriate context. Therefore, we could say that every software update comprises a rich set of update meta-data that ultimately should drive the whole upgrade process. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the appendix \ref{appxmetadata}. 
+
 % The list of metadata categories presented next is indicative and aims at justifying the concept, therefore it is by no means complete, or restrictive in any way:
 %We have described different aspects of meta-information that could accompany a software update. The purpose was not to propose a complete list of metadata but rather to point out how important is the software update mechanism to be metadata driven. In the following subsections, we provide examples of such exploitation of software update metadata in the phase of activation.
 
@@ -34,9 +35,24 @@ A software update is inherently accompanied by meta-information that describes t
 
 An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata (i.e., by the software update context). For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
 
-So far, we have discussed delegation for special categories as a method to speed-up (indirectly) the time to activation for a software update. %In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
-%\subsubsection{Examples of Update Policies}
- In table \ref{update-policies-table}, we present some indicative examples of various update policies. In these examples an update policy is expressed as the triple: (Delegation, Adoption Threshold, Safety Lag). We see, for different examples of SUs, how to achieve the specified activation goal (speed-up, or slow-down) with a specific update policy. Note that the various characteristics of the software update, such as the type of the change, the priority/criticality, etc., that appear in the first column and drive the deployment goal, have been described in the SU metadata and have been reviewed and approved by the stake majority during the Ideation and the Approval phases.
+So far, we have discussed delegation for special categories (cf. appendix \ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Here we want to introduce also the concept of the \emph{safety lag}. %In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
+
+\subsubsection{The Safety Lag}
+To mitigate the risk of a too-early activation, %either \say{by-accident} or by-attack, 
+we propose the concept of the \emph{safety lag}. The safety lag is a metadata-driven artificial delay, which is imposed on the activation of a change, in order to give time to the honest stake to upgrade and thus protect against a too-early activation. In other words, even though  the adoption threshold of signals might be met, the activation of the changes does not take place, it is stalled, until the safety lag period passes.
+
+The safety lag is determined by two things: a) the deployment complexity of a software update and b) the type of the consensus protocol change (soft/hard fork\footnote{Velvet forks \cite{velvet} do not impact the consensus by causing forks and thus can activate immediately after an upgrade.}).
+For example, there might be software updates that entail a very complex deployment process; one that even maybe a hardware upgrade is required before the software upgrade. In such a case, the safety lag must ensure plenty of time to the stakeholders to upgrade. Similarly, a hard fork type of change, should trigger a greater safety lag than that of a soft fork type of change. 
+We propose both of these to be recorded as important characteristics of a decentralized software update's metadata (cf. appendix \ref{appxmetadata}). This information will drive the choice of the length of the safety lag and enable a metadata-driven update policy. %Of course, these metadata have been approved for their correctness by the stake majority in the Ideation phase.
+
+\subsubsection{Examples of Update Policies}
+ In table \ref{update-policies2-table} 
+ %\ref{update-policies-table}
+, we present some indicative examples of various update policies that are driven by the software update context. In these examples an update policy is expressed as the triple: (Delegation\footnote{\say{D} stands for delegation while \say{Sp.D} stands for special category delegation. }, Adoption Threshold, Safety Lag). We see for different types of changes (Hard/Soft/No fork) and approved and agreed priorities (High/Medium/Low), the specified activation goal (High/Medium/Low/No Delay) to be achieved by the update policy.
+
+For example, a low priority software update that will cause a hard fork type of change (top left cell), should be activated with a maximum delay. At the opposite end (bottom right cell), a high priority software update (e.g., a security fix) that also does not impact the consensus rules and thus it does not bear the risk of a chain split, should be activated with no delay. As we have noted in the previous sections, for these types of software updates (i.e., no fork) the activation could take place instantly upon the completion of the upgrade (this is why we have noted a $0$ value for the adoption threshold and safety lag).
+
+%We see, for different examples of SUs, how to achieve the specified activation goal (speed-up, or slow-down) with a specific update policy. Note that the various characteristics of the software update, such as the type of the change, the priority/criticality, etc., that appear in the first column and drive the deployment goal, have been described in the SU metadata and have been reviewed and approved by the stakeholders during the Ideation and the Approval phases.
  
 % In our proposal, we enable update policies and at the same time guard against chain splits in three ways: a) With the delegation to expert pools, b) with appropriate adjustment of the \emph{adoption threshold} and c) with the use of the \emph{activation lag}.
 % We have discussed in the delegation section why it is important critical categories of software updates to be delegated to expert pools and why this will enable overall a faster time to activation. In the next subsections, we discuss the adoption threshold and the activation lag.
@@ -49,59 +65,48 @@ So far, we have discussed delegation for special categories as a method to speed
 %Deployment complexity
 %Soft/Hard fork type of change
 
+%\begin{table}[h!]
+%\centering
+%%\begin{tabular}{|l|l|l|l|l|}
+%\begin{tabu} to 1.0\textwidth {||X[3.5l] | X[l] | X[2l] | X[0.5l] | X[l] ||}
+%\hline
+%\textbf{Type of SU} & \textbf{Goal} & \textbf{Delegation} & $\tau_A$ & \textbf{Safety Lag} \\
+%\hline
+%Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & 0 \\
+%\hline
+%Critical security-fix with high deployment complexity & Speed-up & Special category delegation & $x$ & High \\
+%\hline
+%Hard fork type of consensus impact & Delay & Delegation for specific SU  & $h_a$ & High \\
+%\hline
+%Soft fork type of consensus impact & Small delay & Delegation for specific SU  & $x$ & Medium \\
+%\hline
+%High priority, no-consensus impact change request with high deployment complexity & Speed-up & Default Delegation & $x$ & 0 \\
+%\hline
+%Low priority, no-consensus impact change request with high deployment complexity & Delay & Default Delegation & $h_a$ & High \\
+%\hline
+%%\end{tabular}
+%\end{tabu}
+%\caption{Examples of different update policies}
+%\label{update-policies-table}
+%\end{table}
+
 \begin{table}[h!]
 \centering
-%\begin{tabular}{|l|l|l|l|l|}
-\begin{tabu} to 1.0\textwidth {||X[3.5l] | X[l] | X[2l] | X[0.5l] | X[l] ||}
+%\begin{tabular}{|l|l|l|l|}
+\begin{tabu} to 1.0\textwidth {||X[0.5l] | X[l] | X[l] | X[l] ||}
 \hline
-\textbf{Type of SU} & \textbf{Goal} & \textbf{Delegation} & $\tau_A$ & \textbf{Safety Lag} \\
+\textbf{Hard Fork} & High Delay\newline(D, $h_a$, High) & Medium Delay\newline(D, $h_a$, Medium) & Low Delay\newline(D, $h_a$, Low) \\
 \hline
-Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & Low \\
+\textbf{Soft Fork} & Medium Delay\newline(D, $x$, High) & Low Delay\newline(D, $x$, Medium) & Low Delay\newline(D, $x$, Low) \\
 \hline
-Critical security-fix with high deployment complexity & Speed-up & Special category delegation & $x$ & High \\
+\textbf{No Fork} & Low Delay\newline(D, $0$, $0$) & No Delay\newline(Sp.D, $0$, $0$) & No Delay\newline(Sp.D, $0$, $0$) \\
 \hline
-Critical security-fix with low deployment complexity & Speed-up & Special category delegation & $x$ & Low \\
-\hline
-Hard fork type of consensus impact & Delay & Delegation for specific SU  & $h_a$ & High \\
-\hline
-Soft fork type of consensus impact & Small delay & Delegation for specific SU  & $x$ & Low \\
-\hline
-High priority, no-consensus impact change request with low deployment complexity & Speed-up & Default Delegation & $x$ & Low \\
-\hline
-Low priority, no-consensus impact change request with high deployment complexity & Delay & Default Delegation & $h_a$ & High \\
+\textbf{Priority} & \textbf{LOW}  & \textbf{MEDIUM} & \textbf{HIGH} \\
 \hline
 %\end{tabular}
 \end{tabu}
-\caption{Examples of different update policies}
-\label{update-policies-table}
+\caption{Examples of different update policies based on the SU context.}
+\label{update-policies2-table}
 \end{table}
-
-\subsection{Update Constraints}
-With the term \emph{update constraints}, we mean all the prerequisites of a software update for a successful deployment and in particular those that deal with other software updates. 
-More specifically, we are interested in \emph{dependencies} with other software updates and \emph{conflicts} with other software updates. 
-
-These constraints should be clearly stated, if possible, even from the ideation phase, where the software update is just a SIP, but certainly, they must be declared in the metadata part of a UP. Essentially, an update  constraint is a predicate, which evolves, as the software update matures from an SIP to a UP,  and which is evaluated in three phases: a) at the ideation, b)the approval and c) at the activation phase. This evaluation acts as a filter, to protect from software updates that should not be activated due to missing prerequisites, or due to conflicts with other software updates.
-
-\subsubsection{Dependencies}
-Commonly, software dependencies are expressed in terms of version requirements. For example, a software update defines in its metadata, on which versions of the software it is applicable and therefore anyone who downloads it, knows if it can be applied, or not. In concept, the proposed method is not far from this idea.
-
-Each instance of the blockchain system is uniquely characterized by a version number. This version number will be based on some versioning scheme, which can be as elaborate as required by the software needs. Every time a software update is activated in the activation phase, the current version of the system changes to some new value. The value that the version will reach after the activation of the software update is recorded in the update metadata. The current version of the system is also evident in each generated block. 
-%Also, as we have seen in the activation phase and the signaling mechanism, blocks are also marked with the to-be version of the system, after the upgrade takes effect. 
- Finally, for each software update the base version(s) should be clearly stated also in the metadata. These are the versions that this update can be applied to, with no problem. 
-
-All in all, for each software update, we know on what versions it is applicable, to what version it will take the system to and what is the current version of the system. These are sufficient information (even in the centralized setting) to build the rules (i.e., the logic) that will evaluate the applicability of a software update with respect to software dependencies.
-
-%
-%How do we impose adherence to update dependencies, so that the system reaches a consistent state? 
-%\nnote{Maybe we could use the version\_from field from the metadata for this purpose. An Update Proposal cannot be applied if the version requirement that it poses (version\_from) is not the current version}
-%
-
-\subsubsection{Conflict Resolution}
-Conflicts of software updates in general have to do with conflicts of different versions of the source code. It is typical when a new version of a software is merged on some other version (main branch) to have a conflict at the source code level. This is typically reviewed and maybe resolved by the code maintainer. In the decentralized setting these type of conflicts are resolved in a similar manner. We assume that each approver in the approval phase, maintains a local code repository and tries to verify the (metadata-declared) applicability of a software update on the indicated version of the code, by a simple merge operation. If this merge raises a conflict, then the approver must reject the software update.
-
-More specifically in blockchain systems, there is another type of conflicts that is of particular importance. These are the conflicts that are related to the consensus protocol parameters. For example, a software update increases the maximum transaction size and another software update decreases it. These two SUs are clearly in conflict. However, they are in conflict only if the are both \emph{open} at the same time, otherwise they are just a valid sequence of changes of the system. We call a software update as \emph{open}, if it is in some of the four phases comprising the lifecycle of a SU, namely: the ideation, the implementation, the approval, or the activation phase. If there are two (or more) SUs, in any of these phases and they impact the same protocol parameters (which is a metadata-recorded piece of information), then we have a conflict and must perform some resolution action. The resolution action might vary based on the needs of the system and the context of the software update. One possible action would be to reject all conflicting SUs. Another possible action would be to reject all conflicting SUs, except one (if there is only one), at the latest phase. All these decisions, have to do with the criticality of a software update, the type of the software update and other parameters, which should all be defined in the software update metadata, in order to help to define some update policy. So we see once more, how it is possible with an appropriate definition of software update metadata, to drive also the update constraint evaluation process.
-
-%\subsection{Rollbacks}
-%How can we smoothly rollback an update, in the case of a problem?
 
 
