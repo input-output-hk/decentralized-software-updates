@@ -1,4 +1,4 @@
-\section{Defining a Secure Update System}
+\section{Defining a Secure Update System} \label{secureupdate}
 We have seen that upon the approval of a UP, users start installing the software update (i.e., upgrade) and wait for the activation of the changes. We call the time period from the approval of a UP until the actual activation of the changes in the blockchain system as the \emph{activation lag}. In order, to enable a fast and flexible software updating mechanism, we should minimize the activation lag, which is in turn determined by the \emph{adoption threshold}. These are the topics to be discussed in this section.
 
 \subsection{The Activation of Changes}
@@ -29,7 +29,7 @@ well as the local views of all the participants.
 In contrast, we call a ledger state a concrete sequence of transactions $\tx_1,\tx_2,\dots$ stored in the stable
 part of a ledger $\ledger$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
 every fixed chain $C$ defines a concrete ledger state by applying the interpretation rules given as a part of the
-description of $L$ (for example, the ledger state is obtained from the blockchain by dropping the last $k$ blocks
+description of $L$ \nnote{shouldn't this be a calligraphic L?} (for example, the ledger state is obtained from the blockchain by dropping the last $k$ blocks
 and serializing the transactions in the remaining blocks). We denote by $P^\ledger[t]$
 the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$.
 % and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
@@ -87,7 +87,7 @@ the party $P$ receives the activation command and let $\activep$ be the set of p
 Informally, a secure activation process guarantees that if the number of parties that are willing to run $\ledger_2$ (i.e. the number of active parties)  
 are such that $\asmp_2[t']=1$ for some $t'>t_{P_1}$, then at time $t'+\Delta$ the state of $\ledger_2$ corresponds to the state of $\ledger_1$ at time $t_{P_1}$ plus
 a bounded $\Delta$. 
-The above implies that $\ledger_2$ extends $\ledger_1$ and that $\ledger_2$ is secure (i.e. enjoys consistent and liveness).
+The above implies that $\ledger_2$ extends $\ledger_1$ and that $\ledger_2$ is secure (i.e. enjoys consistence and liveness).
 In a nutshell, a secure activation process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
 We now give a more formal definition.
 
