@@ -1,7 +1,9 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -9,7 +11,6 @@ import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
-import           Hedgehog ()
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Range (constant)
 
@@ -18,8 +19,9 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
-import           Cardano.Ledger.Spec.STS.Update.Data (SIP (..), SIPData (..),
-                     Signal (Reveal, Submit), commitedSIPs, revealedSIPs,
+import           Cardano.Ledger.Spec.STS.Update.Data
+                     (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
+                     SIPData (SIPData), commitedSIPs, revealedSIPs,
                      submittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
@@ -31,6 +33,7 @@ import qualified Ledger.Core as Core
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
+
 
 -- | Ideation phase of system updates
 data IDEATION
@@ -46,7 +49,7 @@ instance STS IDEATION where
 
   type State IDEATION = Data.State
 
-  type Signal IDEATION = Data.Signal
+  type Signal IDEATION = IdeationPayload
 
   -- We have no failures for now.
   data PredicateFailure IDEATION
@@ -80,14 +83,17 @@ instance STS IDEATION where
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
                   }
+        Vote _ -> error "Define the rules for voting"
     ]
+
 
 instance HasTrace IDEATION where
 
   envGen _traceLength =
     -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' so that 'trace' can take parameter of an associated type, so
-    -- that each STS can decide which parameters are relevant for its traces.
+    -- 'HasTrace' class so that 'trace' can take parameter of an associated
+    -- type, so that each STS can decide which parameters are relevant for its
+    -- traces.
     pure $! Bimap.fromList
          $  fmap (Core.vKey &&& Core.sKey)
          $  fmap Core.keyPair
@@ -96,7 +102,6 @@ instance HasTrace IDEATION where
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
   sigGen
-    _maybePredicateFailure
     participants
     Data.State { submittedSIPs } = do
       owner <- newOwner
@@ -125,7 +130,7 @@ instance HasTrace IDEATION where
           where
             newSalt = Gen.int (constant 0 100)
             newSipHash = (fmap hash) newSipData -- NullSIPData
-            newSipData = (SIPData) <$> (Gen.text (constant 1 50) Gen.alpha) <*> (newSIPMetadata)
+            newSipData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (newSIPMetadata)
             newSIPMetadata = (Data.SIPMetadata)
               <$> (
                   ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))

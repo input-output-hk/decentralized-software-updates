@@ -8,32 +8,63 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
+import qualified Data.Sequence as Seq
 import Data.Word (Word64)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           Data.Set (Set)
 import           GHC.Generics (Generic)
 import           Data.Text (Text)
---import           Numeric.Natural (Natural)
+import qualified Data.Text as T
 import           Data.Hashable (Hashable)
 import qualified Data.Hashable as H
 import           Data.Map.Strict (Map)
+import           Data.Typeable   (typeOf)
 
 import qualified Ledger.Core as Core
-import           Cardano.Prelude (HeapWords, heapWords)
+import           Data.AbstractSize (HasTypeReps, typeReps)
+
+import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+
+data ImplementationPayload = ImplementationPayload
+  deriving (Eq, Show, Generic, HasTypeReps)
+
+
+instance Sized ImplementationPayload where
+  -- TODO: define this properly
+  costsList implementationPayload = [(typeOf implementationPayload, 10)]
+
+
+-- | Ideation signals.
+data IdeationPayload
+  = Submit SIPCommit SIP
+  | Reveal SIP
+  | Vote SIP
+  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+
+instance Sized IdeationPayload where
+  -- TODO: define this properly
+  costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 -- | Protocol version
 data ProtVer = ProtVer Word64
+  deriving (Eq, Ord, Show)
+  deriving stock (Generic)
+  deriving anyclass (HasTypeReps, Hashable)
+-- TODO: add these components.
 {-  { _pvMaj :: Natural
   , _pvMin :: Natural
   , _pvAlt :: Word64
   }
--}  deriving (Eq, Generic, Ord, Show, Hashable)
+-}
+
 
 -- | Application version
 newtype ApVer = ApVer Word64
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Num, Hashable)
+  deriving anyclass (HasTypeReps)
+
 
 -- | Consensus Protocol Parameter Name
 data ParamName
@@ -41,12 +72,14 @@ data ParamName
   | TxSizeMax
   | SlotSize
   | EpochSize
-  deriving (Eq, Generic, Ord, Show, Hashable)
+  deriving (Eq, Generic, Ord, Show, Hashable, HasTypeReps)
+
 
 -- | Flag to distinguish between `SIP`s that impact or not the
 -- underlying consensus protocol
 data ConcensusImpact = Impact | NoImpact
-  deriving (Eq, Generic, Ord, Show, Hashable)
+  deriving (Eq, Generic, Ord, Show, Hashable, HasTypeReps)
+
 
 -- | Metadata structure for SIP
 data SIPMetadata =
@@ -58,21 +91,34 @@ data SIPMetadata =
               -- ^ Flag to determine an impact on the underlying consensus protocol
               , impactsParameters :: !([ParamName])
               -- ^ List of protocol parameters impacted
-              } deriving (Eq, Generic, Ord, Show, Hashable)
+              } deriving (Eq, Generic, Ord, Show, Hashable, HasTypeReps)
+
 
 -- | Contents of a SIP
 data SIPData =
-  SIPData {  url :: !Text
+  SIPData {  url :: !URL
             -- ^ URL pointing at the server where the SIP is stored
           , metadata :: !SIPMetadata
-            -- ^ SIP Metadata (only core metadata,
-            -- the rest are on the server pointed by the url)
+            -- ^ SIP Metadata (only core metadata, the rest are on the server
+            -- pointed by the url)
           }
 
-  deriving (Eq, Generic, Ord, Show, Hashable)
+  deriving (Eq, Generic, Ord, Show, Hashable, HasTypeReps)
+
+newtype URL = URL { getText :: Text }
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving newtype (Hashable)
+
+-- | This instance returns one 'Char' per-each character in the URL.
+instance HasTypeReps URL where
+  typeReps (URL text)
+    = Seq.fromList
+    $ typeOf (undefined :: URL)
+      : replicate (T.length text) (typeOf (undefined :: Char))
 
 instance Core.HasHash (SIPData) where
   hash a = Core.Hash $ H.hash a
+
 
 -- | System improvement proposal
 data SIP =
@@ -88,15 +134,19 @@ data SIP =
       , sipPayload :: SIPData
       -- ^ The actual contents of the SIP.
       }
-  deriving (Eq, Generic, Ord, Show, Hashable)
+  deriving (Eq, Generic, Ord, Show, Hashable, HasTypeReps)
 
 instance Core.HasHash (SIP) where
   hash a = Core.Hash $ H.hash a
 
+
 -- | A commitment data type.
 -- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
 newtype Commit = Commit { getCommit :: Core.Hash}
+  deriving stock (Generic)
   deriving (Show, Eq, Ord)
+  deriving anyclass (HasTypeReps)
+
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit =
@@ -108,7 +158,8 @@ data SIPCommit =
             , upSig :: !(Core.Sig Commit)
             -- ^ A signature on commit by the author public key
             }
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Generic, HasTypeReps)
+
 
 -- | Calculate a `Commit` from a `SIP`
 calcCommit :: SIP -> Commit
@@ -123,6 +174,8 @@ calcCommit sip =
       `mappend` (myshow . Core.hash $ sip)
 
 -- | Ideation phase state
+--
+-- TODO: move this into ideation, and rename to St.
 data State
   = State
     { commitedSIPs :: !(Map Commit SIPCommit)
@@ -138,17 +191,6 @@ data State
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup State
   deriving Monoid via GenericMonoid State
-
--- | Ideation signals.
-data Signal
-  = Submit SIPCommit SIP
-  | Reveal SIP
-  deriving (Eq, Ord, Show)
-
-instance HeapWords Signal where
-  -- TODO: define these instances properly.
-  heapWords (Submit _sipCommit _sip) = 2 -- heapWords2 sipCommit sip
-  heapWords (Reveal _sip) = 2 -- heapWords1 sip
 
 
 -- | A newtype string that is an instance of `HasHash`
