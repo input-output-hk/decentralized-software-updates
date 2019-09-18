@@ -2,6 +2,9 @@
   extras = hackage:
     {
       packages = {
+        "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
+        "moo" = (((hackage.moo)."1.2").revisions).default;
+        "gray-code" = (((hackage.gray-code)."0.3.1").revisions).default;
         "tasty-hedgehog" = (((hackage.tasty-hedgehog)."1.0.0.1").revisions).default;
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "hedgehog" = (((hackage.hedgehog)."1.0").revisions).default;
@@ -12,10 +15,9 @@
         "terminal-progress-bar" = (((hackage.terminal-progress-bar)."0.4.1").revisions)."ba857f3424ddb1034125163a9a384e9baab22e55de968259b046892c20ec0526";
         } // {
         decentralized-updates = ./decentralized-updates.nix;
-        cardano-prelude = ./cardano-prelude.nix;
-        cardano-prelude-test = ./cardano-prelude-test.nix;
         small-steps = ./small-steps.nix;
         cs-ledger = ./cs-ledger.nix;
+        goblins = ./goblins.nix;
         cborg = ./cborg.nix;
         cardano-crypto = ./cardano-crypto.nix;
         canonical-json = ./canonical-json.nix;
