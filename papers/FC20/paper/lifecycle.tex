@@ -145,7 +145,7 @@ Once more, the essential part that differentiates the decentralized from the cen
 
 %One final note is that, as we have described, the decentralized approval phase that we propose, entails transaction fees. This means that the approval phase is not so flexible from a practical perspective,  as to be used iteratively (although technically this is possible). In other words, to reject an UP, then fix some bugs and upload a new version for review etc. An UP rejection means that a resubmission must take place, with all the overhead that this entails (transaction fees, storage costs, a new voting must take place, etc.). This is a deliberate design choice that guards the system against DoS attacks. From a practical perspective though, it means that the submitted UPs must be robust and thoroughly tested versions of the code, in order to avoid the resubmission overhead. We do not want to pollute the immutable blockchain history with intermediate trial-and-error UP events.
 
-\subsection{Activation}
+\subsection{Activation}\label{se:activation}
 
 %\paragraph{Scope of this phase.}
 The final phase in the lifecycle of a software update, depicted in Figure \ref{lifecycle}, is the activation phase. This is a preparatory phase before the changes actually take effect. It is the phase, where we let the nodes do all the manual steps necessary, in order to upgrade to an approved UP and at the end, send a signal to their peers that they are ready for the changes to be activated. Thus, the activation phase is clearly a signaling period. Its primary purpose is for the nodes to signal upgrade readiness, before the actual changes take effect (i.e., activate). 
