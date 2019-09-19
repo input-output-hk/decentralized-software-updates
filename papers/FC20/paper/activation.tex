@@ -98,6 +98,14 @@ the state of $\ledger_2$ at some $T>t'$ corresponds to the state of $\ledger_1$ 
 \nnote{Furthermore, I don't understand the phrase: "the state of $\ledger_2$ corresponds to the state of $\ledger_1$ at time $t_{P_1}$ plus a bounded $\Delta_2$". What about the state of $\ledger_1$ before that time point? It should still be included in $\ledger_2$, as a prefix. Right?}
 \mnote{Doesn't what I wrote implies that $\ledger_1$ is a prefix of $\ledger_2$?}
 
+\nknote{"at time $t_{p_i}$ with $p_i\in\activep$". Should this be "at time $t_{P_i}$ with $P_i\in\activep$"?}
+
+\nknote{It looks good. Now the two time points (where $L_2$ becomes secure and $L_2$ includes $L_1$) are $t'$ and $T$ respectively. This is clear.}
+
+\nknote{"corresponds to the state of $\ledger_1$ at time $t_{p_i}$ with $p_i\in\activep$"  Do we want to say "corresponds"? Does this imply equal to? Should we say "includes as a prefix"?}
+
+\nknote{What is the timepoint when changes are actually activated? I.e., When does $L_2$ start to operate? I assume that it is, when we know that $L_2$ is secure, i.e., at time point $t_{P_1} + \Delta_1$. If so, then $L_2$ must include the state of $\ledger_1$ at time $t_{p_1} + \Delta_1$. In particular, it must include $ P_i^{\ledger_1}[t_{P_1} + \Delta_1] $ for some $P_i\in\activep$. What do you think? }
+
 The above implies that $\ledger_2$ extends $\ledger_1$ and that $\ledger_2$ is secure (i.e. enjoys consistence and liveness).
 In a nutshell, a secure activation process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
 We now give a more formal definition.
@@ -116,6 +124,9 @@ If $\activep$ is such that $\asmp_2[t]=1$ for all $t\geq t_{P_1}+\Delta_1$ %with
 \nnote{Again the same question: Why do we need a right bound? What happens after that? Shouldn't we just say that $L_2$ will include $L_1$ for all $t > t_{P_1} + \Delta_1 + \Delta_2$?}
 	
 	where $  P_i^{\ledger_1}[t_{P_i}] \preceq \ledger^\star$ for some $P_i\in\activep$.  
+
+\nknote{Similarly to my previous comment. Should we say: "$  P_i^{\ledger_1}[t_{P_1 + \Delta_1}] \preceq \ledger^\star$ for some $P_i\in\activep$", since $t_{P_1} + \Delta_1$ is the timepoint where $L_2$ kicks off?}
+ 
 \end{definition}
 
 \begin{definition}\label{def:genesis}
