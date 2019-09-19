@@ -5,19 +5,19 @@ is called a {\em signature scheme} if it satisfies the following properties.
 
 \begin{description}
 
-\item[Completeness:] For every pair $(s,v) \from \sgen(1^\lambda)$, \nnote{For the generator algorithm, shouldn't we use "Gen" as above, instead of "Kgen"? The same comment applies also for all appearances of "Kgen" in the following text}
+\item[Completeness:] For every pair $(s,v) \from \Gen(1^\lambda)$,
     and every $m \in \zo{\lambda}$, we have that $\Pr[\Ver(v, m,\Sign(s, m))=0]<\nu(\lambda).$
-\item[Consistency (non-repudation):]\nnote{I think it is "non-repudiation"} For any $m$, the probability that $\sgen(1^\lambda)$ generates $(s,v)$
+\item[Consistency (non-repudiation):] For any $m$, the probability that $\Gen(1^\lambda)$ generates $(s,v)$
 and $\Ver(v,m,\sigma)$ generates two different outputs in two independent invocations is smaller than $\nu(\lambda)$.
 
 
-\item[(Strong) Unforgeability:] For every \ppt\ $\adv$, there exists a negligible function $\nu$,  such that for all auxiliary input $z\in \zo{\star}$ it holds that:
+\item[Unforgeability:] For every \ppt\ $\adv$, there exists a negligible function $\nu$,  such that for all auxiliary input $z\in \zo{\star}$ it holds that:
 	\begin{equation*}\begin{split}
-\Pr[(s,v) \from \sgen(1^\lambda); (m,\sigma)\from\adv^{\Sign(s,\cdot)}(z,v) \wedge \\
+\Pr[(s,v) \from \Gen(1^\lambda); (m,\sigma)\from\adv^{\Sign(s,\cdot)}(z,v) \wedge \\
   \Ver(v,m,\sigma)=1 \wedge m \notin Q] < \nu(\lambda)
 	\end{split}\end{equation*}
 	
-where $Q$ denotes the set of the message \nnote{messages} requested by $\adv$ to the oracle $\Sign(s,\cdot)$.
+where $Q$ denotes the set of the messages requested by $\adv$ to the oracle $\Sign(s,\cdot)$.
 \end{description}
  \end{definition}
  
@@ -37,7 +37,7 @@ where $Q$ denotes the set of the message \nnote{messages} requested by $\adv$ to
  		
  		\item[Completeness:] For every pair $(s, p) \from \Gen(1^\lambda)$,
  		and every $m \in \zo{\lambda}$, we have that $\Pr[\Dec(s, \Enc(p, m))= m]<\nu(\lambda).$
-% 		\item[Consistency (non-repudation):] For any $m$, the probability that $\sgen(1^\lambda)$ generates $(s,v)$
+% 		\item[Consistency (non-repudation):] For any $m$, the probability that $\Gen(1^\lambda)$ generates $(s,v)$
 % 		and $\Ver(v,m,\sigma)$ generates two different outputs in two independent invocations is smaller than $\nu(\lambda)$.
  		
  		

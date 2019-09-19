@@ -100,7 +100,31 @@ If $\activep$ is such that $\asmp_2[t]=1$ for all $t\in [t_{P_1}+\Delta_1, t_{P_
 	where $  P_i^{\ledger_1}[t_{P_i}] \preceq \ledger^\star$ for some $P_i\in\activep$.  
 \end{definition}
 
-%A commuting process is secure if there exists a time $t=$ where $\asmp_2[t]=1$ and the state of $\ledger_2$ at time $t$ is  $\ledger^\star=\ledger_2$ 	where $  %P_i^{\ledger_1}[t_{P_i}] \preceq \ledger^\star$ for some $P_i\in\activep$.
+\begin{definition}\label{def:genesis}
+todo
+\end{definition}
+
+\subsection{Candidate Protocols for PoS Ledgers}
+We start by assuming that all the honest parties will eventually activate if a proposal has been accepted. Moreover, we assume that the proposal is with
+respect to a ledger $\ledger_2$ that is secure (i.e., if $\asmp_2$ holds then liveness and consistency hold). We also assume that $\asmp_1=\asmp_2$. Let $t_\accept$ be the time at which the proposal 
+for $\ledger_2$ is accepted.
+In this protocol when a party $P_i$ receives the command $(\activate, \ledger_2)$ at some time $t_i$ then it creates a transaction $\txa_i$ on $\ledger_1$ that contains the hash of the last block of $P^\ledger[t]$. Let $B_i$ be this block. $\tx_i$ is used by $P_i$ to signal the fact that he is ready to run $\ledger_2$ using $B_i$ or a block
+with greater height of $B_i$ as the genesis block if a sufficient number of activation transactions appear on $\ledger_1$. 
+More precisely, $P_i$ starts running $\ledger_2$ if the sum of the stake associated to the
+verification keys of all the activation transactions is above a threshold $\tau$. Whenever this threshold is reached all the parties that activated (the parties in $\activep$)
+start running $\ledger_2$ using $B_j$ as the genesis block where $B_j$ has the most height among all the blocks of $\ledger_1$ hashed in the activation transactions $\txa_i$
+for all $P_i\in\activep$.
+We prove that this protocol is secure for any $\tau$ 
+\mnote{$\Delta_1$ and $\Delta_2$ should be function of $\tau$.}
+
+Let us consider the simple case where $\tau=1.0$. In this case we can claim that $\asmp_2$ holds (assuming that $\asmp_1$ holds).
+Moreover, the parties $\activep$ has an agreement on what is the genesis block for $\ledger_2$. We recall that we assume that any block of $\ledger_1$ can be used as
+a genesis block for $\ledger_2$ under the condition that $\ledger_1$ is secure (see Def.~\ref{def:genesis} for a formal definition connecting genesis block).
+Under this condition the security of $\ledger_2$ \mnote{should} follows. 
+
+ 
+This argument can be extended to any threshold $\tau$. Indeed, since we are assuming that the honest nodes will activate
+Suppose that this threshold is any value that that makes $\asmp_2$ valid.
 
 \subsection{The Adoption Threshold}
 
