@@ -1,0 +1,134 @@
+\subsection{Ledger Consensus}
+Ledger consensus (a.k.a. ``Nakamoto consensus'') is the problem where a set of servers
+(or nodes) operate continuously accepting inputs
+that are called transactions and incorporate them in a public data 
+structure called the {\em ledger}. 
+A ledger (denoted in calligraphic-face, e.g. $\ledger$) is a mechanism for maintaining a sequence of transactions, often
+stored in the form of a blockchain (cf. appendix \ref{se:bcabstraction}). In this paper, we slightly abuse the language by letting $\ledger$ (without further
+qualifiers) interchangeably refer to the algorithms used to maintain the sequence, and all the views of the
+participants of the state of these algorithms when being executed. For example, the (existing) ledger Bitcoin
+consists of the set of all transactions that ever took place in the Bitcoin network, the current UTXO set, as
+well as the local views of all the participants.
+In contrast, we call a ledger state a concrete sequence of transactions $\tx_1,\tx_2,\dots$ stored in the stable
+part of a ledger $\ledger$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
+every fixed chain $C$ defines a concrete ledger state by applying the interpretation rules given as a part of the
+description of $\ledger$ %\nnote{shouldn't this be a calligraphic L?} 
+(for example, the ledger state is obtained from the blockchain by dropping the last $k$ blocks
+and serializing the transactions in the remaining blocks). We denote by $P^\ledger[t]$
+the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$.
+% and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
+
+
+For two ledger states (or, more generally, any sequences), we denote by $\preceq$ the prefix relation.
+Recall the definition of secure ledger protocol given in~\cite{sok}.
+
+
+\begin{definition}\label{de:ledger} A ledger protocol $\ledger$ is secure if it enjoys the following two properties.
+\begin{itemize}
+
+\item {\em Consistency:} This property mandates that if a client queries
+an honest node's ledger at round $t_1$  
+and receives the response $\mc{L}_1$, 
+then a client querying an honest node's ledger at round $t_2\geq t_1 $
+ receives a response $\mc{L}_2$ that satisfies $\mc{L}_1 \preceq \mc{L}_2$, 
+where $\preceq$ denotes the standard prefix operation. 
+
+\item {\em Liveness:} If a transaction $tx$ is given as input to all honest
+nodes continuously for a certain number of rounds denoted by $u$, 
+and a client queries any honest node's ledger
+after these $u$ rounds, then the node responds with a value
+$\mc{L}$ that includes $tx$.
+
+\end{itemize}
+
+\end{definition}
+
+\subsection{Defining Secure Activations}
+We consider a setting where a set of parties run a protocol maintaining a ledger $\ledger_1$. Following~\cite{sidechain} we denote by $\asmp_i$
+with $i\in[n]$ the security assumption required by a ledger $\ledger_i$. That is, if the assumption holds then ledger is secure under the Definition~\ref{de:ledger}.
+Formally, $\asmp_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that can assume value $1$, if the assumption is satisfied, and $0$ otherwise.
+
+%Without loss of generality we assume that $\asmp_i$ are monotone in the sense that once violated, they cannot become true again. Formally, 
+%$\asmp_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that satisfy $\neg \asmp_i[t] \rightarrow \neg \asmp_i[t+1]$ for all $t$.
+There is an a priori unlimited number of (types of) assets, each asset representing e.g. a different cryptocurrency. We allow specific rules of behavior for each asset (called validity languages), and each asset behaves according to these rules on each of the ledgers where it is present.
+
+Let $\ledger_1$ be the ledger that the parties are running with assumption $\asmp_1$. We consider a new ledger $\ledger_2$ with assumption $\asmp_2$.
+In the model that we consider in this paper each party that is running $\ledger_1$ could receive the input $(\activate, \ledger_2)$. A party receiving this command starts the \emph{activation process}
+in order to start running $\ledger_2$ (and maybe stop running $\ledger_1$). Let $t_P$ denote the time in which 
+the party $P$ receives the activation command and let $\activep$ be the set of parties that received the activation command. Without loss of generality, let $P_1$ be the first party to receive the activation command (note that $t_{P_1}\leq t_{P_i}$ for all $P_i\in\activep$).
+%We note that if a set of parties $\parties$ is such that the assumption $\asmp_2$ holds (e.g. if enough honest parties are willing to maintain $\ledger_2$), then $\ledger_2$ is
+%secure.
+
+%Let $t$ be the time at which one of the parties that is running $\ledger_1$ is activated. 
+Informally, a secure activation process guarantees that if the number of parties that are willing to run $\ledger_2$ (i.e., the number of active parties)  
+is such that $\asmp_2[t']=1$ for some $t'\geq t_{P_1}$, then
+the state of $\ledger_2$ at some $T>t'$ corresponds to the state of $\ledger_1$ at time $t_{P_i}$ with $P_i\in\activep$.
+
+ 
+%\nnote{I think (I might be wrong) that, as it is right now, it is confusing what are the two time points that: a) $L_2$ becomes secure and b) $L_2$ includes the state of $L_1$. From the above text, the reader understands that these time points are $t'$ (where $t' > t_{P_1}$) and $t' + \Delta_1$ respectively. Is this what we want to say? This does not comply (I think) with the time points mentioned in Definition 2 below.}
+
+%\nnote{Why dont we just say that: $L_2$ will become secure at time point $t_{P_1} + \Delta_1$  and will include $L_1$ at time point $t_{P_1} + \Delta_1 + \Delta_2$?}
+%\mnote{I changed it a bit. What do you think now?}
+
+%\nnote{Furthermore, I don't understand the phrase: "the state of $\ledger_2$ corresponds to the state of $\ledger_1$ at time $t_{P_1}$ plus a bounded $\Delta_2$". What about the state of $\ledger_1$ before that time point? It should still be included in $\ledger_2$, as a prefix. Right?}
+%\mnote{Doesn't what I wrote implies that $\ledger_1$ is a prefix of $\ledger_2$?}
+
+%\nknote{"at time $t_{p_i}$ with $p_i\in\activep$". Should this be "at time $t_{P_i}$ with $P_i\in\activep$"?} \mnote{Right, I have changed it}
+
+\nknote{It looks good. Now the two time points (where $L_2$ becomes secure and $L_2$ includes $L_1$) are $t'$ and $T$ respectively. This is clear.}
+
+\nknote{"corresponds to the state of $\ledger_1$ at time $t_{p_i}$ with $p_i\in\activep$"  Do we want to say "corresponds"? Does this imply equal to? Should we say "includes as a prefix"?}\mnote{I want to say that it is equal. If we say that $\ledger_1$ is just a prefix of $\ledger_2$ then $\ledger_2$ might contain wrong information. Instead, I want to
+say that when $\ledger_2=\ledger_1$ $\asmp_2$ holds. This guarantees that $\ledger_2$ has $\ledger_1$ has a prefix at that from that moments it is secure. Does it make sense?}
+
+\nknote{What is the timepoint when changes are actually activated? I.e., When does $L_2$ start to operate? I assume that it is, when we know that $L_2$ is secure, i.e., at time point $t_{P_1} + \Delta_1$. If so, then $L_2$ must include the state of $\ledger_1$ at time $t_{p_1} + \Delta_1$. In particular, it must include $ P_i^{\ledger_1}[t_{P_1} + \Delta_1] $ for some $P_i\in\activep$. What do you think? }\mnote{This makes sense, but would make the security definition stronger (i.e., harder to achieve).
+Let's first see what we can achieve with our protocol and later change the definition if what we have is better than what I expect.}
+
+The above implies that $\ledger_2$ extends $\ledger_1$ and that $\ledger_2$ is secure (i.e. enjoys consistence and liveness).
+In a nutshell, a secure activation process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
+We now give a more formal definition.
+
+\begin{definition}[Activation Process]
+ We say that an activation process with activation parameters $(\Delta_1,\Delta_2)$ (where $\Delta_1,\Delta_2\in\mathbb{N}$) is secure if the following condition is satisfied:
+
+If $\activep$ is such that $\asmp_2[t]=1$ for all $t\geq t_{P_1}+\Delta_1$ %with $\Delta_1,\Delta_2\in\mathbb{N}$
+
+%\nnote{Why do we need a right bound? What about the security of $L_2$ after the right bound? Shouldn't we just say that: $A_2[t] = 1$ for all $t >= t_{P_1} + \Delta_1$?}
+%\mnote{I did not want to assume that $\asmp_2$ holds forever. But I suppose that it will make the definition simples so I modified it.}
+%\nnote{Moreover, how do we know that $\Delta_2 > \Delta_1$ so that the interval $[t_{P_1} + \Delta_1, t_{P_1} + \Delta_2]$ is monotonically increasing?}
+
+	and $\asmp_1[t']=1$ for all $t' \leq t_{P_1}+\Delta_1+\Delta_2$, then the state of $\ledger_2$ at some time $T\in [t_{P_1}+\Delta_1, t_{P_1}+\Delta_1+\Delta_2]$ is such that $\ledger^\star=\ledger_2$
+	
+%\nnote{Again the same question: Why do we need a right bound? What happens after that? Shouldn't we just say that $L_2$ will include $L_1$ for all $t > t_{P_1} + \Delta_1 + \Delta_2$?}
+	
+	where $  P_i^{\ledger_1}[t_{P_i}] \preceq \ledger^\star$ for some $P_i\in\activep$.  
+
+\nknote{Similarly to my previous comment. Should we say: "$  P_i^{\ledger_1}[t_{P_1 + \Delta_1}] \preceq \ledger^\star$ for some $P_i\in\activep$", since $t_{P_1} + \Delta_1$ is the timepoint where $L_2$ kicks off?}\mnote{as before.}
+ 
+\end{definition}
+
+\begin{definition}\label{def:genesis}
+todo
+\end{definition}
+
+\subsection{Candidate Protocols for PoS Ledgers}
+We start by assuming that all the honest parties will eventually activate if a proposal has been accepted. Moreover, we assume that the proposal is with
+respect to a ledger $\ledger_2$ that is secure (i.e., if $\asmp_2$ holds then liveness and consistency hold). We also assume that $\asmp_1=\asmp_2$. Let $t_\accept$ be the time at which the proposal 
+for $\ledger_2$ is accepted.
+In this protocol when a party $P_i$ receives the command $(\activate, \ledger_2)$ at some time $t_i$ then it creates a transaction $\txa_i$ on $\ledger_1$ that contains the hash of the last block of $P^\ledger[t]$. Let $B_i$ be this block. $\tx_i$ is used by $P_i$ to signal the fact that he is ready to run $\ledger_2$ using $B_i$ or a block
+with greater height of $B_i$ as the genesis block if a sufficient number of activation transactions appear on $\ledger_1$. 
+More precisely, $P_i$ starts running $\ledger_2$ if the sum of the stake associated to the
+verification keys of all the activation transactions is above a threshold $\tau$. Whenever this threshold is reached all the parties that activated (the parties in $\activep$)
+start running $\ledger_2$ using $B_j$ as the genesis block where $B_j$ has the most height among all the blocks of $\ledger_1$ hashed in the activation transactions $\txa_i$
+for all $P_i\in\activep$.
+We prove that this protocol is secure for any $\tau$ 
+\mnote{$\Delta_1$ and $\Delta_2$ should be function of $\tau$.}
+
+Let us consider the simple case where $\tau=1.0$. In this case we can claim that $\asmp_2$ holds (assuming that $\asmp_1$ holds).
+Moreover, the parties $\activep$ has an agreement on what is the genesis block for $\ledger_2$. We recall that we assume that any block of $\ledger_1$ can be used as
+a genesis block for $\ledger_2$ under the condition that $\ledger_1$ is secure (see Def.~\ref{def:genesis} for a formal definition connecting genesis block).
+Under this condition the security of $\ledger_2$ \mnote{should} follows. 
+
+ 
+This argument can be extended to any threshold $\tau$. Indeed, since we are assuming that the honest nodes will activate
+Suppose that this threshold is any value that that makes $\asmp_2$ valid.
+
