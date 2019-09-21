@@ -14,7 +14,7 @@ One size does not fit all and surely, all software updates are not the same. The
 \item The reason of change (a bug-fix, or a security-fix versus a change request, or a new feature request).
 \item The priority of change (e.g., high/medium/low).
 \item Impact of change (e.g., whether it impacts the consensus protocol, or not).
-\item Type of protocol change (hard/soft/velvet fork)
+\item Type of protocol change (hard/soft/velvet\footnote{See Zamyatin et. al. \cite{velvet}} fork)
 \item The complexity of deployment (e.g., high/medium/low)
 %\item Size of change (e.g., man-effort required to be implemented).
 %\item Platform-specific change (Linux, Windows MacOS etc.)
@@ -23,7 +23,7 @@ These and many other characteristics comprise the essential context of a softwar
 
 We propose a software update logic that is \emph{metadata-driven}. A logic that distinguishes one SU from another and applies the appropriate \emph{update policy} and evaluates the required \emph{update constraints} (cf. appendix \ref{appdxupdcons}) based on these metadata. 
 %We have seen from the previous sections that the software update metadata are submitted along with the SIP or UP and are approved for their correctness by the stakeholders. Thus we can assume that these metadata safely set the software update \emph{context}, in which our update logic will be applied. 
-In this section, we describe our proposal for achieving such a \emph{metadata-driven}, decentralized software update mechanism.
+In this section, we describe our proposal for achieving such a \emph{metadata-driven}, decentralized software update mechanism by means of \emph{update policies}.
 
 %\subsection{Decentralized Software Update Metadata} 
 %A software update is inherently accompanied by meta-information that describes the update and sets it into the appropriate context. Therefore, we could say that every software update comprises a rich set of update meta-data that ultimately should drive the whole upgrade process. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the appendix \ref{appxmetadata}. 
@@ -33,9 +33,13 @@ In this section, we describe our proposal for achieving such a \emph{metadata-dr
 
 \subsection{Update Policies} 
 
-An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata (i.e., by the software update context). For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
+An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata (i.e., by the software update context). For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, 
+%for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update. 
+ software updates with a complex deployment process should take a longer time to activate. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
 
-So far, we have discussed delegation for special categories (cf. appendix \ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Here we want to introduce also the concept of the \emph{safety lag}. %In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
+We have discussed delegation for special categories (cf. appendix \ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Moreover, in the previous section we have discussed the concepts of the adoption threshold and the safety lag as the main condition to activate the changes of a software update.
+
+%Here we want to introduce also the concept of the \emph{safety lag}. %In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
 
 %\subsubsection{The Safety Lag}
 %To mitigate the risk of a too-early activation, %either \say{by-accident} or by-attack, 
@@ -45,12 +49,13 @@ So far, we have discussed delegation for special categories (cf. appendix \ref{a
 %For example, there might be software updates that entail a very complex deployment process; one that even maybe a hardware upgrade is required before the software upgrade. In such a case, the safety lag must ensure plenty of time to the stakeholders to upgrade. Similarly, a hard fork type of change, should trigger a greater safety lag than that of a soft fork type of change. 
 %We propose both of these to be recorded as important characteristics of a decentralized software update's metadata (cf. appendix \ref{appxmetadata}). This information will drive the choice of the length of the safety lag and enable a metadata-driven update policy. %Of course, these metadata have been approved for their correctness by the stake majority in the Ideation phase.
 
-\subsubsection{Examples of Update Policies}
- In table \ref{update-policies2-table} 
+%\subsubsection{Examples of Update Policies}
+ In table \ref{update-policies2-table}
  %\ref{update-policies-table}
-, we present some indicative examples of various update policies that are driven by the software update context. In these examples an update policy is expressed as the triple: (Delegation\footnote{\say{D} stands for delegation while \say{Sp.D} stands for special category delegation. }, Adoption Threshold, Safety Lag). We see for different types of changes (Hard/Soft/No fork) and approved and agreed priorities (High/Medium/Low), the specified activation goal (High/Medium/Low/No Delay) to be achieved by the update policy.
+, we present an indicative example of an update policy that is driven by the software update context. In this example, an update policy is expressed as the triple: (Delegation\footnote{\say{D} stands for (standard) delegation while \say{Sp.D} stands for special category delegation. }, Adoption Threshold $\tau_A$, Safety Lag $T_s$). We see for different types of deployment complexities (High/Medium/Low) and approved and agreed priorities (High/Medium/Low), the proposed update policy that will achieve our activation goal. We see the possible values of both the adoption threshold and the safety lag to be expressed in three distinct bands (High/Medium/Low). Of course, all the relevant constraints for these values that we have discussed in the previous section, in order to ensure the security of the activation, should hold.
 
-For example, a low priority software update that will cause a hard fork type of change (top left cell), should be activated with a maximum delay. At the opposite end (bottom right cell), a high priority software update (e.g., a security fix) that also does not impact the consensus rules and thus it does not bear the risk of a chain split, should be activated with no delay. As we have noted in the previous sections, for these types of software updates (i.e., no fork) the activation could take place instantly upon the completion of the upgrade (this is why we have noted a $0$ value for the adoption threshold and safety lag).
+For example, a low priority software update with a high deployment complexity, should be activated with a maximum delay (top left cell). At the opposite end (bottom right cell), a high priority software update (e.g., a security fix) that also 
+bears a low deployment overhead, should be activated with a minimum of delay. 
 
 %We see, for different examples of SUs, how to achieve the specified activation goal (speed-up, or slow-down) with a specific update policy. Note that the various characteristics of the software update, such as the type of the change, the priority/criticality, etc., that appear in the first column and drive the deployment goal, have been described in the SU metadata and have been reviewed and approved by the stakeholders during the Ideation and the Approval phases.
  
@@ -90,23 +95,41 @@ For example, a low priority software update that will cause a hard fork type of 
 %\label{update-policies-table}
 %\end{table}
 
+%\begin{table}[h!]
+%\centering
+%%\begin{tabular}{|l|l|l|l|}
+%\begin{tabu} to 1.0\textwidth {||X[0.6l] | X[l] | X[l] | X[l] ||}
+%\hline
+%\textbf{Hard Fork} & High Delay\newline(D, $h_a$, High) & Medium Delay\newline(D, $h_a$, Medium) & Low Delay\newline(D, $h_a$, Low) \\
+%\hline
+%\textbf{Soft Fork} & Medium Delay\newline(D, $x$, High) & Low Delay\newline(D, $x$, Medium) & Low Delay\newline(D, $x$, Low) \\
+%\hline
+%\textbf{No Fork} & Low Delay\newline(D, $0$, $0$) & No Delay\newline(Sp.D, $0$, $0$) & No Delay\newline(Sp.D, $0$, $0$) \\
+%\hline
+%\textbf{Priority} & \textbf{LOW}  & \textbf{MEDIUM} & \textbf{HIGH} \\
+%\hline
+%%\end{tabular}
+%\end{tabu}
+%\caption{Examples of different update policies based on the SU context.}
+%\label{update-policies2-table}
+%\end{table}
+
 \begin{table}[h!]
 \centering
 %\begin{tabular}{|l|l|l|l|}
-\begin{tabu} to 1.0\textwidth {||X[0.6l] | X[l] | X[l] | X[l] ||}
+\begin{tabu} to 1.0\textwidth {||X[0.7l] | X[c] | X[1.01c] | X[1.01c] ||}
 \hline
-\textbf{Hard Fork} & High Delay\newline(D, $h_a$, High) & Medium Delay\newline(D, $h_a$, Medium) & Low Delay\newline(D, $h_a$, Low) \\
+\textbf{HIGH} & \textbf{High Delay}\newline(D, High, High) & (D, Medium, High) & (Sp.D, Low, High) \\
 \hline
-\textbf{Soft Fork} & Medium Delay\newline(D, $x$, High) & Low Delay\newline(D, $x$, Medium) & Low Delay\newline(D, $x$, Low) \\
+\textbf{MEDIUM} & (D, High, Medium) & (D, Medium, Medium) & (Sp.D, Low, Medium) \\
 \hline
-\textbf{No Fork} & Low Delay\newline(D, $0$, $0$) & No Delay\newline(Sp.D, $0$, $0$) & No Delay\newline(Sp.D, $0$, $0$) \\
+\textbf{LOW} & (D, High, Low) & (D, Medium, Low) & \textbf{Low Delay}\newline(Sp.D, Low, Low) \\
 \hline
-\textbf{Priority} & \textbf{LOW}  & \textbf{MEDIUM} & \textbf{HIGH} \\
+\textbf{Complexity/ Priority} & \multicolumn{1}{l|}{\textbf{LOW}} & \multicolumn{1}{l|}{\textbf{MEDIUM}} & \multicolumn{1}{l||}{\textbf{HIGH}} \\
 \hline
 %\end{tabular}
 \end{tabu}
-\caption{Examples of different update policies based on the SU context.}
+\caption{An example of an update policy based on the SU context.}
 \label{update-policies2-table}
 \end{table}
-
 
