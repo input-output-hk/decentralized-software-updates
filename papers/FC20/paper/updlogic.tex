@@ -37,9 +37,9 @@ An \emph{update policy} is a method to apply a customized activation of a softwa
 
 So far, we have discussed delegation for special categories (cf. appendix \ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Here we want to introduce also the concept of the \emph{safety lag}. %In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
 
-\subsubsection{The Safety Lag}
-To mitigate the risk of a too-early activation, %either \say{by-accident} or by-attack, 
-we propose the concept of the \emph{safety lag}. The safety lag is a metadata-driven artificial delay, which is imposed on the activation of a change, in order to give time to the honest stake to upgrade and thus protect against a too-early activation. In other words, even though  the adoption threshold of signals might be met, the activation of the changes does not take place, it is stalled, until the safety lag period passes.
+%\subsubsection{The Safety Lag}
+%To mitigate the risk of a too-early activation, %either \say{by-accident} or by-attack, 
+%we propose the concept of the \emph{safety lag}. The safety lag is a metadata-driven artificial delay, which is imposed on the activation of a change, in order to give time to the honest stake to upgrade and thus protect against a too-early activation. In other words, even though  the adoption threshold of signals might be met, the activation of the changes does not take place, it is stalled, until the safety lag period passes.
 
 %The safety lag is determined by two things: a) the deployment complexity of a software update and b) the type of the consensus protocol change (soft/hard fork\footnote{Velvet forks \cite{velvet} do not impact the consensus by causing forks and thus can activate immediately after an upgrade.}).
 %For example, there might be software updates that entail a very complex deployment process; one that even maybe a hardware upgrade is required before the software upgrade. In such a case, the safety lag must ensure plenty of time to the stakeholders to upgrade. Similarly, a hard fork type of change, should trigger a greater safety lag than that of a soft fork type of change. 
