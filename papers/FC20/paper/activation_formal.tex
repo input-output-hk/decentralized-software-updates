@@ -3,6 +3,7 @@
 \subsubsection{Model.}
 
 In this section we define our notion of protocol execution following~\cite{DBLP:conf/eurocrypt/GarayKL15,DBLP:conf/focs/Canetti01}.
+
 Programs involved in a protocol execution. The execution of a protocol $\Pi$ is driven by an
 environment program $\env$ that may spawn multiple instances running the protocol $\Pi$. The programs
 in question can be thought of as interactive Turing machines (ITM) that have communication,
@@ -17,6 +18,11 @@ adversary is activated, it may send one or more messages of the form $(\corrupt,
 program $C$ will register party $P_i$ as corrupted, only provided that the environment has previously
 given an input of the form $(\corrupt, P_i)$ to $\adv$ and that the number of corrupted parties is less or
 equal $\tcorrupt$, a bound that is also hardcoded in $C$. 
+
+We divide time into discrete units called \emph{time slots}. Players are equipped with (roughly)
+synchronized clocks that indicate the current slot: we assume that any clock drift is subsumed in the slot
+length. Each slot $\slr$ is indexed by an integer $r\in\{1,2,\dots\}$.
+
 
 %The first ITI party to be spawned running protocol
 %$\Pi$ is restricted by $C$ to be party $P_1$. After a party $P_i$ is activated, the environment is restricted to
@@ -40,10 +46,11 @@ well as the local views of all the participants.
 In contrast, we call a ledger state a concrete sequence of transactions $\tx_1,\tx_2,\dots$ stored in the stable
 part of a ledger $\ledger$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
 every fixed chain $C$ defines a concrete ledger state by applying the interpretation rules given as a part of the
-description of $\ledger$ %\nnote{shouldn't this be a calligraphic L?} 
-(for example, the ledger state is obtained from the blockchain by dropping the last $k$ blocks
-and serializing the transactions in the remaining blocks). We denote by $\ledger^P[t]$
-the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$.
+description of $\ledger$. In this work we assume that the ledger state is obtained from the blockchain by dropping the last $k$ blocks
+and serializing the transactions in the remaining blocks. We refer to $k$ as the \emph{common-prefix parameter}.
+We denote by $\ledger^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
+and by ${\check \ledger}^{P}[t]$ the complete state of the ledger (at time t) including all pending transactions that are not stable yet. For two
+%ledger states (or, more generally, any sequences), we denote by the prefix relation.
 % and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
 
 
@@ -52,8 +59,10 @@ Recall the definition of secure ledger protocol given in~\cite{sok}.
 
 
 \begin{definition}\label{de:ledger} A ledger protocol $\ledger$ is secure if it enjoys the following two properties.
-\begin{itemize}
 
+
+\ignore{
+\begin{itemize}
 \item {\em Consistency:} This property mandates that if a client queries
 an honest node's ledger at round $t_1$  
 and receives the response $\mc{L}_1$, 
@@ -66,8 +75,33 @@ nodes continuously for a certain number of rounds denoted by $u$,
 and a client queries any honest node's ledger
 after these $u$ rounds, then the node responds with a value
 $\mc{L}$ that includes $tx$.
+%\end{itemize}
+}
 
-\end{itemize}
+\begin{description}
+  \item[Persistence.]
+    For any two honest parties $\party_1,\party_2$ and two time slots $t_1\leq t_2$,
+    it holds  $\LView{\ledger}{\party_1}{t_1} \preceq
+    \LView{\check{\ledger}}{\party_2}{t_2}$.
+
+  \item[Liveness.]
+    If all honest parties in the system attempt to include a  transaction
+    then, at any slot $t$ after $u$ slots (called the
+    liveness parameter), any honest party $\party$, if queried,
+    will report $\tx \in \LView{\ledger}{\party}{t}$.
+\end{description}
+
+
+For a ledger $\ledger$ that satisfies persistence at time $t$, we denote by $\LView{\ledger}{\cup}{t}$ (resp.
+$\LView{\ledger}{\cap}{t}$) the sequence of transactions that are seen as
+included in the ledger by \emph{at least one} (resp., \emph{all}) of the honest
+parties. 
+%Finally, $\length(\ledger)$ denotes the length of the ledger $\ledger$,
+%i.e., the number of transactions it contains.
+
+
+
+
 
 \end{definition}
 
@@ -90,6 +124,9 @@ of this section).
 %Without loss of generality we assume that $\asmp_i$ are monotone in the sense that once violated, they cannot become true again. Formally, 
 %$\asmp_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that satisfy $\neg \asmp_i[t] \rightarrow \neg \asmp_i[t+1]$ for all $t$.
 There is an a priori unlimited number of (types of) assets, each asset representing e.g. a different cryptocurrency. We allow specific rules of behavior for each asset (called validity languages), and each asset behaves according to these rules on each of the ledgers where it is present.
+
+
+
 
 
 \subsection{Defining Secure Updates}
