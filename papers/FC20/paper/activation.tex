@@ -3,7 +3,7 @@ We have seen that upon the approval of a UP, users start installing the software
 
 %We call the time period from the approval of a UP until the actual activation of the changes in the blockchain system as the \emph{activation lag}. In order, to enable a fast and flexible software updating mechanism, we should minimize the activation lag, which is in turn is determined by the \emph{adoption threshold} $\tau_A$. %These are the topics to be discussed in this section.
 
-\subsection{The Activation of Changes}\label{se:informal}
+\subsubsection{The Activation of Changes.}\label{se:informal}
 %In the lifecycle section, we have described how a software update, after being voted as a SIP, it is submitted again during the approval phase in the form of a UP (source code bundled with metadata), in order to be approved. We make the assumption 
 %In our protocol, we assume that if a UP is approved, then sufficient\footnote{\say{sufficient} here means with respect to the resiliency of the new version (i.e., after the upgrade) of the consensus protocol.} (honest) stake will eventually upgrade. However, if we want to have a minimum activation lag, then we cannot wait until all the stake upgrades, to kick-off activation. What is the minimum necessary percent of stake to have upgraded, before the actual activation of the change takes place, in order to avoid a chain split? 
 In order to enable a swift and effective update mechanism, we want to minimize the activation lag. 
@@ -23,9 +23,9 @@ Let us assume that the adoption threshold of our software updates protocol is ca
 If we consider $\tau_A > (1-r)\times100$, then a possible attack would be for the the adversary to rush to signal, so that the threshold $\tau_A$ is met, without (at least) $(1-r) \times 100$ percent of honest stake to have enough time to complete the upgrade. The activation will take place and the new blockchain will run (at least for some time) with an honest stake percent that does not ensure its security. 
 
 In order to prevent this attack, the adoption threshold should be sufficiently large, so that the required percent of stake that has signaled will ensure that the new blockchain will kick off with sufficient honest stake. It is easy to see that in this case, we need $\tau_A > \frac{1}{r} \times T$, where $T$ is the total percent of adversary stake. If we note as $h_a$ the \emph{actual} percent of honest stake running the protocol, then the requirement for the adoption threshold is:
-\begin{equation} \label{tauA}
-\tau_A > \frac{100 - h_a}{r}
-\end{equation}
+%\begin{equation} \label{tauA}
+$\tau_A > \frac{100 - h_a}{r}$
+%\end{equation}
 
 For example, if $r > \frac{1}{2}$ and we estimate that $h_a = 60\%$, then we will need an adoption threshold of $\tau_A > 80\% $, in order to be safe from this attack. However, a too high value of the adoption threshold, one where $\tau_A > h_a$, introduces another risk; the risk of  giving the opportunity to the adversary to block an activation by refusing to signal. We call this a \emph{Denial of Activation} attack. Intuitively, this blocking problem can be resolved by setting an \emph{activation deadline} ---a time point in the future--- where the activation will take place \emph{regardless} of the adoption threshold condition. To this end, we introduce the concept of the \emph{safety lag}.
 
@@ -39,7 +39,7 @@ We propose that the complexity of the installation process and the size of the s
 
 %Of course the safety lag must also include enough time to ensure that the security assumptions of the new blockchain will hold and that the new blockchain (after the activation) sufficiently incorporates the old one (before the activation).
 
-We propose a synchronization mechanism for the activation phase, which is based on the safety lag and the adoption threshold. Essentially the activation of changes is based on two separate conditions and it is triggered when either of the two comes true: a) Either the adoption threshold is met, based on Equation \ref{tauA}, or b) the safety lag period expires. In other words, the safety lag acts as a time upper bound in the case where the adoption threshold is not met. Our protocol ensures that whichever of the two comes first, the new blockchain will be secure and at the same time our update mechanism is protected against the denial of activation attack. 
+We propose a synchronization mechanism for the activation phase, which is based on the safety lag and the adoption threshold. Essentially the activation of changes is based on two separate conditions and it is triggered when either of the two comes true: a) Either the adoption threshold is met, based on the above equation, or b) the safety lag period expires. In other words, the safety lag acts as a time upper bound in the case where the adoption threshold is not met. Our protocol ensures that whichever of the two comes first, the new blockchain will be secure and at the same time our update mechanism is protected against the denial of activation attack. 
 We assume that the parties agree on the safety lag by means of a block index. That is, the parties assume that when the $j$-th block 
 is generated and becomes a part of the stable part of the blockchain, then there are sufficiently honest parties that have installed the new software and that are ready to run the new code. 
 In the following section, we provide a formal description of our protocol and of our security proofs. 

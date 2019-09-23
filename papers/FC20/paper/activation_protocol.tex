@@ -1,15 +1,13 @@
-\subsection{Candidate Protocol}
+\subsubsection{Candidate Protocol.}
 
 Let $\ledger_1$ be the ledger that the parties are running and $\ledger_2$ be a new ledger.
 In our construction we assume that $\ledger_1$ and $\ledger_2$ have same common-prefix parameter $k$, same chain-growth parameter $(\cg, s)$ and that they are secure under the same assumption $\asmp_1=\asmp_2$. We also assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only
 it represents a valid genesis block for $\ledger_2$, but it also points to the state of $\ledger_1$ up to the block $B$. 
 We use this a special genesis block to guarantee that 1) the state of $\ledger_1$ at the end of the activation is moved into the state of the new ledger
 and 2) that we can use a block of $\ledger_1$ to bootstrap $\ledger_2$.
-
 At a very high level our protocol works as follows. When enough parties have received the command $(\activate,\cdot)$ such that $\asmp_2$ holds,
 a block of $\ledger_1$ is chosen as the special genesis block for $\ledger_2$. At this point the parties start running $\ledger_2$ and gradually abandon 
 $\ledger_1$.
-
 In the description of our update protocol we assume that there is a time $t^\upd$ such that $\asmp_2[t]$ holds for all $t\geq t^\upd=t_{P_1}+\Delta_1$.\footnote{We could require $\asmp_2$ to
 hold only for bounded interval of time and our protocol would still work if this interval is large enough.}
 We also assume that the parties in $\activep$ knows an index $j$ such that when the $j$-th block is added to the state of $\ledger_1$ then $\asmp_2$ holds. 
@@ -22,7 +20,7 @@ In more details $t^\upd$ represents either the time at which the threshold is me
 
 We denote our update protocol with $\Pi$. In this, each honest party $P_i\in\activep$ at time $t^\upd$ executes the following steps.
 
-\begin{enumerate}
+\begin{myenumerate}
 	%\item Upon receiving the input $(\activate, \cdot)$ wait until the $j$-th block of $\ledger_1$ becomes part of all the honest parties' ledger state (i.e., wait until $B_{j}$ becomes part of $\ledger_1^{P_i}[t]$ 
 	%for all honest $P\in\activep$) and let $t^\upd$ be this time. \nnote{But if the adoption threshold is met, then we dont need to wait until $t^\upd$}
 	\item Run $\ledger_1$ and when the block $(j+k)$-th block $B^i_{j+k}$ becomes part of $\check \state^{P_i}[t]$ for some $t\geq t^\upd$
@@ -31,7 +29,7 @@ We denote our update protocol with $\Pi$. In this, each honest party $P_i\in\act
 	\item Run $\ledger_2$ (and keep running $\ledger_1$) until $B'$ becomes part of $\state_2^{P_i}[t]$ 
 	for each honest $P\in\activep$ for some $t\geq t^\upd$.
 	\item Stop running $\ledger_1$.
-\end{enumerate}
+\end{myenumerate}
 
 
 
@@ -53,13 +51,10 @@ We are now ready to prove the security of $\Pi$.
 By assumption we have that $\asmp_2[t]=1$ for all $t\geq t^\upd$. From the description of $\Pi$ we can claim that $t^\upd \leq t_{P_1}+k\cg^{-1}=t_{P_1}+\Delta_1$.
 That is, when an honest party is activated she waits to be sure that also the other honest parties are activated. Hence, from the chain-growth and the common-prefix parameters
 each party needs to wait at most $\Delta_1=k\cg^{-1}$ time slots.
-
 From the moment when $\asmp_2$ becomes true the activation process takes $\Delta_2=k \cg^{-1} + k \cg^{-1}$  time slots more to be completed.
 This is because the parties need to wait that $k$ blocks are generated in $\state_1$ and that $k$ blocks are generated in $\state_2$. 
 That is, the parties need to wait the $(j+k)$-th block to appear in $\state_1^P[t]$ for each honest $P\in\activep$) and the \emph{special genesis block} of $\ledger_2$ (that is generated using the block $(j+k)$-th block of $\ledger_1$) to appear 
 in $\state_2^P[t]$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $\cg^{-1}$ time slots then we have that $\Delta_2=k \cg^{-1} + k \cg^{-1}$.
-
-
 In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
 using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
 Let $t'$ be smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
@@ -67,7 +62,6 @@ If we take the execution of the protocol from time $t^\upd$ and $t'$ this can be
 that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
 that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
 any block of $\state_1$ can be turned into a block of $\state_2$. \end{proof}
-
 Although the above protocol is generic it has the limitation that the parameters
 of $\ledger_1$ and $\ledger_2$ have to be the same. We could get rid of this limitation by requiring an additional property on $\ledger_2$.
 If $\ledger_2$ supports temporary dishonest majority~\cite{DBLP:journals/corr/abs-1908-00427} then we do not need the assumption on the equality parameters to 
