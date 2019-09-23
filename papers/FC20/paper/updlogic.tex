@@ -53,6 +53,25 @@ We have discussed delegation for special categories (cf. Appendix~\ref{appxdelsp
 %For example, there might be software updates that entail a very complex deployment process; one that even maybe a hardware upgrade is required before the software upgrade. In such a case, the safety lag must ensure plenty of time to the stakeholders to upgrade. Similarly, a hard fork type of change, should trigger a greater safety lag than that of a soft fork type of change. 
 %We propose both of these to be recorded as important characteristics of a decentralized software update's metadata (cf. appendix \ref{appxmetadata}). This information will drive the choice of the length of the safety lag and enable a metadata-driven update policy. %Of course, these metadata have been approved for their correctness by the stake majority in the Ideation phase.
 
+\begin{table}[h!]
+\centering
+%\begin{tabular}{|l|l|l|l|}
+\begin{tabu} to 1.0\textwidth {||X[0.7l] | X[c] | X[1.01c] | X[1.01c] ||}
+\hline
+\textbf{HIGH} & \textbf{Max Delay}\newline(D, High, High) & (D, Medium, High) & (Sp.D, Low, High) \\
+\hline
+\textbf{MEDIUM} & (D, High, Medium) & (D, Medium, Medium) & (Sp.D, Low, Medium) \\
+\hline
+\textbf{LOW} & (D, High, Low) & (D, Medium, Low) & \textbf{Min Delay}\newline(Sp.D, Low, Low) \\
+\hline
+\textbf{Complexity/ Priority} & \multicolumn{1}{l|}{\textbf{LOW}} & \multicolumn{1}{l|}{\textbf{MEDIUM}} & \multicolumn{1}{l||}{\textbf{HIGH}} \\
+\hline
+%\end{tabular}
+\end{tabu}
+\caption{An example of an update policy based on the SU context.}
+\label{update-policies2-table}
+\end{table}
+
 %\subsubsection{Examples of Update Policies}
  In table \ref{update-policies2-table}
  %\ref{update-policies-table}
@@ -117,23 +136,4 @@ bears a low deployment overhead, should be activated with a minimum of delay.
 %\caption{Examples of different update policies based on the SU context.}
 %\label{update-policies2-table}
 %\end{table}
-
-\begin{table}[h!]
-\centering
-%\begin{tabular}{|l|l|l|l|}
-\begin{tabu} to 1.0\textwidth {||X[0.7l] | X[c] | X[1.01c] | X[1.01c] ||}
-\hline
-\textbf{HIGH} & \textbf{Max Delay}\newline(D, High, High) & (D, Medium, High) & (Sp.D, Low, High) \\
-\hline
-\textbf{MEDIUM} & (D, High, Medium) & (D, Medium, Medium) & (Sp.D, Low, Medium) \\
-\hline
-\textbf{LOW} & (D, High, Low) & (D, Medium, Low) & \textbf{Min Delay}\newline(Sp.D, Low, Low) \\
-\hline
-\textbf{Complexity/ Priority} & \multicolumn{1}{l|}{\textbf{LOW}} & \multicolumn{1}{l|}{\textbf{MEDIUM}} & \multicolumn{1}{l||}{\textbf{HIGH}} \\
-\hline
-%\end{tabular}
-\end{tabu}
-\caption{An example of an update policy based on the SU context.}
-\label{update-policies2-table}
-\end{table}
 
