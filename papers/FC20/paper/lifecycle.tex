@@ -9,11 +9,12 @@ the full lifecycle of a software update following a decentralized approach. In t
 Interestingly, the phases in the lifecycle of a SU are essentially independent from the approach (centralized or decentralized) that we follow. They constitute intuitive steps in a software lifecycle process that starts from the initial idea conception and ends at the actual activation of the change on the client software. Based on this observation, one can examine each phase and compare the traditional centralized approach, used to implement it, to its decentralized alternative. In the Appendix~\ref{appxlifecycle}, you can find a description of the centralized approach for each phase, for comparison reasons. Moreover, not all phases need to be decentralized in a real world scenario. One has to measure the trade-off between decentralization benefits versus practicality and decide what phases will be decentralized. Our decomposition of the lifecycle of a SU in distinct phases helps towards this direction.
 
 \begin{figure}[h!] %[H]
-    \caption{The lifecycle of a software update (a decentralized approach)}
+    
     \centering
 %    \includegraphics[width=\textwidth]{figures/lifecycle_phases.pdf}
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/lifecycle_phases.pdf}
     \label{lifecycle}
+    \caption{The lifecycle of a software update (a decentralized approach)}
 \end{figure}
 
 \subsection{Ideation}
@@ -26,10 +27,11 @@ A SU starts as an idea. Someone captures the idea of implementing a change that 
 %\paragraph{Decentralized approach.}
 The ideation phase in the decentralized approach is depicted in Figure \ref{ideation}.
 \begin{figure}[h!] %[H]
-    \caption{The ideation phase.}
-    \centering
+       \centering
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/ideation_phase.pdf}
     \label{ideation}
+     \caption{The ideation phase.}
+
 \end{figure}
 In the decentralized setting, a SU starts its life as an idea for improvement of the blockchain system, which is recorded in a human readable simple text document, called the \emph{SIP (Software\footnote{\say{Software} and \say{System} are two terms that could be considered equivalent for the scope of this paper and we intend to use them interchangeably. For example, a SIP could also stand for a System Improvement Proposal} Improvement Document)}. The SU life starts by submitting the corresponding SIP to the blockchain by means of a fee-supported
 %\mnote{Why is this fee special? I think that might be dangerous to have a different fee for different type of transactions} 
@@ -65,10 +67,11 @@ The decentralized alternative for the implementation phase is identical to its c
 a) there is not a centrally-owned code repository to maintain the code-base (since there is not a central authority responsible for the maintenance of the code), b) a delegation process is executed, in parallel to the implementation, as a preparation step for the (decentralized) approval phase that will follow and c) the conceptual equivalent to the submission of a pull-request (i.e., a call for approval by the developer to the code maintainer authority) must be realized.
 
 \begin{figure}[h!] %[H]
-    \caption{The implementation phase.}
     \centering
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/implementation_phase.pdf}
     \label{implementation}
+        \caption{The implementation phase.}
+
 \end{figure}
 
 %In Figure \ref{implementation}, we depict the decentralized implementation phase. Similar to the centralized case, the implementation of a change must be based on some existing code, which we call the base source code and the developer must download locally, in order to initiate the implementation. However, in the decentralized setting there is not a centrally-owned code repository. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the developer-owned code repository provided in the UP metadata. We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution. This conceptually can be any storage area that is not centrally-owned; from something very common, as a developer-owned Github repository to something more elaborate as a content-addressable decentralized file system.
@@ -162,10 +165,10 @@ Why do we need such a synchronization period in the first place? Why is not the 
 %Once the UP approval result has been buried under a sufficient number of blocks (i.e., the stabilization period passes)\mnote{I suppose that here you are talking about the activation method where the signalling is made by the block generators. Shouldn't this be part of the next paragraph?}
 Once the voting period of the Approval phase ends, the votes have been stably stored in the blockchain and the tally result is positive, then the activation period is initiated. In Figure \ref{activation}, we depict the activation period in the decentralized setting.
 \begin{figure}[h!] %[H]
-    \caption{The activation phase.}
     \centering
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/activation_phase.pdf}
     \label{activation}
+    \caption{The activation phase.}
 \end{figure}
 %The first step in the activation phase is the installation of the software update. Typically, as soon as the UP approval is stabilized in the blockchain, the GUI of the client software (e.g., the wallet) prompts the user to download and install the update, using the link that accompanies the UP. If in the UP bundle there exists an approved binary, then the user can download and install this, otherwise the user must download the approved source code. In the latter case, there exist an extra step of producing the binary code from the source code. In any case, it is important to note that the new software is just installed but not activated. It will remain in a latent state until the actual activation takes place.
 The first step in the activation phase is the installation of the software update. It is important to note that the new software is just installed but not activated. It will remain in a latent state until the actual activation takes place. For the nodes participating in the consensus protocol the installation of a software update means that they are ready to activate, but wait to synchronize with their other peers. To this end, they initiate signaling as a means to synchronization. %This means that every new block issued will be stamped with the new version of the software, signifying their readiness for the new update.
