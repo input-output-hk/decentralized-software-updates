@@ -138,3 +138,17 @@
 
 
 \newcommand{\cg}{\tau}
+\newenvironment{myitemize}
+{\begin{list}{$\bullet$}{ \itemindent=-.533cm \listparindent=.6cm 
+\itemsep=0.0in
+\parsep=0.0in
+\topsep=0.0in
+\partopsep=0.0in}}{\end{list}}
+\newcounter{itemcount}
+\newenvironment{myenumerate}
+{\setcounter{itemcount}{0}\begin{list}
+{\arabic{itemcount}.}{\usecounter{itemcount} \itemindent=0.0cm
+\itemsep=0.0in
+\parsep=0.0in
+\topsep=0.0in
+\partopsep=0.0in}}{\end{list}}
