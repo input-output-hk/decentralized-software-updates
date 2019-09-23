@@ -35,11 +35,14 @@ In this section, we describe our proposal for achieving such a \emph{metadata-dr
 
 %\subsection{Update Policies} 
 \section{Update Policies}
-One size does not fit all and surely, all software updates are not the same. There are software updates with totally different characteristics that require a totally different update logic to be applied. This software update context is recorded in the corresponding metadata. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the Appendix \ref{appxmetadata}. In this section, we describe our proposal for achieving such a \emph{metadata-driven}, decentralized software update mechanism by means of \emph{update policies}. 
+One size does not fit all and surely, all software updates are not the same. There are software updates with totally different characteristics that require a totally different update logic to be applied. This software update context is recorded in the corresponding metadata (cf. Appendix \ref{appxmetadata}).
+% We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the Appendix \ref{appxmetadata}. 
+In this section, we describe our proposal for achieving such a \emph{metadata-driven}, decentralized software update mechanism by means of \emph{update policies}. 
 
-An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata (i.e., by the software update context). For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, 
+An \emph{update policy} is a method to apply a customized activation of a software update driven by its metadata. For example, it is reasonable to assume that a high priority security fix must be activated with a different speed than a \say{nice to have} new feature. At the same time, 
 %for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update. 
- software updates with a complex deployment process should take a longer time to activate. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
+ software updates with a complex deployment process should take a longer time to activate than others with a simple  upgrade procedure.
+ %. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
 
 We have discussed delegation for special categories (cf. Appendix~\ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Moreover, in the previous section we have discussed the concepts of the adoption threshold and the safety lag as the main condition to activate the changes of a software update.
 
