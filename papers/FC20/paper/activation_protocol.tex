@@ -4,7 +4,10 @@ Let $\ledger_1$ be the ledger that the parties are running with assumption $\asm
 and  liveness parameter $s_1$. 
 We now consider a new ledger $\ledger_2$ with assumption $\asmp_2$, common-prefix parameter $k_2$ and  liveness parameter $s_2$.
 We assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only
-is a valid genesis block for $\ledger_2$, but it contains all the state of $\ledger_1$ up to the block $B$. \nnote{A block does not "contain" the state of a ledger. Should we say "it points to", or something similar?} 
+it represents a valid genesis block for $\ledger_2$, but it also point to the state of $\ledger_1$ up to the block $B$. 
+We use this a special genesis block to guarantee that 1) the state of $\ledger_1$ at the end of the activation is moved into the state of the new ledger
+and 2) that we can use a block of $\ledger_1$ to bootstrap $\ledger_1$.
+
 At a very high level our protocol works as follows. When enough parties have received the command $(\activate,\cdot)$ such that $\asmp_2$ holds,
 a block of $\ledger_1$ is chosen as the special genesis block for $\ledger_2$. At this point the parties start running $\ledger_2$ and gradually abandon 
 $\ledger_1$.
@@ -12,17 +15,22 @@ $\ledger_1$.
 In the description of our update protocol we assume that there is a time $t^\upd$ such that $\asmp_2[t]$ holds for all $t\geq t^\upd$.\footnote{We could require $\asmp_2$ to
 hold only for bounded interval of time and our protocol would still work if this interval is large enough.}
 We also assume that the parties in $\activep$ knows an index $j$ such that when the $j$-th block is added to the state of $\ledger_1$ then $\asmp_2$ holds. 
-To ensure that $\asmp_2$ actually holds and that the parties can agree on the index $j$ we use the approach proposed in Sec.~\ref{se:informal}. \nnote{We can arrive at moment $t^\upd$, where $\ledger_2$ becomes secure, in two different ways: a) either the adoption threshold is met or b) the $j$-th block is added to the state of $\ledger_1$. If a) happens, then we dont need to wait for the $j$-th block to arrive. This last sentence does not "integrate" well with section 3.1}
+More formally, at time $t^\upd$ the the $j$-th block is part of $\ledger_1^{P_i}$ for all $P_i\in\activep$.
+To ensure that $\asmp_2$ actually holds and to keep all the honest parties synchronized on the time $t^\upd$ (and on the index $j$) we use the approach proposed in Sec.~\ref{se:informal}.
+In more details $t^\upd$ represents either the time at which the threshold is met or it represents the time at which the safety lag period is over.
+ 
+
+%\nnote{We can arrive at moment $t^\upd$, where $\ledger_2$ becomes secure, in two different ways: a) either the adoption threshold is met or b) the $j$-th block is added to the state of $\ledger_1$. If a) happens, then we dont need to wait for the $j$-th block to arrive. This last sentence does not "integrate" well with section 3.1}
 
 We denote our update protocol with $\Pi$. In this, each honest party $P_i\in\activep$ at time $t^\upd$ executes the following steps.
 
 \begin{enumerate}
-	\item Upon receiving the input $(\activate, \cdot)$ wait until the $j$-th block of $\ledger_1$ becomes stable (i.e., wait until $B_{j}$ becomes part of $\ledger_1^{P_i}[t]$ 
-	for all honest $P\in\activep$) and let $t^\upd$ be this time. \nnote{But if the adoption threshold is met, then we dont need to wait until $t^\upd$}
+	%\item Upon receiving the input $(\activate, \cdot)$ wait until the $j$-th block of $\ledger_1$ becomes part of all the honest parties' ledger state (i.e., wait until $B_{j}$ becomes part of $\ledger_1^{P_i}[t]$ 
+	%for all honest $P\in\activep$) and let $t^\upd$ be this time. \nnote{But if the adoption threshold is met, then we dont need to wait until $t^\upd$}
 	
-	\item When the $(j+k_1)$-th block $B_{j+k}$ appears in $\ledger_1^{P_i}[t]$ for some $t\geq t^\upd$ then create the special genesis block $B'_{j+k}$
+	\item When the $(j+k_1)$-th block $B_{j+k_1}$ appears in $\ledger_1^{P_i}[t]$ for some $t\geq t^\upd$ then create the special genesis block $B'$
 	and start running $\ledger_2$ using the special genesis block. \nnote{need to discuss this. It has confused me}
-	\item Run $\ledger_2$ (and keep running $\ledger_1$) until $B'_{j+k}$ becomes part of $\ledger_2^{P_i}[t]$ 
+	\item Run $\ledger_2$ (and keep running $\ledger_1$) until $B'$ becomes part of $\ledger_2^{P_i}[t]$ 
 	for each honest $P\in\activep$.
 	\item Stop running $\ledger_1$.
 \end{enumerate}
@@ -35,12 +43,14 @@ $\Pi$ is a $(\Delta_1,\Delta_2)$-secure update system with $\Delta_1=s_1 k_1$ an
 
 \begin{proof}
 By assumption we have that $\asmp_2[t]=1$ for all $t\geq t^\upd$. From the description of $\Pi$ we can claim that $t^\upd \leq t_{P_1}+k_1 s_1=t_{P_1}+\Delta_1$.
-From the moment when $\asmp_2$ becomes true the update process takes $\Delta_2=s_1 k_1 + s_2 k_2$  times slots more to complete the update.
+That is, when an honest parties is activated she waits to be sure that also the other honest parties are activated. Hence, from the liveness and the common-prefix parameters
+each party needs to wait at most $\Delta_1=k_1 s_1$ time slots.
+
+From the moment when $\asmp_2$ becomes true the activation process takes $\Delta_2=s_1 k_1 + s_2 k_2$  times slots more to be completed.
 This is because the parties need to wait that $k_1$ blocks are generated in $\ledger_1$ and that $k_2$ blocks are generated in $\ledger_2$. 
 That is, the parties need to wait that the $(j+k_1)$-th block is stable in $\ledger_1$ (i.e., 
-it appears in $\ledger_1^P[t]$ for each honest $P\in\activep$) and the \emph{special genesis block} of $\ledger_2$ (that corresponds to the block $B_{j+k}$ of $\ledger_1$) appears 
-in $\ledger_2^P[t]$ for each honest $P\in\activep$. Given that stabilizing a block in $\ledger_1$ takes (at most) $s_1$ time slots and that to stabilize
-each block in $\ledger_2$ takes time (at most) $s_1$ time slots, then we have that $\Delta_2=s_1 k_1 + s_2 k_2$.
+it appears in $\ledger_1^P[t]$ for each honest $P\in\activep$) and the \emph{special genesis block} of $\ledger_2$ (that is generated using to the block $B_{j+k_1}$ of $\ledger_1$) appears 
+in $\ledger_2^P[t]$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $s_1$ ($s_2$ time slots) to be generated and that to appear in all the honest parties then we have that $\Delta_2=s_1 k_1 + s_2 k_2$.
 We observe that in the moment the block $B_{j+k}$ becomes available to the honest parties in $\activep$, these parties start running $\ledger_2$ while $\asmp_2$ holds.
 That is, the honest parties try to extend $B'_{j+k}$ using $\ledger_2$. Since we are assuming that $B'_{j+k}$  is a valid genesis block for $\ledger_2$ and 
 that $\asmp_2$ holds then we claim that $\ledger_2$ is secure and has as a prefix all the blocks of $\ledger_1$ up to $B_{j+k}$\footnote{We recall that $B'_{j+k}$
