@@ -39,18 +39,18 @@ Ledger consensus (a.k.a. ``Nakamoto consensus'') is the problem where a set of s
 that are called transactions and incorporate them in a public data 
 structure called the {\em ledger}. 
 A ledger (denoted in calligraphic-face, e.g. $\ledger$) is a mechanism for maintaining a sequence of transactions, often
-stored in the form of a blockchain (cf. Appendix \ref{se:bcabstraction}). In this paper, we slightly abuse the language by letting $\ledger$ (without further
-qualifiers) interchangeably refer to the algorithms used to maintain the sequence, and all the views of the
+stored in the form of a blockchain (cf. Appendix \ref{se:bcabstraction}). In this paper, we denote with $\ledger$ 
+the algorithms used to maintain the sequence, and with $\state$ all the views of the
 participants of the state of these algorithms when being executed. For example, the (existing) ledger Bitcoin
 consists of the set of all transactions that ever took place in the Bitcoin network, the current UTXO set, as
 well as the local views of all the participants.
 In contrast, we call a \emph{ledger state} a concrete sequence of transactions $\tx_1,\tx_2,\dots$ stored in the stable
-part of a ledger $\ledger$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
+part of a ledger state $\state$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
 every fixed chain $C$ defines a concrete ledger state by applying the interpretation rules given as a part of the
 description of $\ledger$. In this work, we assume that the ledger state is obtained from the blockchain by dropping the last $k$ blocks
 and serializing the transactions in the remaining blocks. We refer to $k$ as the \emph{common-prefix parameter}.
-We denote by $\ledger^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
-and by ${\check \ledger}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
+We denote by $\state^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
+and by ${\check \state}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
 %ledger states (or, more generally, any sequences), we denote by the prefix relation.
 % and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
 
@@ -59,7 +59,7 @@ For two ledger states (or, more generally, any sequences), we denote by $\preceq
 Recall the definition of secure ledger protocol given in~\cite{sok}.
 
 
-\begin{definition}\label{de:ledger} A ledger protocol $\ledger$ is secure if it enjoys the following two properties.
+\begin{definition}\label{de:ledger} A ledger protocol $\ledger$ is secure if it enjoys the following properties.
 
 
 \ignore{
@@ -82,29 +82,26 @@ $\mc{L}$ that includes $tx$.
 \begin{description}
   \item[Persistence.]
     For any two honest parties $\party_1,\party_2$ and two time slots $t_1\leq t_2$,
-    it holds  $\LView{\ledger}{\party_1}{t_1} \preceq
-    \LView{\check{\ledger}}{\party_2}{t_2}$.
+    it holds  $\LView{\state}{\party_1}{t_1} \preceq
+    \LView{\check{\state}}{\party_2}{t_2}$.
 
   \item[Liveness.]
     If all honest parties in the system attempt to include a  transaction $\tx$
     then, at any slot $t$ after $s$ slots (called the
     liveness parameter), any honest party $\party$, if queried,
-    will report $\tx \in \LView{\ledger}{\party}{t}$.
+    will report $\tx \in \LView{\state}{\party}{t}$.
 \end{description}
 
-
-%For a ledger $\ledger$ that satisfies persistence at time $t$, we denote by $\LView{\ledger}{\cup}{t}$ (resp.
-%$\LView{\ledger}{\cap}{t}$) the sequence of transactions that are seen as
-%included in the ledger by \emph{at least one} (resp., \emph{all}) of the honest
-%parties. 
-%Finally, $\length(\ledger)$ denotes the length of the ledger $\ledger$,
-%i.e., the number of transactions it contains.
-
-
-
-
-
 \end{definition}
+
+In this work we also rely on the property of \emph{Chain Growth (CG)} that is defined as follows.
+
+\begin{itemize}
+  \item[] {\bf Chain Growth (CG); with parameters $\cg\in (0,1]$ and $s\in\mathbb{N}$}. Consider the chain $\mathcal{C}$
+  adopted by an honest party at the onset of a slot and any portion of $\mathcal{C}$ spanning $s$ prior slots; then the number of 
+  blocks appearing in this portion of the chain is at least $\tau s$.
+ \end{itemize}
+
 
 
 We consider a setting where a set of parties run a protocol maintaining a ledger $\ledger_1$. Following~\cite{sidechain} we denote by $\asmp_1$
@@ -142,7 +139,7 @@ In the scenario that we are considering in this paper, each party that is runnin
 that receives this command starts the \emph{activation process}
 in order to run $\ledger_2$ (and maybe stop running $\ledger_1$) 
 The receipt of the input $(\activate,P_i)$ from the environment 
-corresponds to the moment in which the $j$-th block appears in $\ledger_1^{P_i}$.\footnote{We recall that the $j$-th block is used as a synchronization flag by the parties
+corresponds to the moment in which the $j$-th block appears in $\state_1^{P_i}$.\footnote{We recall that the $j$-th block is used as a synchronization flag by the parties
 and that the generation of this block triggers the activation protocol.} 
 
 
@@ -171,7 +168,7 @@ the state of $\ledger_2$ at some time $T>t'$ corresponds to the state of $\ledge
 
 
 
-The above implies that $\ledger_2$ extends $\ledger_1$ and that $\ledger_2$ is secure (i.e. it enjoys consistency and liveness).
+The above implies that $\state_2$ extends $\state_1$ and that $\ledger_2$ is secure (i.e. it enjoys consistency and liveness).
 In a nutshell, a secure update process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
 We now give a more formal definition.
 
@@ -179,7 +176,7 @@ We now give a more formal definition.
  We say that an activation process with activation parameters $(\Delta_1,\Delta_2)$ (where $\Delta_1,\Delta_2\in\mathbb{N}$) is secure if the following condition is satisfied:
 
 If $\asmp_2[t]=1$ for all $t\geq t_{P_1}+\Delta_1$ %with $\Delta_1,\Delta_2\in\mathbb{N}$
-and $\asmp_1[t']=1$ for all $t' \leq t_{P_1}+\Delta_1+\Delta_2$, then the state of $\ledger_2$ at some time $T\in [t_{P_1}+\Delta_1, t_{P_1}+\Delta_1+\Delta_2]$ is such that $\ledger^\star=\ledger_2$ where $  \ledger_1^{P_i}[t_{P_i}] \preceq \ledger^\star$ for some $P_i\in\activep$.  
+and $\asmp_1[t']=1$ for all $t' \leq t_{P_1}+\Delta_1+\Delta_2$, then the state of $\ledger_2$ at some time $T\in [t_{P_1}+\Delta_1, t_{P_1}+\Delta_1+\Delta_2]$ is such that $\state^\star=\state_2$ where $  \state_1^{P_i}[t_{P_i}] \preceq \state^\star$ for some $P_i\in\activep$.  
 
 \end{definition}
 

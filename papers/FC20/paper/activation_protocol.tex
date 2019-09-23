@@ -1,12 +1,12 @@
 \subsection{Candidate Protocol}
 
-Let $\ledger_1$ be the ledger that the parties are running with assumption $\asmp_1$, common-prefix parameter $k_1$ 
-and  liveness parameter $s_1$. 
-We now consider a new ledger $\ledger_2$ with assumption $\asmp_2$, common-prefix parameter $k_2$ and  liveness parameter $s_2$.
-We assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only
+Let $\ledger_1$ be the ledger that the parties are running and $\ledger_2$ be a new ledger.
+In our construction we assume that $\ledger_1$ and $\ledger_2$ have same common-prefix parameter $k$, same chain growth parameter $(\cg, s)$ and that their are secure under the same assumption $\asmp_1=\asmp_2$.
+
+We also assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only
 it represents a valid genesis block for $\ledger_2$, but it also point to the state of $\ledger_1$ up to the block $B$. 
 We use this a special genesis block to guarantee that 1) the state of $\ledger_1$ at the end of the activation is moved into the state of the new ledger
-and 2) that we can use a block of $\ledger_1$ to bootstrap $\ledger_1$.
+and 2) that we can use a block of $\ledger_1$ to bootstrap $\ledger_2$.
 
 At a very high level our protocol works as follows. When enough parties have received the command $(\activate,\cdot)$ such that $\asmp_2$ holds,
 a block of $\ledger_1$ is chosen as the special genesis block for $\ledger_2$. At this point the parties start running $\ledger_2$ and gradually abandon 
@@ -17,7 +17,7 @@ hold only for bounded interval of time and our protocol would still work if this
 We also assume that the parties in $\activep$ knows an index $j$ such that when the $j$-th block is added to the state of $\ledger_1$ then $\asmp_2$ holds. 
 More formally, at time $t^\upd$ the the $j$-th block is part of $\ledger_1^{P_i}$ for all $P_i\in\activep$.
 To ensure that $\asmp_2$ actually holds and to keep all the honest parties synchronized on the time $t^\upd$ (and on the index $j$) we use the approach proposed in Sec.~\ref{se:informal}.
-In more details $t^\upd$ represents either the time at which the threshold is met or it represents the time at which the safety lag period is over.
+In more details $t^\upd$ represents either the time at which the threshold is met or it represents the time in which the safety lag period ends.
  
 
 %\nnote{We can arrive at moment $t^\upd$, where $\ledger_2$ becomes secure, in two different ways: a) either the adoption threshold is met or b) the $j$-th block is added to the state of $\ledger_1$. If a) happens, then we dont need to wait for the $j$-th block to arrive. This last sentence does not "integrate" well with section 3.1}
@@ -27,35 +27,61 @@ We denote our update protocol with $\Pi$. In this, each honest party $P_i\in\act
 \begin{enumerate}
 	%\item Upon receiving the input $(\activate, \cdot)$ wait until the $j$-th block of $\ledger_1$ becomes part of all the honest parties' ledger state (i.e., wait until $B_{j}$ becomes part of $\ledger_1^{P_i}[t]$ 
 	%for all honest $P\in\activep$) and let $t^\upd$ be this time. \nnote{But if the adoption threshold is met, then we dont need to wait until $t^\upd$}
-	
-	\item When the $(j+k_1)$-th block $B_{j+k_1}$ appears in $\ledger_1^{P_i}[t]$ for some $t\geq t^\upd$ then create the special genesis block $B'$
-	and start running $\ledger_2$ using the special genesis block. \nnote{need to discuss this. It has confused me}
-	\item Run $\ledger_2$ (and keep running $\ledger_1$) until $B'$ becomes part of $\ledger_2^{P_i}[t]$ 
-	for each honest $P\in\activep$.
+	\item Run $\ledger_1$ and when the block $(j+k)$-th block $B_{j+k}$ becomes part of $\check \state^{P_i}[t]$ for some $t\geq t^\upd$
+	start running also $\ledger_2$ using $B'$ as the genesis block (where $B'$ is generated using $B_{j+k}$).\footnote{Note that the block
+	that $P_i$ sees might not become part of the $\ledger_1$ state.}
+	\item Run $\ledger_2$ (and keep running $\ledger_1$) until $B'$ becomes part of $\state_2^{P_i}[t]$ 
+	for each honest $P\in\activep$ for some $t\geq t^\upd$.
 	\item Stop running $\ledger_1$.
 \end{enumerate}
 
 
 
 \begin{theorem}
-$\Pi$ is a $(\Delta_1,\Delta_2)$-secure update system with $\Delta_1=s_1 k_1$ and $\Delta_2=s_1 k_1 + s_2 k_2$.
+Let $\ledger_1$ and $\ledger_2$ be two ledger that are secure under the assumption $\asmp_1=\asmp_2$ and
+that have common-prefix parameter $k$, chain growth parameter $(\cg, s)$ and chain quality parameter $(\ell,\mu)$, then
+ $\Pi$ is a $(\Delta_1,\Delta_2)$-secure update system with $\Delta_1=k\cg^{-1}$ and $\Delta_2=k \cg^{-1} + k \cg^{-1}$.
 \end{theorem}
 
-\begin{proof}
-By assumption we have that $\asmp_2[t]=1$ for all $t\geq t^\upd$. From the description of $\Pi$ we can claim that $t^\upd \leq t_{P_1}+k_1 s_1=t_{P_1}+\Delta_1$.
-That is, when an honest parties is activated she waits to be sure that also the other honest parties are activated. Hence, from the liveness and the common-prefix parameters
-each party needs to wait at most $\Delta_1=k_1 s_1$ time slots.
+To simplify our proof we consider the following \emph{canonical scenario} where $\ledger_2$ is executed in the standard way. More precisely, 
+we assume the existence of a genesis block and that $\asmp_2[t]$=1 for all $t\geq 0$. Let $\parties$ be the set of parties that is running $\ledger_2$. Also, 
+let $t_j$ be the smallest time slot in which $B_j$ appears in $\state_2^{P_i}[t]$ for each $P_i\in\parties$ and let $t_{j+k}$ be smallest time slot in which $B_{j+k}$ appears in 
+$\state_2^{P_i}[t']$ for each $P_i\in\parties$.
+We are now ready to prove the security of $\Pi$.
 
-From the moment when $\asmp_2$ becomes true the activation process takes $\Delta_2=s_1 k_1 + s_2 k_2$  times slots more to be completed.
-This is because the parties need to wait that $k_1$ blocks are generated in $\ledger_1$ and that $k_2$ blocks are generated in $\ledger_2$. 
-That is, the parties need to wait that the $(j+k_1)$-th block is stable in $\ledger_1$ (i.e., 
-it appears in $\ledger_1^P[t]$ for each honest $P\in\activep$) and the \emph{special genesis block} of $\ledger_2$ (that is generated using to the block $B_{j+k_1}$ of $\ledger_1$) appears 
-in $\ledger_2^P[t]$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $s_1$ ($s_2$ time slots) to be generated and that to appear in all the honest parties then we have that $\Delta_2=s_1 k_1 + s_2 k_2$.
-We observe that in the moment the block $B_{j+k}$ becomes available to the honest parties in $\activep$, these parties start running $\ledger_2$ while $\asmp_2$ holds.
-That is, the honest parties try to extend $B'_{j+k}$ using $\ledger_2$. Since we are assuming that $B'_{j+k}$  is a valid genesis block for $\ledger_2$ and 
-that $\asmp_2$ holds then we claim that $\ledger_2$ is secure and has as a prefix all the blocks of $\ledger_1$ up to $B_{j+k}$\footnote{We recall that $B'_{j+k}$
-contains $\ledger_1$ up to the $(j+k)$-th block.}. We note that the parties in $\activep$ need to run $\ledger_1$ until $B_{j+k}$ becomes stable in $\ledger_2$. That is, we need $\asmp_1$ to
-hold until the end of the update process otherwise the adversary could subvert $\ledger_1$ thus changing the $j+k$-th block of $\ledger_1$ (which would not be stable
-since the consistency property does not hold).
+\begin{proof}
+
+By assumption we have that $\asmp_2[t]=1$ for all $t\geq t^\upd$. From the description of $\Pi$ we can claim that $t^\upd \leq t_{P_1}+k\cg^{-1}=t_{P_1}+\Delta_1$.
+That is, when an honest party is activated she waits to be sure that also the other honest parties are activated. Hence, from the chain-growth and the common-prefix parameters
+each party needs to wait at most $\Delta_1=k\cg^{-1}$ time slots.
+
+From the moment when $\asmp_2$ becomes true the activation process takes $\Delta_2=k \cg^{-1} + k \cg^{-1}$  time slots more to be completed.
+This is because the parties need to wait that $k$ blocks are generated in $\state_1$ and that $k$ blocks are generated in $\state_2$. 
+That is, the parties need to wait the $(j+k)$-th to appear in $\ledger_1^P[t]$ for each honest $P\in\activep$) and the \emph{special genesis block} of $\ledger_2$ (that is generated using the block ${j+k}$-th block of $\ledger_1$) to appear 
+in $\ledger_2^P[t]$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $\cg^{-1}$ time slots then we have $\Delta_2=k \cg^{-1} + k \cg^{-1}$.
+
+
+In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
+using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
+Let $t'$ be smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
+If we take the execution of the protocol from time $t^\upd$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
+that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
+that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represents an issue since we are assuming that
+any block of $\state_1$ can be turned into a block of $\state_2$. 
+
+
+We note that since $\ledger_1$ is secure and the parameters of $\ledger_1$ are the same as $\ledger_2$ then, if
+
+\ignore{
+We now observe that at time $t^\upd$ we are in the canonical scenario since the assumption $\asmp_2$ holds and the honest parties
+have no information of the candidate block for the position $j+k+1$. The first with the canonical scenario and this case is that the parties will start running 
+$\ledger_2$ (which is secure) on the $(j+k+1)$-th.
+The other difference is that there is not a genesis block for $\ledger_2$. Indeed the block $j+k$ it might no be stable. To solve this problem we keep running $\ledger_1$
+until the block 
+}
+%We also note that when $\asmp_2$ becomes true the adversary, and potentially all the honest parties in $\activep$, not know what the candidate blocks for the position $j+k$.
+%This because we are guaranteed that at least one of the blocks will extend $j$ is honest and therefore not known to the adversary. The situation in which the 
+%parties $\activep$ start running $\ledger_2$ using as potentially different blocks ${B^i}'$ is equivalent to the situation 
+
 
 \end{proof}
