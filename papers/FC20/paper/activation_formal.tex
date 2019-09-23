@@ -3,7 +3,7 @@ Before providing our definition and construction we introduce our model.
 
 \subsubsection{Model.}
 
-In this section we define our notion of protocol execution following~\cite{DBLP:conf/eurocrypt/GarayKL15,DBLP:conf/focs/Canetti01}.
+In this section, we define our notion of protocol execution following~\cite{DBLP:conf/eurocrypt/GarayKL15,DBLP:conf/focs/Canetti01}.
 The execution of a protocol $\Pi$ is driven by an
 environment program $\env$ that may spawn multiple instances running the protocol $\Pi$. The programs
 in question can be thought of as interactive Turing machines (ITM) that have communication,
@@ -47,7 +47,7 @@ well as the local views of all the participants.
 In contrast, we call a ledger state a concrete sequence of transactions $\tx_1,\tx_2,\dots$ stored in the stable
 part of a ledger $\ledger$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
 every fixed chain $C$ defines a concrete ledger state by applying the interpretation rules given as a part of the
-description of $\ledger$. In this work we assume that the ledger state is obtained from the blockchain by dropping the last $k$ blocks
+description of $\ledger$. In this work, we assume that the ledger state is obtained from the blockchain by dropping the last $k$ blocks
 and serializing the transactions in the remaining blocks. We refer to $k$ as the \emph{common-prefix parameter}.
 We denote by $\ledger^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
 and by ${\check \ledger}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
@@ -86,7 +86,7 @@ $\mc{L}$ that includes $tx$.
     \LView{\check{\ledger}}{\party_2}{t_2}$.
 
   \item[Liveness.]
-    If all honest parties in the system attempt to include a  transaction
+    If all honest parties in the system attempt to include a  transaction \nnote{ "a transaction $\tx$"}
     then, at any slot $t$ after $s$ slots (called the
     liveness parameter), any honest party $\party$, if queried,
     will report $\tx \in \LView{\ledger}{\party}{t}$.
@@ -109,12 +109,12 @@ $\mc{L}$ that includes $tx$.
 
 We consider a setting where a set of parties run a protocol maintaining a ledger $\ledger_1$. Following~\cite{sidechain} we denote by $\asmp_1$
 the assumptions for $\ledger_1$.
- That is, if the assumption $\asmp_1$ holds then ledger $\ledger_1$ is secure under the Definition~\ref{de:ledger}.
+ That is, if the assumption $\asmp_1$ holds, then ledger $\ledger_1$ is secure under the Definition~\ref{de:ledger}.
 Formally, $\asmp_i$ for a ledger $\ledger_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that can assume value $1$, 
 if the assumption is satisfied, and $0$ otherwise.
 For example, $\asmp_i$ may denote that
 there has never been a majority of hashing power (or stake in a particular
-asset, on this ledger or elsewhere) under the control of the adversary; that a
+asset \nnote{stake is attributed to some public key (the stakeholder) and not to a particular coin. Unless, by "asset" you mean some cryptocurrency of a PoS blockchain. You explain this in the next paragraph}, on this ledger or elsewhere) under the control of the adversary; that a
 particular entity (in case of a centralized ledger) was not corrupted; and so
 on.
 Without loss of generality, we say that the assumption $\asmp_1$ for the ledger $\ledger_1$ holds if and only if the number of corrupted parties (the parties
@@ -131,16 +131,18 @@ There is an a priori unlimited number of (types of) assets, each asset represent
 
 
 \subsection{Defining Secure Activations}
-In this section we provide the definition of secure activations. Our definition is generic in the sense that can be applied to large class of ledgers 
-(e.g.PoS, PoW and so on).
+In this section, we provide the definition of secure activations. Our definition is generic in the sense that can be applied to large class of ledgers 
+(e.g., PoS, PoW and so on).
 
 Let $\ledger_1$ be the ledger that the parties are running with assumption $\asmp_1$ (and threshold $\tcorrupt_1$). We now consider a new ledger $\ledger_2$ with assumption $\asmp_2$ (and threshold $\tcorrupt_2$).
 $\ledger_2$ represents un updated version of $\ledger_2$ (i.e., an improved protocol with respect to $\ledger_1$).
-In the scenario that we are considering in this paper each party that is running $\ledger_1$ could receive the input $(\activate, \ledger_2)$. A party
+In the scenario that we are considering in this paper, each party that is running $\ledger_1$ could receive the input $(\activate, \ledger_2)$. A party
 that receives this command starts the \emph{activation process}
-in order to be prepared to run $\ledger_2$ (and maybe stop running $\ledger_1$). The receipt of the input $(\activate,\cdot)$ from the environment 
-corresponds to moment in which the $j$-th block appears in $\ledger_1$.\footnote{We recall that the $j$-th block is used as a synchronisation flag by the parties
-and that the generation of this block trigger the activation protocol.}
+in order to be prepared to run $\ledger_2$ (and maybe stop running $\ledger_1$) \nnote{So, when we receive this command, we start the preparation NOT the activation of changes?}. The receipt of the input $(\activate,\cdot)$ from the environment 
+corresponds to the moment in which the $j$-th block appears in $\ledger_1$.\footnote{We recall that the $j$-th block is used as a synchronization flag by the parties
+and that the generation of this block trigger the activation protocol.} \nnote{This contradicts with the "preparation" statement above. Is the moment that we receive the update command when we start the preparation, or the moment that the changes take effect i.e., the activation? This must be clarified.}
+
+\nnote{Of course, these are two separate moments. Shouldn't we have two separate commands from the env. for each one? E.g., (upgrade, L2)  and (activate, L2)}
 
 Let $t_P$ denote the time in which 
 the party $P$ receives the update command and let $\activep$ be the set of parties that received the update command. Without loss of generality, let $P_1$ be the first party to receive the update command (note that $t_{P_1}\leq t_{P_i}$ for all $P_i\in\activep$).
