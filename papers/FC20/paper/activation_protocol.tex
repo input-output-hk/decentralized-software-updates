@@ -65,19 +65,25 @@ using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recal
 Let $t'$ be smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
 If we take the execution of the protocol from time $t^\upd$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
 that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
-that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represents an issue since we are assuming that
-any block of $\state_1$ can be turned into a block of $\state_2$. 
+that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
+any block of $\state_1$ can be turned into a block of $\state_2$. \end{proof}
+
+Although the above protocol is generic it has the limitation that the parameters
+of $\ledger_1$ and $\ledger_2$ have to be the same. We could get rid of this limitation by requiring an additional property on $\ledger_2$.
+If $\ledger_2$ supports temporary dishonest majority~\cite{DBLP:journals/corr/abs-1908-00427} then we do not need the assumption on the equality parameters to 
+hold anymore.
+Indeed, in this case we can modify $\Pi$ as follows. At time $t^\upd$ the honest parties wait for the block $B_j$ to be stable and then they start using it as a genesis 
+block for $\ledger_2$.  We note that here it is crucial for $\ledger_2$ to support temporary dishonest majority since the adversary
+could potentially see the genesis block way sooner than honest parties can see it. This means that there is an interval of time in which only the adversary is extending 
+the genesis block and this corresponds to a situation in which the adversary has temporary dishonest majority.
+For the best of our knowledge, the positive results regarding temporary dishonest majority are for PoW blockchain like Bitcoin as showed in~\cite{DBLP:journals/corr/abs-1908-00427}.
+Another approach that can be currently applied to PoS protocol as well is the following. The parties in $\activep$ could run an multi-party computation (MPC) protocol
+that guarantees output delivery in order to generate a genesis block. If we assume that the number of honest parties represent the majority in $\activep$
+then they can run this MPC protocol and then start running $\ledger_2$ using the obtained genesis block.
 
 
-\ignore{
-We now observe that at time $t^\upd$ we are in the canonical scenario since the assumption $\asmp_2$ holds and the honest parties
-have no information of the candidate block for the position $j+k+1$. The first with the canonical scenario and this case is that the parties will start running 
-$\ledger_2$ (which is secure) on the $(j+k+1)$-th.
-The other difference is that there is not a genesis block for $\ledger_2$. Indeed the block $j+k$ it might no be stable. To solve this problem we keep running $\ledger_1$
-until the block 
-}
-%We also note that when $\asmp_2$ becomes true the adversary, and potentially all the honest parties in $\activep$, not know what the candidate blocks for the position $j+k$.
-%This because we are guaranteed that at least one of the blocks will extend $j$ is honest and therefore not known to the adversary. The situation in which the 
-%parties $\activep$ start running $\ledger_2$ using as potentially different blocks ${B^i}'$ is equivalent to the situation 
 
-\end{proof}
+
+
+
+
