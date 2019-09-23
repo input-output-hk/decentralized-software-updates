@@ -19,9 +19,9 @@ One size does not fit all and surely, all software updates are not the same. The
 %\item Size of change (e.g., man-effort required to be implemented).
 %\item Platform-specific change (Linux, Windows MacOS etc.)
 \end{itemize}
-These and many other characteristics comprise the essential context of a software update and should be clearly described in the respective metadata, which are submitted along the SIPs, or UPs and then reviewed and approved by the stakeholders. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the appendix \ref{appxmetadata}. 
+These and many other characteristics comprise the essential context of a software update and should be clearly described in the respective metadata, which are submitted along the SIPs, or UPs and then reviewed and approved by the stakeholders. We distinguish several categories of metadata that result to a holistic view of a software update. The proposed list of update metadata can be found in the Appendix \ref{appxmetadata}. 
 
-We propose a software update logic that is \emph{metadata-driven}. A logic that distinguishes one SU from another and applies the appropriate \emph{update policy} and evaluates the required \emph{update constraints} (cf. appendix \ref{appdxupdcons}) based on these metadata. 
+We propose a software update logic that is \emph{metadata-driven}. A logic that distinguishes one SU from another and applies the appropriate \emph{update policy} and evaluates the required \emph{update constraints} (cf. Appendix \ref{appdxupdcons}) based on these metadata. 
 %We have seen from the previous sections that the software update metadata are submitted along with the SIP or UP and are approved for their correctness by the stakeholders. Thus we can assume that these metadata safely set the software update \emph{context}, in which our update logic will be applied. 
 In this section, we describe our proposal for achieving such a \emph{metadata-driven}, decentralized software update mechanism by means of \emph{update policies}.
 
@@ -37,7 +37,7 @@ An \emph{update policy} is a method to apply a customized activation of a softwa
 %for software updates that impact the consensus protocol, we need to be cautious not to cause a chain split by a premature activation of a software update. 
  software updates with a complex deployment process should take a longer time to activate. Therefore, there exist software updates for which we need to go fast and others for which we need to be cautious and slow down.
 
-We have discussed delegation for special categories (cf. appendix \ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Moreover, in the previous section we have discussed the concepts of the adoption threshold and the safety lag as the main condition to activate the changes of a software update.
+We have discussed delegation for special categories (cf. Appendix~\ref{appxdelspecial}) as a method to speed-up (indirectly) the time to activation for a software update by delegating the approval of such software updates to a specialized group of experts. Moreover, in the previous section we have discussed the concepts of the adoption threshold and the safety lag as the main condition to activate the changes of a software update.
 
 %Here we want to introduce also the concept of the \emph{safety lag}. %In the following subsections, we discuss two other factors that impact directly the activation speed of a software update and thus enable update policies and also propose ways to guard against chain splits.
 
