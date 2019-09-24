@@ -3,17 +3,17 @@
 Let $\ledger_1$ be the ledger that the parties are running and $\ledger_2$ be a new ledger.
 In our construction we assume that $\ledger_1$ and $\ledger_2$ have same common-prefix parameter $k$, same chain-growth parameter $(\cg, s)$ and that they are secure under the same assumption $\asmp_1=\asmp_2$. We also assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only
 it represents a valid genesis block for $\ledger_2$, but it also points to the state of $\ledger_1$ up to the block $B$. 
-We use this a special genesis block to guarantee that 1) the state of $\ledger_1$ at the end of the activation is moved into the state of the new ledger
+We use this special genesis block to guarantee that: 1) the state of $\ledger_1$ at the end of the activation is moved into the state of the new ledger
 and 2) that we can use a block of $\ledger_1$ to bootstrap $\ledger_2$.
 At a very high level our protocol works as follows. When enough parties have received the command $(\activate,\cdot)$ such that $\asmp_2$ holds,
 a block of $\ledger_1$ is chosen as the special genesis block for $\ledger_2$. At this point the parties start running $\ledger_2$ and gradually abandon 
 $\ledger_1$.
 In the description of our update protocol we assume that there is a time $t^\upd$ such that $\asmp_2[t]$ holds for all $t\geq t^\upd=t_{P_1}+\Delta_1$.\footnote{We could require $\asmp_2$ to
 hold only for bounded interval of time and our protocol would still work if this interval is large enough.}
-We also assume that the parties in $\activep$ knows an index $j$ such that when the $j$-th block is added to the state of $\ledger_1$ then $\asmp_2$ holds. 
+We also assume that the parties in $\activep$ know an index $j$ such that when the $j$-th block is added to the state of $\ledger_1$ then $\asmp_2$ holds. 
 More formally, at time $t^\upd$ the $j$-th block is part of $\ledger_1^{P_i}$ for all $P_i\in\activep$.
 To ensure that $\asmp_2$ actually holds and to keep all the honest parties synchronized on the time $t^\upd$ (and on the index $j$) we use the approach proposed in Sec.~\ref{se:informal}.
-In more details $t^\upd$ represents either the time at which the threshold is met or it represents the time in which the safety lag period ends.
+In more details $t^\upd$ represents either the time at which the threshold is met, or it represents the time in which the safety lag period ends.
  
 
 %\nnote{We can arrive at moment $t^\upd$, where $\ledger_2$ becomes secure, in two different ways: a) either the adoption threshold is met or b) the $j$-th block is added to the state of $\ledger_1$. If a) happens, then we dont need to wait for the $j$-th block to arrive. This last sentence does not "integrate" well with section 3.1}
