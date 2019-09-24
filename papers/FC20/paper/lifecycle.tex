@@ -66,14 +66,14 @@ a) there is not a centrally-owned code repository to maintain the code-base (sin
 \begin{figure}[h!] %[H]
     \centering
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/implementation_phase.pdf}
-    \label{implementation}
+    \label{fig:implementation}
         \caption{The implementation phase.}
 
 \end{figure}
 
 %In Figure \ref{implementation}, we depict the decentralized implementation phase. Similar to the centralized case, the implementation of a change must be based on some existing code, which we call the base source code and the developer must download locally, in order to initiate the implementation. However, in the decentralized setting there is not a centrally-owned code repository. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the developer-owned code repository provided in the UP metadata. We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution. This conceptually can be any storage area that is not centrally-owned; from something very common, as a developer-owned Github repository to something more elaborate as a content-addressable decentralized file system.
 
-In Figure \ref{implementation}, we depict the decentralized implementation phase. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the %developer-owned 
+In Figure \ref{fig:implementation}, we depict the decentralized implementation phase. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the %developer-owned 
  code repository provided in the UP metadata. %We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution. This conceptually can be any storage area that is not centrally-owned; from something very common, as a developer-owned Github repository to something more elaborate as a content-addressable decentralized file system.
 It is true that the review of source code is a task that requires extensive technical skills and experience. Therefore, it is not a task that can be assumed by the broad base of the stakeholders community. A voting delegation mechanism at this point must be in place, to enable the delegation of the strenuous code-approval task to some group of experts (see the details of the proposed delegation mechanism in the Appendix \ref{appxdelegation}). 
 %In a similar logic with the delegation process, within the ideation phase, discussed above, the delegation process could be leveraged to implement different update policies per type of software update.
@@ -143,7 +143,7 @@ Once more, the essential part that differentiates the decentralized from the cen
 \subsubsection{Activation.}\label{se:activation}
 
 %\paragraph{Scope of this phase.}
-The final phase in the lifecycle of a software update, depicted in Figure \ref{lifecycle}, is the activation phase. This is a preparatory phase before the changes actually take effect. It is the phase, where we let the nodes do all the manual steps necessary, in order to upgrade to an approved UP and then synchronize with their peers before the changes take effect.
+The final phase in the lifecycle of a software update, depicted, is the activation phase. This is a preparatory phase before the changes actually take effect. It is the phase, where we let the nodes do all the manual steps necessary, in order to upgrade to an approved UP and then synchronize with their peers before the changes take effect.
 %at the end, send a signal to their peers that they are ready for the changes to be activated.
  Thus, the activation phase is clearly a synchronization period. Its primary purpose is for the nodes to activate changes synchronously.
 %to signal upgrade readiness, before the actual changes take effect (i.e., activate). 
