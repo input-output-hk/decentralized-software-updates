@@ -1,6 +1,6 @@
 \section{The Lifecycle of a Decentralized Software Update} \label{lifecycle}
 %A \emph{software update (SU)} is the unit of change for the blockchain software. It must have a clear goal of what it tries to achieve and why it would be beneficial, if applied to the system. Moreover, it should have a clear scope. In Figure \ref{lifecycle}, we depict the full lifecycle of a software update following a decentralized approach. In this lifecycle, we identify four distinct phases: a) the \emph{ideation phase}, b) the \emph{implementation phase}, c) the \emph{approval phase} and d) the \emph{activation phase}. In this section, we briefly outline each phase and at the subsequent sections, we provide all necessary details for realizing each phase in a decentralized setting.
-A \emph{software update (SU)} is the unit of change for the blockchain software. In Figure \ref{lifecycle}, we depict 
+A \emph{software update (SU)} is the unit of change for the blockchain software. In Figure~1, we depict 
 %In this section, we define 
 the full lifecycle of a software update following a decentralized approach. In this lifecycle, we identify four distinct consecutive phases: a) the \emph{ideation phase}, b) the \emph{implementation phase}, c) the \emph{approval phase} and d) the \emph{activation phase}. In the subsequent subsections, we provide a detailed description of each individual phase.
 
@@ -25,7 +25,7 @@ A SU starts as an idea. Someone captures the idea of implementing a change that 
 %Traditionally, in the centralized approach, a SU is proposed by some central authority (original author, group of authors, package maintainer etc.), who essentially records the need for a specific SU and then decides when (or, in which version) this could be released. In many cases, (e.g., Bitcoin \cite{bitcoin}, Ethereum \cite{ethereum}) the relevant SU justification document (called BIP, or EIP respectively) is submitted to the community, in order to be discussed. Even when this \say{social alignment} step is included in this phase, the ultimate decision (which might take place at a later phase in the lifecycle), for the proposed SU, is taken by the central authority. Therefore, the road-map for the system evolution is effectively decided centrally. Moreover, this social consensus approach is informal (i.e., not part of a protocol, or output of an algorithm) and is not recorded on-chain as an immutable historical event.
 
 %\paragraph{Decentralized approach.}
-The ideation phase in the decentralized approach is depicted in Figure \ref{ideation}.
+The ideation phase in the decentralized approach is depicted in Figure~2.
 \begin{figure}[h!] %[H]
        \centering
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/ideation_phase.pdf}
@@ -73,7 +73,7 @@ a) there is not a centrally-owned code repository to maintain the code-base (sin
 
 %In Figure \ref{implementation}, we depict the decentralized implementation phase. Similar to the centralized case, the implementation of a change must be based on some existing code, which we call the base source code and the developer must download locally, in order to initiate the implementation. However, in the decentralized setting there is not a centrally-owned code repository. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the developer-owned code repository provided in the UP metadata. We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution. This conceptually can be any storage area that is not centrally-owned; from something very common, as a developer-owned Github repository to something more elaborate as a content-addressable decentralized file system.
 
-In Figure \ref{fig:implementation}, we depict the decentralized implementation phase. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the %developer-owned 
+In Figure~3, we depict the decentralized implementation phase. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the %developer-owned 
  code repository provided in the UP metadata. %We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution. This conceptually can be any storage area that is not centrally-owned; from something very common, as a developer-owned Github repository to something more elaborate as a content-addressable decentralized file system.
 It is true that the review of source code is a task that requires extensive technical skills and experience. Therefore, it is not a task that can be assumed by the broad base of the stakeholders community. A voting delegation mechanism at this point must be in place, to enable the delegation of the strenuous code-approval task to some group of experts (see the details of the proposed delegation mechanism in the Appendix \ref{appxdelegation}). 
 %In a similar logic with the delegation process, within the ideation phase, discussed above, the delegation process could be leveraged to implement different update policies per type of software update.
@@ -157,7 +157,7 @@ Why do we need such a synchronization period in the first place? Why is not the 
 
 %\paragraph{Decentralized approach.}
 %Once the UP approval result has been buried under a sufficient number of blocks (i.e., the stabilization period passes)\mnote{I suppose that here you are talking about the activation method where the signalling is made by the block generators. Shouldn't this be part of the next paragraph?}
-Once the voting period of the Approval phase ends, the votes have been stably stored in the blockchain and the tally result is positive, then the activation period is initiated. In Figure \ref{activation}, we depict the activation period in the decentralized setting.
+Once the voting period of the Approval phase ends, the votes have been stably stored in the blockchain and the tally result is positive, then the activation period is initiated. In Figure~4, we depict the activation period in the decentralized setting.
 \begin{figure}[h!] %[H]
     \centering
     \includegraphics[width=1.0 \columnwidth,keepaspectratio]{figures/activation_phase.pdf}
