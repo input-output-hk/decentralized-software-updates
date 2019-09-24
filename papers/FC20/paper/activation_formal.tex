@@ -117,7 +117,7 @@ asset
 particular entity (in case of a centralized ledger) was not corrupted; and so
 on.
 Without loss of generality, we say that the assumption $\asmp_1$ for the ledger $\ledger_1$ holds if and only if the number of corrupted parties (the parties
-that received the input $(\corrupt, \cdot)$) is below the threshold $\tcorrupt$ (where $\tcorrupt$ is part of the control function as described in the beginning 
+that received the input $(\corrupt, \cdot)$) is below the threshold $\tcorrupt_1$ (where $\tcorrupt_1$ is part of the control function as described in the beginning 
 of this section).
 
 
@@ -135,7 +135,8 @@ In this section, we provide the definition of secure activations. Our definition
 Let $\ledger_1$ be the ledger that the parties are running with assumption $\asmp_1$. We now consider a new ledger $\ledger_2$ with assumption $\asmp_2$.
 We say that the assumption $\asmp_2$ for the ledger $\ledger_2$ holds if and only if the number of corrupted parties 
 that received the command $(\activate, \cdot)$ and the command $(\corrupt,\cdot)$
- is below the threshold $\tcorrupt$ (where $\tcorrupt$ is part of the control function as described previously).
+ is below the threshold $\tcorrupt_2$ (where $\tcorrupt_2$ is part of the control function as described previously).
+ We say that $\asmp_1=\asmp_2$ if and only if $\tcorrupt_1=\tcorrupt_2$.
 
 
 $\ledger_2$ represents un updated version of $\ledger_2$ (i.e., an improved protocol with respect to $\ledger_1$).
