@@ -24,8 +24,8 @@ We denote our update protocol with $\Pi$. In this, each honest party $P_i\in\act
 	%\item Upon receiving the input $(\activate, \cdot)$ wait until the $j$-th block of $\ledger_1$ becomes part of all the honest parties' ledger state (i.e., wait until $B_{j}$ becomes part of $\ledger_1^{P_i}[t]$ 
 	%for all honest $P\in\activep$) and let $t^\upd$ be this time. \nnote{But if the adoption threshold is met, then we dont need to wait until $t^\upd$}
 	\item Run $\ledger_1$ and when the $(j+k)$-th block $B^i_{j+k}$ becomes part of $\check \state^{P_i}[t]$ for some $t\geq t^\upd$
-	start running also $\ledger_2$ using ${B^i}'$ as the candidate special genesis block (where ${B^i}'$ is generated using $B^i_{j+k}$).\footnote{Note that the block
-	 $B^i_{j+k}$ that $P_i$ sees might not become part of the $\state_1$ state.}
+	start running also $\ledger_2$ using ${B^i}'$ as the candidate special genesis block (where ${B^i}'$ is generated using $B^i_{j+k}$).\footnote{Note that
+	the special genesis block ${B^i}'$ obtained from $B^i_{j+k}$ could not be adopted as the genesis block for $\ledger_2$.}
 	\item Run $\ledger_2$ (and keep running $\ledger_1$) until there is an agreement on a special genesis block. That is, one of the candidate special genesis block 
 	becomes part of $\state_2^{P_i}[t]$ for each honest $P\in\activep$ for some $t\geq t^\upd$.
 	\item Stop running $\ledger_1$.

@@ -16,11 +16,11 @@
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
 \usepackage{listings}
-\usepackage{graphviz}
-\usepackage{dot2texi}
-\usepackage{tikz}
-\usepackage{pgfplots}
-\usetikzlibrary{shapes,arrows}
+%\usepackage{graphviz}
+%\usepackage{dot2texi}
+%\usepackage{tikz}
+%\usepackage{pgfplots}
+%\usetikzlibrary{shapes,arrows}
 \usepackage{color}
 \usepackage{hyperref}
 \usepackage{import}
@@ -40,6 +40,8 @@
   frame=n
 }
 
+\ignore{
+
 \lstdefinestyle{numbers}{numbers=left, stepnumber=1, numberstyle=\tiny, numbersep=10pt}
 \let\origthelstnumber\thelstnumber
 \makeatletter
@@ -54,6 +56,7 @@
    \let\thelstnumber\origthelstnumber%
    \advance\c@lstnumber\@ne\relax}%
 }
+}
 
 %bitcoin character
 \def\bitcoin{%
@@ -66,9 +69,11 @@
     \vbox{\copy2\box0}\box2}}
 
 %fontsize between \LARGE and \huge
+\ignore{
 \makeatletter 
 \newcommand\semihuge{\@setfontsize\semihuge{19.22}{23.88}}
 \makeatother
+}
 
 %environment for separate proof
 \newenvironment{sepproof}[1]{\noindent \textbf{#1}}{\qed \smallskip \ \\}
@@ -93,8 +98,8 @@
     anchorcolor=darkblue,citecolor=darkblue}
 
 %custom figures counter
-\newcounter{figcount}
-\newcommand{\figlabel}[1]{\refstepcounter{figcount}\arabic{figcount}\label{#1}}
+%\newcounter{figcount}
+%\newcommand{\figlabel}[1]{\refstepcounter{figcount}\arabic{figcount}\label{#1}}
 %Definitions
 \newcommand{\from}{\xleftarrow{\text{\$}}}
 \newcommand{\ppt}{{\sc ppt}}
