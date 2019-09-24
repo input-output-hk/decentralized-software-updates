@@ -141,7 +141,7 @@ in order to run $\ledger_2$ (and maybe stop running $\ledger_1$).
 %corresponds to the moment in which the $j$-th block appears in $\state_1^{P_i}$.\footnote{We recall that the $j$-th block is used as a synchronization flag by the parties
 %and that the generation of this block triggers the activation protocol.} 
 Let $t_{P_i}$ denote the time in which 
-a party $P_i$ receives the activation command and let $\activep$ be the set of parties that received this command command. Without loss of generality, let $P_1$ be the first party to receive the update command (note that $t_{P_1}\leq t_{P_i}$ for all $P_i\in\activep$).
+a party $P_i$ receives the activation command and let $\activep$ be the set of parties that received this command. Without loss of generality, let $P_1$ be the first party to receive the update command (note that $t_{P_1}\leq t_{P_i}$ for all $P_i\in\activep$).
 %We note that if a set of parties $\parties$ is such that the assumption $\asmp_2$ holds (e.g. if enough honest parties are willing to maintain $\ledger_2$), then $\ledger_2$ is
 %secure.
 
@@ -150,7 +150,7 @@ Informally, a secure activation process guarantees that if the set of honest par
 is such that $\asmp_2[t]=1$   (i.e., the number of corrupted parties is less
 than $\tcorrupt_2$) for some $t\geq t_{P_1}+\Delta_1$, then
 the state of $\ledger_2$ at time $t_{P_1}+\Delta_1+\Delta_2$ corresponds to the state of $\ledger_1$ at time $t_{P_i}$ with $P_i\in\activep$.
-The parameter $\Delta_1$ defines how much has to pass until the number of honest parties that have received $(\activate,\cdot)$
+The parameter $\Delta_1$ defines how much time has to pass until the number of honest parties that have received $(\activate,\cdot)$
 is such that the assumption $\asmp_2$ holds. $\Delta_2$ instead represents the time required for the update process to be completed.
 
  
@@ -166,7 +166,7 @@ is such that the assumption $\asmp_2$ holds. $\Delta_2$ instead represents the t
 
 
 
-The above implies that $\state_2$ extends $\state_1$ and that $\ledger_2$ is secure (i.e. it enjoys consistency and liveness).
+The above implies that $\state_2$ \nnote{$\ledger_2$} extends $\state_1$ \nnote{$\ledger_1$} and that $\ledger_2$ is secure (i.e. it enjoys consistency and liveness).
 In a nutshell, a secure update process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
 We now give a more formal definition.
 
