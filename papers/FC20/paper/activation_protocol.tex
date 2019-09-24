@@ -33,35 +33,13 @@ We denote our update protocol with $\Pi$. In this, each honest party $P_i\in\act
 
 
 
-\begin{theorem}
+\begin{theorem}\label{th:main}
 Let $\ledger_1$ and $\ledger_2$ be two ledgers that are secure under the assumption $\asmp_1=\asmp_2$ and
 that have common-prefix parameter $k$ and chain-growth parameter $(\cg, s)$ then
  $\Pi$ is a $(\Delta_1,\Delta_2)$-secure update system with $\Delta_1=k\cg^{-1}$ and $\Delta_2=k \cg^{-1} + k \cg^{-1}$.
 \end{theorem}
 
-To simplify our proof we introduce the notion of \emph{canonical scenario} for the the ledger $\ledger_2$. In a canonical scenario the ledger
-$\ledger_2$ is executed in the standard way. More precisely, 
-we assume the existence of a genesis block and that $\asmp_2[t]$=1 for all $t\geq 0$. Let $\parties$ be the set of parties that is running $\ledger_2$. Also, 
-let $t_j$ be the smallest time slot in which $B_j$ appears in $\state_2^{P_i}[t]$ for each $P_i\in\parties$ and let $t_{j+k}$ be smallest time slot in which $B_{j+k}$ appears in 
-$\state_2^{P_i}[t']$ for each $P_i\in\parties$.
-We are now ready to prove the security of $\Pi$.
-
-\begin{proof}
-
-By assumption we have that $\asmp_2[t]=1$ for all $t\geq t^\upd$. From the description of $\Pi$ we can claim that $t^\upd \leq t_{P_1}+k\cg^{-1}=t_{P_1}+\Delta_1$.
-That is, when an honest party is activated she waits to be sure that also the other honest parties are activated. Hence, from the chain-growth and the common-prefix parameters
-each party needs to wait at most $\Delta_1=k\cg^{-1}$ time slots.
-From the moment when $\asmp_2$ becomes true the activation process takes $\Delta_2=k \cg^{-1} + k \cg^{-1}$  time slots more to be completed.
-This is because the parties need to wait that $k$ blocks are generated in $\state_1$ and that $k$ blocks are generated in $\state_2$. 
-That is, the parties need to wait the $(j+k)$-th block to appear in $\state_1^P[t]$ for each honest $P\in\activep$) and the \emph{special genesis block} of $\ledger_2$ (that is generated using the block $(j+k)$-th block of $\ledger_1$) to appear 
-in $\state_2^P[t]$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $\cg^{-1}$ time slots then we have that $\Delta_2=k \cg^{-1} + k \cg^{-1}$.
-In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
-using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
-Let $t'$ be smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
-If we take the execution of the protocol from time $t^\upd$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
-that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
-that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
-any block of $\state_1$ can be turned into a block of $\state_2$. \end{proof}
+We refer the reader to Appendix~\ref{se:proof} for the formal proof.
 Although the above protocol is generic it has the limitation that the parameters
 of $\ledger_1$ and $\ledger_2$ have to be the same. We could get rid of this limitation by requiring an additional property on $\ledger_2$.
 If $\ledger_2$ supports temporary dishonest majority~\cite{DBLP:journals/corr/abs-1908-00427} then we do not need the assumption on the equality parameters to 
