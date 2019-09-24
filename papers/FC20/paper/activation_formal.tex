@@ -133,6 +133,11 @@ of this section).
 In this section, we provide the definition of secure activations. Our definition is generic in the sense that can be applied to a large class of ledgers 
 (e.g., PoS, PoW and so on).
 Let $\ledger_1$ be the ledger that the parties are running with assumption $\asmp_1$. We now consider a new ledger $\ledger_2$ with assumption $\asmp_2$.
+We say that the assumption $\asmp_2$ for the ledger $\ledger_2$ holds if and only if the number of corrupted parties 
+that received the command $(\activate, \cdot)$ and the command $(\corrupt,\cdot)$
+ is below the threshold $\tcorrupt$ (where $\tcorrupt$ is part of the control function as described previously).
+
+
 $\ledger_2$ represents un updated version of $\ledger_2$ (i.e., an improved protocol with respect to $\ledger_1$).
 In the scenario that we are considering in this paper, each party that is running $\ledger_1$ could receive the input $(\activate, \ledger_2)$. A party
 that receives this command starts the \emph{activation process}
