@@ -41,17 +41,17 @@ Let $\ledger_1$ and $\ledger_2$ be two ledgers that are secure under the assumpt
 We refer the reader to Appendix~\ref{se:proof} for the formal proof.
 Although the above protocol is generic it has the limitation that the parameters
 of $\ledger_1$ and $\ledger_2$ have to be the same. We could get rid of this limitation by requiring an additional property on $\ledger_2$.
-If $\ledger_2$ supports temporary dishonest majority~\cite{DBLP:journals/corr/abs-1908-00427} then we do not need the assumption on the equality parameters to 
+If $\ledger_2$ supports temporary dishonest majority~\cite{DBLP:journals/corr/abs-1908-00427} then we do not need the assumption on the equality of the parameters to 
 hold anymore.
 Indeed, in this case we can modify $\Pi$ as follows. At time $t^\upd$ the honest parties wait for the block $B_j$ to be stable and then they start using it as a genesis 
 block for $\ledger_2$.  We note that here it is crucial for $\ledger_2$ to support temporary dishonest majority since the adversary
 could potentially see the genesis block way sooner than honest parties can see it. This means that there is an interval of time in which only the adversary is extending 
 the genesis block and this corresponds to a situation in which the adversary has temporary dishonest majority.
-For the best of our knowledge, the positive results regarding temporary dishonest majority are for PoW blockchain like Bitcoin as showed in~\cite{DBLP:journals/corr/abs-1908-00427}.
+For the best of our knowledge, the positive results regarding temporary dishonest majority are for PoW blockchain like Bitcoin (see~\cite{DBLP:journals/corr/abs-1908-00427}
+for a formal treatment of the problem).
 Another approach that can be currently applied to PoS protocol as well is the following. We let the parties in $\activep$ to run a multi-party computation (MPC) protocol
 that guarantees output delivery in order to generate a special genesis block for $\ledger_2$. If we assume that the number of honest parties in $\activep$
 represents the majority then they can execute this MPC protocol and then start running $\ledger_2$ using the obtained genesis block.
-
 
 
 
