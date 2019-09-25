@@ -113,9 +113,9 @@ instance ( HashAlgorithm hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTIONS hashAlgo) where
 
-  type Environment (TRANSACTIONS hashAlgo) = Env
+  type Environment (TRANSACTIONS hashAlgo) = Environment TRANSACTION
 
-  type State (TRANSACTIONS hashAlgo) = St hashAlgo
+  type State (TRANSACTIONS hashAlgo) = State TRANSACTION
 
   type Signal (TRANSACTIONS hashAlgo) = [Tx hashAlgo]
 
@@ -144,9 +144,9 @@ data TRANSACTION hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
-  type Environment (TRANSACTION hashAlgo) = Environment (TRANSACTIONS hashAlgo)
+  type Environment (TRANSACTION hashAlgo) = Env
 
-  type State (TRANSACTION hashAlgo) = State (TRANSACTIONS hashAlgo)
+  type State (TRANSACTION hashAlgo) = St
 
   type Signal (TRANSACTION hashAlgo) = Tx hashAlgo
 
