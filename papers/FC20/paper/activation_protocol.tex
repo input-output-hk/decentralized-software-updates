@@ -13,7 +13,7 @@ hold only for bounded interval of time and our protocol would still work if this
 We also assume that the parties in $\activep$ know an index $j$ such that when the $j$-th block is added to the state of $\ledger_1$ then $\asmp_2$ holds. 
 More formally, at time $t^\upd$ the $j$-th block is part of $\ledger_1^{P_i}$ for all $P_i\in\activep$.
 To ensure that $\asmp_2$ actually holds and to keep all the honest parties synchronized on the time $t^\upd$ (and on the index $j$) we use the approach proposed in Sec.~\ref{se:informal}.
-In more details, $t^\upd$ represents either the time at which the threshold is met, or it represents the time in which the safety lag period ends.
+In more details, $t^\upd$ represents either the time at which the adoption threshold is met, or it represents the time in which the safety lag period ends.
  
 
 %\nnote{We can arrive at moment $t^\upd$, where $\ledger_2$ becomes secure, in two different ways: a) either the adoption threshold is met or b) the $j$-th block is added to the state of $\ledger_1$. If a) happens, then we dont need to wait for the $j$-th block to arrive. This last sentence does not "integrate" well with section 3.1}
