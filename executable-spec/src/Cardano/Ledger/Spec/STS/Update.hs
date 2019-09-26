@@ -38,7 +38,7 @@ data UPDATE hashAlgo
 -- adding more components to this environment.
 data Env hashAlgo
   = Env
-    { participants :: Environment (IDEATION hashAlgo)
+    { ideationEnv :: Environment (IDEATION hashAlgo)
     , implementationEnv :: Environment IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
@@ -93,7 +93,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { participants, implementationEnv }
+      TRC ( Env { ideationEnv, implementationEnv }
           , st@St { ideationSt, implementationSt }
           , update
           ) <- judgmentContext
@@ -101,8 +101,9 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
       case update of
         Ideation ideationPayload ->
           do
-            ideationSt' <- trans @(IDEATION hashAlgo) $
-              TRC (participants, ideationSt, ideationPayload)
+            ideationSt' <-
+              trans @(IDEATION hashAlgo)
+                $ TRC (ideationEnv, ideationSt, ideationPayload)
             pure $ st { ideationSt = ideationSt' }
         Implementation implementationPayload ->
           do
@@ -172,6 +173,6 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
     Env <$> envGen @(IDEATION hashAlgo) traceLength
         <*> envGen @IMPLEMENTATION traceLength
 
-  sigGen Env { participants } St { ideationSt } =
+  sigGen Env { ideationEnv } St { ideationSt } =
     -- For now we generate ideation payload only.
-    Ideation <$> sigGen @(IDEATION hashAlgo) participants ideationSt
+    Ideation <$> sigGen @(IDEATION hashAlgo) ideationEnv ideationSt
