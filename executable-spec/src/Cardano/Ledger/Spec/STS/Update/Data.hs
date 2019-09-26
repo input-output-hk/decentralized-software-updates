@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -38,12 +39,37 @@ data ImplementationPayload = ImplementationPayload
 data IdeationPayload hashAlgo
   = Submit (SIPCommit hashAlgo) (SIP hashAlgo)
   | Reveal (SIP hashAlgo)
-  | Vote (SIP hashAlgo) Confidence Core.VKey (Core.Sig IdeationPayload)
+  | Vote (BallotSIP hashAlgo)
   deriving (Eq, Ord, Show, Generic)
+
+-- | This is the ballot for a SIP
+data (BallotSIP hashAlgo) =
+  BallotSIP { votedsip :: (SIP hashAlgo)
+              -- ^ SIP that this ballot is for
+            , conf :: (Confidence hashAlgo)
+              -- the ballot outcome
+            , voter :: Core.VKey
+              -- the voter
+            , voterSig :: (Core.Sig (IdeationPayload hashAlgo))
+              -- the voter's signature on the vote text
+            }
+  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+
+instance Sized (IdeationPayload hashAlgo) where
+  -- TODO: define this properly
+  costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
   deriving (Eq, Ord, Show, Generic, HasTypeReps)
+
+-- | Records the voting result for a specific software update (SIP/UP)
+data VotingResult
+  deriving (Eq, Ord, Show)
+
+-- | Records the voting period status for a software update (SIP/UP)
+data VotingPeriod
+  deriving (Eq, Ord, Show)
 
 -- | Protocol version
 --

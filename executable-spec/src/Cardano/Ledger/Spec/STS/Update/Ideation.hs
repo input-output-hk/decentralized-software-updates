@@ -33,7 +33,7 @@ import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit, SIPCommit)
-import           Cardano.Ledger.Spec.STS.Update.Data (author)
+import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, VotingPeriod, BallotSIP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import qualified Data.Map.Strict as Map
@@ -57,6 +57,12 @@ data St hashAlgo
       -- will be created. This state is not part of the update protocol, it is used
       -- only for SIP generation purposes.
     , revealedSIPs :: !(Set (SIP hashAlgo))
+      -- ^ These are the revealed SIPs
+    , votedSIPs :: !(Map SIP VotingResult)
+      -- ^ This records the current voting result for each SIP
+    , stakeholdersVotes :: !(Map SIP (Map Core.VKey BallotSIP))
+    , votingPeriod :: !(Map SIP VotingPeriod)
+      -- ^ Records the voting period status per SIP
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
@@ -100,21 +106,43 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
         Submit sipc sip -> do
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
           sip ∉ submittedSIPs ?! SIPAlreadySubmitted sip
+
+          -- TODO: Add verification of signature inside SIPCommit
+
           pure $! st { commitedSIPs = Map.insert (Data.commit sipc) (sipc) commitedSIPs
                      , submittedSIPs = Set.insert sip submittedSIPs
                      }
-        -- TODO: Add the stabilization period constraint after the corresponding SIPCommit.
-        -- TODO: Add verification of signature inside SIPCommit
+
         Reveal sip -> do
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
           sip ∈ submittedSIPs ?! NoSIPToReveal sip
+
+          -- TODO: Submitted SIPCommit must be stable in the blockchain in order to be revealed.
+
           sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
           (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
                   }
         -- TODO: Add the stabilization period constraint after the corresponding Reveal.
-        Vote _ _ _ _ -> error "Define the rules for voting"
+        Vote _ -> error "Define the rules for voting"
+          -- do
+
+            -- voter must be a stakeholder
+
+            -- SIP must be a revealed SIP
+
+            -- TODO: Revealed SIP must be stabilized in the blockchain before voting period begins
+
+            -- TODO: Signature of the vote must be verified
+
+            -- The voting period for this SIP must be open for the vote to be valid
+
+            -- Update State
+              -- Update current voting result for this SIP
+                --
+
+              -- Update current voting period status for this SIP
     ]
 
 
