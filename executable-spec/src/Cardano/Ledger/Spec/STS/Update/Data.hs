@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -13,25 +13,22 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
+import           Data.Map.Strict (Map)
 import qualified Data.Sequence as Seq
-import Data.Word (Word64)
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
-import           Data.Set (Set)
-import           GHC.Generics (Generic)
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Typeable  (Typeable)
-import           Data.Map.Strict (Map)
-import           Data.Typeable   (typeOf)
+import           Data.Typeable (Typeable)
+import           Data.Typeable (typeOf)
+import           Data.Word (Word64)
+import           GHC.Generics (Generic)
 
-import           Cardano.Binary (ToCBOR (toCBOR), encodeListLen, encodeInt)
-import           Cardano.Crypto.Hash (Hash, hash, HashAlgorithm)
+import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
+import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
-import qualified Ledger.Core as Core
 import           Data.AbstractSize (HasTypeReps, typeReps)
+import qualified Ledger.Core as Core
 
-import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 
 data ImplementationPayload = ImplementationPayload
@@ -149,25 +146,6 @@ data SIPCommit hashAlgo =
 calcCommit :: HashAlgorithm hashAlgo => SIP hashAlgo -> Commit hashAlgo
 calcCommit sip@SIP { salt, author } =
   Commit $ hash (salt, author, hash sip)
-
--- | Ideation phase state
---
--- TODO: move this into ideation, and rename to St.
-data State hashAlgo
-  = State
-    { commitedSIPs :: !(Map (Commit hashAlgo) (SIPCommit hashAlgo))
-      -- ^ These are the encrypted SIPs that are submitted at the commit phase
-      -- of an SIP submission
-    , submittedSIPs :: !(Set (SIP hashAlgo))
-      -- ^ These are the SIPs that we need to generate for the testing to
-      -- take place. From these both the commitedSIP's as well as the revealedSIPs
-      -- will be created. This state is not part of the update protocol, it is used
-      -- only for SIP generation purposes.
-    , revealedSIPs :: !(Set (SIP hashAlgo))
-    }
-  deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup (State hashAlgo)
-  deriving Monoid via GenericMonoid (State hashAlgo)
 
 --------------------------------------------------------------------------------
 -- HasTypeReps instances

@@ -19,7 +19,7 @@ import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation  as Ideation
 
 
 onlyValidSignalsAreGenerated :: HasCallStack => Property
@@ -43,6 +43,6 @@ tracesAreClassified = withTests 300 $ property $ do
                         & Chain.transactionsSt
                         & Transaction.updateSt
                         & Update.ideationSt
-                        & Data.revealedSIPs
+                        & Ideation.revealedSIPs
                         & length
                         & fromIntegral

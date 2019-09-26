@@ -1,9 +1,12 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -13,6 +16,12 @@ import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Range (constant)
+import           Data.Map.Strict (Map)
+import           Data.Set (Set)
+import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
+                     GenericSemigroup (GenericSemigroup))
+import           GHC.Generics (Generic)
+
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
@@ -23,8 +32,7 @@ import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
-                     SIPData (SIPData), commitedSIPs, revealedSIPs,
-                     submittedSIPs)
+                     SIPData (SIPData), Commit, SIPCommit)
 import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -35,6 +43,24 @@ import qualified Ledger.Core as Core
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
+
+-- | Ideation phase state
+--
+data St hashAlgo
+  = St
+    { commitedSIPs :: !(Map (Commit hashAlgo) (SIPCommit hashAlgo))
+      -- ^ These are the encrypted SIPs that are submitted at the commit phase
+      -- of an SIP submission
+    , submittedSIPs :: !(Set (SIP hashAlgo))
+      -- ^ These are the SIPs that we need to generate for the testing to
+      -- take place. From these both the commitedSIP's as well as the revealedSIPs
+      -- will be created. This state is not part of the update protocol, it is used
+      -- only for SIP generation purposes.
+    , revealedSIPs :: !(Set (SIP hashAlgo))
+    }
+  deriving (Eq, Show, Generic)
+  deriving Semigroup via GenericSemigroup (St hashAlgo)
+  deriving Monoid via GenericMonoid (St hashAlgo)
 
 
 -- | Ideation phase of system updates
@@ -49,7 +75,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
   -- the use of 'Bimap'
   type Environment (IDEATION hashAlgo) = Bimap Core.VKey Core.SKey
 
-  type State (IDEATION hashAlgo) = Data.State hashAlgo
+  type State (IDEATION hashAlgo) = St hashAlgo
 
   type Signal (IDEATION hashAlgo) = IdeationPayload hashAlgo
 
@@ -67,7 +93,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
   transitionRules = [
     do
       TRC ( participants
-          , st@Data.State { commitedSIPs, submittedSIPs, revealedSIPs }
+          , st@St { commitedSIPs, submittedSIPs, revealedSIPs }
           , sig
           ) <- judgmentContext
       case sig of
@@ -105,7 +131,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
   -- We're interested in valid traces only at the moment.
   sigGen
     participants
-    Data.State { submittedSIPs } = do
+    St { submittedSIPs } = do
       owner <- newOwner
       -- generate the new SIP and pass it to generateASubmission "by value"
       -- otherwise you get non-deterministic SIP!
