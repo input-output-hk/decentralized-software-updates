@@ -1,11 +1,14 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Simple block-chain mock, to bundle transactions into blocks, including slot
 -- ticks.
@@ -17,6 +20,8 @@ import qualified Data.Bimap as Bimap
 import           GHC.Generics (Generic)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
+
+import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
@@ -33,9 +38,10 @@ import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION,
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
+import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
 
 
-data CHAIN
+data CHAIN hashAlgo
 
 
 data Env
@@ -51,38 +57,40 @@ data Env
   deriving (Eq, Show)
 
 
-data St
+data St hashAlgo
   = St
     { currentSlot :: !Slot
-    , transactionsSt :: State TRANSACTIONS
+    , transactionsSt :: State (TRANSACTIONS hashAlgo)
     }
   deriving (Eq, Show)
 
 
-data Block
+data Block hashAlgo
   = Block
     { slot :: !Slot
-    , transactions :: ![Signal TRANSACTION]
+    , transactions :: ![Signal (TRANSACTION hashAlgo)]
     }
-    deriving (Eq, Show, Generic, HasTypeReps)
+    deriving (Eq, Show, Generic)
+
+deriving instance HasTypeReps (Hash hashAlgo SIPData) => HasTypeReps (Block hashAlgo)
 
 
-instance Sized Block where
+instance Sized (Block hashAlgo) where
   costsList _ = costsList (undefined :: Signal TRANSACTION)
 
 
-instance STS CHAIN where
+instance STS (CHAIN hashAlgo) where
 
-  type Environment CHAIN = Env
+  type Environment (CHAIN hashAlgo) = Env
 
-  type State CHAIN = St
+  type State (CHAIN hashAlgo) = (St hashAlgo)
 
-  type Signal CHAIN = Block
+  type Signal (CHAIN hashAlgo) = (Block hashAlgo)
 
-  data PredicateFailure CHAIN
+  data PredicateFailure (CHAIN hashAlgo)
     = BlockSlotNotIncreasing CurrentSlot Slot
     | MaximumBlockSizeExceeded Size (Threshold Size)
-    | TransactionsFailure (PredicateFailure TRANSACTIONS)
+    | TransactionsFailure (PredicateFailure (TRANSACTIONS hashAlgo))
     deriving (Eq, Show)
 
 
@@ -120,7 +128,7 @@ instance STS CHAIN where
     ]
 
 
-instance Embed TRANSACTIONS CHAIN where
+instance Embed (TRANSACTIONS hashAlgo) (CHAIN hashAlgo) where
   wrapFailed = TransactionsFailure
 
 
@@ -128,7 +136,10 @@ instance Embed TRANSACTIONS CHAIN where
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
 
 
-instance HasTrace CHAIN where
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo SIPData)
+         ) => HasTrace (CHAIN hashAlgo) where
 
   envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> participantsGen
     where

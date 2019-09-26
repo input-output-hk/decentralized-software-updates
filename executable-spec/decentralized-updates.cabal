@@ -30,6 +30,9 @@ library
                      , hedgehog >= 1.0
                      , text
                      , hashable
+                     , cryptonite
+                     , cardano-binary
+                     , cardano-crypto-class
                      -- Cardano specific imports
                      , small-steps
                      , cs-ledger
