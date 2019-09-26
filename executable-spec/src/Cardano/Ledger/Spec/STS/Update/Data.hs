@@ -38,8 +38,12 @@ data ImplementationPayload = ImplementationPayload
 data IdeationPayload hashAlgo
   = Submit (SIPCommit hashAlgo) (SIP hashAlgo)
   | Reveal (SIP hashAlgo)
-  | Vote (SIP hashAlgo)
+  | Vote (SIP hashAlgo) Confidence Core.VKey (Core.Sig IdeationPayload)
   deriving (Eq, Ord, Show, Generic)
+
+-- | Vote Confidence with a 3-valued logic
+data Confidence = For | Against | Abstain
+  deriving (Eq, Ord, Show, Generic, HasTypeReps)
 
 -- | Protocol version
 --

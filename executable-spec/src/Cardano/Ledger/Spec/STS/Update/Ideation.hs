@@ -103,6 +103,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           pure $! st { commitedSIPs = Map.insert (Data.commit sipc) (sipc) commitedSIPs
                      , submittedSIPs = Set.insert sip submittedSIPs
                      }
+        -- TODO: Add the stabilization period constraint after the corresponding SIPCommit.
+        -- TODO: Add verification of signature inside SIPCommit
         Reveal sip -> do
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
           sip ∈ submittedSIPs ?! NoSIPToReveal sip
@@ -111,7 +113,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
                   }
-        Vote _ -> error "Define the rules for voting"
+        -- TODO: Add the stabilization period constraint after the corresponding Reveal.
+        Vote _ _ _ _ -> error "Define the rules for voting"
     ]
 
 
