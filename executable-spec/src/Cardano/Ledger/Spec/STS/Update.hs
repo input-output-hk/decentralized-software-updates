@@ -60,6 +60,7 @@ data UpdatePayload hashAlgo
   deriving (Eq, Show, Generic)
 
 deriving instance ( Typeable hashAlgo
+                  , HasTypeReps hashAlgo
                   , HasTypeReps (Commit hashAlgo)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
@@ -67,6 +68,7 @@ deriving instance ( Typeable hashAlgo
 
 instance ( Typeable hashAlgo
          , HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
          ) => Sized (UpdatePayload hashAlgo) where
