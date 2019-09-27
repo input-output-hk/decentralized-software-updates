@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -32,14 +33,9 @@ import           Data.AbstractSize (HasTypeReps, typeReps)
 
 import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
+
 data ImplementationPayload = ImplementationPayload
   deriving (Eq, Show, Generic, HasTypeReps)
-
-
-instance Sized ImplementationPayload where
-  -- TODO: define this properly
-  costsList implementationPayload = [(typeOf implementationPayload, 10)]
-
 
 -- | Ideation signals.
 data IdeationPayload hashAlgo
@@ -47,18 +43,6 @@ data IdeationPayload hashAlgo
   | Reveal (SIP hashAlgo)
   | Vote (SIP hashAlgo)
   deriving (Eq, Ord, Show, Generic)
-
-deriving instance ( Typeable hashAlgo
-                  , HasTypeReps (SIP hashAlgo)
-                  , HasTypeReps (Commit hashAlgo)
-                  ) => HasTypeReps (IdeationPayload hashAlgo)
-
-instance ( Typeable hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
-         ) => Sized (IdeationPayload hashAlgo) where
-  -- TODO: define this properly
-  costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 -- | Protocol version
 data ProtVer = ProtVer Word64
@@ -123,14 +107,6 @@ newtype URL = URL { getText :: Text }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (ToCBOR)
 
--- | This instance returns one 'Char' per-each character in the URL.
-instance HasTypeReps URL where
-  typeReps (URL text)
-    = Seq.fromList
-    $ typeOf (undefined :: URL)
-      : replicate (T.length text) (typeOf (undefined :: Char))
-
-
 -- | System improvement proposal
 data SIP hashAlgo =
   SIP { --id :: !UpId
@@ -147,25 +123,17 @@ data SIP hashAlgo =
       }
   deriving (Eq, Generic, Ord, Show)
 
-deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
-                  , Typeable hashAlgo
-                  ) => HasTypeReps (SIP hashAlgo)
-
 -- | A commitment data type.
 -- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
 newtype Commit hashAlgo =
   Commit { getCommit :: Hash hashAlgo ( Int
                                       , Core.VKey
-                                      , Hash hashAlgo (SIP hashAlgo))
+                                      , Hash hashAlgo (SIP hashAlgo)
+                                      )
          }
    -- TODO: ask Nikos: we need to give a type to the commit hash, should this be (Int, Key, Hash SIP)
   deriving stock (Generic)
   deriving (Show, Eq, Ord)
-
-
-instance Typeable hashAlgo => HasTypeReps (Hash hashAlgo (Commit hashAlgo)) where
-  typeReps commitHash = Seq.singleton (typeOf commitHash)
-
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit hashAlgo =
@@ -179,15 +147,10 @@ data SIPCommit hashAlgo =
             }
   deriving (Eq, Show, Ord, Generic)
 
-
-deriving instance (Typeable hashAlgo, HasTypeReps (Commit hashAlgo)) => HasTypeReps (SIPCommit hashAlgo)
-
-
 -- | Calculate a `Commit` from a `SIP`
 calcCommit :: HashAlgorithm hashAlgo => SIP hashAlgo -> Commit hashAlgo
 calcCommit sip@SIP { salt, author } =
   Commit $ hash (salt, author, hash sip)
-
 
 -- | Ideation phase state
 --
@@ -207,6 +170,55 @@ data State hashAlgo
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (State hashAlgo)
   deriving Monoid via GenericMonoid (State hashAlgo)
+
+
+--------------------------------------------------------------------------------
+-- HasTypeReps instances
+--------------------------------------------------------------------------------
+
+-- | This instance returns one 'Char' per-each character in the URL.
+instance HasTypeReps URL where
+  typeReps (URL text)
+    = Seq.fromList
+    $ typeOf (undefined :: URL)
+      : replicate (T.length text) (typeOf (undefined :: Char))
+
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps (SIP hashAlgo)
+                  , HasTypeReps (Commit hashAlgo)
+                  ) => HasTypeReps (IdeationPayload hashAlgo)
+
+deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
+                  , Typeable hashAlgo
+                  ) => HasTypeReps (SIP hashAlgo)
+
+-- | A commit is basically wrapping the hash of some salt, owner verification
+-- key, and SIP. The size of the hash is determined by the type of hash
+-- algorithm
+instance HasTypeReps hashAlgo => HasTypeReps (Commit hashAlgo) where
+  typeReps _ = typeReps (undefined :: hashAlgo)
+
+instance Typeable hashAlgo => HasTypeReps (Hash hashAlgo (Commit hashAlgo)) where
+  typeReps commitHash = Seq.singleton (typeOf commitHash)
+
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps (Commit hashAlgo)
+                  ) => HasTypeReps (SIPCommit hashAlgo)
+
+--------------------------------------------------------------------------------
+-- Sized instances
+--------------------------------------------------------------------------------
+
+instance Sized ImplementationPayload where
+  -- TODO: define this properly
+  costsList implementationPayload = [(typeOf implementationPayload, 10)]
+
+instance ( Typeable hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => Sized (IdeationPayload hashAlgo) where
+  -- TODO: define this properly
+  costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 
 --------------------------------------------------------------------------------

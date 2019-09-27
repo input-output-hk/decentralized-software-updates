@@ -3,15 +3,15 @@
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-prelude"; version = "0.1.0.0"; };
+      identifier = { name = "cardano-binary"; version = "1.5.0"; };
       license = "MIT";
-      copyright = "2018 IOHK";
+      copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "A Prelude replacement for the Cardano project";
-      description = "A Prelude replacement for the Cardano project";
+      synopsis = "Binary serialization for Cardano";
+      description = "This package includes the binary serialization format for Cardano";
       buildType = "Simple";
       };
     components = {
@@ -19,20 +19,14 @@
         depends = [
           (hsPkgs.base)
           (hsPkgs.aeson)
-          (hsPkgs.array)
-          (hsPkgs.base16-bytestring)
           (hsPkgs.bytestring)
-          (hsPkgs.canonical-json)
+          (hsPkgs.cardano-prelude)
           (hsPkgs.cborg)
           (hsPkgs.containers)
+          (hsPkgs.digest)
           (hsPkgs.formatting)
-          (hsPkgs.ghc-heap)
-          (hsPkgs.ghc-prim)
-          (hsPkgs.hashable)
-          (hsPkgs.integer-gmp)
-          (hsPkgs.mtl)
-          (hsPkgs.nonempty-containers)
-          (hsPkgs.protolude)
+          (hsPkgs.recursion-schemes)
+          (hsPkgs.safe-exceptions)
           (hsPkgs.tagged)
           (hsPkgs.text)
           (hsPkgs.time)
@@ -40,37 +34,33 @@
           ];
         };
       tests = {
-        "cardano-prelude-test" = {
+        "test" = {
           depends = [
             (hsPkgs.base)
-            (hsPkgs.aeson)
-            (hsPkgs.aeson-pretty)
-            (hsPkgs.attoparsec)
-            (hsPkgs.base16-bytestring)
             (hsPkgs.bytestring)
-            (hsPkgs.canonical-json)
+            (hsPkgs.cardano-binary)
             (hsPkgs.cardano-prelude)
+            (hsPkgs.cardano-prelude-test)
+            (hsPkgs.cborg)
             (hsPkgs.containers)
-            (hsPkgs.cryptonite)
             (hsPkgs.formatting)
-            (hsPkgs.ghc-heap)
-            (hsPkgs.ghc-prim)
             (hsPkgs.hedgehog)
             (hsPkgs.hspec)
             (hsPkgs.pretty-show)
             (hsPkgs.QuickCheck)
             (hsPkgs.quickcheck-instances)
+            (hsPkgs.tagged)
             (hsPkgs.text)
-            (hsPkgs.template-haskell)
-            (hsPkgs.time)
+            (hsPkgs.vector)
             ];
           };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-prelude";
-      rev = "362525f617d638547270b57d597871ae3ef0e2b6";
-      sha256 = "0hbz42xi6pxmh92s9jhk82bllk0i9xgc856jxba2hrsyc3gvkmdp";
+      url = "https://github.com/input-output-hk/cardano-base";
+      rev = "80f25cde254d523f34d9804e6e009925d9775adb";
+      sha256 = "1c5f43fh9s0b8jmy9b0yc11bbjz0zc9fydjj2nh66jivnl04wwjm";
       });
+    postUnpack = "sourceRoot+=/binary; echo source root reset to \$sourceRoot";
     }

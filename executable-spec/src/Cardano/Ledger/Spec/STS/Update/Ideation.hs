@@ -14,7 +14,7 @@ import qualified Data.Set as Set
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Range (constant)
 
-import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
+import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,

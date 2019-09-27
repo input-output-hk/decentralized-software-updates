@@ -31,9 +31,9 @@ library
                      , text
                      , hashable
                      , cryptonite
+                     -- Cardano specific imports
                      , cardano-binary
                      , cardano-crypto-class
-                     -- Cardano specific imports
                      , small-steps
                      , cs-ledger
   default-language:    Haskell2010
@@ -56,6 +56,7 @@ test-suite ledger-rules-test
                      , tasty-hunit
                      , tasty-hedgehog
                      -- Cardano specific imports
+                     , cardano-crypto-class
                      , decentralized-updates
                      , cs-ledger
                      , small-steps
