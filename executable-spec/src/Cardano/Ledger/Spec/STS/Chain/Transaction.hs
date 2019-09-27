@@ -90,13 +90,15 @@ data TxBody hashAlgo
     -- ^ Update payload
   } deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
+deriving instance ( HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Commit hashAlgo)
                   ) => HasTypeReps (TxBody hashAlgo)
 
 
 instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
          , HasTypeReps (Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo SIPData)
          ) => Sized (Tx hashAlgo) where
