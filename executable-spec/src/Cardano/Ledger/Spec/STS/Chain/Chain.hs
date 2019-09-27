@@ -110,7 +110,7 @@ instance STS CHAIN where
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( Transaction.Env slot participants UTxO.Env
+        trans @TRANSACTIONS $ TRC ( Transaction.Env currentSlot participants UTxO.Env
                                   , transactionsSt
                                   , transactions
                                   )
