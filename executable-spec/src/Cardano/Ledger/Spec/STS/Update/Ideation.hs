@@ -58,13 +58,10 @@ data St hashAlgo
       -- only for SIP generation purposes.
     , revealedSIPs :: !(Set (SIP hashAlgo))
       -- ^ These are the revealed SIPs
-    , ballotsSIP :: !(Map SIP [BallotSIP])
-      -- ^ This stores the valid ballots for each SIP in a descending
-      -- order of arrival (local view).
+    , ballotsForSIP :: !(Map SIP (Map Core.VKey BallotSIP))
+      -- ^ This stores the valid ballots for each SIP and the voters
     , voteResultSIPs :: !(Map SIP VotingResult)
       -- ^ This records the current voting result for each SIP
-    , stakeholdersVotes :: !(Map SIP (Map Core.VKey BallotSIP))
-      -- ^ This stores who has voted for each SIP
 
       -- TODO: include this in the state of CHAINS and move it to the Ideation Env
     , openVotingPeriods :: !(Set VotingPeriod)
@@ -95,13 +92,15 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   type Signal (IDEATION hashAlgo) = IdeationPayload hashAlgo
 
-  -- We have no failures for now.
+  -- | IDEATION phase failures
   data PredicateFailure (IDEATION hashAlgo)
     = SIPAlreadySubmitted (Data.SIP hashAlgo)
     | NoSIPToReveal (Data.SIP hashAlgo)
     | SIPAlreadyRevealed (Data.SIP hashAlgo)
     | InvalidAuthor Core.VKey
     | SIPFailedToBeRevealed (Data.SIP hashAlgo)
+    | InvalidVoter Core.VKey
+    | VoteNotForRevealedSIP (Data.SIP hashAlgo)
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
@@ -109,7 +108,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
   transitionRules = [
     do
       TRC ( participants
-          , st@St { commitedSIPs, submittedSIPs, revealedSIPs }
+          , st@St { commitedSIPs, submittedSIPs, revealedSIPs, ballotsForSIP }
           , sig
           ) <- judgmentContext
       case sig of
@@ -138,20 +137,41 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                   -- TODO: A **stable** reveal must open the voting period for this SIP
                   }
 
-        Vote _ -> error "Define the rules for voting"
-          -- do
-
+        Vote ballot -> do -- error "Define the rules for voting"
             -- voter must be a stakeholder
+            (Data.voter ballot) ∈ dom participants ?!
+              InvalidVoter (Data.voter ballot)
 
-            -- TODO: SIP must be a stable revealed SIP
+            -- TODO: SIP must be a stable revealed SIP not just a Revealed SIP
+            (Data.votedsip ballot) ∈ revealedSIPs ?!
+              VoteNotForRevealedSIP (Data.votedsip ballot)
 
             -- TODO: Signature of the vote must be verified
 
             -- TODO:The voting period for this SIP must be open for the vote to be valid
 
             -- Update State
-              -- Add ballot to the list of valid ballots for this SIP
+              -- Add ballot to the state of valid ballots for this SIP
                 -- If the voter has voted again, then replace his old vote with the new one
+            pure $ st { ballotsForSIP =
+                          -- Are there any votes for this SIP yet?
+                          if (Data.votedsip ballot) ∈ dom ballotsForSIP
+                            then
+                              -- insert will overwrite the value part of the Map if the key exists
+                              Map.insert
+                                (Data.votedsip ballot)
+                                (Map.insert
+                                    (Data.voter ballot)
+                                    ballot
+                                    (ballotsForSIP Map.! (Data.votedsip ballot))
+                                )
+                                ballotsForSIP
+                            else
+                              Map.insert
+                                (Data.votedsip ballot)
+                                (Map.fromList [(Data.voter ballot, ballot)])
+                                ballotsForSIP
+                      }
     ]
 
 

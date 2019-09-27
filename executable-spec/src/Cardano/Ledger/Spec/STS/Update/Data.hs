@@ -44,13 +44,13 @@ data IdeationPayload hashAlgo
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =
-  BallotSIP { votedsip :: (SIP hashAlgo)
+  BallotSIP { votedsip :: !(SIP hashAlgo)
               -- ^ SIP that this ballot is for
-            , conf :: (Confidence hashAlgo)
+            , conf :: !(Confidence hashAlgo)
               -- the ballot outcome
-            , voter :: Core.VKey
+            , voter :: !Core.VKey
               -- the voter
-            , voterSig :: (Core.Sig (IdeationPayload hashAlgo))
+            , voterSig :: !(Core.Sig (IdeationPayload hashAlgo))
               -- the voter's signature on the vote text
             }
   deriving (Eq, Ord, Show, Generic, HasTypeReps)
@@ -139,7 +139,7 @@ data SIP hashAlgo =
       -- ^ Who submitted the proposal.
     , salt :: !Int
       -- ^ The salt used during the commit phase
-    , sipPayload :: SIPData
+    , sipPayload :: !SIPData
       -- ^ The actual contents of the SIP.
     }
   deriving (Eq, Generic, Ord, Show)
