@@ -60,6 +60,7 @@
             (hsPkgs.pretty-show)
             (hsPkgs.QuickCheck)
             (hsPkgs.quickcheck-instances)
+            (hsPkgs.random)
             (hsPkgs.text)
             (hsPkgs.template-haskell)
             (hsPkgs.time)
@@ -70,7 +71,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-prelude";
-      rev = "362525f617d638547270b57d597871ae3ef0e2b6";
-      sha256 = "0hbz42xi6pxmh92s9jhk82bllk0i9xgc856jxba2hrsyc3gvkmdp";
+      rev = "96e8dcb29dc3c29eee99c0d020152fad6071af6d";
+      sha256 = "1ayb5h048qmwvmgzm4ckzg7x8pcscd8znlhrj0438vv8wbvx77rl";
       });
     }

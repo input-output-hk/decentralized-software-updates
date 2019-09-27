@@ -45,24 +45,19 @@ data IdeationPayload hashAlgo
   deriving (Eq, Ord, Show, Generic)
 
 -- | Protocol version
-data ProtVer = ProtVer Word64
+--
+-- NOTE: in we might want to add major, minor, and alt versions if necessary.
+-- For now we can leave this abstract.
+newtype ProtVer = ProtVer Word64
   deriving (Eq, Ord, Show)
   deriving stock (Generic)
-  deriving anyclass (HasTypeReps)
--- TODO: add these components.
-{-  { _pvMaj :: Natural
-  , _pvMin :: Natural
-  , _pvAlt :: Word64
-  }
--}
-
+  deriving newtype (HasTypeReps)
 
 -- | Application version
 newtype ApVer = ApVer Word64
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Num, ToCBOR)
   deriving anyclass (HasTypeReps)
-
 
 -- | Consensus Protocol Parameter Name
 data ParamName
@@ -72,35 +67,35 @@ data ParamName
   | EpochSize
   deriving (Eq, Enum, Generic, Ord, Show, HasTypeReps)
 
-
 -- | Flag to distinguish between `SIP`s that impact or not the
 -- underlying consensus protocol
 data ConcensusImpact = Impact | NoImpact
   deriving (Eq, Enum, Generic, Ord, Show, HasTypeReps)
 
-
 -- | Metadata structure for SIP
 data SIPMetadata =
-  SIPMetadata { versionFrom :: !(ProtVer, ApVer)
-                -- ^ The version the this SIP has been based on
-              , versionTo :: !(ProtVer, ApVer)
-              -- ^ the version after the SIP takes effect
-              , impactsConsensus :: !ConcensusImpact
-              -- ^ Flag to determine an impact on the underlying consensus protocol
-              , impactsParameters :: !([ParamName])
-              -- ^ List of protocol parameters impacted
-              } deriving (Eq, Generic, Ord, Show, HasTypeReps)
+  SIPMetadata
+    { versionFrom :: !(ProtVer, ApVer)
+      -- ^ The version the this SIP has been based on
+    , versionTo :: !(ProtVer, ApVer)
+      -- ^ the version after the SIP takes effect
+    , impactsConsensus :: !ConcensusImpact
+      -- ^ Flag to determine an impact on the underlying consensus protocol
+    , impactsParameters :: !([ParamName])
+      -- ^ List of protocol parameters impacted
+    }
+  deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
 
 -- | Contents of a SIP
 data SIPData =
-  SIPData {  url :: !URL
-            -- ^ URL pointing at the server where the SIP is stored
-          , metadata :: !SIPMetadata
-            -- ^ SIP Metadata (only core metadata, the rest are on the server
-            -- pointed by the url)
-          }
-
+  SIPData
+    {  url :: !URL
+      -- ^ URL pointing at the server where the SIP is stored
+    , metadata :: !SIPMetadata
+      -- ^ SIP Metadata (only core metadata, the rest are on the server pointed
+      -- by the url)
+    }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
 newtype URL = URL { getText :: Text }
@@ -109,42 +104,45 @@ newtype URL = URL { getText :: Text }
 
 -- | System improvement proposal
 data SIP hashAlgo =
-  SIP { --id :: !UpId
-        -- Submission proposal id.
-        sipHash :: Hash hashAlgo SIPData
-      -- ^ Hash of the SIP contents (`SIPData`)
-      -- also plays the role of a SIP unique id
-      , author :: !Core.VKey
+  SIP
+    { sipHash :: Hash hashAlgo SIPData
+      -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
+      -- unique id
+    , author :: !Core.VKey
       -- ^ Who submitted the proposal.
-      , salt :: !Int
+    , salt :: !Int
       -- ^ The salt used during the commit phase
-      , sipPayload :: SIPData
+    , sipPayload :: SIPData
       -- ^ The actual contents of the SIP.
-      }
+    }
   deriving (Eq, Generic, Ord, Show)
 
 -- | A commitment data type.
 -- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
 newtype Commit hashAlgo =
-  Commit { getCommit :: Hash hashAlgo ( Int
-                                      , Core.VKey
-                                      , Hash hashAlgo (SIP hashAlgo)
-                                      )
-         }
-   -- TODO: ask Nikos: we need to give a type to the commit hash, should this be (Int, Key, Hash SIP)
+  Commit
+    { getCommit
+      :: Hash hashAlgo
+           ( Int
+           , Core.VKey
+           , Hash hashAlgo (SIP hashAlgo)
+           )
+    }
+   -- TODO: ask Nikos: we need to give a type to the commit hash, should this be (Int, Key, Hash SIP)?
   deriving stock (Generic)
   deriving (Show, Eq, Ord)
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit hashAlgo =
-  SIPCommit { commit :: !(Commit hashAlgo)
-            -- ^ A salted commitment (a hash) to the SIP id, the public key
-            -- and the `hash` `SIP` (H(salt||pk||H(SIP)))
-            , _author :: !Core.VKey
-            -- ^ Who submitted the proposal.
-            , upSig :: !(Core.Sig (Commit hashAlgo))
-            -- ^ A signature on commit by the author public key
-            }
+  SIPCommit
+    { commit :: !(Commit hashAlgo)
+      -- ^ A salted commitment (a hash) to the SIP id, the public key and the
+      -- `hash` `SIP` (H(salt||pk||H(SIP)))
+    , _author :: !Core.VKey
+      -- ^ Who submitted the proposal.
+    , upSig :: !(Core.Sig (Commit hashAlgo))
+      -- ^ A signature on commit by the author public key
+    }
   deriving (Eq, Show, Ord, Generic)
 
 -- | Calculate a `Commit` from a `SIP`
@@ -170,7 +168,6 @@ data State hashAlgo
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (State hashAlgo)
   deriving Monoid via GenericMonoid (State hashAlgo)
-
 
 --------------------------------------------------------------------------------
 -- HasTypeReps instances

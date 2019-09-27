@@ -1,11 +1,11 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/362525f617d638547270b57d597871ae3ef0e2b6/snapshot.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/96e8dcb29dc3c29eee99c0d020152fad6071af6d/snapshot.yaml
 
 packages:
   - executable-spec
 
 extra-deps:
   - git: https://github.com/input-output-hk/cardano-prelude
-    commit: 362525f617d638547270b57d597871ae3ef0e2b6
+    commit: 96e8dcb29dc3c29eee99c0d020152fad6071af6d
 
   - git: https://github.com/input-output-hk/cardano-base
     commit: 80f25cde254d523f34d9804e6e009925d9775adb
@@ -14,7 +14,7 @@ extra-deps:
       - cardano-crypto-class
 
   - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: cdb34aa4b237e346d45f595c7a003bf3b96f4157
+    commit: 50d394f873a536b5e1299a8281aa66aa29fee746
     subdirs:
       - byron/semantics/executable-spec
       - byron/ledger/executable-spec
