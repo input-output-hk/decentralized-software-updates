@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -72,14 +73,23 @@ data Block hashAlgo
     }
     deriving (Eq, Show, Generic)
 
-deriving instance HasTypeReps (Hash hashAlgo SIPData) => HasTypeReps (Block hashAlgo)
+deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
+                  , HashAlgorithm hashAlgo
+                  , HasTypeReps (Commit hashAlgo)
+                  ) => HasTypeReps (Block hashAlgo)
 
 
-instance Sized (Block hashAlgo) where
-  costsList _ = costsList (undefined :: Signal TRANSACTION)
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => Sized (Block hashAlgo) where
+  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
 
 
-instance STS (CHAIN hashAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => STS (CHAIN hashAlgo) where
 
   type Environment (CHAIN hashAlgo) = Env
 
@@ -118,17 +128,21 @@ instance STS (CHAIN hashAlgo) where
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( Transaction.Env currentSlot participants UTxO.Env
-                                  , transactionsSt
-                                  , transactions
-                                  )
+        trans @(TRANSACTIONS hashAlgo)
+          $ TRC ( Transaction.Env currentSlot participants UTxO.Env
+                , transactionsSt
+                , transactions
+                )
       pure $! St { currentSlot = slot
                  , transactionsSt = transactionsSt'
                  }
     ]
 
 
-instance Embed (TRANSACTIONS hashAlgo) (CHAIN hashAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => Embed (TRANSACTIONS hashAlgo) (CHAIN hashAlgo) where
   wrapFailed = TransactionsFailure
 
 
