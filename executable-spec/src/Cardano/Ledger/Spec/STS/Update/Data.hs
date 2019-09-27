@@ -182,7 +182,7 @@ instance HasTypeReps URL where
 
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps (SIP hashAlgo)
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps hashAlgo
                   ) => HasTypeReps (IdeationPayload hashAlgo)
 
 deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
@@ -199,7 +199,7 @@ instance Typeable hashAlgo => HasTypeReps (Hash hashAlgo (Commit hashAlgo)) wher
   typeReps commitHash = Seq.singleton (typeOf commitHash)
 
 deriving instance ( Typeable hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps hashAlgo
                   ) => HasTypeReps (SIPCommit hashAlgo)
 
 --------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ instance Sized ImplementationPayload where
 
 instance ( Typeable hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps hashAlgo
          ) => Sized (IdeationPayload hashAlgo) where
   -- TODO: define this properly
   costsList ideationPayload = [(typeOf ideationPayload, 10)]
