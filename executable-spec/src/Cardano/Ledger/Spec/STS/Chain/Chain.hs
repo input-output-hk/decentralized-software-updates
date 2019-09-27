@@ -134,7 +134,7 @@ instance ( HashAlgorithm hashAlgo
       let Transaction.Env {Transaction.updatesEnv = upE, Transaction.utxoEnv = utxoE} = transactionsEnv
       transactionsSt' <-
         trans @(TRANSACTIONS hashAlgo)
-          $ TRC ( Transaction.Env currentSlot upE utxoE
+          $ TRC ( Transaction.Env slot upE utxoE
                 , transactionsSt
                 , transactions
                 )
