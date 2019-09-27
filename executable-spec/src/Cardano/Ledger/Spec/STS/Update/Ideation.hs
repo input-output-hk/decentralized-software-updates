@@ -58,11 +58,21 @@ data St hashAlgo
       -- only for SIP generation purposes.
     , revealedSIPs :: !(Set (SIP hashAlgo))
       -- ^ These are the revealed SIPs
-    , votedSIPs :: !(Map SIP VotingResult)
+    , ballotsSIP :: !(Map SIP [BallotSIP])
+      -- ^ This stores the valid ballots for each SIP in a descending
+      -- order of arrival (local view).
+    , voteResultSIPs :: !(Map SIP VotingResult)
       -- ^ This records the current voting result for each SIP
     , stakeholdersVotes :: !(Map SIP (Map Core.VKey BallotSIP))
-    , votingPeriod :: !(Map SIP VotingPeriod)
-      -- ^ Records the voting period status per SIP
+      -- ^ This stores who has voted for each SIP
+
+      -- TODO: include this in the state of CHAINS and move it to the Ideation Env
+    , openVotingPeriods :: !(Set VotingPeriod)
+      -- ^ Records the open voting periods
+
+      -- TODO: include this in the state of CHAINS and move it to the Ideation Env
+    , closedVotingPeriods :: !(Set VotingPeriod)
+  -- ^ Records the closed voting periods
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
@@ -111,38 +121,37 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
           pure $! st { commitedSIPs = Map.insert (Data.commit sipc) (sipc) commitedSIPs
                      , submittedSIPs = Set.insert sip submittedSIPs
+                     -- TODO: if stabilization period has passed, then add commitSIP to stable commitedSIP
                      }
 
         Reveal sip -> do
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
+          -- TODO: Commited SIP must belong to stable submitted SIPs
           sip ∈ submittedSIPs ?! NoSIPToReveal sip
-
-          -- TODO: Submitted SIPCommit must be stable in the blockchain in order to be revealed.
 
           sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
           (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
+
           pure st { submittedSIPs = Set.delete sip submittedSIPs
                   , revealedSIPs = Set.insert sip revealedSIPs
+                  -- TODO: if stabilization period has passed, then add reveal to stable reveals and remove from reveal
+                  -- TODO: A **stable** reveal must open the voting period for this SIP
                   }
-        -- TODO: Add the stabilization period constraint after the corresponding Reveal.
+
         Vote _ -> error "Define the rules for voting"
           -- do
 
             -- voter must be a stakeholder
 
-            -- SIP must be a revealed SIP
-
-            -- TODO: Revealed SIP must be stabilized in the blockchain before voting period begins
+            -- TODO: SIP must be a stable revealed SIP
 
             -- TODO: Signature of the vote must be verified
 
-            -- The voting period for this SIP must be open for the vote to be valid
+            -- TODO:The voting period for this SIP must be open for the vote to be valid
 
             -- Update State
-              -- Update current voting result for this SIP
-                --
-
-              -- Update current voting period status for this SIP
+              -- Add ballot to the list of valid ballots for this SIP
+                -- If the voter has voted again, then replace his old vote with the new one
     ]
 
 

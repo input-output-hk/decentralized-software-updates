@@ -50,7 +50,7 @@ data TRANSACTIONS hashAlgo
 
 
 data Env =
-  Env { currentSlot :: Slot
+  Env { currentSlot :: !Slot
       , updatesEnv :: Environment UPDATES
       , utxoEnv :: Environment UTXO
       }
