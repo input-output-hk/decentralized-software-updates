@@ -73,13 +73,15 @@ data Block hashAlgo
     }
     deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
+deriving instance ( HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Commit hashAlgo)
                   ) => HasTypeReps (Block hashAlgo)
 
 
 instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
          ) => Sized (Block hashAlgo) where
@@ -150,7 +152,8 @@ instance ( HashAlgorithm hashAlgo
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
 
 
-instance ( HashAlgorithm hashAlgo
+instance ( HasTypeReps hashAlgo
+         , HashAlgorithm hashAlgo
          , HasTypeReps (Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo SIPData)
          ) => HasTrace (CHAIN hashAlgo) where
