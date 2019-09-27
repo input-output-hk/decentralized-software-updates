@@ -76,7 +76,8 @@ data Tx hashAlgo
   }
   deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
+deriving instance ( HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Commit hashAlgo)
                   ) => HasTypeReps (Tx hashAlgo)
@@ -196,6 +197,7 @@ instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlg
 transactionsGen
   :: forall hashAlgo
    . ( HashAlgorithm hashAlgo
+     , HasTypeReps hashAlgo
      , HasTypeReps (Commit hashAlgo)
      , HasTypeReps (Hash hashAlgo SIPData)
      )
