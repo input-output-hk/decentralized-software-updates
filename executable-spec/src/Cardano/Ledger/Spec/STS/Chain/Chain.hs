@@ -89,6 +89,7 @@ instance ( HashAlgorithm hashAlgo
 
 
 instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
          ) => STS (CHAIN hashAlgo) where
