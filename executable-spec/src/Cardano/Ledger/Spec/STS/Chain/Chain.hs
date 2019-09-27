@@ -143,6 +143,7 @@ instance ( HashAlgorithm hashAlgo
 
 
 instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
          ) => Embed (TRANSACTIONS hashAlgo) (CHAIN hashAlgo) where
