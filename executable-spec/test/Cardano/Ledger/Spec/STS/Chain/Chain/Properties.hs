@@ -10,6 +10,8 @@ import           Data.Word (Word64)
 import           GHC.Stack (HasCallStack)
 import           Hedgehog (Property, forAll, property, withTests)
 
+import           Cardano.Crypto.Hash.Short (ShortHash)
+
 import qualified Control.State.Transition.Generator as TransitionGenerator
 import qualified Control.State.Transition.Trace as Trace
 
@@ -17,18 +19,18 @@ import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation  as Ideation
 
 
 onlyValidSignalsAreGenerated :: HasCallStack => Property
 onlyValidSignalsAreGenerated =
-  withTests 300 $ TransitionGenerator.onlyValidSignalsAreGenerated @CHAIN 100
+  withTests 300 $ TransitionGenerator.onlyValidSignalsAreGenerated @(CHAIN ShortHash) 100
 
 
 tracesAreClassified :: Property
 tracesAreClassified = withTests 300 $ property $ do
   let (traceLength, step) = (100, 5)
-  tr <- forAll $ TransitionGenerator.trace @CHAIN traceLength
+  tr <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) traceLength
   TransitionGenerator.classifySize
     "Reveals"
     tr
@@ -36,11 +38,11 @@ tracesAreClassified = withTests 300 $ property $ do
     traceLength
     step
   where
-    lastStateReveals :: Trace.Trace CHAIN -> Word64
+    lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
     lastStateReveals tr = Trace.lastState tr
                         & Chain.transactionsSt
                         & Transaction.updateSt
                         & Update.ideationSt
-                        & Data.revealedSIPs
+                        & Ideation.revealedSIPs
                         & length
                         & fromIntegral

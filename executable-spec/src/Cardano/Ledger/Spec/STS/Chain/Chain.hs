@@ -1,22 +1,27 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Simple block-chain mock, to bundle transactions into blocks, including slot
 -- ticks.
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Control.Arrow ((&&&))
-import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 import           GHC.Generics (Generic)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
+
+import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
@@ -33,12 +38,15 @@ import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION,
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
+import qualified Cardano.Ledger.Spec.STS.Update as Update
+import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
+import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 
-data CHAIN
+data CHAIN hashAlgo
 
 
-data Env
+data Env hashAlgo
   = Env
     { initialSlot :: !Slot
     , maximumBlockSize :: !Size
@@ -46,43 +54,57 @@ data Env
     -- instance of 'Sized'.
     --
     -- TODO: use abstract size instead.
-    , participants :: Bimap Core.VKey Core.SKey
+    , transactionsEnv :: Environment (TRANSACTIONS hashAlgo)
     }
   deriving (Eq, Show)
 
 
-data St
+data St hashAlgo
   = St
     { currentSlot :: !Slot
-    , transactionsSt :: State TRANSACTIONS
+    , transactionsSt :: State (TRANSACTIONS hashAlgo)
     }
   deriving (Eq, Show)
 
 
-data Block
+data Block hashAlgo
   = Block
     { slot :: !Slot
-    , transactions :: ![Signal TRANSACTION]
+    , transactions :: ![Signal (TRANSACTION hashAlgo)]
     }
-    deriving (Eq, Show, Generic, HasTypeReps)
+    deriving (Eq, Show, Generic)
+
+deriving instance ( HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HashAlgorithm hashAlgo
+                  , HasTypeReps (Commit hashAlgo)
+                  ) => HasTypeReps (Block hashAlgo)
 
 
-instance Sized Block where
-  costsList _ = costsList (undefined :: Signal TRANSACTION)
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => Sized (Block hashAlgo) where
+  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
 
 
-instance STS CHAIN where
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => STS (CHAIN hashAlgo) where
 
-  type Environment CHAIN = Env
+  type Environment (CHAIN hashAlgo) = Env hashAlgo
 
-  type State CHAIN = St
+  type State (CHAIN hashAlgo) = (St hashAlgo)
 
-  type Signal CHAIN = Block
+  type Signal (CHAIN hashAlgo) = (Block hashAlgo)
 
-  data PredicateFailure CHAIN
+  data PredicateFailure (CHAIN hashAlgo)
     = BlockSlotNotIncreasing CurrentSlot Slot
     | MaximumBlockSizeExceeded Size (Threshold Size)
-    | TransactionsFailure (PredicateFailure TRANSACTIONS)
+    | TransactionsFailure (PredicateFailure (TRANSACTIONS hashAlgo))
     deriving (Eq, Show)
 
 
@@ -96,7 +118,7 @@ instance STS CHAIN where
 
   transitionRules = [
     do
-      TRC ( Env { maximumBlockSize, participants }
+      TRC ( Env { maximumBlockSize, transactionsEnv }
           , St { currentSlot, transactionsSt }
           , block@Block{ slot, transactions }
           ) <- judgmentContext
@@ -109,18 +131,27 @@ instance STS CHAIN where
 
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
+      let Transaction.Env
+            { Transaction.updatesEnv = upE
+            , Transaction.utxoEnv = utxoE
+            } = transactionsEnv
       transactionsSt' <-
-        trans @TRANSACTIONS $ TRC ( Transaction.Env currentSlot participants UTxO.Env
-                                  , transactionsSt
-                                  , transactions
-                                  )
+        trans @(TRANSACTIONS hashAlgo)
+          $ TRC ( Transaction.Env slot upE utxoE
+                , transactionsSt
+                , transactions
+                )
       pure $! St { currentSlot = slot
                  , transactionsSt = transactionsSt'
                  }
     ]
 
 
-instance Embed TRANSACTIONS CHAIN where
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => Embed (TRANSACTIONS hashAlgo) (CHAIN hashAlgo) where
   wrapFailed = TransactionsFailure
 
 
@@ -128,9 +159,16 @@ instance Embed TRANSACTIONS CHAIN where
 newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
 
 
-instance HasTrace CHAIN where
+instance ( HasTypeReps hashAlgo
+         , HashAlgorithm hashAlgo
+         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo SIPData)
+         ) => HasTrace (CHAIN hashAlgo) where
 
-  envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> participantsGen
+  envGen _traceLength
+    = Env <$> currentSlotGen
+          <*> maxBlockSizeGen
+          <*> (transactionsEnvGen currentSlotGen)
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- For now we fix the maximum block size to an abstract size of 100
@@ -140,12 +178,22 @@ instance HasTrace CHAIN where
                       $  fmap (Core.vKey &&& Core.sKey)
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
+      transactionsEnvGen gSlot
+        = Transaction.Env <$> gSlot
+                          <*> updatesEnvGen
+                          <*> (pure $ UTxO.Env)
+      updatesEnvGen = Update.Env <$> ideationEnvGen <*> implementationEnvGen
+      ideationEnvGen = participantsGen
+      implementationEnvGen = pure $ Implementation.Env
 
-  sigGen Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
+  sigGen Env { maximumBlockSize, transactionsEnv } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot
-          <*> gTransactions (Transaction.Env currentSlot participants UTxO.Env)
+          <*> gTransactions (Transaction.Env currentSlot updEnv utxoEnv)
                             transactionsSt
     where
+      Transaction.Env { Transaction.updatesEnv = updEnv
+                      , Transaction.utxoEnv = utxoEnv
+                      } = transactionsEnv
       -- We'd expect the slot increment to be 1 with high probability.
       --
       -- TODO: check the exact probability of having an empty slot.
