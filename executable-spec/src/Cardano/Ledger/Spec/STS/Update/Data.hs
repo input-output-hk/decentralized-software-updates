@@ -43,8 +43,8 @@ data IdeationPayload hashAlgo
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =
-  BallotSIP { votedsip :: !(SIP hashAlgo) -- TODO: Nikos: Use SIP hash instead?
-              -- ^ SIP that this ballot is for
+  BallotSIP { votedsipId :: !(SIPHash hashAlgo)
+              -- ^ SIP id that this ballot is for
             , conf :: !Confidence
               -- ^ the ballot outcome
             , voter :: !Core.VKey

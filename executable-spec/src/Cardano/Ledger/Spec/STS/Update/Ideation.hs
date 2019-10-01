@@ -58,17 +58,17 @@ data St hashAlgo
       -- only for SIP generation purposes.
     , revealedSIPs :: !(Set (SIP hashAlgo))
       -- ^ These are the revealed SIPs
-    , ballotsForSIP :: !(Map (SIP hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
+    , ballotsForSIP :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
       -- ^ This stores the valid ballots for each SIP and the voters
-    , voteResultSIPs :: !(Map (SIP hashAlgo) VotingResult)
+    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
       -- ^ This records the current voting result for each SIP
 
       -- TODO: include this in the state of CHAINS and move it to the Ideation Env
-    , openVotingPeriods :: !(Set VotingPeriod)
+    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) VotingPeriod)
       -- ^ Records the open voting periods
 
       -- TODO: include this in the state of CHAINS and move it to the Ideation Env
-    , closedVotingPeriods :: !(Set VotingPeriod)
+    , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) VotingPeriod)
   -- ^ Records the closed voting periods
     }
   deriving (Eq, Show, Generic)
@@ -100,7 +100,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
     | InvalidAuthor Core.VKey
     | SIPFailedToBeRevealed (Data.SIP hashAlgo)
     | InvalidVoter Core.VKey
-    | VoteNotForRevealedSIP (Data.SIP hashAlgo)
+    | VoteNotForRevealedSIP (Data.SIPHash hashAlgo)
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
@@ -143,8 +143,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
               InvalidVoter (Data.voter ballot)
 
             -- TODO: SIP must be a stable revealed SIP not just a Revealed SIP
-            (Data.votedsip ballot) ∈ revealedSIPs ?!
-              VoteNotForRevealedSIP (Data.votedsip ballot)
+            (Data.votedsipId ballot) ∈ (Set.map (Data.sipHash) revealedSIPs) ?!
+              VoteNotForRevealedSIP (Data.votedsipId ballot)
 
             -- TODO: Signature of the vote must be verified
 
@@ -155,20 +155,20 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                 -- If the voter has voted again, then replace his old vote with the new one
             pure $ st { ballotsForSIP =
                           -- Are there any votes for this SIP yet?
-                          if (Data.votedsip ballot) ∈ dom ballotsForSIP
+                          if (Data.votedsipId ballot) ∈ dom ballotsForSIP
                             then
                               -- insert will overwrite the value part of the Map if the key exists
                               Map.insert
-                                (Data.votedsip ballot)
+                                (Data.votedsipId ballot)
                                 (Map.insert
                                     (Data.voter ballot)
                                     ballot
-                                    (ballotsForSIP Map.! (Data.votedsip ballot))
+                                    (ballotsForSIP Map.! (Data.votedsipId ballot))
                                 )
                                 ballotsForSIP
                             else
                               Map.insert
-                                (Data.votedsip ballot)
+                                (Data.votedsipId ballot)
                                 (Map.fromList [(Data.voter ballot, ballot)])
                                 ballotsForSIP
                       }
