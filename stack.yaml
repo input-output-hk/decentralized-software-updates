@@ -1,11 +1,20 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/d673b92f2a2d9354d102514d0a0fa74f8248b14a/snapshot.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/96e8dcb29dc3c29eee99c0d020152fad6071af6d/snapshot.yaml
 
 packages:
   - executable-spec
 
 extra-deps:
+  - git: https://github.com/input-output-hk/cardano-prelude
+    commit: 96e8dcb29dc3c29eee99c0d020152fad6071af6d
+
+  - git: https://github.com/input-output-hk/cardano-base
+    commit: 80f25cde254d523f34d9804e6e009925d9775adb
+    subdirs:
+      - binary
+      - cardano-crypto-class
+
   - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: a760677a47a8352f27081bce863d2f35d2c5960c
+    commit: d474b630d67d6548172874cfe7a1c87e3c616927
     subdirs:
       - byron/semantics/executable-spec
       - byron/ledger/executable-spec
@@ -15,7 +24,7 @@ extra-deps:
 
   # Needed for goblins, which is in turn needed for cardano-ledger-specs :(
   - git: https://github.com/input-output-hk/goblins
-    commit: 6ea969b31c2bbaa7ba78b8e83b53a36bedfae10e
+    commit: 545448938bf620bb2a25212e1686916cfa3acee9
   - moo-1.2
   - gray-code-0.3.1
 

@@ -14,6 +14,8 @@ import qualified Data.Set as Set
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Range (constant)
 
+import           Cardano.Crypto.Hash (HashAlgorithm, hash)
+
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
@@ -27,7 +29,7 @@ import           Cardano.Ledger.Spec.STS.Update.Data (author)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import qualified Data.Map.Strict as Map
-import           Ledger.Core (dom, hash, (∈), (∉))
+import           Ledger.Core (dom, (∈), (∉))
 import qualified Ledger.Core as Core
 
 --------------------------------------------------------------------------------
@@ -36,28 +38,28 @@ import qualified Ledger.Core as Core
 
 
 -- | Ideation phase of system updates
-data IDEATION
+data IDEATION hashAlgo
 
-instance STS IDEATION where
+instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   -- | The environment is the set of participants, identified by their signing
   -- and verifying keys.
   --
   -- There is a one-to-one correspondence the signing and verifying keys, hence
   -- the use of 'Bimap'
-  type Environment IDEATION = Bimap Core.VKey Core.SKey
+  type Environment (IDEATION hashAlgo) = Bimap Core.VKey Core.SKey
 
-  type State IDEATION = Data.State
+  type State (IDEATION hashAlgo) = Data.State hashAlgo
 
-  type Signal IDEATION = IdeationPayload
+  type Signal (IDEATION hashAlgo) = IdeationPayload hashAlgo
 
   -- We have no failures for now.
-  data PredicateFailure IDEATION
-    = SIPAlreadySubmitted Data.SIP
-    | NoSIPToReveal Data.SIP
-    | SIPAlreadyRevealed Data.SIP
+  data PredicateFailure (IDEATION hashAlgo)
+    = SIPAlreadySubmitted (Data.SIP hashAlgo)
+    | NoSIPToReveal (Data.SIP hashAlgo)
+    | SIPAlreadyRevealed (Data.SIP hashAlgo)
     | InvalidAuthor Core.VKey
-    | SIPFailedToBeRevealed Data.SIP
+    | SIPFailedToBeRevealed (Data.SIP hashAlgo)
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
@@ -87,7 +89,7 @@ instance STS IDEATION where
     ]
 
 
-instance HasTrace IDEATION where
+instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
   envGen _traceLength =
     -- TODO: for now we generate a constant set of keys. We need to update the

@@ -24,6 +24,9 @@
           (hsPkgs.hedgehog)
           (hsPkgs.text)
           (hsPkgs.hashable)
+          (hsPkgs.cryptonite)
+          (hsPkgs.cardano-binary)
+          (hsPkgs.cardano-crypto-class)
           (hsPkgs.small-steps)
           (hsPkgs.cs-ledger)
           ];
@@ -36,6 +39,7 @@
             (hsPkgs.tasty)
             (hsPkgs.tasty-hunit)
             (hsPkgs.tasty-hedgehog)
+            (hsPkgs.cardano-crypto-class)
             (hsPkgs.decentralized-updates)
             (hsPkgs.cs-ledger)
             (hsPkgs.small-steps)
