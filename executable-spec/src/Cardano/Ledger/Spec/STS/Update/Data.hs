@@ -49,10 +49,12 @@ data (BallotSIP hashAlgo) =
               -- ^ the ballot outcome
             , voter :: !Core.VKey
               -- ^ the voter
-            , voterSig :: !(Core.Sig (IdeationPayload hashAlgo))
-              -- ^ the voter's signature on the vote text
-              --
-              -- TODO: Nikos: (Hash SIP, voter_pk, conf)
+            , voterSig :: !(Core.Sig (
+                                       (SIPHash hashAlgo)
+                                     , Confidence
+                                     , Core.VKey
+                                     )
+                           )
             }
   deriving (Eq, Ord, Show, Generic)
 
@@ -147,7 +149,7 @@ data SIP hashAlgo =
   deriving (Eq, Generic, Ord, Show)
 
 -- | A commitment data type.
--- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
+-- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
 newtype Commit hashAlgo =
   Commit
     { getCommit
