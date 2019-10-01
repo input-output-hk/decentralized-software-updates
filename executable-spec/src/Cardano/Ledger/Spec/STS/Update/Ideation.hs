@@ -58,9 +58,9 @@ data St hashAlgo
       -- only for SIP generation purposes.
     , revealedSIPs :: !(Set (SIP hashAlgo))
       -- ^ These are the revealed SIPs
-    , ballotsForSIP :: !(Map SIP (Map Core.VKey BallotSIP))
+    , ballotsForSIP :: !(Map (SIP hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
       -- ^ This stores the valid ballots for each SIP and the voters
-    , voteResultSIPs :: !(Map SIP VotingResult)
+    , voteResultSIPs :: !(Map (SIP hashAlgo) VotingResult)
       -- ^ This records the current voting result for each SIP
 
       -- TODO: include this in the state of CHAINS and move it to the Ideation Env

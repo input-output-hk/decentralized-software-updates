@@ -36,7 +36,6 @@ import           Ledger.Core (Slot)
 import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
@@ -49,10 +48,10 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 data TRANSACTIONS hashAlgo
 
 
-data Env =
+data Env hashAlgo =
   Env { currentSlot :: !Slot
-      , updatesEnv :: Environment UPDATES
-      , utxoEnv :: Environment UTXO
+      , updatesEnv :: !(Environment (UPDATES hashAlgo))
+      , utxoEnv :: !(Environment UTXO)
       }
   deriving (Eq, Show, Generic)
 
@@ -111,13 +110,14 @@ instance ( HashAlgorithm hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTIONS hashAlgo) where
 
-  type Environment (TRANSACTIONS hashAlgo) = Environment TRANSACTION
+  type Environment (TRANSACTIONS hashAlgo) = Environment (TRANSACTION hashAlgo)
 
-  type State (TRANSACTIONS hashAlgo) = State TRANSACTION
+  type State (TRANSACTIONS hashAlgo) = State (TRANSACTION hashAlgo)
 
   type Signal (TRANSACTIONS hashAlgo) = [Tx hashAlgo]
 
-  data PredicateFailure (TRANSACTIONS hashAlgo) = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
+  data PredicateFailure (TRANSACTIONS hashAlgo)
+    = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
     deriving (Eq, Show)
 
   initialRules = []
@@ -142,9 +142,9 @@ data TRANSACTION hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
-  type Environment (TRANSACTION hashAlgo) = Env
+  type Environment (TRANSACTION hashAlgo) = Env hashAlgo
 
-  type State (TRANSACTION hashAlgo) = St
+  type State (TRANSACTION hashAlgo) = St hashAlgo
 
   type Signal (TRANSACTION hashAlgo) = Tx hashAlgo
 
@@ -169,7 +169,9 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- shouldn't matter which transition is triggered first. Even if the
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
-      let Update.Env {Update.ideationEnv = idEnv, Update.implementationEnv = implEnv} = updatesEnv
+      let Update.Env { Update.ideationEnv = idEnv
+                     , Update.implementationEnv = implEnv
+                     } = updatesEnv
       updateSt' <-
         trans @(UPDATES hashAlgo) $
           TRC ( Update.Env { Update.ideationEnv =  idEnv
@@ -247,7 +249,9 @@ transactionsGen maximumSize env st
               )
             ]
       where
-        Update.Env {Update.ideationEnv = idEnv, Update.implementationEnv = implEnv} = updatesEnv
+        Update.Env { Update.ideationEnv = idEnv
+                   , Update.implementationEnv = implEnv
+                   } = updatesEnv
         -- For now we don't generate inputs and outputs.
         dummyBody update
           = TxBody

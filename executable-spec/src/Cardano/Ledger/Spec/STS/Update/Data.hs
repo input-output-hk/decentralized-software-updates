@@ -14,7 +14,6 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
-import           Data.Map.Strict (Map)
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -44,20 +43,18 @@ data IdeationPayload hashAlgo
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =
-  BallotSIP { votedsip :: !(SIP hashAlgo)
+  BallotSIP { votedsip :: !(SIP hashAlgo) -- TODO: Nikos: Use SIP hash instead?
               -- ^ SIP that this ballot is for
-            , conf :: !(Confidence hashAlgo)
-              -- the ballot outcome
+            , conf :: !Confidence
+              -- ^ the ballot outcome
             , voter :: !Core.VKey
-              -- the voter
+              -- ^ the voter
             , voterSig :: !(Core.Sig (IdeationPayload hashAlgo))
-              -- the voter's signature on the vote text
+              -- ^ the voter's signature on the vote text
+              --
+              -- TODO: Nikos: (Hash SIP, voter_pk, conf)
             }
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
-
-instance Sized (IdeationPayload hashAlgo) where
-  -- TODO: define this properly
-  costsList ideationPayload = [(typeOf ideationPayload, 10)]
+  deriving (Eq, Ord, Show, Generic)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
@@ -191,6 +188,7 @@ instance HasTypeReps URL where
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps (SIP hashAlgo)
                   , HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
                   ) => HasTypeReps (IdeationPayload hashAlgo)
 
 deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
@@ -210,6 +208,10 @@ deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
                   ) => HasTypeReps (SIPCommit hashAlgo)
 
+
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  ) => HasTypeReps (BallotSIP hashAlgo)
 --------------------------------------------------------------------------------
 -- Sized instances
 --------------------------------------------------------------------------------

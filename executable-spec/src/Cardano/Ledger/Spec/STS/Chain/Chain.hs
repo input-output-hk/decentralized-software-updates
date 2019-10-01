@@ -46,7 +46,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 data CHAIN hashAlgo
 
 
-data Env
+data Env hashAlgo
   = Env
     { initialSlot :: !Slot
     , maximumBlockSize :: !Size
@@ -54,7 +54,7 @@ data Env
     -- instance of 'Sized'.
     --
     -- TODO: use abstract size instead.
-    , transactionsEnv :: Environment TRANSACTIONS
+    , transactionsEnv :: Environment (TRANSACTIONS hashAlgo)
     }
   deriving (Eq, Show)
 
@@ -95,7 +95,7 @@ instance ( HashAlgorithm hashAlgo
          , HasTypeReps (Commit hashAlgo)
          ) => STS (CHAIN hashAlgo) where
 
-  type Environment (CHAIN hashAlgo) = Env
+  type Environment (CHAIN hashAlgo) = Env hashAlgo
 
   type State (CHAIN hashAlgo) = (St hashAlgo)
 
@@ -131,7 +131,10 @@ instance ( HashAlgorithm hashAlgo
 
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
-      let Transaction.Env {Transaction.updatesEnv = upE, Transaction.utxoEnv = utxoE} = transactionsEnv
+      let Transaction.Env
+            { Transaction.updatesEnv = upE
+            , Transaction.utxoEnv = utxoE
+            } = transactionsEnv
       transactionsSt' <-
         trans @(TRANSACTIONS hashAlgo)
           $ TRC ( Transaction.Env slot upE utxoE
@@ -162,7 +165,10 @@ instance ( HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          ) => HasTrace (CHAIN hashAlgo) where
 
-  envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> (transactionsEnvGen currentSlotGen)
+  envGen _traceLength
+    = Env <$> currentSlotGen
+          <*> maxBlockSizeGen
+          <*> (transactionsEnvGen currentSlotGen)
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- For now we fix the maximum block size to an abstract size of 100
@@ -172,10 +178,10 @@ instance ( HasTypeReps hashAlgo
                       $  fmap (Core.vKey &&& Core.sKey)
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
-      transactionsEnvGen gSlot =  Transaction.Env
-                        <$> gSlot
-                        <*> updatesEnvGen
-                        <*> (pure $ UTxO.Env)
+      transactionsEnvGen gSlot
+        = Transaction.Env <$> gSlot
+                          <*> updatesEnvGen
+                          <*> (pure $ UTxO.Env)
       updatesEnvGen = Update.Env <$> ideationEnvGen <*> implementationEnvGen
       ideationEnvGen = participantsGen
       implementationEnvGen = pure $ Implementation.Env
@@ -185,7 +191,9 @@ instance ( HasTypeReps hashAlgo
           <*> gTransactions (Transaction.Env currentSlot updEnv utxoEnv)
                             transactionsSt
     where
-      Transaction.Env {Transaction.updatesEnv = updEnv, Transaction.utxoEnv = utxoEnv} = transactionsEnv
+      Transaction.Env { Transaction.updatesEnv = updEnv
+                      , Transaction.utxoEnv = utxoEnv
+                      } = transactionsEnv
       -- We'd expect the slot increment to be 1 with high probability.
       --
       -- TODO: check the exact probability of having an empty slot.
