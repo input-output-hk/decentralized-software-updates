@@ -14,14 +14,15 @@ import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
-import qualified Hedgehog.Gen as Gen
-import           Hedgehog.Range (constant)
 import           Data.Map.Strict (Map)
 import           Data.Set (Set)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
+import           Hedgehog.Range (constant)
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
@@ -29,6 +30,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import           Ledger.Core (Slot (Slot))
 
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
@@ -79,14 +81,24 @@ data St hashAlgo
 -- | Ideation phase of system updates
 data IDEATION hashAlgo
 
+-- Environmnet of the Ideation phase
+data Env hashAlgo
+  = Env
+    { currentSlot :: !Slot
+      -- ^ The current slot in the blockchain system
+    , participants :: Bimap Core.VKey Core.SKey
+      -- ^ The set of stakeholders (i.e., participants), identified by their signing
+      -- and verifying keys.
+      -- There is a one-to-one correspondence the signing and verifying keys, hence
+      -- the use of 'Bimap'
+    }
+  deriving (Eq, Show, Generic)
+
+
+
 instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
-  -- | The environment is the set of participants, identified by their signing
-  -- and verifying keys.
-  --
-  -- There is a one-to-one correspondence the signing and verifying keys, hence
-  -- the use of 'Bimap'
-  type Environment (IDEATION hashAlgo) = Bimap Core.VKey Core.SKey
+  type Environment (IDEATION hashAlgo) = Env hashAlgo
 
   type State (IDEATION hashAlgo) = St hashAlgo
 
@@ -107,7 +119,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( participants
+      TRC ( Env { participants }
           , st@St { commitedSIPs, submittedSIPs, revealedSIPs, ballotsForSIP }
           , sig
           ) <- judgmentContext
@@ -178,19 +190,23 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
   envGen _traceLength =
-    -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' class so that 'trace' can take parameter of an associated
-    -- type, so that each STS can decide which parameters are relevant for its
-    -- traces.
-    pure $! Bimap.fromList
-         $  fmap (Core.vKey &&& Core.sKey)
-         $  fmap Core.keyPair
-         $  fmap Core.Owner $ [0 .. 10]
+    Env <$> currentSlotGen
+        -- TODO: for now we generate a constant set of keys. We need to update the
+        -- 'HasTrace' class so that 'trace' can take parameter of an associated
+        -- type, so that each STS can decide which parameters are relevant for its
+        -- traces.
+        <*> (pure
+             $! Bimap.fromList
+             $  fmap (Core.vKey &&& Core.sKey)
+             $  fmap Core.keyPair
+             $  fmap Core.Owner $ [0 .. 10])
+    where
+      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
   sigGen
-    participants
+    Env {participants}
     St { submittedSIPs } = do
       owner <- newOwner
       sipMData <- newSIPMetadata

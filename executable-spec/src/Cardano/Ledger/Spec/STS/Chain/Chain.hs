@@ -40,6 +40,7 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 
@@ -182,8 +183,8 @@ instance ( HasTypeReps hashAlgo
         = Transaction.Env <$> gSlot
                           <*> updatesEnvGen gSlot
                           <*> (pure $ UTxO.Env)
-      updatesEnvGen gs = Update.Env <$> gs <*> ideationEnvGen <*> implementationEnvGen
-      ideationEnvGen = participantsGen
+      updatesEnvGen gs = Update.Env <$> gs <*> ideationEnvGen gs <*> implementationEnvGen
+      ideationEnvGen gs = Ideation.Env <$> gs <*> participantsGen
       implementationEnvGen = pure $ Implementation.Env
 
   sigGen Env { maximumBlockSize, transactionsEnv } St { currentSlot, transactionsSt } =
