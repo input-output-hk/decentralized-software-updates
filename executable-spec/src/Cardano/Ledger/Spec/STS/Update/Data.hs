@@ -1,10 +1,11 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -14,24 +15,20 @@
 module Cardano.Ledger.Spec.STS.Update.Data where
 
 import qualified Data.Sequence as Seq
-import Data.Word (Word64)
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
-import           Data.Set (Set)
-import           GHC.Generics (Generic)
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Typeable  (Typeable)
-import           Data.Map.Strict (Map)
-import           Data.Typeable   (typeOf)
+import           Data.Typeable (Typeable)
+import           Data.Typeable (typeOf)
+import           Data.Word (Word64)
+import           GHC.Generics (Generic)
 
-import           Cardano.Binary (ToCBOR (toCBOR), encodeListLen, encodeInt)
-import           Cardano.Crypto.Hash (Hash, hash, HashAlgorithm)
+import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
+import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
-import qualified Ledger.Core as Core
 import           Data.AbstractSize (HasTypeReps, typeReps)
+import qualified Ledger.Core as Core
 
-import Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 
 data ImplementationPayload = ImplementationPayload
@@ -41,8 +38,35 @@ data ImplementationPayload = ImplementationPayload
 data IdeationPayload hashAlgo
   = Submit (SIPCommit hashAlgo) (SIP hashAlgo)
   | Reveal (SIP hashAlgo)
-  | Vote (SIP hashAlgo)
+  | Vote (BallotSIP hashAlgo)
   deriving (Eq, Ord, Show, Generic)
+
+-- | This is the ballot for a SIP
+data (BallotSIP hashAlgo) =
+  BallotSIP { votedsip :: !(SIP hashAlgo) -- TODO: Nikos: Use SIP hash instead?
+              -- ^ SIP that this ballot is for
+            , conf :: !Confidence
+              -- ^ the ballot outcome
+            , voter :: !Core.VKey
+              -- ^ the voter
+            , voterSig :: !(Core.Sig (IdeationPayload hashAlgo))
+              -- ^ the voter's signature on the vote text
+              --
+              -- TODO: Nikos: (Hash SIP, voter_pk, conf)
+            }
+  deriving (Eq, Ord, Show, Generic)
+
+-- | Vote Confidence with a 3-valued logic
+data Confidence = For | Against | Abstain
+  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+
+-- | Records the voting result for a specific software update (SIP/UP)
+data VotingResult
+  deriving (Eq, Ord, Show)
+
+-- | Records the voting period status for a software update (SIP/UP)
+data VotingPeriod
+  deriving (Eq, Ord, Show)
 
 -- | Protocol version
 --
@@ -112,7 +136,7 @@ data SIP hashAlgo =
       -- ^ Who submitted the proposal.
     , salt :: !Int
       -- ^ The salt used during the commit phase
-    , sipPayload :: SIPData
+    , sipPayload :: !SIPData
       -- ^ The actual contents of the SIP.
     }
   deriving (Eq, Generic, Ord, Show)
@@ -150,25 +174,6 @@ calcCommit :: HashAlgorithm hashAlgo => SIP hashAlgo -> Commit hashAlgo
 calcCommit sip@SIP { salt, author } =
   Commit $ hash (salt, author, hash sip)
 
--- | Ideation phase state
---
--- TODO: move this into ideation, and rename to St.
-data State hashAlgo
-  = State
-    { commitedSIPs :: !(Map (Commit hashAlgo) (SIPCommit hashAlgo))
-      -- ^ These are the encrypted SIPs that are submitted at the commit phase
-      -- of an SIP submission
-    , submittedSIPs :: !(Set (SIP hashAlgo))
-      -- ^ These are the SIPs that we need to generate for the testing to
-      -- take place. From these both the commitedSIP's as well as the revealedSIPs
-      -- will be created. This state is not part of the update protocol, it is used
-      -- only for SIP generation purposes.
-    , revealedSIPs :: !(Set (SIP hashAlgo))
-    }
-  deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup (State hashAlgo)
-  deriving Monoid via GenericMonoid (State hashAlgo)
-
 --------------------------------------------------------------------------------
 -- HasTypeReps instances
 --------------------------------------------------------------------------------
@@ -183,6 +188,7 @@ instance HasTypeReps URL where
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps (SIP hashAlgo)
                   , HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
                   ) => HasTypeReps (IdeationPayload hashAlgo)
 
 deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
@@ -202,6 +208,10 @@ deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
                   ) => HasTypeReps (SIPCommit hashAlgo)
 
+
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  ) => HasTypeReps (BallotSIP hashAlgo)
 --------------------------------------------------------------------------------
 -- Sized instances
 --------------------------------------------------------------------------------

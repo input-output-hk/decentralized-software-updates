@@ -16,7 +16,6 @@
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Control.Arrow ((&&&))
-import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 import           GHC.Generics (Generic)
 import qualified Hedgehog.Gen as Gen
@@ -39,13 +38,15 @@ import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION,
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
+import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
+import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 
 data CHAIN hashAlgo
 
 
-data Env
+data Env hashAlgo
   = Env
     { initialSlot :: !Slot
     , maximumBlockSize :: !Size
@@ -53,7 +54,7 @@ data Env
     -- instance of 'Sized'.
     --
     -- TODO: use abstract size instead.
-    , participants :: Bimap Core.VKey Core.SKey
+    , transactionsEnv :: Environment (TRANSACTIONS hashAlgo)
     }
   deriving (Eq, Show)
 
@@ -94,7 +95,7 @@ instance ( HashAlgorithm hashAlgo
          , HasTypeReps (Commit hashAlgo)
          ) => STS (CHAIN hashAlgo) where
 
-  type Environment (CHAIN hashAlgo) = Env
+  type Environment (CHAIN hashAlgo) = Env hashAlgo
 
   type State (CHAIN hashAlgo) = (St hashAlgo)
 
@@ -117,7 +118,7 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { maximumBlockSize, participants }
+      TRC ( Env { maximumBlockSize, transactionsEnv }
           , St { currentSlot, transactionsSt }
           , block@Block{ slot, transactions }
           ) <- judgmentContext
@@ -130,9 +131,13 @@ instance ( HashAlgorithm hashAlgo
 
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
+      let Transaction.Env
+            { Transaction.updatesEnv = upE
+            , Transaction.utxoEnv = utxoE
+            } = transactionsEnv
       transactionsSt' <-
         trans @(TRANSACTIONS hashAlgo)
-          $ TRC ( Transaction.Env currentSlot participants UTxO.Env
+          $ TRC ( Transaction.Env slot upE utxoE
                 , transactionsSt
                 , transactions
                 )
@@ -160,7 +165,10 @@ instance ( HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          ) => HasTrace (CHAIN hashAlgo) where
 
-  envGen _traceLength = Env <$> currentSlotGen <*> maxBlockSizeGen <*> participantsGen
+  envGen _traceLength
+    = Env <$> currentSlotGen
+          <*> maxBlockSizeGen
+          <*> (transactionsEnvGen currentSlotGen)
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- For now we fix the maximum block size to an abstract size of 100
@@ -170,12 +178,22 @@ instance ( HasTypeReps hashAlgo
                       $  fmap (Core.vKey &&& Core.sKey)
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
+      transactionsEnvGen gSlot
+        = Transaction.Env <$> gSlot
+                          <*> updatesEnvGen
+                          <*> (pure $ UTxO.Env)
+      updatesEnvGen = Update.Env <$> ideationEnvGen <*> implementationEnvGen
+      ideationEnvGen = participantsGen
+      implementationEnvGen = pure $ Implementation.Env
 
-  sigGen Env { maximumBlockSize, participants } St { currentSlot, transactionsSt } =
+  sigGen Env { maximumBlockSize, transactionsEnv } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot
-          <*> gTransactions (Transaction.Env currentSlot participants UTxO.Env)
+          <*> gTransactions (Transaction.Env currentSlot updEnv utxoEnv)
                             transactionsSt
     where
+      Transaction.Env { Transaction.updatesEnv = updEnv
+                      , Transaction.utxoEnv = utxoEnv
+                      } = transactionsEnv
       -- We'd expect the slot increment to be 1 with high probability.
       --
       -- TODO: check the exact probability of having an empty slot.

@@ -13,7 +13,6 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
-import           Data.Bimap (Bimap)
 import           Data.Function ((&))
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
@@ -33,12 +32,10 @@ import           Control.State.Transition.Trace (traceSignals, TraceOrder(Oldest
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot)
-import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
@@ -51,10 +48,10 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 data TRANSACTIONS hashAlgo
 
 
-data Env =
-  Env { currentSlot :: Slot
-      , participants :: Bimap Core.VKey Core.SKey
-      , utxoEnv :: Environment UTXO
+data Env hashAlgo =
+  Env { currentSlot :: !Slot
+      , updatesEnv :: !(Environment (UPDATES hashAlgo))
+      , utxoEnv :: !(Environment UTXO)
       }
   deriving (Eq, Show, Generic)
 
@@ -113,13 +110,14 @@ instance ( HashAlgorithm hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTIONS hashAlgo) where
 
-  type Environment (TRANSACTIONS hashAlgo) = Env
+  type Environment (TRANSACTIONS hashAlgo) = Environment (TRANSACTION hashAlgo)
 
-  type State (TRANSACTIONS hashAlgo) = St hashAlgo
+  type State (TRANSACTIONS hashAlgo) = State (TRANSACTION hashAlgo)
 
   type Signal (TRANSACTIONS hashAlgo) = [Tx hashAlgo]
 
-  data PredicateFailure (TRANSACTIONS hashAlgo) = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
+  data PredicateFailure (TRANSACTIONS hashAlgo)
+    = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
     deriving (Eq, Show)
 
   initialRules = []
@@ -144,9 +142,9 @@ data TRANSACTION hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
-  type Environment (TRANSACTION hashAlgo) = Environment (TRANSACTIONS hashAlgo)
+  type Environment (TRANSACTION hashAlgo) = Env hashAlgo
 
-  type State (TRANSACTION hashAlgo) = State (TRANSACTIONS hashAlgo)
+  type State (TRANSACTION hashAlgo) = St hashAlgo
 
   type Signal (TRANSACTION hashAlgo) = Tx hashAlgo
 
@@ -158,7 +156,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { utxoEnv, participants }
+      TRC ( Env { utxoEnv, updatesEnv }
           , St { utxoSt, updateSt }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
@@ -171,10 +169,13 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- shouldn't matter which transition is triggered first. Even if the
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
+      let Update.Env { Update.ideationEnv = idEnv
+                     , Update.implementationEnv = implEnv
+                     } = updatesEnv
       updateSt' <-
         trans @(UPDATES hashAlgo) $
-          TRC ( Update.Env { Update.participants = participants
-                           , Update.implementationEnv = Implementation.Env
+          TRC ( Update.Env { Update.ideationEnv =  idEnv
+                           , Update.implementationEnv = implEnv
                            }
               , updateSt
               , update
@@ -225,7 +226,7 @@ transactionsGen maximumSize env st
         sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen (Env { participants }) (St { updateSt })
+    transactionGen (Env { updatesEnv }) (St { updateSt })
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -241,13 +242,16 @@ transactionsGen maximumSize env st
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.participants = participants
-                               , Update.implementationEnv = Implementation.Env
+                    Update.Env { Update.ideationEnv = idEnv
+                               , Update.implementationEnv = implEnv
                                }
                     updateSt
               )
             ]
       where
+        Update.Env { Update.ideationEnv = idEnv
+                   , Update.implementationEnv = implEnv
+                   } = updatesEnv
         -- For now we don't generate inputs and outputs.
         dummyBody update
           = TxBody
