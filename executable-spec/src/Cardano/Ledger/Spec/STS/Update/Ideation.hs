@@ -193,9 +193,13 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
     participants
     St { submittedSIPs } = do
       owner <- newOwner
+      sipMData <- newSIPMetadata
+      sipData <- newSipData sipMData
+      sipHash <- newSipHash sipData
+      salt <- newSalt
       -- generate the new SIP and pass it to generateASubmission "by value"
       -- otherwise you get non-deterministic SIP!
-      newsip <- newSIP owner
+      newsip <- newSIP owner sipHash salt sipData
       case Set.toList submittedSIPs of
         [] ->
           generateASubmission newsip owner
@@ -210,26 +214,30 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
           $ Set.toList
           $ dom participants
 
-        newSIP newowner = (SIP)
-          <$> newSipHash
-          <*> pure newowner
-          <*> newSalt
-          <*> newSipData
-          where
-            newSalt = Gen.int (constant 0 100)
-            newSipHash = (Data.SIPHash . hash) <$>  newSipData
-            newSipData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (newSIPMetadata)
-            newSIPMetadata = (Data.SIPMetadata)
-              <$> (
-                  ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                        <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-                  )
-              <*> (
-                  ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                        <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-                  )
-              <*> (Gen.element [Data.Impact, Data.NoImpact])
-              <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
+        newSIPMetadata = (Data.SIPMetadata)
+          <$> (
+              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
+                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
+              )
+          <*> (
+              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
+                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
+              )
+          <*> (Gen.element [Data.Impact, Data.NoImpact])
+          <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
+
+        newSipData sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
+
+        newSalt = Gen.int (constant 0 100)
+
+        newSipHash sipData = (Data.SIPHash . hash) <$>  (pure sipData)
+
+        newSIP newowner nsipHash nsalt nsipData =
+          (SIP)
+            <$> pure nsipHash
+            <*> pure newowner
+            <*> pure nsalt
+            <*> pure nsipData
 
         -- Generate a submission taking a participant that hasn't submitted a proposal yet
         generateASubmission nsip owner = do
