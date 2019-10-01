@@ -126,10 +126,15 @@ newtype URL = URL { getText :: Text }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (ToCBOR)
 
+-- | Hash of the SIP contents (`SIPData`) also plays the role of a SIP
+-- unique id
+data SIPHash hashAlgo = SIPHash (Hash hashAlgo SIPData)
+  deriving (Eq, Generic, Ord, Show)
+
 -- | System improvement proposal
 data SIP hashAlgo =
   SIP
-    { sipHash :: Hash hashAlgo SIPData
+    { sipHash :: SIPHash hashAlgo
       -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
       -- unique id
     , author :: !Core.VKey
@@ -193,6 +198,7 @@ deriving instance ( Typeable hashAlgo
 
 deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
                   , Typeable hashAlgo
+                  , HasTypeReps hashAlgo
                   ) => HasTypeReps (SIP hashAlgo)
 
 -- | A commit is basically wrapping the hash of some salt, owner verification
@@ -211,6 +217,7 @@ deriving instance ( Typeable hashAlgo
 
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps hashAlgo
                   ) => HasTypeReps (BallotSIP hashAlgo)
 --------------------------------------------------------------------------------
 -- Sized instances
@@ -240,6 +247,11 @@ instance (HashAlgorithm hashAlgo) => ToCBOR (SIP hashAlgo) where
     <> toCBOR salt
     <> toCBOR sipPayload
 
+instance (HashAlgorithm hashAlgo) => ToCBOR (SIPHash hashAlgo) where
+  toCBOR (SIPHash sipHash)
+    =  encodeListLen 1
+    <> toCBOR sipHash
+
 instance ToCBOR SIPData where
   toCBOR SIPData { url, metadata }
     =  encodeListLen 2
@@ -262,3 +274,11 @@ instance ToCBOR ConcensusImpact where
 
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
+
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  ) => HasTypeReps (SIPHash hashAlgo)
+
+
+

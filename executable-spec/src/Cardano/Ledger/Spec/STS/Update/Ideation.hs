@@ -217,7 +217,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
           <*> newSipData
           where
             newSalt = Gen.int (constant 0 100)
-            newSipHash = (fmap hash) newSipData -- NullSIPData
+            newSipHash = (Data.SIPHash . hash) <$>  newSipData
             newSipData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (newSIPMetadata)
             newSIPMetadata = (Data.SIPMetadata)
               <$> (
