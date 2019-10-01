@@ -156,7 +156,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { utxoEnv, updatesEnv }
+      TRC ( Env { currentSlot, utxoEnv, updatesEnv }
           , St { utxoSt, updateSt }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
@@ -169,12 +169,14 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- shouldn't matter which transition is triggered first. Even if the
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
-      let Update.Env { Update.ideationEnv = idEnv
+      let Update.Env { Update.currentSlot = _
+                     , Update.ideationEnv = idEnv
                      , Update.implementationEnv = implEnv
                      } = updatesEnv
       updateSt' <-
         trans @(UPDATES hashAlgo) $
-          TRC ( Update.Env { Update.ideationEnv =  idEnv
+          TRC ( Update.Env { Update.currentSlot = currentSlot
+                           , Update.ideationEnv =  idEnv
                            , Update.implementationEnv = implEnv
                            }
               , updateSt
@@ -242,14 +244,16 @@ transactionsGen maximumSize env st
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.ideationEnv = idEnv
+                    Update.Env { Update.currentSlot = cs
+                              ,  Update.ideationEnv = idEnv
                                , Update.implementationEnv = implEnv
                                }
                     updateSt
               )
             ]
       where
-        Update.Env { Update.ideationEnv = idEnv
+        Update.Env { Update.currentSlot = cs
+                   , Update.ideationEnv = idEnv
                    , Update.implementationEnv = implEnv
                    } = updatesEnv
         -- For now we don't generate inputs and outputs.

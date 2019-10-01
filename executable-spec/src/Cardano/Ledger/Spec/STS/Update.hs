@@ -16,6 +16,9 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
+
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
@@ -24,6 +27,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
 import           Data.AbstractSize (HasTypeReps)
+import           Ledger.Core (Slot (Slot))
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (IdeationPayload, ImplementationPayload, SIPData, Commit)
@@ -38,7 +42,8 @@ data UPDATE hashAlgo
 -- adding more components to this environment.
 data Env hashAlgo
   = Env
-    { ideationEnv :: Environment (IDEATION hashAlgo)
+    { currentSlot :: !Slot
+    , ideationEnv :: Environment (IDEATION hashAlgo)
     , implementationEnv :: Environment IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
@@ -170,8 +175,11 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATES hashAlgo) where
 instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
 
   envGen traceLength =
-    Env <$> envGen @(IDEATION hashAlgo) traceLength
+    Env <$> currentSlotGen
+        <*> envGen @(IDEATION hashAlgo) traceLength
         <*> envGen @IMPLEMENTATION traceLength
+    where
+      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
 
   sigGen Env { ideationEnv } St { ideationSt } =
     -- For now we generate ideation payload only.

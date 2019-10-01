@@ -166,11 +166,11 @@ instance ( HasTypeReps hashAlgo
          ) => HasTrace (CHAIN hashAlgo) where
 
   envGen _traceLength
-    = Env <$> currentSlotGen
+    = Env <$> initialSlotGen
           <*> maxBlockSizeGen
-          <*> (transactionsEnvGen currentSlotGen)
+          <*> (transactionsEnvGen initialSlotGen)
     where
-      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+      initialSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100
       participantsGen = pure
@@ -180,9 +180,9 @@ instance ( HasTypeReps hashAlgo
                       $  fmap Core.Owner $ [0 .. 10]
       transactionsEnvGen gSlot
         = Transaction.Env <$> gSlot
-                          <*> updatesEnvGen
+                          <*> updatesEnvGen gSlot
                           <*> (pure $ UTxO.Env)
-      updatesEnvGen = Update.Env <$> ideationEnvGen <*> implementationEnvGen
+      updatesEnvGen gs = Update.Env <$> gs <*> ideationEnvGen <*> implementationEnvGen
       ideationEnvGen = participantsGen
       implementationEnvGen = pure $ Implementation.Env
 
