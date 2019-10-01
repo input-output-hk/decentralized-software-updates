@@ -183,9 +183,9 @@ instance ( HasTypeReps hashAlgo
         = Transaction.Env <$> gSlot
                           <*> updatesEnvGen gSlot
                           <*> (pure $ UTxO.Env)
-      updatesEnvGen gs = Update.Env <$> gs <*> ideationEnvGen gs <*> implementationEnvGen
+      updatesEnvGen gs = Update.Env <$> gs <*> ideationEnvGen gs <*> implementationEnvGen gs
       ideationEnvGen gs = Ideation.Env <$> gs <*> participantsGen
-      implementationEnvGen = pure $ Implementation.Env
+      implementationEnvGen gs = Implementation.Env <$> gs
 
   sigGen Env { maximumBlockSize, transactionsEnv } St { currentSlot, transactionsSt } =
     Block <$> gNextSlot

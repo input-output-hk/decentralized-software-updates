@@ -12,16 +12,23 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
+
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import           Ledger.Core (Slot (Slot))
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
 data IMPLEMENTATION
 
-data Env = Env
+data Env =
+  Env { currentSlot :: !Slot
+        -- ^ The current slot in the blockchain system
+      }
   deriving (Eq, Show, Generic)
 
 data St = St ()
@@ -49,6 +56,9 @@ instance STS IMPLEMENTATION where
 
 instance HasTrace IMPLEMENTATION where
 
-  envGen _ = pure $! Env
+  envGen _ =
+    Env <$> currentSlotGen
+    where
+      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
 
   sigGen _env _st = pure $! Data.ImplementationPayload
