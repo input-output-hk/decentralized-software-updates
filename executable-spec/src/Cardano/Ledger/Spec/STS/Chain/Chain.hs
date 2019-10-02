@@ -18,6 +18,9 @@ module Cardano.Ledger.Spec.STS.Chain.Chain where
 import           Control.Arrow ((&&&))
 import qualified Data.Bimap as Bimap
 import           GHC.Generics (Generic)
+import qualified Data.Map.Strict as Map
+import           Data.Map.Strict (Map)
+
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
@@ -39,7 +42,13 @@ import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
+import           Cardano.Ledger.Spec.STS.Update.Data ( Commit
+                                                     , SIPData
+                                                     , SIPHash
+                                                     , VotingPeriod(..)
+                                                     , VPStatus(..)
+                                                     , vpDurationToSlot
+                                                     )
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
@@ -63,6 +72,10 @@ data Env hashAlgo
 data St hashAlgo
   = St
     { currentSlot :: !Slot
+    , openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the open voting periods  per SIP
+    , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the closed voting periods per SIP
     , transactionsSt :: State (TRANSACTIONS hashAlgo)
     }
   deriving (Eq, Show)
@@ -113,6 +126,8 @@ instance ( HashAlgorithm hashAlgo
     do
       IRC Env { initialSlot } <- judgmentContext
       pure $! St { currentSlot = initialSlot
+                 , openVotingPeriods = Map.empty
+                 , closedVotingPeriods = Map.empty
                  , transactionsSt = mempty
                  }
     ]
@@ -120,7 +135,11 @@ instance ( HashAlgorithm hashAlgo
   transitionRules = [
     do
       TRC ( Env { maximumBlockSize, transactionsEnv }
-          , St { currentSlot, transactionsSt }
+          , St  { currentSlot
+                , openVotingPeriods
+                , closedVotingPeriods
+                , transactionsSt
+                }
           , block@Block{ slot, transactions }
           ) <- judgmentContext
       currentSlot < slot
@@ -130,19 +149,56 @@ instance ( HashAlgorithm hashAlgo
       -- TODO: we will need a header transition as well, where the votes are
       -- tallied.
 
-      -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
-      -- Byron and Shelley rules.
       let Transaction.Env
             { Transaction.updatesEnv = upE
             , Transaction.utxoEnv = utxoE
             } = transactionsEnv
+
+          (openVotingPeriods', closedVotingPeriods') = updateVotingPeriods openVotingPeriods closedVotingPeriods
+
+          updateVotingPeriods open closed =
+            let
+              -- traverse all VPs of open Map and update their status
+              updatedOpen =
+                Map.map (
+                          \vp@VotingPeriod {sipId, openingSlot, vpDuration} ->
+                            if slot - openingSlot >= (vpDurationToSlot vpDuration)
+                              then -- VP must close
+                                VotingPeriod
+                                   { sipId = sipId
+                                   , openingSlot = openingSlot
+                                   , closingSlot = slot
+                                   , vpDuration = vpDuration
+                                   , vpStatus = VPClosed
+                                   }
+                              else -- VP should remain open
+                                vp
+                        )
+                        open
+
+              -- extract all closed VPs from open Map
+              newClosedVPs =
+                Map.filter (\VotingPeriod {vpStatus} ->
+                                vpStatus == VPClosed
+                           )
+                           updatedOpen
+            in
+              -- insert new closed VPs into closed Map and remove closed VPs from open Map
+              ( Map.difference open newClosedVPs
+              , Map.union newClosedVPs closed
+              )
+
+      -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
+      -- Byron and Shelley rules.
       transactionsSt' <-
         trans @(TRANSACTIONS hashAlgo)
-          $ TRC ( Transaction.Env slot upE utxoE
+          $ TRC ( Transaction.Env slot openVotingPeriods' closedVotingPeriods' upE utxoE
                 , transactionsSt
                 , transactions
                 )
       pure $! St { currentSlot = slot
+                 , openVotingPeriods = openVotingPeriods'
+                 , closedVotingPeriods = closedVotingPeriods'
                  , transactionsSt = transactionsSt'
                  }
     ]
@@ -169,9 +225,17 @@ instance ( HasTypeReps hashAlgo
   envGen _traceLength
     = Env <$> initialSlotGen
           <*> maxBlockSizeGen
-          <*> (transactionsEnvGen initialSlotGen)
+          <*> (transactionsEnvGen
+                initialSlotGen
+                openVotingPeriodsGen
+                closedVotingPeriodsGen
+              )
     where
       initialSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+      -- TODO: Generate a realistic open voting periods Map
+      openVotingPeriodsGen = pure $ Map.empty
+      -- TODO: Generate a realistic closed voting periods Map
+      closedVotingPeriodsGen = pure $ Map.empty
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100
       participantsGen = pure
@@ -179,17 +243,43 @@ instance ( HasTypeReps hashAlgo
                       $  fmap (Core.vKey &&& Core.sKey)
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
-      transactionsEnvGen gSlot
-        = Transaction.Env <$> gSlot
-                          <*> updatesEnvGen gSlot
-                          <*> (pure $ UTxO.Env)
-      updatesEnvGen gs = Update.Env <$> gs <*> ideationEnvGen gs <*> implementationEnvGen gs
-      ideationEnvGen gs = Ideation.Env <$> gs <*> participantsGen
+      transactionsEnvGen gSlot gOpenVotingPeriods gClosedVotingPeriods
+        = Transaction.Env
+          <$> gSlot
+          <*> gOpenVotingPeriods
+          <*> gClosedVotingPeriods
+          <*> updatesEnvGen gSlot gOpenVotingPeriods gClosedVotingPeriods
+          <*> (pure $ UTxO.Env)
+      updatesEnvGen gs gOpenVotingPeriods gClosedVotingPeriods =
+        Update.Env
+          <$> gs
+          <*> gOpenVotingPeriods
+          <*> gClosedVotingPeriods
+          <*> ideationEnvGen gs gOpenVotingPeriods gClosedVotingPeriods
+          <*> implementationEnvGen gs
+      ideationEnvGen gs gOpenVotingPeriods gClosedVotingPeriods =
+        Ideation.Env
+          <$> gs
+          <*> participantsGen
+          <*> gOpenVotingPeriods
+          <*> gClosedVotingPeriods
+
       implementationEnvGen gs = Implementation.Env <$> gs
 
-  sigGen Env { maximumBlockSize, transactionsEnv } St { currentSlot, transactionsSt } =
+  sigGen  Env { maximumBlockSize, transactionsEnv }
+          St  { currentSlot
+              , openVotingPeriods
+              , closedVotingPeriods
+              , transactionsSt
+              } =
     Block <$> gNextSlot
-          <*> gTransactions (Transaction.Env currentSlot updEnv utxoEnv)
+          <*> gTransactions ( Transaction.Env
+                                currentSlot
+                                openVotingPeriods
+                                closedVotingPeriods
+                                updEnv
+                                utxoEnv
+                            )
                             transactionsSt
     where
       Transaction.Env { Transaction.updatesEnv = updEnv

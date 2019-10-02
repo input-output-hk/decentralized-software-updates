@@ -27,6 +27,7 @@ import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
 import qualified Ledger.Core as Core
+import           Ledger.Core (Slot (Slot))
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
@@ -67,8 +68,38 @@ data VotingResult
   deriving (Eq, Ord, Show)
 
 -- | Records the voting period status for a software update (SIP/UP)
-data VotingPeriod
+data (VotingPeriod hashAlgo) =
+  VotingPeriod { sipId :: !(SIPHash hashAlgo)
+                 -- ^ Id of the SIP in question
+               , openingSlot :: !Slot
+                 -- ^ Slot that the voting period opens
+               , closingSlot :: !Slot
+                 -- ^ Slot that the voting period closes
+               , vpDuration :: !VPDuration
+                 -- ^ Duration of the voting period
+               , vpStatus :: !VPStatus
+               -- ^ open or closed
+               }
   deriving (Eq, Ord, Show)
+
+deriving instance Num Slot
+
+-- | Duration of a Voting Period
+data VPDuration = VPMin | VPMedium | VPLarge
+  deriving (Eq, Ord, Show)
+
+-- | Voting Period status values
+data VPStatus = VPOpen | VPClosed
+  deriving (Eq, Ord, Show)
+
+-- | Includes logic to translate a voting period duration
+-- to number of slots
+vpDurationToSlot :: VPDuration -> Slot
+vpDurationToSlot  d =
+  case d of
+    VPMin -> Slot 20
+    VPMedium -> Slot 50
+    VPLarge -> Slot 100
 
 -- | Protocol version
 --

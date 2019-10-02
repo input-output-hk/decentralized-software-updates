@@ -14,6 +14,7 @@ import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
+import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import           Data.Set (Set)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
@@ -38,13 +39,15 @@ import           Cardano.Ledger.Spec.STS.Update.Data
 import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, VotingPeriod, BallotSIP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
-import qualified Data.Map.Strict as Map
 import           Ledger.Core (dom, (∈), (∉))
 import qualified Ledger.Core as Core
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
+
+-- | Ideation phase of system updates
+data IDEATION hashAlgo
 
 -- | Ideation phase state
 --
@@ -64,22 +67,10 @@ data St hashAlgo
       -- ^ This stores the valid ballots for each SIP and the voters
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
       -- ^ This records the current voting result for each SIP
-
-      -- TODO: include this in the state of CHAINS and move it to the Ideation Env
-    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) VotingPeriod)
-      -- ^ Records the open voting periods
-
-      -- TODO: include this in the state of CHAINS and move it to the Ideation Env
-    , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) VotingPeriod)
-  -- ^ Records the closed voting periods
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
   deriving Monoid via GenericMonoid (St hashAlgo)
-
-
--- | Ideation phase of system updates
-data IDEATION hashAlgo
 
 -- Environmnet of the Ideation phase
 data Env hashAlgo
@@ -91,6 +82,10 @@ data Env hashAlgo
       -- and verifying keys.
       -- There is a one-to-one correspondence the signing and verifying keys, hence
       -- the use of 'Bimap'
+    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the open voting periods  per SIP
+    , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the closed voting periods per SIP
     }
   deriving (Eq, Show, Generic)
 
@@ -200,8 +195,14 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
              $  fmap (Core.vKey &&& Core.sKey)
              $  fmap Core.keyPair
              $  fmap Core.Owner $ [0 .. 10])
+        <*> openVotingPeriodsGen
+        <*> closedVotingPeriodsGen
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+      -- TODO: generate a realistic Map
+      openVotingPeriodsGen = pure $ Map.empty
+      -- TODO: generate a realistic Map
+      closedVotingPeriodsGen = pure $ Map.empty
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.

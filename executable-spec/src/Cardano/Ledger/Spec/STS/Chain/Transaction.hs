@@ -21,6 +21,8 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (typeOf)
 import Data.Set (Set)
+import           Data.Map.Strict (Map)
+
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -38,7 +40,7 @@ import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), W
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
+import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
@@ -47,15 +49,21 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
 data TRANSACTIONS hashAlgo
 
-
+-- | Environment of the TRANSACTION STS
 data Env hashAlgo =
   Env { currentSlot :: !Slot
+      , openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the open voting periods  per SIP
+      , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the closed voting periods per SIP
       , updatesEnv :: !(Environment (UPDATES hashAlgo))
+      -- ^ Environment of the child STS (UPDATES)
       , utxoEnv :: !(Environment UTXO)
+      -- ^ Environment of the child STS (UTXO)
       }
   deriving (Eq, Show, Generic)
 
-
+-- | State of the TRANSACTION STS
 data St hashAlgo =
   St { utxoSt :: State UTXO
      , updateSt :: State (UPDATES hashAlgo)
@@ -156,7 +164,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, utxoEnv, updatesEnv }
+      TRC ( Env { currentSlot, openVotingPeriods, closedVotingPeriods, utxoEnv, updatesEnv }
           , St { utxoSt, updateSt }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
@@ -170,12 +178,16 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
       let Update.Env { Update.currentSlot = _
+                     , Update.openVotingPeriods = _
+                     , Update.closedVotingPeriods = _
                      , Update.ideationEnv = idEnv
                      , Update.implementationEnv = implEnv
                      } = updatesEnv
       updateSt' <-
         trans @(UPDATES hashAlgo) $
           TRC ( Update.Env { Update.currentSlot = currentSlot
+                           , Update.openVotingPeriods = openVotingPeriods
+                           , Update.closedVotingPeriods = closedVotingPeriods
                            , Update.ideationEnv =  idEnv
                            , Update.implementationEnv = implEnv
                            }
@@ -228,7 +240,13 @@ transactionsGen maximumSize env st
         sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen (Env { updatesEnv }) (St { updateSt })
+    transactionGen  (Env { currentSlot
+                         , openVotingPeriods
+                         , closedVotingPeriods
+                         , updatesEnv
+                         }
+                    )
+                    (St { updateSt })
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -244,15 +262,19 @@ transactionsGen maximumSize env st
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.currentSlot = cs
-                              ,  Update.ideationEnv = idEnv
+                    Update.Env { Update.currentSlot = currentSlot
+                               , Update.openVotingPeriods = openVotingPeriods
+                               , Update.closedVotingPeriods = closedVotingPeriods
+                               , Update.ideationEnv = idEnv
                                , Update.implementationEnv = implEnv
                                }
                     updateSt
               )
             ]
       where
-        Update.Env { Update.currentSlot = cs
+        Update.Env { Update.currentSlot = _
+                   , Update.openVotingPeriods = _
+                   , Update.closedVotingPeriods = _
                    , Update.ideationEnv = idEnv
                    , Update.implementationEnv = implEnv
                    } = updatesEnv
