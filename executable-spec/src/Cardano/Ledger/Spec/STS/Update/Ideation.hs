@@ -108,13 +108,14 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
     | SIPFailedToBeRevealed (Data.SIP hashAlgo)
     | InvalidVoter Core.VKey
     | VoteNotForRevealedSIP (Data.SIPHash hashAlgo)
+    | VoteNotForOpenVotingPEriod (Data.SIPHash hashAlgo)
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
 
   transitionRules = [
     do
-      TRC ( Env { participants }
+      TRC ( Env { participants, openVotingPeriods }
           , st@St { commitedSIPs, submittedSIPs, revealedSIPs, ballotsForSIP }
           , sig
           ) <- judgmentContext
@@ -155,7 +156,9 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
             -- TODO: Signature of the vote must be verified
 
-            -- TODO:The voting period for this SIP must be open for the vote to be valid
+            -- The voting period for this SIP must be open for the vote to be valid
+            (Data.votedsipId ballot) ∈ dom openVotingPeriods ?!
+              VoteNotForOpenVotingPEriod (Data.votedsipId ballot)
 
             -- Update State
               -- Add ballot to the state of valid ballots for this SIP

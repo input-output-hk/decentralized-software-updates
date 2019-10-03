@@ -162,7 +162,7 @@ instance ( HashAlgorithm hashAlgo
               updatedOpen =
                 Map.map (
                           \vp@VotingPeriod {sipId, openingSlot, vpDuration} ->
-                            if slot - openingSlot >= (vpDurationToSlot vpDuration)
+                            if slot - openingSlot > (vpDurationToSlot vpDuration)
                               then -- VP must close
                                 VotingPeriod
                                    { sipId = sipId
