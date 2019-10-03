@@ -33,7 +33,9 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (Slot (Slot))
+import           Ledger.Core ( Slot (Slot)
+                             , addSlot
+                             )
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION,
@@ -47,7 +49,7 @@ import           Cardano.Ledger.Spec.STS.Update.Data ( Commit
                                                      , SIPHash
                                                      , VotingPeriod(..)
                                                      , VPStatus(..)
-                                                     , vpDurationToSlot
+                                                     , vpDurationToSlotCnt
                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
@@ -162,7 +164,7 @@ instance ( HashAlgorithm hashAlgo
               updatedOpen =
                 Map.map (
                           \vp@VotingPeriod {sipId, openingSlot, vpDuration} ->
-                            if slot - openingSlot > (vpDurationToSlot vpDuration)
+                            if slot > addSlot openingSlot  (vpDurationToSlotCnt vpDuration)
                               then -- VP must close
                                 VotingPeriod
                                    { sipId = sipId

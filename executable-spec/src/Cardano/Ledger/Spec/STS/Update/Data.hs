@@ -27,7 +27,12 @@ import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
 import qualified Ledger.Core as Core
-import           Ledger.Core (Slot (Slot))
+import           Ledger.Core ( Slot (Slot)
+                             , SlotCount (SlotCount)
+                             , addSlot
+                             , minusSlot
+                             , minusSlotMaybe
+                             )
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
@@ -82,8 +87,6 @@ data (VotingPeriod hashAlgo) =
                }
   deriving (Eq, Ord, Show)
 
-deriving instance Num Slot
-
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
   deriving (Eq, Ord, Show)
@@ -94,12 +97,12 @@ data VPStatus = VPOpen | VPClosed
 
 -- | Includes logic to translate a voting period duration
 -- to number of slots
-vpDurationToSlot :: VPDuration -> Slot
-vpDurationToSlot  d =
+vpDurationToSlotCnt :: VPDuration -> SlotCount
+vpDurationToSlotCnt  d =
   case d of
-    VPMin -> Slot 20
-    VPMedium -> Slot 50
-    VPLarge -> Slot 100
+    VPMin -> SlotCount 20
+    VPMedium -> SlotCount 50
+    VPLarge -> SlotCount 100
 
 -- | Protocol version
 --
