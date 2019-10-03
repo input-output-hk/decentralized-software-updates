@@ -140,7 +140,11 @@ instance ( HashAlgorithm hashAlgo
           , St  { currentSlot
                 , openVotingPeriods
                 , closedVotingPeriods
-                , transactionsSt
+                , transactionsSt =
+                    Transaction.St { -- Transaction.openVotingPeriods
+                                     Transaction.utxoSt
+                                   , Transaction.updateSt
+                                   }
                 }
           , block@Block{ slot, transactions }
           ) <- judgmentContext
@@ -192,14 +196,20 @@ instance ( HashAlgorithm hashAlgo
 
       -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
       -- Byron and Shelley rules.
-      transactionsSt' <-
+      transactionsSt'@Transaction.St { Transaction.openVotingPeriods = ovp'
+                                        -- ovp' = returned state updated by IDEATION
+                                     , Transaction.utxoSt = _
+                                     , Transaction.updateSt = _
+                                     } <-
         trans @(TRANSACTIONS hashAlgo)
-          $ TRC ( Transaction.Env slot openVotingPeriods' closedVotingPeriods' upE utxoE
-                , transactionsSt
+          $ TRC ( Transaction.Env slot closedVotingPeriods' upE utxoE
+                  -- pass the updated openVotingPeriods state
+                , Transaction.St openVotingPeriods' utxoSt updateSt
                 , transactions
                 )
       pure $! St { currentSlot = slot
-                 , openVotingPeriods = openVotingPeriods'
+                 , openVotingPeriods = ovp' -- This state has been further updated
+                                            -- by the IDEATON STS
                  , closedVotingPeriods = closedVotingPeriods'
                  , transactionsSt = transactionsSt'
                  }
@@ -229,13 +239,10 @@ instance ( HasTypeReps hashAlgo
           <*> maxBlockSizeGen
           <*> (transactionsEnvGen
                 initialSlotGen
-                openVotingPeriodsGen
                 closedVotingPeriodsGen
               )
     where
       initialSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- TODO: Generate a realistic open voting periods Map
-      openVotingPeriodsGen = pure $ Map.empty
       -- TODO: Generate a realistic closed voting periods Map
       closedVotingPeriodsGen = pure $ Map.empty
       -- For now we fix the maximum block size to an abstract size of 100
@@ -245,39 +252,35 @@ instance ( HasTypeReps hashAlgo
                       $  fmap (Core.vKey &&& Core.sKey)
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
-      transactionsEnvGen gSlot gOpenVotingPeriods gClosedVotingPeriods
+      transactionsEnvGen gSlot gClosedVotingPeriods
         = Transaction.Env
           <$> gSlot
-          <*> gOpenVotingPeriods
           <*> gClosedVotingPeriods
-          <*> updatesEnvGen gSlot gOpenVotingPeriods gClosedVotingPeriods
+          <*> updatesEnvGen gSlot gClosedVotingPeriods
           <*> (pure $ UTxO.Env)
-      updatesEnvGen gs gOpenVotingPeriods gClosedVotingPeriods =
+      updatesEnvGen gs gClosedVotingPeriods =
         Update.Env
           <$> gs
-          <*> gOpenVotingPeriods
           <*> gClosedVotingPeriods
-          <*> ideationEnvGen gs gOpenVotingPeriods gClosedVotingPeriods
+          <*> ideationEnvGen gs gClosedVotingPeriods
           <*> implementationEnvGen gs
-      ideationEnvGen gs gOpenVotingPeriods gClosedVotingPeriods =
+      ideationEnvGen gs gClosedVotingPeriods =
         Ideation.Env
           <$> gs
           <*> participantsGen
-          <*> gOpenVotingPeriods
           <*> gClosedVotingPeriods
 
       implementationEnvGen gs = Implementation.Env <$> gs
 
   sigGen  Env { maximumBlockSize, transactionsEnv }
           St  { currentSlot
-              , openVotingPeriods
+              --, openVotingPeriods
               , closedVotingPeriods
               , transactionsSt
               } =
     Block <$> gNextSlot
           <*> gTransactions ( Transaction.Env
                                 currentSlot
-                                openVotingPeriods
                                 closedVotingPeriods
                                 updEnv
                                 utxoEnv

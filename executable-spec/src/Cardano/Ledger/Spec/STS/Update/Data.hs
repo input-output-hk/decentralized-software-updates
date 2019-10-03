@@ -27,11 +27,10 @@ import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
 import qualified Ledger.Core as Core
-import           Ledger.Core ( Slot (Slot)
+import           Ledger.Core ( Slot
+                             , Slot (Slot)
+                             , SlotCount
                              , SlotCount (SlotCount)
-                             , addSlot
-                             , minusSlot
-                             , minusSlotMaybe
                              )
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
@@ -89,7 +88,7 @@ data (VotingPeriod hashAlgo) =
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, HasTypeReps)
 
 -- | Voting Period status values
 data VPStatus = VPOpen | VPClosed
@@ -103,6 +102,24 @@ vpDurationToSlotCnt  d =
     VPMin -> SlotCount 20
     VPMedium -> SlotCount 50
     VPLarge -> SlotCount 100
+
+-- | Create a Voting Period for a SIP
+-- based on the `SIPMetadata` for the duration
+-- and the current slot as an opening slot
+createVotingPeriod :: Slot -> (SIP hashAlgo) -> (VotingPeriod hashAlgo)
+createVotingPeriod slot sip =
+  VotingPeriod { sipId = sipHash sip
+               , openingSlot =  slot
+               , closingSlot = Slot 0 -- dummy value
+               , vpDuration = getVPDurationFromSIPMdata sip
+               , vpStatus = VPOpen
+               }
+  where
+    getVPDurationFromSIPMdata sp =
+      let sipdata = sipPayload sp
+          sipMdata = metadata sipdata
+      in votPeriodDuration sipMdata
+
 
 -- | Protocol version
 --
@@ -143,6 +160,8 @@ data SIPMetadata =
       -- ^ Flag to determine an impact on the underlying consensus protocol
     , impactsParameters :: !([ParamName])
       -- ^ List of protocol parameters impacted
+    , votPeriodDuration :: !VPDuration
+      -- Voting Period duration for this SIP
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 

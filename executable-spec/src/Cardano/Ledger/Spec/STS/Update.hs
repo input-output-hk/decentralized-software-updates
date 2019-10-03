@@ -53,8 +53,6 @@ data UPDATE hashAlgo
 data Env hashAlgo
   = Env
     { currentSlot :: !Slot
-    , openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-    -- ^ Records the open voting periods  per SIP
     , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
     -- ^ Records the closed voting periods per SIP
     , ideationEnv :: Environment (IDEATION hashAlgo)
@@ -65,7 +63,11 @@ data Env hashAlgo
 
 data St hashAlgo
   = St
-    { ideationSt :: State (IDEATION hashAlgo)
+    { openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the open voting periods  per SIP
+      -- It is included in the state of this STS,
+      -- because it must be returned updated to its parent STS
+    , ideationSt :: State (IDEATION hashAlgo)
     , implementationSt :: State IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
@@ -113,12 +115,20 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
   transitionRules = [
     do
       TRC ( Env { currentSlot
-                , openVotingPeriods
                 , closedVotingPeriods
                 , ideationEnv
                 -- , implementationEnv
                 }
-          , st@St { ideationSt, implementationSt }
+          , st@St { openVotingPeriods
+                  , ideationSt =  Ideation.St { Ideation.commitedSIPs = cS
+                                              , Ideation.submittedSIPs = sS
+                                              , Ideation.revealedSIPs = rS
+                                              , Ideation.ballotsForSIP = bS
+                                              , Ideation.openVotingPeriods = _
+                                              , Ideation.voteResultSIPs = vR
+                                              }
+                  , implementationSt
+                  }
           , update
           ) <- judgmentContext
 
@@ -127,20 +137,29 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
           do
             let Ideation.Env { Ideation.currentSlot = _
                              , Ideation.participants = par
-                             , Ideation.openVotingPeriods = _
                              , Ideation.closedVotingPeriods = _
                              } = ideationEnv
-            ideationSt' <-
+            ideationSt'@Ideation.St { Ideation.openVotingPeriods = ovp'} <-
               trans @(IDEATION hashAlgo)
                 $ TRC ( Ideation.Env  { Ideation.currentSlot = currentSlot
                                       , Ideation.participants = par
-                                      , Ideation.openVotingPeriods = openVotingPeriods
                                       , Ideation.closedVotingPeriods = closedVotingPeriods
                                       }
-                      , ideationSt
+                      , Ideation.St { Ideation.commitedSIPs = cS
+                                    , Ideation.submittedSIPs = sS
+                                    , Ideation.revealedSIPs = rS
+                                    , Ideation.ballotsForSIP = bS
+                                    , Ideation.openVotingPeriods = openVotingPeriods
+                                        -- pass the updated openVotingPeriods state
+                                    , Ideation.voteResultSIPs = vR
+                                    }
                       , ideationPayload
                       )
-            pure $ st { ideationSt = ideationSt' }
+            pure $ st { openVotingPeriods = ovp'
+                        -- This state (ovp') has been updated
+                       -- by the IDEATON STS
+                      , ideationSt = ideationSt'
+                      }
         Implementation implementationPayload ->
           do
             implementationSt' <-
@@ -209,19 +228,15 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
 
   envGen traceLength =
     Env <$> currentSlotGen
-        <*> openVotingPeriodsGen
         <*> closedVotingPeriodsGen
         <*> envGen @(IDEATION hashAlgo) traceLength
         <*> envGen @IMPLEMENTATION traceLength
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- TODO: generate a realistic Map
-      openVotingPeriodsGen = pure $ Map.empty
-      -- TODO: generate a realistic Map
       closedVotingPeriodsGen = pure $ Map.empty
 
   sigGen  Env { currentSlot
-              , openVotingPeriods
               , closedVotingPeriods
               , ideationEnv
               }
@@ -231,8 +246,6 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
       <$> sigGen  @(IDEATION hashAlgo)
                   Ideation.Env  { Ideation.currentSlot = currentSlot
                                 , Ideation.participants = par
-                                , Ideation.openVotingPeriods
-                                    = openVotingPeriods
                                 , Ideation.closedVotingPeriods
                                     = closedVotingPeriods
                                 }
@@ -240,6 +253,5 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
     where
       Ideation.Env  { Ideation.currentSlot = _
                     , Ideation.participants = par
-                    , Ideation.openVotingPeriods = _
                     , Ideation.closedVotingPeriods = _
                     } = ideationEnv

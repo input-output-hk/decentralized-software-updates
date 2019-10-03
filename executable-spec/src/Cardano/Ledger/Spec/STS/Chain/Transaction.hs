@@ -52,8 +52,6 @@ data TRANSACTIONS hashAlgo
 -- | Environment of the TRANSACTION STS
 data Env hashAlgo =
   Env { currentSlot :: !Slot
-      , openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the open voting periods  per SIP
       , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
       -- ^ Records the closed voting periods per SIP
       , updatesEnv :: !(Environment (UPDATES hashAlgo))
@@ -65,7 +63,11 @@ data Env hashAlgo =
 
 -- | State of the TRANSACTION STS
 data St hashAlgo =
-  St { utxoSt :: State UTXO
+  St { openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+       -- ^ Records the open voting periods  per SIP
+       -- It is included in the state of this STS,
+       -- because it must be returned updated to its parent STS
+     , utxoSt :: State UTXO
      , updateSt :: State (UPDATES hashAlgo)
      }
   deriving (Eq, Show, Generic)
@@ -164,8 +166,14 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, openVotingPeriods, closedVotingPeriods, utxoEnv, updatesEnv }
-          , St { utxoSt, updateSt }
+      TRC ( Env { currentSlot, closedVotingPeriods, utxoEnv, updatesEnv }
+          , St { openVotingPeriods
+               , utxoSt
+               , updateSt = Update.St { Update.openVotingPeriods = _
+                                      , Update.ideationSt = idst
+                                      , Update.implementationSt = impst
+                                      }
+               }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
       -- TODO: keep in mind that some of the update rules will have to be
@@ -178,23 +186,28 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
       let Update.Env { Update.currentSlot = _
-                     , Update.openVotingPeriods = _
                      , Update.closedVotingPeriods = _
                      , Update.ideationEnv = idEnv
                      , Update.implementationEnv = implEnv
                      } = updatesEnv
-      updateSt' <-
+      updateSt'@Update.St {Update.openVotingPeriods = ovp'} <-
         trans @(UPDATES hashAlgo) $
           TRC ( Update.Env { Update.currentSlot = currentSlot
-                           , Update.openVotingPeriods = openVotingPeriods
                            , Update.closedVotingPeriods = closedVotingPeriods
                            , Update.ideationEnv =  idEnv
                            , Update.implementationEnv = implEnv
                            }
-              , updateSt
+              , Update.St { Update.openVotingPeriods = openVotingPeriods
+                              -- pass the updated openVotingPeriods state
+                          , Update.ideationSt = idst
+                          , Update.implementationSt = impst
+                          }
               , update
               )
-      pure $ St { utxoSt = utxoSt'
+      pure $ St { openVotingPeriods = ovp'
+                  -- This state (ovp') has been updated
+                  -- by the IDEATON STS
+                , utxoSt = utxoSt'
                 , updateSt = updateSt'
                 }
     ]
@@ -241,7 +254,6 @@ transactionsGen maximumSize env st
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
     transactionGen  (Env { currentSlot
-                         , openVotingPeriods
                          , closedVotingPeriods
                          , updatesEnv
                          }
@@ -263,7 +275,6 @@ transactionsGen maximumSize env st
             , (1, sigGen
                     @(UPDATES hashAlgo)
                     Update.Env { Update.currentSlot = currentSlot
-                               , Update.openVotingPeriods = openVotingPeriods
                                , Update.closedVotingPeriods = closedVotingPeriods
                                , Update.ideationEnv = idEnv
                                , Update.implementationEnv = implEnv
@@ -273,7 +284,6 @@ transactionsGen maximumSize env st
             ]
       where
         Update.Env { Update.currentSlot = _
-                   , Update.openVotingPeriods = _
                    , Update.closedVotingPeriods = _
                    , Update.ideationEnv = idEnv
                    , Update.implementationEnv = implEnv

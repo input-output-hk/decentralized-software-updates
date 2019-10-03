@@ -65,6 +65,8 @@ data St hashAlgo
       -- ^ These are the revealed SIPs
     , ballotsForSIP :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
       -- ^ This stores the valid ballots for each SIP and the voters
+    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the open voting periods  per SIP
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
       -- ^ This records the current voting result for each SIP
     }
@@ -82,8 +84,6 @@ data Env hashAlgo
       -- and verifying keys.
       -- There is a one-to-one correspondence the signing and verifying keys, hence
       -- the use of 'Bimap'
-    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the open voting periods  per SIP
     , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
       -- ^ Records the closed voting periods per SIP
     }
@@ -115,8 +115,13 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { participants, openVotingPeriods }
-          , st@St { commitedSIPs, submittedSIPs, revealedSIPs, ballotsForSIP }
+      TRC ( Env { currentSlot, participants }
+          , st@St { commitedSIPs
+                  , submittedSIPs
+                  , revealedSIPs
+                  , ballotsForSIP
+                  , openVotingPeriods -- this has been updated from CHAINS
+                  }
           , sig
           ) <- judgmentContext
       case sig of
@@ -143,6 +148,10 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                   , revealedSIPs = Set.insert sip revealedSIPs
                   -- TODO: if stabilization period has passed, then add reveal to stable reveals and remove from reveal
                   -- TODO: A **stable** reveal must open the voting period for this SIP
+                  , openVotingPeriods = Map.insert
+                                          (Data.sipHash sip)
+                                          (Data.createVotingPeriod currentSlot sip )
+                                          openVotingPeriods
                   }
 
         Vote ballot -> do -- error "Define the rules for voting"
@@ -198,12 +207,9 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
              $  fmap (Core.vKey &&& Core.sKey)
              $  fmap Core.keyPair
              $  fmap Core.Owner $ [0 .. 10])
-        <*> openVotingPeriodsGen
         <*> closedVotingPeriodsGen
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- TODO: generate a realistic Map
-      openVotingPeriodsGen = pure $ Map.empty
       -- TODO: generate a realistic Map
       closedVotingPeriodsGen = pure $ Map.empty
 
@@ -245,6 +251,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
               )
           <*> (Gen.element [Data.Impact, Data.NoImpact])
           <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
+          <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
 
         newSipData sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
 
