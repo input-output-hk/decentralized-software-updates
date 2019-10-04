@@ -1,4 +1,4 @@
-<h1 align="center">On decentralized software updates for blockchain systems.</h1>
+﻿<h1 align="center">On decentralized software updates for blockchain systems.</h1>
 
 ## Executable specification
 
@@ -23,7 +23,8 @@ Once in the repl, one can obtain a random trace as follows:
 ```sh
 λ > import  Control.State.Transition.Generator
 λ > :set -XTypeApplications
-λ > randomTrace @IDEATION 100
+λ > import Cardano.Crypto.Hash.Short (ShortHash)
+λ > randomTrace @(IDEATION ShortHash) 100
 ```
 
 ### Contributing

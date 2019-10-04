@@ -27,6 +27,11 @@ import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
 import qualified Ledger.Core as Core
+import           Ledger.Core ( Slot
+                             , Slot (Slot)
+                             , SlotCount
+                             , SlotCount (SlotCount)
+                             )
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
@@ -43,16 +48,18 @@ data IdeationPayload hashAlgo
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =
-  BallotSIP { votedsip :: !(SIP hashAlgo) -- TODO: Nikos: Use SIP hash instead?
-              -- ^ SIP that this ballot is for
+  BallotSIP { votedsipId :: !(SIPHash hashAlgo)
+              -- ^ SIP id that this ballot is for
             , conf :: !Confidence
               -- ^ the ballot outcome
             , voter :: !Core.VKey
               -- ^ the voter
-            , voterSig :: !(Core.Sig (IdeationPayload hashAlgo))
-              -- ^ the voter's signature on the vote text
-              --
-              -- TODO: Nikos: (Hash SIP, voter_pk, conf)
+            , voterSig :: !(Core.Sig (
+                                       (SIPHash hashAlgo)
+                                     , Confidence
+                                     , Core.VKey
+                                     )
+                           )
             }
   deriving (Eq, Ord, Show, Generic)
 
@@ -65,8 +72,54 @@ data VotingResult
   deriving (Eq, Ord, Show)
 
 -- | Records the voting period status for a software update (SIP/UP)
-data VotingPeriod
+data (VotingPeriod hashAlgo) =
+  VotingPeriod { sipId :: !(SIPHash hashAlgo)
+                 -- ^ Id of the SIP in question
+               , openingSlot :: !Slot
+                 -- ^ Slot that the voting period opens
+               , closingSlot :: !Slot
+                 -- ^ Slot that the voting period closes
+               , vpDuration :: !VPDuration
+                 -- ^ Duration of the voting period
+               , vpStatus :: !VPStatus
+               -- ^ open or closed
+               }
   deriving (Eq, Ord, Show)
+
+-- | Duration of a Voting Period
+data VPDuration = VPMin | VPMedium | VPLarge
+  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+
+-- | Voting Period status values
+data VPStatus = VPOpen | VPClosed
+  deriving (Eq, Ord, Show)
+
+-- | Includes logic to translate a voting period duration
+-- to number of slots
+vpDurationToSlotCnt :: VPDuration -> SlotCount
+vpDurationToSlotCnt  d =
+  case d of
+    VPMin -> SlotCount 20
+    VPMedium -> SlotCount 50
+    VPLarge -> SlotCount 100
+
+-- | Create a Voting Period for a SIP
+-- based on the `SIPMetadata` for the duration
+-- and the current slot as an opening slot
+createVotingPeriod :: Slot -> (SIP hashAlgo) -> (VotingPeriod hashAlgo)
+createVotingPeriod slot sip =
+  VotingPeriod { sipId = sipHash sip
+               , openingSlot =  slot
+               , closingSlot = Slot 0 -- dummy value
+               , vpDuration = getVPDurationFromSIPMdata sip
+               , vpStatus = VPOpen
+               }
+  where
+    getVPDurationFromSIPMdata sp =
+      let sipdata = sipPayload sp
+          sipMdata = metadata sipdata
+      in votPeriodDuration sipMdata
+
 
 -- | Protocol version
 --
@@ -107,6 +160,8 @@ data SIPMetadata =
       -- ^ Flag to determine an impact on the underlying consensus protocol
     , impactsParameters :: !([ParamName])
       -- ^ List of protocol parameters impacted
+    , votPeriodDuration :: !VPDuration
+      -- Voting Period duration for this SIP
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
@@ -126,10 +181,15 @@ newtype URL = URL { getText :: Text }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (ToCBOR)
 
+-- | Hash of the SIP contents (`SIPData`) also plays the role of a SIP
+-- unique id
+data SIPHash hashAlgo = SIPHash (Hash hashAlgo SIPData)
+  deriving (Eq, Generic, Ord, Show)
+
 -- | System improvement proposal
 data SIP hashAlgo =
   SIP
-    { sipHash :: Hash hashAlgo SIPData
+    { sipHash :: SIPHash hashAlgo
       -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
       -- unique id
     , author :: !Core.VKey
@@ -142,7 +202,7 @@ data SIP hashAlgo =
   deriving (Eq, Generic, Ord, Show)
 
 -- | A commitment data type.
--- It is the `hash` $ salt ++ sip_owner_pk ++ `hash` `SIP`
+-- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
 newtype Commit hashAlgo =
   Commit
     { getCommit
@@ -193,6 +253,7 @@ deriving instance ( Typeable hashAlgo
 
 deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
                   , Typeable hashAlgo
+                  , HasTypeReps hashAlgo
                   ) => HasTypeReps (SIP hashAlgo)
 
 -- | A commit is basically wrapping the hash of some salt, owner verification
@@ -211,6 +272,7 @@ deriving instance ( Typeable hashAlgo
 
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps hashAlgo
                   ) => HasTypeReps (BallotSIP hashAlgo)
 --------------------------------------------------------------------------------
 -- Sized instances
@@ -240,6 +302,11 @@ instance (HashAlgorithm hashAlgo) => ToCBOR (SIP hashAlgo) where
     <> toCBOR salt
     <> toCBOR sipPayload
 
+instance (HashAlgorithm hashAlgo) => ToCBOR (SIPHash hashAlgo) where
+  toCBOR (SIPHash sipHash)
+    =  encodeListLen 1
+    <> toCBOR sipHash
+
 instance ToCBOR SIPData where
   toCBOR SIPData { url, metadata }
     =  encodeListLen 2
@@ -262,3 +329,11 @@ instance ToCBOR ConcensusImpact where
 
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
+
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  ) => HasTypeReps (SIPHash hashAlgo)
+
+
+

@@ -21,6 +21,8 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (typeOf)
 import Data.Set (Set)
+import           Data.Map.Strict (Map)
+
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -38,7 +40,7 @@ import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), W
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
+import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
@@ -47,17 +49,25 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
 data TRANSACTIONS hashAlgo
 
-
+-- | Environment of the TRANSACTION STS
 data Env hashAlgo =
   Env { currentSlot :: !Slot
+      , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the closed voting periods per SIP
       , updatesEnv :: !(Environment (UPDATES hashAlgo))
+      -- ^ Environment of the child STS (UPDATES)
       , utxoEnv :: !(Environment UTXO)
+      -- ^ Environment of the child STS (UTXO)
       }
   deriving (Eq, Show, Generic)
 
-
+-- | State of the TRANSACTION STS
 data St hashAlgo =
-  St { utxoSt :: State UTXO
+  St { openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
+       -- ^ Records the open voting periods  per SIP
+       -- It is included in the state of this STS,
+       -- because it must be returned updated to its parent STS
+     , utxoSt :: State UTXO
      , updateSt :: State (UPDATES hashAlgo)
      }
   deriving (Eq, Show, Generic)
@@ -156,8 +166,14 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { utxoEnv, updatesEnv }
-          , St { utxoSt, updateSt }
+      TRC ( Env { currentSlot, closedVotingPeriods, utxoEnv, updatesEnv }
+          , St { openVotingPeriods
+               , utxoSt
+               , updateSt = Update.St { Update.openVotingPeriods = _
+                                      , Update.ideationSt = idst
+                                      , Update.implementationSt = impst
+                                      }
+               }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
       -- TODO: keep in mind that some of the update rules will have to be
@@ -169,18 +185,29 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- shouldn't matter which transition is triggered first. Even if the
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
-      let Update.Env { Update.ideationEnv = idEnv
+      let Update.Env { Update.currentSlot = _
+                     , Update.closedVotingPeriods = _
+                     , Update.ideationEnv = idEnv
                      , Update.implementationEnv = implEnv
                      } = updatesEnv
-      updateSt' <-
+      updateSt'@Update.St {Update.openVotingPeriods = ovp'} <-
         trans @(UPDATES hashAlgo) $
-          TRC ( Update.Env { Update.ideationEnv =  idEnv
+          TRC ( Update.Env { Update.currentSlot = currentSlot
+                           , Update.closedVotingPeriods = closedVotingPeriods
+                           , Update.ideationEnv =  idEnv
                            , Update.implementationEnv = implEnv
                            }
-              , updateSt
+              , Update.St { Update.openVotingPeriods = openVotingPeriods
+                              -- pass the updated openVotingPeriods state
+                          , Update.ideationSt = idst
+                          , Update.implementationSt = impst
+                          }
               , update
               )
-      pure $ St { utxoSt = utxoSt'
+      pure $ St { openVotingPeriods = ovp'
+                  -- This state (ovp') has been updated
+                  -- by the IDEATON STS
+                , utxoSt = utxoSt'
                 , updateSt = updateSt'
                 }
     ]
@@ -226,7 +253,12 @@ transactionsGen maximumSize env st
         sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen (Env { updatesEnv }) (St { updateSt })
+    transactionGen  (Env { currentSlot
+                         , closedVotingPeriods
+                         , updatesEnv
+                         }
+                    )
+                    (St { updateSt })
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -242,14 +274,18 @@ transactionsGen maximumSize env st
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.ideationEnv = idEnv
+                    Update.Env { Update.currentSlot = currentSlot
+                               , Update.closedVotingPeriods = closedVotingPeriods
+                               , Update.ideationEnv = idEnv
                                , Update.implementationEnv = implEnv
                                }
                     updateSt
               )
             ]
       where
-        Update.Env { Update.ideationEnv = idEnv
+        Update.Env { Update.currentSlot = _
+                   , Update.closedVotingPeriods = _
+                   , Update.ideationEnv = idEnv
                    , Update.implementationEnv = implEnv
                    } = updatesEnv
         -- For now we don't generate inputs and outputs.

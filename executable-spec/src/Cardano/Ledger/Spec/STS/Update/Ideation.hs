@@ -14,14 +14,16 @@ import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap, (!))
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
-import qualified Hedgehog.Gen as Gen
-import           Hedgehog.Range (constant)
+import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import           Data.Set (Set)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
+import           Hedgehog.Range (constant)
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
@@ -29,6 +31,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import           Ledger.Core (Slot (Slot))
 
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
@@ -36,13 +39,15 @@ import           Cardano.Ledger.Spec.STS.Update.Data
 import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, VotingPeriod, BallotSIP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
-import qualified Data.Map.Strict as Map
 import           Ledger.Core (dom, (∈), (∉))
 import qualified Ledger.Core as Core
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
+
+-- | Ideation phase of system updates
+data IDEATION hashAlgo
 
 -- | Ideation phase state
 --
@@ -58,35 +63,37 @@ data St hashAlgo
       -- only for SIP generation purposes.
     , revealedSIPs :: !(Set (SIP hashAlgo))
       -- ^ These are the revealed SIPs
-    , ballotsForSIP :: !(Map (SIP hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
+    , ballotsForSIP :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
       -- ^ This stores the valid ballots for each SIP and the voters
-    , voteResultSIPs :: !(Map (SIP hashAlgo) VotingResult)
+    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the open voting periods  per SIP
+    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
       -- ^ This records the current voting result for each SIP
-
-      -- TODO: include this in the state of CHAINS and move it to the Ideation Env
-    , openVotingPeriods :: !(Set VotingPeriod)
-      -- ^ Records the open voting periods
-
-      -- TODO: include this in the state of CHAINS and move it to the Ideation Env
-    , closedVotingPeriods :: !(Set VotingPeriod)
-  -- ^ Records the closed voting periods
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
   deriving Monoid via GenericMonoid (St hashAlgo)
 
+-- Environmnet of the Ideation phase
+data Env hashAlgo
+  = Env
+    { currentSlot :: !Slot
+      -- ^ The current slot in the blockchain system
+    , participants :: Bimap Core.VKey Core.SKey
+      -- ^ The set of stakeholders (i.e., participants), identified by their signing
+      -- and verifying keys.
+      -- There is a one-to-one correspondence the signing and verifying keys, hence
+      -- the use of 'Bimap'
+    , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+      -- ^ Records the closed voting periods per SIP
+    }
+  deriving (Eq, Show, Generic)
 
--- | Ideation phase of system updates
-data IDEATION hashAlgo
+
 
 instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
-  -- | The environment is the set of participants, identified by their signing
-  -- and verifying keys.
-  --
-  -- There is a one-to-one correspondence the signing and verifying keys, hence
-  -- the use of 'Bimap'
-  type Environment (IDEATION hashAlgo) = Bimap Core.VKey Core.SKey
+  type Environment (IDEATION hashAlgo) = Env hashAlgo
 
   type State (IDEATION hashAlgo) = St hashAlgo
 
@@ -100,15 +107,21 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
     | InvalidAuthor Core.VKey
     | SIPFailedToBeRevealed (Data.SIP hashAlgo)
     | InvalidVoter Core.VKey
-    | VoteNotForRevealedSIP (Data.SIP hashAlgo)
+    | VoteNotForRevealedSIP (Data.SIPHash hashAlgo)
+    | VoteNotForOpenVotingPEriod (Data.SIPHash hashAlgo)
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
 
   transitionRules = [
     do
-      TRC ( participants
-          , st@St { commitedSIPs, submittedSIPs, revealedSIPs, ballotsForSIP }
+      TRC ( Env { currentSlot, participants }
+          , st@St { commitedSIPs
+                  , submittedSIPs
+                  , revealedSIPs
+                  , ballotsForSIP
+                  , openVotingPeriods -- this has been updated from CHAINS
+                  }
           , sig
           ) <- judgmentContext
       case sig of
@@ -135,6 +148,10 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                   , revealedSIPs = Set.insert sip revealedSIPs
                   -- TODO: if stabilization period has passed, then add reveal to stable reveals and remove from reveal
                   -- TODO: A **stable** reveal must open the voting period for this SIP
+                  , openVotingPeriods = Map.insert
+                                          (Data.sipHash sip)
+                                          (Data.createVotingPeriod currentSlot sip )
+                                          openVotingPeriods
                   }
 
         Vote ballot -> do -- error "Define the rules for voting"
@@ -143,32 +160,34 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
               InvalidVoter (Data.voter ballot)
 
             -- TODO: SIP must be a stable revealed SIP not just a Revealed SIP
-            (Data.votedsip ballot) ∈ revealedSIPs ?!
-              VoteNotForRevealedSIP (Data.votedsip ballot)
+            (Data.votedsipId ballot) ∈ (Set.map (Data.sipHash) revealedSIPs) ?!
+              VoteNotForRevealedSIP (Data.votedsipId ballot)
 
             -- TODO: Signature of the vote must be verified
 
-            -- TODO:The voting period for this SIP must be open for the vote to be valid
+            -- The voting period for this SIP must be open for the vote to be valid
+            (Data.votedsipId ballot) ∈ dom openVotingPeriods ?!
+              VoteNotForOpenVotingPEriod (Data.votedsipId ballot)
 
             -- Update State
               -- Add ballot to the state of valid ballots for this SIP
                 -- If the voter has voted again, then replace his old vote with the new one
             pure $ st { ballotsForSIP =
                           -- Are there any votes for this SIP yet?
-                          if (Data.votedsip ballot) ∈ dom ballotsForSIP
+                          if (Data.votedsipId ballot) ∈ dom ballotsForSIP
                             then
                               -- insert will overwrite the value part of the Map if the key exists
                               Map.insert
-                                (Data.votedsip ballot)
+                                (Data.votedsipId ballot)
                                 (Map.insert
                                     (Data.voter ballot)
                                     ballot
-                                    (ballotsForSIP Map.! (Data.votedsip ballot))
+                                    (ballotsForSIP Map.! (Data.votedsipId ballot))
                                 )
                                 ballotsForSIP
                             else
                               Map.insert
-                                (Data.votedsip ballot)
+                                (Data.votedsipId ballot)
                                 (Map.fromList [(Data.voter ballot, ballot)])
                                 ballotsForSIP
                       }
@@ -178,24 +197,35 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
   envGen _traceLength =
-    -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' class so that 'trace' can take parameter of an associated
-    -- type, so that each STS can decide which parameters are relevant for its
-    -- traces.
-    pure $! Bimap.fromList
-         $  fmap (Core.vKey &&& Core.sKey)
-         $  fmap Core.keyPair
-         $  fmap Core.Owner $ [0 .. 10]
+    Env <$> currentSlotGen
+        -- TODO: for now we generate a constant set of keys. We need to update the
+        -- 'HasTrace' class so that 'trace' can take parameter of an associated
+        -- type, so that each STS can decide which parameters are relevant for its
+        -- traces.
+        <*> (pure
+             $! Bimap.fromList
+             $  fmap (Core.vKey &&& Core.sKey)
+             $  fmap Core.keyPair
+             $  fmap Core.Owner $ [0 .. 10])
+        <*> closedVotingPeriodsGen
+    where
+      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+      -- TODO: generate a realistic Map
+      closedVotingPeriodsGen = pure $ Map.empty
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
   sigGen
-    participants
+    Env {participants}
     St { submittedSIPs } = do
       owner <- newOwner
+      sipMData <- newSIPMetadata
+      sipData <- newSipData sipMData
+      sipHash <- newSipHash sipData
+      salt <- newSalt
       -- generate the new SIP and pass it to generateASubmission "by value"
       -- otherwise you get non-deterministic SIP!
-      newsip <- newSIP owner
+      newsip <- newSIP owner sipHash salt sipData
       case Set.toList submittedSIPs of
         [] ->
           generateASubmission newsip owner
@@ -210,26 +240,31 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
           $ Set.toList
           $ dom participants
 
-        newSIP newowner = (SIP)
-          <$> newSipHash
-          <*> pure newowner
-          <*> newSalt
-          <*> newSipData
-          where
-            newSalt = Gen.int (constant 0 100)
-            newSipHash = (fmap hash) newSipData -- NullSIPData
-            newSipData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (newSIPMetadata)
-            newSIPMetadata = (Data.SIPMetadata)
-              <$> (
-                  ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                        <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-                  )
-              <*> (
-                  ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                        <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-                  )
-              <*> (Gen.element [Data.Impact, Data.NoImpact])
-              <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
+        newSIPMetadata = (Data.SIPMetadata)
+          <$> (
+              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
+                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
+              )
+          <*> (
+              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
+                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
+              )
+          <*> (Gen.element [Data.Impact, Data.NoImpact])
+          <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
+          <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
+
+        newSipData sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
+
+        newSalt = Gen.int (constant 0 100)
+
+        newSipHash sipData = (Data.SIPHash . hash) <$>  (pure sipData)
+
+        newSIP newowner nsipHash nsalt nsipData =
+          (SIP)
+            <$> pure nsipHash
+            <*> pure newowner
+            <*> pure nsalt
+            <*> pure nsipData
 
         -- Generate a submission taking a participant that hasn't submitted a proposal yet
         generateASubmission nsip owner = do
