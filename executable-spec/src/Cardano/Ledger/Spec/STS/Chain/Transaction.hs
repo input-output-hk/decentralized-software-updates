@@ -47,13 +47,14 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
 
 
-data TRANSACTIONS hashAlgo
+--data TRANSACTIONS hashAlgo
 
 -- | Environment of the TRANSACTION STS
 data Env hashAlgo =
   Env { currentSlot :: !Slot
-      , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the closed voting periods per SIP
+      , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      -- ^ When a SIP will not be active any more
+      -- (i.e., end of open for voting period)
       , updatesEnv :: !(Environment (UPDATES hashAlgo))
       -- ^ Environment of the child STS (UPDATES)
       , utxoEnv :: !(Environment UTXO)
@@ -63,10 +64,8 @@ data Env hashAlgo =
 
 -- | State of the TRANSACTION STS
 data St hashAlgo =
-  St { openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-       -- ^ Records the open voting periods  per SIP
-       -- It is included in the state of this STS,
-       -- because it must be returned updated to its parent STS
+  St { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+       -- ^ When a SIP was revealed
      , utxoSt :: State UTXO
      , updateSt :: State (UPDATES hashAlgo)
      }
@@ -118,33 +117,33 @@ instance ( HashAlgorithm hashAlgo
     ++ costsList (undefined :: UpdatePayload hashAlgo)
 
 
-instance HashAlgorithm hashAlgo => STS (TRANSACTIONS hashAlgo) where
+-- instance HashAlgorithm hashAlgo => STS (TRANSACTIONS hashAlgo) where
 
-  type Environment (TRANSACTIONS hashAlgo) = Environment (TRANSACTION hashAlgo)
+--   type Environment (TRANSACTIONS hashAlgo) = Environment (TRANSACTION hashAlgo)
 
-  type State (TRANSACTIONS hashAlgo) = State (TRANSACTION hashAlgo)
+--   type State (TRANSACTIONS hashAlgo) = State (TRANSACTION hashAlgo)
 
-  type Signal (TRANSACTIONS hashAlgo) = [Tx hashAlgo]
+--   type Signal (TRANSACTIONS hashAlgo) = [Tx hashAlgo]
 
-  data PredicateFailure (TRANSACTIONS hashAlgo)
-    = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
-    deriving (Eq, Show)
+--   data PredicateFailure (TRANSACTIONS hashAlgo)
+--     = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
+--     deriving (Eq, Show)
 
-  initialRules = []
+--   initialRules = []
 
-  transitionRules = [
-    do
-      TRC (env, st, txs) <- judgmentContext
-      case txs of
-        [] -> pure $! st
-        (tx:txs') -> do
-          st' <- trans @(TRANSACTION hashAlgo) $ TRC (env, st, tx)
-          trans @(TRANSACTIONS hashAlgo) $ TRC (env, st', txs')
-    ]
+--   transitionRules = [
+--     do
+--       TRC (env, st, txs) <- judgmentContext
+--       case txs of
+--         [] -> pure $! st
+--         (tx:txs') -> do
+--           st' <- trans @(TRANSACTION hashAlgo) $ TRC (env, st, tx)
+--           trans @(TRANSACTIONS hashAlgo) $ TRC (env, st', txs')
+--     ]
 
 
-instance HashAlgorithm hashAlgo => Embed (TRANSACTION hashAlgo) (TRANSACTIONS hashAlgo) where
-  wrapFailed = TxFailure
+-- instance HashAlgorithm hashAlgo => Embed (TRANSACTION hashAlgo) (TRANSACTIONS hashAlgo) where
+--   wrapFailed = TxFailure
 
 
 data TRANSACTION hashAlgo
@@ -159,54 +158,49 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
   type Signal (TRANSACTION hashAlgo) = Tx hashAlgo
 
   data PredicateFailure (TRANSACTION hashAlgo)
-    = UpdatesFailure (PredicateFailure (UPDATES hashAlgo))
+    = TxFailure (PredicateFailure (UPDATES hashAlgo))
     deriving (Eq, Show)
 
   initialRules = []
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, closedVotingPeriods, utxoEnv, updatesEnv }
-          , St { openVotingPeriods
+      TRC ( Env { currentSlot, asips, utxoEnv, updatesEnv }
+          , St { wrsips
                , utxoSt
-               , updateSt = Update.St { Update.openVotingPeriods = _
-                                      , Update.ideationSt = idst
+               , updateSt = Update.St { Update.ideationSt = idst
                                       , Update.implementationSt = impst
                                       }
                }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
-      -- TODO: keep in mind that some of the update rules will have to be
-      -- triggered in the header validation rules (which we currently don't
-      -- have).
-      --
+
       utxoSt' <- trans @UTXO $ TRC (utxoEnv, utxoSt, UTxO.Payload inputs outputs fees)
       -- UTXO and UPDATE transition systems should be independent, so it
       -- shouldn't matter which transition is triggered first. Even if the
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
       let Update.Env { Update.currentSlot = _
-                     , Update.closedVotingPeriods = _
+                     , Update.asips = _
                      , Update.ideationEnv = idEnv
                      , Update.implementationEnv = implEnv
                      } = updatesEnv
-      updateSt'@Update.St {Update.openVotingPeriods = ovp'} <-
+
+      updateSt'@Update.St {Update.wrsips = wrsips'} <-
         trans @(UPDATES hashAlgo) $
           TRC ( Update.Env { Update.currentSlot = currentSlot
-                           , Update.closedVotingPeriods = closedVotingPeriods
+                           , Update.asips = asips
                            , Update.ideationEnv =  idEnv
                            , Update.implementationEnv = implEnv
                            }
-              , Update.St { Update.openVotingPeriods = openVotingPeriods
-                              -- pass the updated openVotingPeriods state
+              , Update.St { Update.wrsips = wrsips
+                              -- pass the updated wrsip state
                           , Update.ideationSt = idst
                           , Update.implementationSt = impst
                           }
               , update
               )
-      pure $ St { openVotingPeriods = ovp'
-                  -- This state (ovp') has been updated
-                  -- by the IDEATON STS
+      pure $ St { wrsips = wrsips'
                 , utxoSt = utxoSt'
                 , updateSt = updateSt'
                 }

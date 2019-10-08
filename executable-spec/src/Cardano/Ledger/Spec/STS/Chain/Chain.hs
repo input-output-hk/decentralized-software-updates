@@ -38,8 +38,7 @@ import           Ledger.Core ( Slot (Slot)
                              )
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION,
-                     TRANSACTIONS)
+import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
@@ -53,6 +52,8 @@ import           Cardano.Ledger.Spec.STS.Update.Data ( Commit
                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
+import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
+import qualified Cardano.Ledger.Spec.STS.Chain.Header as Header
 
 
 data CHAIN hashAlgo
@@ -60,33 +61,30 @@ data CHAIN hashAlgo
 
 data Env hashAlgo
   = Env
-    { initialSlot :: !Slot
-    , maximumBlockSize :: !Size
+    {
+      maximumBlockSize :: !Size
     -- ^ Maximum block size. The interpretation of this value depends on the
     -- instance of 'Sized'.
     --
     -- TODO: use abstract size instead.
-    , transactionsEnv :: Environment (TRANSACTIONS hashAlgo)
+    , headerEnv :: Environment (HEADER hashAlgo)
+    , bodyEnv :: Environment (BODY hashAlgo)
     }
-  deriving (Eq, Show)
+    deriving (Eq, Show)
 
 
 data St hashAlgo
   = St
-    { currentSlot :: !Slot
-    , openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the open voting periods  per SIP
-    , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the closed voting periods per SIP
-    , transactionsSt :: State (TRANSACTIONS hashAlgo)
+    { headerSt :: State (HEADER hashAlgo)
+    , bodySt :: State (BODY hashAlgo)
     }
-  deriving (Eq, Show)
+    deriving (Eq, Show)
 
 
 data Block hashAlgo
   = Block
-    { slot :: !Slot
-    , transactions :: ![Signal (TRANSACTION hashAlgo)]
+    { header :: !Signal (HEADER hashAlgo)
+    , body :: !Signal (BODY hashAlgo)
     }
     deriving (Eq, Show, Generic)
 
@@ -113,106 +111,125 @@ instance ( HashAlgorithm hashAlgo
 
   type Environment (CHAIN hashAlgo) = Env hashAlgo
 
-  type State (CHAIN hashAlgo) = (St hashAlgo)
+  type State (CHAIN hashAlgo) = St hashAlgo
 
-  type Signal (CHAIN hashAlgo) = (Block hashAlgo)
+  type Signal (CHAIN hashAlgo) = Block hashAlgo
 
   data PredicateFailure (CHAIN hashAlgo)
-    = BlockSlotNotIncreasing CurrentSlot Slot
-    | MaximumBlockSizeExceeded Size (Threshold Size)
-    | TransactionsFailure (PredicateFailure (TRANSACTIONS hashAlgo))
+    = MaximumBlockSizeExceeded Size (Threshold Size)
+    | TransactionsFailure (PredicateFailure (BODY hashAlgo))
+    | TransactionsFailure (PredicateFailure (HEADER hashAlgo))
     deriving (Eq, Show)
 
 
   initialRules = [
     do
-      IRC Env { initialSlot } <- judgmentContext
-      pure $! St { currentSlot = initialSlot
-                 , openVotingPeriods = Map.empty
-                 , closedVotingPeriods = Map.empty
-                 , transactionsSt = mempty
-                 }
+       IRC Env { maximumBlockSize } <- judgmentContext
+       pure $! St { maximumBlockSize = 100
+                      -- For now we fix the maximum block size to an abstract size of 100
+                  , headerSt = mempty
+                  , bodySt = mempty
+                  }
     ]
 
   transitionRules = [
     do
-      TRC ( Env { maximumBlockSize, transactionsEnv }
-          , St  { currentSlot
-                , openVotingPeriods
-                , closedVotingPeriods
-                , transactionsSt =
-                    Transaction.St { -- Transaction.openVotingPeriods
-                                     Transaction.utxoSt
-                                   , Transaction.updateSt
-                                   }
+      TRC ( Env { maximumBlockSize, headerEnv, bodyEnv@Body.Env{transactionEnv} }
+          , St  { headerSt
+                , bodySt@Body.St{transactionsSt}
                 }
-          , block@Block{ slot, transactions }
+          , block@Block{ header, body }
           ) <- judgmentContext
-      currentSlot < slot
-        ?! BlockSlotNotIncreasing (CurrentSlot currentSlot) slot
       size block < maximumBlockSize
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
-      -- TODO: we will need a header transition as well, where the votes are
-      -- tallied.
 
-      let Transaction.Env
-            { Transaction.updatesEnv = upE
-            , Transaction.utxoEnv = utxoE
-            } = transactionsEnv
-
-          (openVotingPeriods', closedVotingPeriods') = updateVotingPeriods openVotingPeriods closedVotingPeriods
-
-          updateVotingPeriods open closed =
-            let
-              -- traverse all VPs of open Map and update their status
-              updatedOpen =
-                Map.map (
-                          \vp@VotingPeriod {sipId, openingSlot, vpDuration} ->
-                            if slot > addSlot openingSlot  (vpDurationToSlotCnt vpDuration)
-                              then -- VP must close
-                                VotingPeriod
-                                   { sipId = sipId
-                                   , openingSlot = openingSlot
-                                   , closingSlot = slot
-                                   , vpDuration = vpDuration
-                                   , vpStatus = VPClosed
-                                   }
-                              else -- VP should remain open
-                                vp
-                        )
-                        open
-
-              -- extract all closed VPs from open Map
-              newClosedVPs =
-                Map.filter (\VotingPeriod {vpStatus} ->
-                                vpStatus == VPClosed
-                           )
-                           updatedOpen
-            in
-              -- insert new closed VPs into closed Map and remove closed VPs from open Map
-              ( Map.difference open newClosedVPs
-              , Map.union newClosedVPs closed
-              )
-
-      -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
-      -- Byron and Shelley rules.
-      transactionsSt'@Transaction.St { Transaction.openVotingPeriods = ovp'
-                                        -- ovp' = returned state updated by IDEATION
-                                     , Transaction.utxoSt = _
-                                     , Transaction.updateSt = _
-                                     } <-
-        trans @(TRANSACTIONS hashAlgo)
-          $ TRC ( Transaction.Env slot closedVotingPeriods' upE utxoE
-                  -- pass the updated openVotingPeriods state
-                , Transaction.St openVotingPeriods' utxoSt updateSt
-                , transactions
+      -- First a HEAD transition in order to update the state
+      headerSt'@Header.St { currentSlot = slot'
+                          , hupdateSt = HUpdate.St { wrsips = wrsips'
+                                                   , asips = asips'
+                                                   }
+                          }  <-
+        trans @(HEADER hashAlgo)
+          $ TRC ( headerEnv
+                , headerSt
+                , header
                 )
-      pure $! St { currentSlot = slot
-                 , openVotingPeriods = ovp' -- This state has been further updated
-                                            -- by the IDEATON STS
-                 , closedVotingPeriods = closedVotingPeriods'
-                 , transactionsSt = transactionsSt'
+
+      -- Second a BODY transition with the updated state from header
+      bodySt'<- trans @(BODY hashAlgo)
+                  $ TRC ( bodyEnv@Body.Env
+                           { currentSlot = slot'
+                           , asips = asips'
+                           , transactionEnv
+                           }
+                        , bodySt@Body.St
+                            { wrsips = wrsips'
+                            , transactionsSt
+                            }
+                        , body
+                        )
+      pure $! St { headerSt'
+                 , bodySt'
                  }
+
+      -- let Transaction.Env
+      --       { Transaction.updatesEnv = upE
+      --       , Transaction.utxoEnv = utxoE
+      --       } = transactionsEnv
+
+      --     (openVotingPeriods', closedVotingPeriods') = updateVotingPeriods openVotingPeriods closedVotingPeriods
+
+      --     updateVotingPeriods open closed =
+      --       let
+      --         -- traverse all VPs of open Map and update their status
+      --         updatedOpen =
+      --           Map.map (
+      --                     \vp@VotingPeriod {sipId, openingSlot, vpDuration} ->
+      --                       if slot > addSlot openingSlot  (vpDurationToSlotCnt vpDuration)
+      --                         then -- VP must close
+      --                           VotingPeriod
+      --                              { sipId = sipId
+      --                              , openingSlot = openingSlot
+      --                              , closingSlot = slot
+      --                              , vpDuration = vpDuration
+      --                              , vpStatus = VPClosed
+      --                              }
+      --                         else -- VP should remain open
+      --                           vp
+      --                   )
+      --                   open
+
+      --         -- extract all closed VPs from open Map
+      --         newClosedVPs =
+      --           Map.filter (\VotingPeriod {vpStatus} ->
+      --                           vpStatus == VPClosed
+      --                      )
+      --                      updatedOpen
+      --       in
+      --         -- insert new closed VPs into closed Map and remove closed VPs from open Map
+      --         ( Map.difference open newClosedVPs
+      --         , Map.union newClosedVPs closed
+      --         )
+
+      -- -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
+      -- -- Byron and Shelley rules.
+      -- transactionsSt'@Transaction.St { Transaction.openVotingPeriods = ovp'
+      --                                   -- ovp' = returned state updated by IDEATION
+      --                                , Transaction.utxoSt = _
+      --                                , Transaction.updateSt = _
+      --                                } <-
+      --   trans @(TRANSACTIONS hashAlgo)
+      --     $ TRC ( Transaction.Env slot closedVotingPeriods' upE utxoE
+      --             -- pass the updated openVotingPeriods state
+      --           , Transaction.St openVotingPeriods' utxoSt updateSt
+      --           , transactions
+      --           )
+      -- pure $! St { currentSlot = slot
+      --            , openVotingPeriods = ovp' -- This state has been further updated
+      --                                       -- by the IDEATON STS
+      --            , closedVotingPeriods = closedVotingPeriods'
+      --            , transactionsSt = transactionsSt'
+      --            }
     ]
 
 
@@ -220,12 +237,15 @@ instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
-         ) => Embed (TRANSACTIONS hashAlgo) (CHAIN hashAlgo) where
+         ) => Embed (BODY hashAlgo) (CHAIN hashAlgo) where
   wrapFailed = TransactionsFailure
 
-
--- | Type wrapper that gives more information about what the 'Slot' represents.
-newtype CurrentSlot = CurrentSlot Slot deriving (Eq, Show)
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Commit hashAlgo)
+         ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo) where
+  wrapFailed = TransactionsFailure
 
 
 instance ( HasTypeReps hashAlgo

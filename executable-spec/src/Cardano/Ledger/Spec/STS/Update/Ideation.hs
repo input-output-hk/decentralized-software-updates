@@ -53,20 +53,30 @@ data IDEATION hashAlgo
 --
 data St hashAlgo
   = St
-    { commitedSIPs :: !(Map (Commit hashAlgo) (SIPCommit hashAlgo))
-      -- ^ These are the encrypted SIPs that are submitted at the commit phase
-      -- of an SIP submission
-    , submittedSIPs :: !(Set (SIP hashAlgo))
+    { submittedSIPs :: !(Set (SIP hashAlgo))
       -- ^ These are the SIPs that we need to generate for the testing to
       -- take place. From these both the commitedSIP's as well as the revealedSIPs
       -- will be created. This state is not part of the update protocol, it is used
       -- only for SIP generation purposes.
-    , revealedSIPs :: !(Set (SIP hashAlgo))
-      -- ^ These are the revealed SIPs
+    , wssips :: !(Map (Commit hashAlgo) Slot)
+      -- ^ When a SIP commitment was submitted
+
+      -- commitedSIPs :: !(Map (Commit hashAlgo) (SIPCommit hashAlgo))
+      -- ^ These are the encrypted SIPs that are submitted at the commit phase
+      -- of an SIP submission
+
+    , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    -- ^ When a SIP was revealed
+
+    -- , revealedSIPs :: !(Set (SIP hashAlgo))
+    --   -- ^ These are the revealed SIPs
+
     , ballotsForSIP :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
       -- ^ This stores the valid ballots for each SIP and the voters
-    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the open voting periods  per SIP
+
+    -- , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+    --   -- ^ Records the open voting periods  per SIP
+
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
       -- ^ This records the current voting result for each SIP
     }
@@ -79,13 +89,17 @@ data Env hashAlgo
   = Env
     { currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
+    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    -- ^ When a SIP will not be active any more
+    -- (i.e., end of open for voting period)
     , participants :: Bimap Core.VKey Core.SKey
       -- ^ The set of stakeholders (i.e., participants), identified by their signing
       -- and verifying keys.
       -- There is a one-to-one correspondence the signing and verifying keys, hence
       -- the use of 'Bimap'
-    , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the closed voting periods per SIP
+
+    -- , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
+    --   -- ^ Records the closed voting periods per SIP
     }
   deriving (Eq, Show, Generic)
 
@@ -115,12 +129,12 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, participants }
-          , st@St { commitedSIPs
-                  , submittedSIPs
-                  , revealedSIPs
+      TRC ( Env { currentSlot, asips, participants }
+          , st@St { submittedSIPs
+                  , wssips
+                  , wrsips
                   , ballotsForSIP
-                  , openVotingPeriods -- this has been updated from CHAINS
+                  , voteResultSIPs
                   }
           , sig
           ) <- judgmentContext
@@ -131,27 +145,21 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
           -- TODO: Add verification of signature inside SIPCommit
 
-          pure $! st { commitedSIPs = Map.insert (Data.commit sipc) (sipc) commitedSIPs
+          pure $! st { wssips = Map.insert (Data.commit sipc) (currentSlot) wssips
                      , submittedSIPs = Set.insert sip submittedSIPs
                      -- TODO: if stabilization period has passed, then add commitSIP to stable commitedSIP
                      }
 
         Reveal sip -> do
           author sip ∈ dom participants ?! InvalidAuthor (author sip)
-          -- TODO: Commited SIP must belong to stable submitted SIPs
           sip ∈ submittedSIPs ?! NoSIPToReveal sip
+          -- TODO: Revealed SIP must belong to stable submitted SIPs
 
-          sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
-          (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
+          (Data.sipHash sip) ∉ (dom wrsips) ?! SIPAlreadyRevealed sip
+          (Data.calcCommit sip) ∈ (dom wssips) ?! SIPFailedToBeRevealed sip
 
           pure st { submittedSIPs = Set.delete sip submittedSIPs
-                  , revealedSIPs = Set.insert sip revealedSIPs
-                  -- TODO: if stabilization period has passed, then add reveal to stable reveals and remove from reveal
-                  -- TODO: A **stable** reveal must open the voting period for this SIP
-                  , openVotingPeriods = Map.insert
-                                          (Data.sipHash sip)
-                                          (Data.createVotingPeriod currentSlot sip )
-                                          openVotingPeriods
+                  , wrsips = Map.insert (Data.sipHash sip) currentSlot wrsips
                   }
 
         Vote ballot -> do -- error "Define the rules for voting"

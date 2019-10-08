@@ -53,8 +53,9 @@ data UPDATE hashAlgo
 data Env hashAlgo
   = Env
     { currentSlot :: !Slot
-    , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-    -- ^ Records the closed voting periods per SIP
+    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    -- ^ When a SIP will not be active any more
+    -- (i.e., end of open for voting period)
     , ideationEnv :: Environment (IDEATION hashAlgo)
     , implementationEnv :: Environment IMPLEMENTATION
     }
@@ -63,10 +64,8 @@ data Env hashAlgo
 
 data St hashAlgo
   = St
-    { openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the open voting periods  per SIP
-      -- It is included in the state of this STS,
-      -- because it must be returned updated to its parent STS
+    { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+       -- ^ When a SIP was revealed
     , ideationSt :: State (IDEATION hashAlgo)
     , implementationSt :: State IMPLEMENTATION
     }
@@ -115,16 +114,15 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
   transitionRules = [
     do
       TRC ( Env { currentSlot
-                , closedVotingPeriods
+                , asips
                 , ideationEnv
                 -- , implementationEnv
                 }
-          , st@St { openVotingPeriods
-                  , ideationSt =  Ideation.St { Ideation.commitedSIPs = cS
-                                              , Ideation.submittedSIPs = sS
-                                              , Ideation.revealedSIPs = rS
+          , st@St { wrsips
+                  , ideationSt =  Ideation.St { Ideation.submittedSIPs = sS
+                                              , Ideation.wssips = submtS
+                                              , Ideation.wrsips  = _
                                               , Ideation.ballotsForSIP = bS
-                                              , Ideation.openVotingPeriods = _
                                               , Ideation.voteResultSIPs = vR
                                               }
                   , implementationSt
@@ -137,29 +135,26 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
           do
             let Ideation.Env { Ideation.currentSlot = _
                              , Ideation.participants = par
-                             , Ideation.closedVotingPeriods = _
+                             , Ideation.asips = _
                              } = ideationEnv
-            ideationSt'@Ideation.St { Ideation.openVotingPeriods = ovp'} <-
+            ideationSt'@Ideation.St { Ideation.wrsips = wrsips'} <-
               trans @(IDEATION hashAlgo)
                 $ TRC ( Ideation.Env  { Ideation.currentSlot = currentSlot
+                                      , Ideation.asips = asips
                                       , Ideation.participants = par
-                                      , Ideation.closedVotingPeriods = closedVotingPeriods
                                       }
-                      , Ideation.St { Ideation.commitedSIPs = cS
-                                    , Ideation.submittedSIPs = sS
-                                    , Ideation.revealedSIPs = rS
+                      , Ideation.St { Ideation.submittedSIPs = sS
+                                    , Ideation.wssips = submtS
+                                    , Ideation.wrsips = wrsips
                                     , Ideation.ballotsForSIP = bS
-                                    , Ideation.openVotingPeriods = openVotingPeriods
-                                        -- pass the updated openVotingPeriods state
                                     , Ideation.voteResultSIPs = vR
                                     }
                       , ideationPayload
                       )
-            pure $ st { openVotingPeriods = ovp'
-                        -- This state (ovp') has been updated
-                       -- by the IDEATON STS
+            pure $ st { wrsips = wrsips'
                       , ideationSt = ideationSt'
                       }
+
         Implementation implementationPayload ->
           do
             implementationSt' <-
