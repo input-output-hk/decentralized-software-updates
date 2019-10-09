@@ -11,11 +11,11 @@
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
 import           Control.Arrow ((&&&))
-import           Data.Bimap (Bimap, (!))
+import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import           Data.Map.Strict (Map)
+import           Data.Map.Strict (Map, (!))
 import           Data.Set (Set)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
@@ -31,16 +31,16 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
-import           Ledger.Core (Slot (Slot))
+import           Ledger.Core (Slot (Slot), BlockCount (BlockCount))
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.))
+import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
-                     SIPData (SIPData), Commit, SIPCommit)
-import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, VotingPeriod, BallotSIP)
+                     SIPData (SIPData), Commit)
+import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, BallotSIP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
-import           Ledger.Core (dom, (∈), (∉))
-import qualified Ledger.Core as Core
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
@@ -48,6 +48,24 @@ import qualified Ledger.Core as Core
 
 -- | Ideation phase of system updates
 data IDEATION hashAlgo
+
+-- Environmnet of the Ideation phase
+data Env hashAlgo
+  = Env
+    { k :: !BlockCount
+      -- ^ Chain stability parameter.
+    , currentSlot :: !Slot
+      -- ^ The current slot in the blockchain system
+    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    -- ^ When a SIP will not be active any more
+    -- (i.e., end of open for voting period)
+    , participants :: Bimap Core.VKey Core.SKey
+      -- ^ The set of stakeholders (i.e., participants), identified by their signing
+      -- and verifying keys.
+      -- There is a one-to-one correspondence between the signing and verifying keys, hence
+      -- the use of 'Bimap'
+    }
+  deriving (Eq, Show, Generic)
 
 -- | Ideation phase state
 --
@@ -74,23 +92,6 @@ data St hashAlgo
   deriving Semigroup via GenericSemigroup (St hashAlgo)
   deriving Monoid via GenericMonoid (St hashAlgo)
 
--- Environmnet of the Ideation phase
-data Env hashAlgo
-  = Env
-    { currentSlot :: !Slot
-      -- ^ The current slot in the blockchain system
-    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP will not be active any more
-    -- (i.e., end of open for voting period)
-    , participants :: Bimap Core.VKey Core.SKey
-      -- ^ The set of stakeholders (i.e., participants), identified by their signing
-      -- and verifying keys.
-      -- There is a one-to-one correspondence between the signing and verifying keys, hence
-      -- the use of 'Bimap'
-    }
-  deriving (Eq, Show, Generic)
-
-
 
 instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
@@ -116,7 +117,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, asips, participants }
+      TRC ( Env { k, currentSlot, asips, participants }
           , st@St { subsips
                   , wssips
                   , wrsips
@@ -144,11 +145,15 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           (Data.sipHash sip) ∉ (dom wrsips) ?! SIPAlreadyRevealed sip
           --(Data.calcCommit sip) ∈ (dom wssips) ?! SIPFailedToBeRevealed sip
 
-          -- The Revealed SIP must correspond to a stable Commited SIP
-          (Data.calcCommit sip) ∈ (dom (wssips ▷ (currentSlot -. SlotCount (2*k)))) ?! SIPFailedToBeRevealed sip
+          -- The Revealed SIP must correspond to a stable Commited SIP.
+          -- Restrict the range of wssips to values less or equal than
+          -- currentSlot - 2k
+          (Data.calcCommit sip)
+            ∈ (dom (wssips ▷<= (currentSlot -. (2 *. k))))
+            ?! SIPFailedToBeRevealed sip
 
           pure st { subsips = Set.delete sip subsips
-                    wssips = Map.delete (Data.calcCommit sip) wssips
+                  , wssips = Map.delete (Data.calcCommit sip) wssips
                   , wrsips = Map.insert (Data.sipHash sip) currentSlot wrsips
                   }
 
@@ -163,7 +168,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
               VoteNotForActiveSIP (Data.votedsipHash ballot)
 
             -- The Voting period end for this SIP must not have been reached yet.
-            currentSlot <= asips!(Data.votedsipHash ballot) ?!
+            currentSlot <= asips ! (Data.votedsipHash ballot) ?!
               VotingPeriodEnded (Data.votedsipHash ballot) currentSlot
 
             -- TODO: Signature of the vote must be verified
@@ -192,25 +197,45 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                       }
     ]
 
-
 instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
-  envGen _traceLength =
-    Env <$> currentSlotGen
-        -- TODO: for now we generate a constant set of keys. We need to update the
-        -- 'HasTrace' class so that 'trace' can take parameter of an associated
-        -- type, so that each STS can decide which parameters are relevant for its
-        -- traces.
-        <*> (pure
-             $! Bimap.fromList
-             $  fmap (Core.vKey &&& Core.sKey)
-             $  fmap Core.keyPair
-             $  fmap Core.Owner $ [0 .. 10])
-        <*> closedVotingPeriodsGen
+
+{- = Env
+    { k :: !BlockCount
+      -- ^ Chain stability parameter.
+    , currentSlot :: !Slot
+      -- ^ The current slot in the blockchain system
+    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    -- ^ When a SIP will not be active any more
+    -- (i.e., end of open for voting period)
+    , participants :: Bimap Core.VKey Core.SKey
+      -- ^ The set of stakeholders (i.e., participants), identified by their signing
+      -- and verifying keys.
+      -- There is a one-to-one correspondence between the signing and verifying keys, hence
+      -- the use of 'Bimap'
+    }-}
+
+
+
+  envGen _traceLength
+    = Env
+    <$> kGen
+    <*> currentSlotGen
+    -- TODO: for now we generate a constant set of keys. We need to update the
+    -- 'HasTrace' class so that 'trace' can take parameter of an associated
+    -- type, so that each STS can decide which parameters are relevant for its
+    -- traces.
+    <*> asipsGen
+    <*> (pure
+         $! Bimap.fromList
+         $  fmap (Core.vKey &&& Core.sKey)
+         $  fmap Core.keyPair
+         $  fmap Core.Owner $ [0 .. 10])
     where
-      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+     kGen = pure $ BlockCount 10 -- k security parameter
+     currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- TODO: generate a realistic Map
-      closedVotingPeriodsGen = pure $ Map.empty
+     asipsGen = pure $ Map.empty
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
@@ -278,7 +303,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
             newCommit = fmap (Data.calcCommit) (pure nsip)
 
             -- Do a Bimap lookup to get the sk from the vk
-            skey = (!) <$>  (pure participants) <*> (pure owner)
+            skey = (Bimap.!) <$>  (pure participants) <*> (pure owner)
 
         generateARevelation subsipsList =
           fmap Reveal $ Gen.element subsipsList

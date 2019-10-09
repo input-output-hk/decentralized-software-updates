@@ -15,11 +15,14 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Cardano.Ledger.Spec.STS.Chain.Chain
+                     , Cardano.Ledger.Spec.STS.Chain.Header
+                     , Cardano.Ledger.Spec.STS.Chain.Body
                      , Cardano.Ledger.Spec.STS.Chain.Data
                      , Cardano.Ledger.Spec.STS.Chain.Transaction
                      , Cardano.Ledger.Spec.STS.Dummy.UTxO
                      , Cardano.Ledger.Spec.STS.Sized
                      , Cardano.Ledger.Spec.STS.Update
+                     , Cardano.Ledger.Spec.STS.Update.Hupdate
                      , Cardano.Ledger.Spec.STS.Update.Data
                      , Cardano.Ledger.Spec.STS.Update.Ideation
                      , Cardano.Ledger.Spec.STS.Update.Implementation
