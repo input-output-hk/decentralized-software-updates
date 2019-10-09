@@ -48,7 +48,7 @@ data IdeationPayload hashAlgo
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =
-  BallotSIP { votedsipId :: !(SIPHash hashAlgo)
+  BallotSIP { votedsipHash :: !(SIPHash hashAlgo)
               -- ^ SIP id that this ballot is for
             , conf :: !Confidence
               -- ^ the ballot outcome
