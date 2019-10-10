@@ -36,9 +36,8 @@ import           Cardano.Ledger.Spec.STS.Update.Data  ( IdeationPayload
                                                       , ImplementationPayload
                                                       , SIPData
                                                       , Commit
-                                                      , SIPHash
-                                                      , VotingPeriod
                                                       )
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
@@ -119,10 +118,9 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                 -- , implementationEnv
                 }
           , st@St { wrsips
-                  , ideationSt =  Ideation.St { Ideation.submittedSIPs = sS
+                  , ideationSt =  Ideation.St { Ideation.subsips = sS
                                               , Ideation.wssips = submtS
-                                              , Ideation.wrsips  = _
-                                              , Ideation.ballotsForSIP = bS
+                                              , Ideation.ballots = bS
                                               , Ideation.voteResultSIPs = vR
                                               }
                   , implementationSt
@@ -133,20 +131,20 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
       case update of
         Ideation ideationPayload ->
           do
-            let Ideation.Env { Ideation.currentSlot = _
+            let Ideation.Env { Ideation.k = k
                              , Ideation.participants = par
-                             , Ideation.asips = _
                              } = ideationEnv
             ideationSt'@Ideation.St { Ideation.wrsips = wrsips'} <-
               trans @(IDEATION hashAlgo)
-                $ TRC ( Ideation.Env  { Ideation.currentSlot = currentSlot
+                $ TRC ( Ideation.Env  { Ideation.k = k
+                                      , Ideation.currentSlot = currentSlot
                                       , Ideation.asips = asips
                                       , Ideation.participants = par
                                       }
-                      , Ideation.St { Ideation.submittedSIPs = sS
+                      , Ideation.St { Ideation.subsips = sS
                                     , Ideation.wssips = submtS
                                     , Ideation.wrsips = wrsips
-                                    , Ideation.ballotsForSIP = bS
+                                    , Ideation.ballots = bS
                                     , Ideation.voteResultSIPs = vR
                                     }
                       , ideationPayload
@@ -223,30 +221,29 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
 
   envGen traceLength =
     Env <$> currentSlotGen
-        <*> closedVotingPeriodsGen
+        <*> asips
         <*> envGen @(IDEATION hashAlgo) traceLength
         <*> envGen @IMPLEMENTATION traceLength
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
       -- TODO: generate a realistic Map
-      closedVotingPeriodsGen = pure $ Map.empty
+      asips = pure $ Map.empty
 
   sigGen  Env { currentSlot
-              , closedVotingPeriods
+              , asips
               , ideationEnv
               }
           St { ideationSt } =
     -- For now we generate ideation payload only.
     Ideation
       <$> sigGen  @(IDEATION hashAlgo)
-                  Ideation.Env  { Ideation.currentSlot = currentSlot
+                  Ideation.Env  { Ideation.k = k
+                                , Ideation.currentSlot = currentSlot
+                                , Ideation.asips = asips
                                 , Ideation.participants = par
-                                , Ideation.closedVotingPeriods
-                                    = closedVotingPeriods
                                 }
                   ideationSt
     where
-      Ideation.Env  { Ideation.currentSlot = _
+      Ideation.Env  { Ideation.k = k
                     , Ideation.participants = par
-                    , Ideation.closedVotingPeriods = _
                     } = ideationEnv
