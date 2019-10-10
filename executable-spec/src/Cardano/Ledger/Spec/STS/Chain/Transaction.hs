@@ -35,12 +35,15 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot)
 
+import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
+import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
@@ -224,8 +227,8 @@ transactionsGen
      , HasTypeReps (Hash hashAlgo SIPData)
      )
   => Size
-  -> Environment (TRANSACTIONS hashAlgo)
-  -> State (TRANSACTIONS hashAlgo)
+  -> Environment (BODY hashAlgo)
+  -> State (BODY hashAlgo)
   -> Gen [Tx hashAlgo]
 transactionsGen maximumSize env st
   =   fitTransactions . traceSignals OldestFirst
