@@ -17,9 +17,8 @@ module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Control.Arrow ((&&&))
 import qualified Data.Bimap as Bimap
-import           GHC.Generics (Generic)
 import qualified Data.Map.Strict as Map
-import           Data.Map.Strict (Map)
+import           GHC.Generics (Generic)
 
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
@@ -34,7 +33,6 @@ import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core ( Slot (Slot)
-                             , addSlot
                              , BlockCount (BlockCount)
                              )
 import qualified Ledger.Core as Core
@@ -51,15 +49,9 @@ import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data ( Commit
                                                      , SIPData
-                                                     , SIPHash
-                                                     , VotingPeriod(..)
-                                                     , VPStatus(..)
-                                                     , vpDurationToSlotCnt
                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
-import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
-import qualified Cardano.Ledger.Spec.STS.Chain.Header as Header
 
 
 data CHAIN hashAlgo
@@ -130,7 +122,7 @@ instance ( HashAlgorithm hashAlgo
 
   initialRules = [
     do
-       IRC Env { maximumBlockSize, headerEnv, bodyEnv } <- judgmentContext
+       IRC Env { } <- judgmentContext
        pure $! St { headerSt = mempty
                   , bodySt = mempty
                   }
@@ -261,7 +253,7 @@ instance ( HasTypeReps hashAlgo
 
       implementationEnvGen gs = Implementation.Env <$> gs
 
-  sigGen  Env { maximumBlockSize, headerEnv, bodyEnv }
+  sigGen  Env { maximumBlockSize, bodyEnv }
           St  { headerSt = Header.St {Header.currentSlot = cs}
               , bodySt
               }
@@ -279,7 +271,7 @@ instance ( HasTypeReps hashAlgo
       --                         )
       --                         transactionsSt
       where
-        gHeader cs = Header.BHeader <$> gNextSlot cs
+        gHeader currSlot = Header.BHeader <$> gNextSlot currSlot
         gBody = Body.BBody <$> gTransactions bodyEnv bodySt
 
         -- We'd expect the slot increment to be 1 with high probability.
