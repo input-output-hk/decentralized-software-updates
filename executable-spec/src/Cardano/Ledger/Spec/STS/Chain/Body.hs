@@ -16,11 +16,7 @@ module Cardano.Ledger.Spec.STS.Chain.Body where
 import           Data.Function ((&))
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
-import           Data.Typeable (typeOf)
-import Data.Set (Set)
 import           Data.Map.Strict (Map)
 
 
@@ -38,13 +34,12 @@ import           Ledger.Core (Slot)
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (Coin (Coin))
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
-import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
+import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
 -- The Block BODY STS
@@ -103,7 +98,7 @@ instance ( HashAlgorithm hashAlgo
 
   data PredicateFailure (BODY hashAlgo)
     =
-     TransactionFailure (PredicateFailure (TRANSACTION hashAlgo))
+     BodyFailure (PredicateFailure (TRANSACTION hashAlgo))
     deriving (Eq, Show)
 
 
@@ -111,32 +106,45 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( env@Env {currentSlot, asips}
-          , St {wrsips}
-          , bbody@BBody {transactions}
+      TRC ( env@Env { currentSlot
+                    , asips
+                    , transactionEnv
+                       = Transaction.Env { Transaction.updatesEnv
+                                         , Transaction.utxoEnv
+                                         }
+                    }
+          , st@St {wrsips}
+          , BBody {transactions}
           ) <- judgmentContext
       case transactions of
         [] -> pure $! st
         (tx:txs') -> do
-          st'@Transaction.St { wrsips = wrsips'
-                             } <- trans @(TRANSACTION hashAlgo) $ TRC ( Transaction.Env
-                                                        { currentSlot
-                                                        , asips
-                                                        }
-                                                     , Transaction.St {wrsips}
-                                                     , tx
-                                                     )
+          st'@Transaction.St { Transaction.wrsips = wrsips'
+                             } <-
+            trans @(TRANSACTION hashAlgo)
+              $ TRC ( Transaction.Env
+                       { Transaction.currentSlot
+                       , Transaction.asips
+                       , Transaction.updatesEnv
+                       , Transaction.utxoEnv
+                       }
+                    , Transaction.St {Transaction.wrsips}
+                    , tx
+                    )
           trans @(BODY hashAlgo) $ TRC ( env
                                        , St { wrsips = wrsips'
-                                            , transactionsSt = st'
+                                            , transactionSt = st'
                                             }
-                                       , txs'
+                                       , BBody txs'
                                        )
     ]
 
 
-instance HashAlgorithm hashAlgo => Embed (TRANSACTION hashAlgo) (BODY hashAlgo) where
-  wrapFailed = TxFailure
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         ) => Embed (TRANSACTION hashAlgo) (BODY hashAlgo) where
+  wrapFailed = BodyFailure
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
 transactionsGen
@@ -149,16 +157,16 @@ transactionsGen
   => Size
   -> Environment (BODY hashAlgo)
   -> State (BODY hashAlgo)
-  -> Gen [Tx hashAlgo]
-transactionsGen maximumSize env st
+  -> Gen [Transaction.Tx hashAlgo]
+transactionsGen maximumSize (env@Env{transactionEnv}) (st@St {transactionSt})
   =   fitTransactions . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
-  <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
+  <$> genTrace @(TRANSACTION hashAlgo) 30 transactionEnv transactionSt transactionGen
 
   where
     -- Fit the transactions that fit in the given maximum block size.
-    fitTransactions :: [Tx hashAlgo] -> [Tx hashAlgo]
+    fitTransactions :: [Transaction.Tx hashAlgo] -> [Transaction.Tx hashAlgo]
     fitTransactions txs = zip txs (tail sizes)
                           -- We subtract to account for the block constructor
                           -- and the 'Word64' value of the slot.
@@ -170,12 +178,12 @@ transactionsGen maximumSize env st
         sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen  (Env { currentSlot
-                         , closedVotingPeriods
-                         , updatesEnv
-                         }
+    transactionGen  (Transaction.Env { Transaction.currentSlot
+                                     , Transaction.asips
+                                     , Transaction.updatesEnv
+                                     }
                     )
-                    (St { updateSt })
+                    (Transaction.St { Transaction.updateSt })
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -185,14 +193,14 @@ transactionsGen maximumSize env st
       -- otherwise)
       --
       -- We do not generate witnesses for now
-      =   (`Tx` [])
+      =   (`Transaction.Tx` [])
       .   dummyBody
       <$> Gen.frequency
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.currentSlot = currentSlot
-                               , Update.closedVotingPeriods = closedVotingPeriods
+                    Update.Env { Update.currentSlot
+                               , Update.asips
                                , Update.ideationEnv = idEnv
                                , Update.implementationEnv = implEnv
                                }
@@ -201,16 +209,16 @@ transactionsGen maximumSize env st
             ]
       where
         Update.Env { Update.currentSlot = _
-                   , Update.closedVotingPeriods = _
+                   , Update.asips = _
                    , Update.ideationEnv = idEnv
                    , Update.implementationEnv = implEnv
                    } = updatesEnv
         -- For now we don't generate inputs and outputs.
         dummyBody update
-          = TxBody
-            { inputs = mempty
-            , outputs = mempty
-            , fees = Coin
-            , update = update
+          = Transaction.TxBody
+            { Transaction.inputs = mempty
+            , Transaction.outputs = mempty
+            , Transaction.fees = Coin
+            , Transaction.update = update
             }
 

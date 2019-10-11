@@ -171,65 +171,6 @@ instance ( HashAlgorithm hashAlgo
       pure $! St { headerSt'
                  , bodySt'
                  }
-
-      -- let Transaction.Env
-      --       { Transaction.updatesEnv = upE
-      --       , Transaction.utxoEnv = utxoE
-      --       } = transactionsEnv
-
-      --     (openVotingPeriods', closedVotingPeriods') = updateVotingPeriods openVotingPeriods closedVotingPeriods
-
-      --     updateVotingPeriods open closed =
-      --       let
-      --         -- traverse all VPs of open Map and update their status
-      --         updatedOpen =
-      --           Map.map (
-      --                     \vp@VotingPeriod {sipId, openingSlot, vpDuration} ->
-      --                       if slot > addSlot openingSlot  (vpDurationToSlotCnt vpDuration)
-      --                         then -- VP must close
-      --                           VotingPeriod
-      --                              { sipId = sipId
-      --                              , openingSlot = openingSlot
-      --                              , closingSlot = slot
-      --                              , vpDuration = vpDuration
-      --                              , vpStatus = VPClosed
-      --                              }
-      --                         else -- VP should remain open
-      --                           vp
-      --                   )
-      --                   open
-
-      --         -- extract all closed VPs from open Map
-      --         newClosedVPs =
-      --           Map.filter (\VotingPeriod {vpStatus} ->
-      --                           vpStatus == VPClosed
-      --                      )
-      --                      updatedOpen
-      --       in
-      --         -- insert new closed VPs into closed Map and remove closed VPs from open Map
-      --         ( Map.difference open newClosedVPs
-      --         , Map.union newClosedVPs closed
-      --         )
-
-      -- -- NOTE: the TRANSACTIONS transition corresponds to the BODY transition in
-      -- -- Byron and Shelley rules.
-      -- transactionsSt'@Transaction.St { Transaction.openVotingPeriods = ovp'
-      --                                   -- ovp' = returned state updated by IDEATION
-      --                                , Transaction.utxoSt = _
-      --                                , Transaction.updateSt = _
-      --                                } <-
-      --   trans @(TRANSACTIONS hashAlgo)
-      --     $ TRC ( Transaction.Env slot closedVotingPeriods' upE utxoE
-      --             -- pass the updated openVotingPeriods state
-      --           , Transaction.St openVotingPeriods' utxoSt updateSt
-      --           , transactions
-      --           )
-      -- pure $! St { currentSlot = slot
-      --            , openVotingPeriods = ovp' -- This state has been further updated
-      --                                       -- by the IDEATON STS
-      --            , closedVotingPeriods = closedVotingPeriods'
-      --            , transactionsSt = transactionsSt'
-      --            }
     ]
 
 
