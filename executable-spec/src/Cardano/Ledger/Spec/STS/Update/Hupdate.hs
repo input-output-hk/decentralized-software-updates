@@ -20,20 +20,20 @@ import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
 
-import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
+--import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), IRC (IRC), initialRules,
                      judgmentContext, transitionRules)
-import           Data.AbstractSize (HasTypeReps)
+--import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot (Slot), BlockCount)
 import           Ledger.Core ((▷>=), (▷<=), (-.), (*.))
 
 
-import           Cardano.Ledger.Spec.STS.Update.Data ( SIPData
-                                                     , Commit
-                                                     )
+-- import           Cardano.Ledger.Spec.STS.Update.Data ( SIPData
+--                                                      , Commit
+--                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
@@ -65,11 +65,7 @@ data St hashAlgo
 deriving instance Semigroup (Slot)
 deriving instance Monoid (Slot)
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
-         ) => STS (HUPDATE hashAlgo) where
+instance  STS (HUPDATE hashAlgo) where
 
   type Environment (HUPDATE hashAlgo) = Env
 
@@ -84,7 +80,7 @@ instance ( HashAlgorithm hashAlgo
 
   initialRules = [
     do
-      IRC Env { currentSlot } <- judgmentContext
+      IRC Env { } <- judgmentContext
       pure $! St { wrsips = Map.empty
                  , asips = Map.empty
                  }
@@ -92,8 +88,8 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( env@Env { k, currentSlot }
-          , st@St  { wrsips
+      TRC ( Env { k }
+          , St  { wrsips
                 , asips
                 }
           , slot

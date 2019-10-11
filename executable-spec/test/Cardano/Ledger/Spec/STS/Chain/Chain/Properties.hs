@@ -17,6 +17,7 @@ import qualified Control.State.Transition.Trace as Trace
 
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
+import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation  as Ideation
@@ -40,9 +41,10 @@ tracesAreClassified = withTests 300 $ property $ do
   where
     lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
     lastStateReveals tr = Trace.lastState tr
-                        & Chain.transactionsSt
+                        & Chain.bodySt
+                        & Body.transactionSt
                         & Transaction.updateSt
                         & Update.ideationSt
-                        & Ideation.revealedSIPs
+                        & Ideation.wrsips
                         & length
                         & fromIntegral

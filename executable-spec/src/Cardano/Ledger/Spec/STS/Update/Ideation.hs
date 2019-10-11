@@ -122,7 +122,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                   , wssips
                   , wrsips
                   , ballots
-                  , voteResultSIPs
+                 -- , voteResultSIPs
                   }
           , sig
           ) <- judgmentContext
