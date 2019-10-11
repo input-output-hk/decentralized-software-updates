@@ -54,6 +54,7 @@ data St hashAlgo
        -- ^ When a SIP will not be active any more
        -- (i.e., end of open for voting period)
        }
+       deriving (Eq, Show)
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo

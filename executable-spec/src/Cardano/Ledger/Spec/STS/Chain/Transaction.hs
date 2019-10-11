@@ -13,9 +13,6 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
-import           Data.Function ((&))
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
@@ -29,20 +26,16 @@ import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen, genTrace)
-import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot)
 
-import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
-import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
-import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
+import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
@@ -215,81 +208,5 @@ instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo) where
 
 
 instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlgo) where
-  wrapFailed = UpdatesFailure
+  wrapFailed = TxFailure
 
-
--- | Generate a list of 'Tx's that fit in the given maximum size.
-transactionsGen
-  :: forall hashAlgo
-   . ( HashAlgorithm hashAlgo
-     , HasTypeReps hashAlgo
-     , HasTypeReps (Commit hashAlgo)
-     , HasTypeReps (Hash hashAlgo SIPData)
-     )
-  => Size
-  -> Environment (BODY hashAlgo)
-  -> State (BODY hashAlgo)
-  -> Gen [Tx hashAlgo]
-transactionsGen maximumSize env st
-  =   fitTransactions . traceSignals OldestFirst
-  -- TODO: check what is a realistic distribution for empty blocks, or disallow
-  -- the generation of empty blocks altogether.
-  <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
-
-  where
-    -- Fit the transactions that fit in the given maximum block size.
-    fitTransactions :: [Tx hashAlgo] -> [Tx hashAlgo]
-    fitTransactions txs = zip txs (tail sizes)
-                          -- We subtract to account for the block constructor
-                          -- and the 'Word64' value of the slot.
-                        & takeWhile ((< maximumSize - 5) . snd)
-                        & fmap fst
-      where
-        -- We compute the cumulative sum of the transaction sizes. We add 3 to
-        -- account for the list constructor.
-        sizes :: [Size]
-        sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
-
-    transactionGen  (Env { currentSlot
-                         , closedVotingPeriods
-                         , updatesEnv
-                         }
-                    )
-                    (St { updateSt })
-      -- TODO: figure out what a realistic distribution for update payload is.
-      --
-      -- TODO: do we need to model the __liveness__ assumption of the underlying
-      -- protocol? That is, model the fact that honest party votes will be
-      -- eventually comitted to the chain. Or is this implicit once we start
-      -- generating votes uniformly distributed over all the parties (honest and
-      -- otherwise)
-      --
-      -- We do not generate witnesses for now
-      =   (`Tx` [])
-      .   dummyBody
-      <$> Gen.frequency
-            [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
-            , (1, sigGen
-                    @(UPDATES hashAlgo)
-                    Update.Env { Update.currentSlot = currentSlot
-                               , Update.closedVotingPeriods = closedVotingPeriods
-                               , Update.ideationEnv = idEnv
-                               , Update.implementationEnv = implEnv
-                               }
-                    updateSt
-              )
-            ]
-      where
-        Update.Env { Update.currentSlot = _
-                   , Update.closedVotingPeriods = _
-                   , Update.ideationEnv = idEnv
-                   , Update.implementationEnv = implEnv
-                   } = updatesEnv
-        -- For now we don't generate inputs and outputs.
-        dummyBody update
-          = TxBody
-            { inputs = mempty
-            , outputs = mempty
-            , fees = Coin
-            , update = update
-            }

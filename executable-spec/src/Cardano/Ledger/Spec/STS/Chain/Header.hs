@@ -13,51 +13,37 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
-import           Data.Function ((&))
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Data.Typeable (typeOf)
-import Data.Set (Set)
-import           Data.Map.Strict (Map)
-
+import qualified Data.Map.Strict as Map
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
-                     STS, Signal, State, TRC (TRC), initialRules,
-                     judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen, genTrace)
-import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
+                     STS, Signal, State, TRC (TRC), IRC (IRC), initialRules,
+                     judgmentContext, trans, transitionRules, wrapFailed, (?!))
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot)
 
-import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
-import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import           Cardano.Ledger.Spec.STS.Update (UPDATES)
-import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
-import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
-
+import           Cardano.Ledger.Spec.STS.Update.Hupdate (HUPDATE)
+import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)
 
 
 -- | The Block HEADER STS
-data HEADER
+data HEADER hashAlgo
 
-data Env
+data Env hashAlgo
   = Env { initialSlot :: !Slot
-        , hupdateEnv :: !Environment (HUPDATE hashAlgo)
+        , hupdateEnv :: Environment (HUPDATE hashAlgo)
         }
         deriving (Eq, Show)
 
 data St hashAlgo
  = St { currentSlot :: !Slot
-      , hupdateSt :: !State (HUPDATE hashAlgo)
+      , hupdateSt :: State (HUPDATE hashAlgo)
       }
       deriving (Eq, Show)
 
@@ -67,23 +53,22 @@ data BHeader
    }
    deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
-                  , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
-                  ) => HasTypeReps (BHeader hashAlgo)
+-- deriving instance ( HasTypeReps hashAlgo
+--                   , HasTypeReps (Hash hashAlgo SIPData)
+--                   , HashAlgorithm hashAlgo
+--                   , HasTypeReps (Commit hashAlgo)
+--                   ) => HasTypeReps (BHeader)
+
+deriving instance HasTypeReps (BHeader)
+
+instance Sized BHeader where
+  -- TODO: define this properly
+  costsList bh = [(typeOf bh, 100)]
+
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
-         ) => Sized (BHeader hashAlgo) where
-  costsList _ = costsList (undefined :: Slot)
-
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
          ) => STS (HEADER hashAlgo) where
 
   type Environment (HEADER hashAlgo) = Env hashAlgo
@@ -93,38 +78,51 @@ instance ( HashAlgorithm hashAlgo
   type Signal (HEADER hashAlgo) = BHeader
 
   data PredicateFailure (HEADER hashAlgo)
-    = BlockSlotNotIncreasing CurrentSlot Slot
-    | TransactionsFailure (PredicateFailure (HUPDATE hashAlgo))
+    = BlockSlotNotIncreasing Slot Slot
+    | HeaderFailure (PredicateFailure (HUPDATE hashAlgo))
     deriving (Eq, Show)
 
 
   initialRules = [
     do
       IRC Env { initialSlot } <- judgmentContext
-      pure $! St { currentSlot = initialSlot }
+      pure $! St { currentSlot = initialSlot
+                 , hupdateSt = Hupdate.St { Hupdate.wrsips = Map.empty
+                                          , Hupdate.asips = Map.empty
+                                          }
+                 }
     ]
 
   transitionRules = [
     do
-      TRC ( Env { initialSlot, hupdateEnv@HUpdate.Env {currentSlot} }
+      TRC ( Env { hupdateEnv = Hupdate.Env { Hupdate.k
+                                           , Hupdate.currentSlot = _
+                                           }
+                }
           , St  { currentSlot
                 , hupdateSt
                 }
-          , bheader@BHeader { slot }
+          , BHeader { slot }
           ) <- judgmentContext
 
       currentSlot < slot
-        ?! BlockSlotNotIncreasing (CurrentSlot currentSlot) slot
-  hupdateSt' <-
-    trans @(HUPDATE hashAlgo)
-      $ TRC ( hupdateEnv { currentSlot = slot }
-            , hupdateSt
-            , slot
-            )
-  pure $ St { currentSlot = slot
-            , hupdateSt = hupdateSt'
-            }
+        ?! BlockSlotNotIncreasing currentSlot slot
+      hupdateSt' <-
+        trans @(HUPDATE hashAlgo)
+          $ TRC ( Hupdate.Env { Hupdate.k, Hupdate.currentSlot = slot }
+                , hupdateSt
+                , slot
+                )
 
+      pure $ St { currentSlot = slot
+                , hupdateSt = hupdateSt'
+                }
+    ]
 
-instance HashAlgorithm hashAlgo => Embed (HUPDATE hashAlgo) (HEADER hashAlgo) where
-  wrapFailed = HeaderFailure
+instance ( HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo SIPData)
+         )
+  => Embed (HUPDATE hashAlgo) (HEADER hashAlgo)
+    where
+      wrapFailed = HeaderFailure
