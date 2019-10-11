@@ -14,6 +14,8 @@
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
 import           GHC.Generics (Generic)
+import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
+                     GenericSemigroup (GenericSemigroup))
 import           Data.Typeable (typeOf)
 import qualified Data.Map.Strict as Map
 
@@ -45,7 +47,10 @@ data St hashAlgo
  = St { currentSlot :: !Slot
       , hupdateSt :: State (HUPDATE hashAlgo)
       }
-      deriving (Eq, Show)
+      deriving (Eq, Show, Generic)
+      deriving Semigroup via GenericSemigroup (St hashAlgo)
+      deriving Monoid via GenericMonoid (St hashAlgo)
+
 
 data BHeader
   = BHeader

@@ -16,6 +16,8 @@ module Cardano.Ledger.Spec.STS.Chain.Body where
 import           Data.Function ((&))
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
+import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
+                     GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Data.Map.Strict (Map)
 
@@ -61,7 +63,10 @@ data St hashAlgo
       -- ^ When a SIP was revealed
     , transactionSt :: State (TRANSACTION hashAlgo)
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
+    deriving Semigroup via GenericSemigroup (St hashAlgo)
+    deriving Monoid via GenericMonoid (St hashAlgo)
+
 
 
 data BBody hashAlgo

@@ -35,11 +35,17 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core ( Slot (Slot)
                              , addSlot
+                             , BlockCount (BlockCount)
                              )
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
+import qualified Cardano.Ledger.Spec.STS.Chain.Header as Header
+import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
+import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
+import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
@@ -83,8 +89,8 @@ data St hashAlgo
 
 data Block hashAlgo
   = Block
-    { header :: !Signal (HEADER hashAlgo)
-    , body :: !Signal (BODY hashAlgo)
+    { header :: Signal (HEADER hashAlgo)
+    , body :: Signal (BODY hashAlgo)
     }
     deriving (Eq, Show, Generic)
 
@@ -117,26 +123,24 @@ instance ( HashAlgorithm hashAlgo
 
   data PredicateFailure (CHAIN hashAlgo)
     = MaximumBlockSizeExceeded Size (Threshold Size)
-    | TransactionsFailure (PredicateFailure (BODY hashAlgo))
-    | TransactionsFailure (PredicateFailure (HEADER hashAlgo))
+    | ChainFailureBody (PredicateFailure (BODY hashAlgo))
+    | ChainFailureHeader (PredicateFailure (HEADER hashAlgo))
     deriving (Eq, Show)
 
 
   initialRules = [
     do
-       IRC Env { maximumBlockSize } <- judgmentContext
-       pure $! St { maximumBlockSize = 100
-                      -- For now we fix the maximum block size to an abstract size of 100
-                  , headerSt = mempty
+       IRC Env { maximumBlockSize, headerEnv, bodyEnv } <- judgmentContext
+       pure $! St { headerSt = mempty
                   , bodySt = mempty
                   }
     ]
 
   transitionRules = [
     do
-      TRC ( Env { maximumBlockSize, headerEnv, bodyEnv@Body.Env{transactionEnv} }
+      TRC ( Env { maximumBlockSize, headerEnv, bodyEnv = Body.Env{Body.transactionEnv} }
           , St  { headerSt
-                , bodySt@Body.St{transactionsSt}
+                , bodySt = Body.St{Body.transactionSt}
                 }
           , block@Block{ header, body }
           ) <- judgmentContext
@@ -144,10 +148,11 @@ instance ( HashAlgorithm hashAlgo
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
 
       -- First a HEAD transition in order to update the state
-      headerSt'@Header.St { currentSlot = slot'
-                          , hupdateSt = HUpdate.St { wrsips = wrsips'
-                                                   , asips = asips'
-                                                   }
+      headerSt'@Header.St { Header.currentSlot = slot'
+                          , Header.hupdateSt
+                              = Hupdate.St { Hupdate.wrsips = wrsips'
+                                           , Hupdate.asips = asips'
+                                           }
                           }  <-
         trans @(HEADER hashAlgo)
           $ TRC ( headerEnv
@@ -157,19 +162,19 @@ instance ( HashAlgorithm hashAlgo
 
       -- Second a BODY transition with the updated state from header
       bodySt'<- trans @(BODY hashAlgo)
-                  $ TRC ( bodyEnv@Body.Env
-                           { currentSlot = slot'
-                           , asips = asips'
-                           , transactionEnv
+                  $ TRC ( Body.Env
+                           { Body.currentSlot = slot'
+                           , Body.asips = asips'
+                           , Body.transactionEnv
                            }
-                        , bodySt@Body.St
-                            { wrsips = wrsips'
-                            , transactionsSt
+                        , Body.St
+                            { Body.wrsips = wrsips'
+                            , Body.transactionSt
                             }
                         , body
                         )
-      pure $! St { headerSt'
-                 , bodySt'
+      pure $! St { headerSt = headerSt'
+                 , bodySt = bodySt'
                  }
     ]
 
@@ -179,14 +184,14 @@ instance ( HashAlgorithm hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
          ) => Embed (BODY hashAlgo) (CHAIN hashAlgo) where
-  wrapFailed = TransactionsFailure
+  wrapFailed = ChainFailureBody
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps (Commit hashAlgo)
          ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo) where
-  wrapFailed = TransactionsFailure
+  wrapFailed = ChainFailureHeader
 
 
 instance ( HasTypeReps hashAlgo
@@ -196,70 +201,96 @@ instance ( HasTypeReps hashAlgo
          ) => HasTrace (CHAIN hashAlgo) where
 
   envGen _traceLength
-    = Env <$> initialSlotGen
-          <*> maxBlockSizeGen
-          <*> (transactionsEnvGen
-                initialSlotGen
-                closedVotingPeriodsGen
-              )
+    = Env <$> maxBlockSizeGen <*> headerEnvGen <*> bodyEnvGen currentSlotGen asipsGen
+
     where
+      headerEnvGen
+       = Header.Env
+       <$> initialSlotGen
+       <*> hupdateEnvGen
+
+      bodyEnvGen gslot gasips
+        = Body.Env
+        <$> gslot
+        <*> gasips
+        <*> transactionEnvGen gslot gasips
+
+      transactionEnvGen gslot gasips
+        = Transaction.Env
+        <$> gslot
+        <*> gasips
+        <*> updatesEnvGen gslot gasips
+        <*> utxoEnvGen
+
+      utxoEnvGen = pure $ UTxO.Env
+
+      hupdateEnvGen = Hupdate.Env <$> kGen <*> currentSlotGen
+
+      -- TODO define k parameter properly
+      kGen = BlockCount <$> Gen.constant 10
+
       initialSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- TODO: Generate a realistic closed voting periods Map
-      closedVotingPeriodsGen = pure $ Map.empty
+
+      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+
+      -- TODO: Generate a realistic asips Map
+      asipsGen = pure $ Map.empty
+
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100
+
       participantsGen = pure
                       $! Bimap.fromList
                       $  fmap (Core.vKey &&& Core.sKey)
                       $  fmap Core.keyPair
                       $  fmap Core.Owner $ [0 .. 10]
-      transactionsEnvGen gSlot gClosedVotingPeriods
-        = Transaction.Env
-          <$> gSlot
-          <*> gClosedVotingPeriods
-          <*> updatesEnvGen gSlot gClosedVotingPeriods
-          <*> (pure $ UTxO.Env)
-      updatesEnvGen gs gClosedVotingPeriods =
+
+      updatesEnvGen gslot gasips =
         Update.Env
-          <$> gs
-          <*> gClosedVotingPeriods
-          <*> ideationEnvGen gs gClosedVotingPeriods
-          <*> implementationEnvGen gs
-      ideationEnvGen gs gClosedVotingPeriods =
-        Ideation.Env
-          <$> gs
-          <*> participantsGen
-          <*> gClosedVotingPeriods
+          <$> gslot
+          <*> gasips
+          <*> ideationEnvGen gslot gasips
+          <*> implementationEnvGen gslot
+
+      ideationEnvGen gslot gasips
+        = Ideation.Env
+        <$> kGen
+        <*> gslot
+        <*> gasips
+        <*> participantsGen
 
       implementationEnvGen gs = Implementation.Env <$> gs
 
-  sigGen  Env { maximumBlockSize, transactionsEnv }
-          St  { currentSlot
-              --, openVotingPeriods
-              , closedVotingPeriods
-              , transactionsSt
-              } =
-    Block <$> gNextSlot
-          <*> gTransactions ( Transaction.Env
-                                currentSlot
-                                closedVotingPeriods
-                                updEnv
-                                utxoEnv
-                            )
-                            transactionsSt
-    where
-      Transaction.Env { Transaction.updatesEnv = updEnv
-                      , Transaction.utxoEnv = utxoEnv
-                      } = transactionsEnv
-      -- We'd expect the slot increment to be 1 with high probability.
-      --
-      -- TODO: check the exact probability of having an empty slot.
-      --
-      gNextSlot =  Slot . (s +) <$> Gen.frequency [ (99, pure 1)
-                                                  , (1, pure 2)
-                                                  ]
-        where
-          Slot s = currentSlot
+  sigGen  Env { maximumBlockSize, headerEnv, bodyEnv }
+          St  { headerSt = Header.St {Header.currentSlot = cs}
+              , bodySt
+              }
+    = Block <$> gHeader cs
+            <*> gBody
 
-      -- We generate a list of transactions that fit in the maximum block size.
-      gTransactions = Transaction.transactionsGen maximumBlockSize
+
+
+      -- Block <$> gNextSlot
+      --       <*> gTransactions ( Transaction.Env
+      --                           currentSlot
+      --                           closedVotingPeriods
+      --                           updEnv
+      --                           utxoEnv
+      --                         )
+      --                         transactionsSt
+      where
+        gHeader cs = Header.BHeader <$> gNextSlot cs
+        gBody = Body.BBody <$> gTransactions bodyEnv bodySt
+
+        -- We'd expect the slot increment to be 1 with high probability.
+        --
+        -- TODO: check the exact probability of having an empty slot.
+        --
+        gNextSlot currSlot =  Slot . (s +) <$> Gen.frequency [ (99, pure 1)
+                                                    , (1, pure 2)
+                                                    ]
+          where
+            Slot s = currSlot
+
+        -- We generate a list of transactions that fit in the maximum block size.
+        gTransactions = Body.transactionsGen maximumBlockSize
