@@ -17,6 +17,7 @@ module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Control.Arrow ((&&&))
 import qualified Data.Bimap as Bimap
+import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
 
@@ -122,9 +123,44 @@ instance ( HashAlgorithm hashAlgo
 
   initialRules = [
     do
-       IRC Env { } <- judgmentContext
-       pure $! St { headerSt = mempty
-                  , bodySt = mempty
+       IRC Env { headerEnv = Header.Env{ Header.initialSlot = initsl}
+               } <- judgmentContext
+       pure $! St { headerSt
+                      = Header.St { Header.currentSlot = initsl
+                                  , Header.hupdateSt
+                                      = Hupdate.St { Hupdate.wrsips
+                                                      = Map.empty
+                                                   , Hupdate.asips
+                                                      = Map.empty
+                                                   }
+                                  }
+                  , bodySt
+                      = Body.St
+                        { Body.wrsips = Map.empty
+                        , Body.transactionSt
+                            = Transaction.St
+                                 { Transaction.wrsips = Map.empty
+                                 , Transaction.utxoSt = mempty
+                                 , Transaction.updateSt
+                                      = Update.St { Update.wrsips = Map.empty
+                                                  , Update.ideationSt
+                                                      = Ideation.St
+                                                        { Ideation.subsips
+                                                            = Set.empty
+                                                        , Ideation.wssips
+                                                            = Map.empty
+                                                        , Ideation.wrsips
+                                                            = Map.empty
+                                                        , Ideation.ballots
+                                                            = Map.empty
+                                                        , Ideation.voteResultSIPs
+                                                            = Map.empty
+                                                        }
+                                                  , Update.implementationSt
+                                                      = Implementation.St ()
+                                                  }
+                                 }
+                        }
                   }
     ]
 

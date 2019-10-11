@@ -14,8 +14,8 @@
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
 import           GHC.Generics (Generic)
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
+--import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
+--                     GenericSemigroup (GenericSemigroup))
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
@@ -27,7 +27,7 @@ import           Control.State.Transition (Environment, PredicateFailure,
                      judgmentContext, transitionRules)
 --import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (Slot (Slot), BlockCount)
+import           Ledger.Core (Slot, BlockCount)
 import           Ledger.Core ((▷>=), (▷<=), (-.), (*.))
 
 
@@ -58,12 +58,12 @@ data St hashAlgo
        -- (i.e., end of open for voting period)
        }
        deriving (Eq, Show, Generic)
-       deriving Semigroup via GenericSemigroup (St hashAlgo)
-       deriving Monoid via GenericMonoid (St hashAlgo)
+       -- deriving Semigroup via GenericSemigroup (St hashAlgo)
+       -- deriving Monoid via GenericMonoid (St hashAlgo)
 
---deriving instance Generic (Slot)
-deriving instance Semigroup (Slot)
-deriving instance Monoid (Slot)
+-- deriving instance Generic (Slot)
+-- deriving instance Semigroup (Slot)
+-- deriving instance Monoid (Slot)
 
 instance  STS (HUPDATE hashAlgo) where
 

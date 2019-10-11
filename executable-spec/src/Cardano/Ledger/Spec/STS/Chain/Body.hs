@@ -20,12 +20,14 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
-                     STS, Signal, State, TRC (TRC), initialRules,
+                     STS, Signal, State, TRC (TRC), IRC (IRC),initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (sigGen, genTrace)
 import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
@@ -37,12 +39,13 @@ import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (Coin (Coin))
-import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
+--import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
+import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 -- The Block BODY STS
 data BODY hashAlgo
@@ -107,7 +110,36 @@ instance ( HashAlgorithm hashAlgo
     deriving (Eq, Show)
 
 
-  initialRules = []
+  initialRules = [
+    do
+      IRC Env { } <- judgmentContext
+      pure
+        $! St { wrsips = Map.empty
+              , transactionSt
+                  = Transaction.St
+                       { Transaction.wrsips = Map.empty
+                       , Transaction.utxoSt = mempty
+                       , Transaction.updateSt
+                            = Update.St
+                                { Update.wrsips = Map.empty
+                                , Update.ideationSt
+                                    = Ideation.St { Ideation.subsips
+                                                      = Set.empty
+                                                  , Ideation.wssips
+                                                      = Map.empty
+                                                  , Ideation.wrsips
+                                                      = Map.empty
+                                                  , Ideation.ballots
+                                                      = Map.empty
+                                                  , Ideation.voteResultSIPs
+                                                      = Map.empty
+                                                  }
+                                , Update.implementationSt
+                                    = Implementation.St ()
+                                }
+                       }
+              }
+    ]
 
   transitionRules = [
     do
@@ -118,7 +150,11 @@ instance ( HashAlgorithm hashAlgo
                                          , Transaction.utxoEnv
                                          }
                     }
-          , st@St {wrsips}
+          , st@St { wrsips
+                  , transactionSt = Transaction.St { Transaction.utxoSt
+                                                   , Transaction.updateSt
+                                                   }
+                  }
           , BBody {transactions}
           ) <- judgmentContext
       case transactions of
@@ -133,7 +169,10 @@ instance ( HashAlgorithm hashAlgo
                        , Transaction.updatesEnv
                        , Transaction.utxoEnv
                        }
-                    , Transaction.St {Transaction.wrsips}
+                    , Transaction.St { Transaction.wrsips
+                                     , Transaction.utxoSt
+                                     , Transaction.updateSt
+                                     }
                     , tx
                     )
           trans @(BODY hashAlgo) $ TRC ( env
@@ -163,7 +202,7 @@ transactionsGen
   -> Environment (BODY hashAlgo)
   -> State (BODY hashAlgo)
   -> Gen [Transaction.Tx hashAlgo]
-transactionsGen maximumSize (env@Env{transactionEnv}) (st@St {transactionSt})
+transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
   =   fitTransactions . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
