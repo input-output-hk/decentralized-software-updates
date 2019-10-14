@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -13,13 +12,14 @@ module Cardano.Ledger.Spec.STS.Update.Ideation where
 import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
-import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import           Data.Map.Strict (Map, (!))
-import           Data.Set (Set)
+import           Data.Map.Strict (Map, (!), (!?))
+import           Data.Maybe (fromMaybe)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
+import           Data.Set (Set)
+import qualified Data.Set as Set
 
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
@@ -32,13 +32,13 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Ledger.Core (Slot (Slot), BlockCount (BlockCount))
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.))
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit)
-import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, BallotSIP)
+import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, Confidence)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
@@ -82,7 +82,15 @@ data St hashAlgo
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
     -- ^ When a SIP was revealed
 
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
+      -- TODO: I think we should use key hashes here as well.
+      --
+      -- DISCUSS: by using this representation I think we're using more data,
+      -- since we have to store the confidence as well. We could avoid this by
+      -- having three maps, say @for@, @against@, and @abstain@. However a big
+      -- advantage of this construction is that any given key can only vote for
+      -- a single proposal and confidence by construction (if we use three maps
+      -- we have to maintain this as an invariant).
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Confidence))
       -- ^ This stores the valid ballots for each SIP and for each voter
 
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
@@ -173,28 +181,15 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
             -- TODO: Signature of the vote must be verified
 
+            let
+              hsip = Data.votedsipHash ballot
+              hsipBallots = fromMaybe Map.empty $ ballots !? hsip
+              hsipBallots' = hsipBallots ⨃ [(Data.voter ballot, Data.confidence ballot)]
+
             -- Update State
               -- Add ballot to the state of valid ballots for this SIP
-                -- If the voter has voted again, then replace his old vote with the new one
-            pure $ st { ballots =
-                          -- Are there any votes for this SIP yet?
-                          if (Data.votedsipHash ballot) ∈ dom ballots
-                            then
-                              -- insert will overwrite the value part of the Map if the key exists
-                              Map.insert
-                                (Data.votedsipHash ballot)
-                                (Map.insert
-                                    (Data.voter ballot)
-                                    ballot
-                                    (ballots ! (Data.votedsipHash ballot))
-                                )
-                                ballots
-                            else
-                              Map.insert
-                                (Data.votedsipHash ballot)
-                                (Map.fromList [(Data.voter ballot, ballot)])
-                                ballots
-                      }
+              -- If the voter has voted again, then replace his old vote with the new one
+            pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
     ]
 
 instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
