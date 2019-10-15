@@ -190,9 +190,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
               hsipBallots = fromMaybe Map.empty $ ballots !? hsip
               hsipBallots' = hsipBallots ⨃ [(Data.voter ballot, Data.confidence ballot)]
 
-            -- Update State
-              -- Add ballot to the state of valid ballots for this SIP
-              -- If the voter has voted again, then replace his old vote with the new one
+            -- Note that if the voter has voted again, then replace his old vote
+            -- with the new one.
             pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
     ]
 
