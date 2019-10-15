@@ -51,25 +51,17 @@ data BODY hashAlgo
 
 data Env hashAlgo
   = Env
-    { currentSlot :: !Slot
-    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP will not be active any more
-    -- (i.e., end of open for voting period)
-    , transactionEnv :: Environment (TRANSACTION hashAlgo)
+    { transactionEnv :: !(Environment (TRANSACTION hashAlgo))
     }
     deriving (Eq, Show)
 
 data St hashAlgo
   = St
-    { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      -- ^ When a SIP was revealed
-    , transactionSt :: State (TRANSACTION hashAlgo)
+    { transactionSt :: !(State (TRANSACTION hashAlgo))
     }
     deriving (Eq, Show, Generic)
     deriving Semigroup via GenericSemigroup (St hashAlgo)
     deriving Monoid via GenericMonoid (St hashAlgo)
-
-
 
 data BBody hashAlgo
  = BBody
@@ -110,74 +102,25 @@ instance ( HashAlgorithm hashAlgo
 
 
   initialRules = [
-    do
-      IRC Env { } <- judgmentContext
-      pure
-        $! St { wrsips = Map.empty
-              , transactionSt
-                  = Transaction.St
-                       { Transaction.wrsips = Map.empty
-                       , Transaction.utxoSt = mempty
-                       , Transaction.updateSt
-                            = Update.St
-                                { Update.wrsips = Map.empty
-                                , Update.ideationSt
-                                    = Ideation.St { Ideation.subsips
-                                                      = undefined -- TODO: use the initial rules of the subsystems.
-                                                  , Ideation.wssips
-                                                      = Map.empty
-                                                  , Ideation.wrsips
-                                                      = Map.empty
-                                                  , Ideation.ballots
-                                                      = Map.empty
-                                                  , Ideation.voteResultSIPs
-                                                      = Map.empty
-                                                  }
-                                , Update.implementationSt
-                                    = Implementation.St ()
-                                }
-                       }
-              }
     ]
 
   transitionRules = [
     do
-      TRC ( env@Env { currentSlot
-                    , asips
-                    , transactionEnv
-                       = Transaction.Env { Transaction.updatesEnv
-                                         , Transaction.utxoEnv
-                                         }
-                    }
-          , st@St { wrsips
-                  , transactionSt = Transaction.St { Transaction.utxoSt
-                                                   , Transaction.updateSt
-                                                   }
-                  }
+      TRC ( env@Env { transactionEnv }
+          , st@St { transactionSt }
           , BBody {transactions}
           ) <- judgmentContext
       case transactions of
         [] -> pure $! st
         (tx:txs') -> do
-          st'@Transaction.St { Transaction.wrsips = wrsips'
-                             } <-
+          transactionSt' <-
             trans @(TRANSACTION hashAlgo)
-              $ TRC ( Transaction.Env
-                       { Transaction.currentSlot
-                       , Transaction.asips
-                       , Transaction.updatesEnv
-                       , Transaction.utxoEnv
-                       }
-                    , Transaction.St { Transaction.wrsips
-                                     , Transaction.utxoSt
-                                     , Transaction.updateSt
-                                     }
+              $ TRC ( transactionEnv
+                    , transactionSt
                     , tx
                     )
           trans @(BODY hashAlgo) $ TRC ( env
-                                       , St { wrsips = wrsips'
-                                            , transactionSt = st'
-                                            }
+                                       , St { transactionSt = transactionSt' }
                                        , BBody txs'
                                        )
     ]
@@ -190,6 +133,8 @@ instance ( HashAlgorithm hashAlgo
   wrapFailed = BodyFailure
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
+--
+-- TODO: this seems to belong to transactions ...
 transactionsGen
   :: forall hashAlgo
    . ( HashAlgorithm hashAlgo
@@ -221,12 +166,14 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
         sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen  (Transaction.Env { Transaction.currentSlot
+    transactionGen  (Transaction.Env { Transaction.k
+                                     , Transaction.currentSlot
                                      , Transaction.asips
-                                     , Transaction.updatesEnv
+                                     , Transaction.participants
+                                     , Transaction.utxoEnv
                                      }
                     )
-                    (Transaction.St { Transaction.updateSt })
+                    (Transaction.St { Transaction.updateSt = updateSt })
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -242,20 +189,15 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.currentSlot
-                               , Update.asips
-                               , Update.ideationEnv = idEnv
-                               , Update.implementationEnv = implEnv
+                    Update.Env { Update.k = k
+                               , Update.currentSlot = currentSlot
+                               , Update.asips = asips
+                               , Update.participants = participants
                                }
                     updateSt
               )
             ]
       where
-        Update.Env { Update.currentSlot = _
-                   , Update.asips = _
-                   , Update.ideationEnv = idEnv
-                   , Update.implementationEnv = implEnv
-                   } = updatesEnv
         -- For now we don't generate inputs and outputs.
         dummyBody update
           = Transaction.TxBody

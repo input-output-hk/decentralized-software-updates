@@ -57,10 +57,10 @@ data Env hashAlgo
   = Env
     {
       maximumBlockSize :: !Size
-    -- ^ Maximum block size. The interpretation of this value depends on the
-    -- instance of 'Sized'.
-    --
-    -- TODO: use abstract size instead.
+      -- ^ Maximum block size. The interpretation of this value depends on the
+      -- instance of 'Sized'.
+      --
+      -- TODO: use abstract size instead.
     , headerEnv :: Environment (HEADER hashAlgo)
     , bodyEnv :: Environment (BODY hashAlgo)
     }

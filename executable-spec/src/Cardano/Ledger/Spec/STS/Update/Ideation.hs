@@ -59,7 +59,7 @@ data Env hashAlgo
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
       -- ^ Active SIP's. The slot in the range (of the map) determines when the
       -- voting period will end.
-    , participants :: Bimap Core.VKey Core.SKey
+    , participants :: !(Bimap Core.VKey Core.SKey)
       -- ^ The set of stakeholders (i.e., participants), identified by their signing
       -- and verifying keys.
       --

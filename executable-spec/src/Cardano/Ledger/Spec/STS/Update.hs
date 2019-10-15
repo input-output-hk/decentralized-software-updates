@@ -191,25 +191,34 @@ instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo) (UPDATES hashAlgo) wh
 -- Trace generators
 --------------------------------------------------------------------------------
 
--- TODO: Do we need this?
--- instance HashAlgorithm hashAlgo => HasTrace (UPDATES hashAlgo) where
+instance HashAlgorithm hashAlgo => HasTrace (UPDATES hashAlgo) where
 
---   envGen traceLength = envGen @(UPDATE hashAlgo) traceLength
+  envGen traceLength = envGen @(UPDATE hashAlgo) traceLength
 
---   sigGen env st
---     =   traceSignals OldestFirst
---     <$> genTrace @(UPDATE hashAlgo) 10 env st (sigGen @(UPDATE hashAlgo))
---     -- TODO: we need to determine what is a realistic number of update
---     -- transactions to be expected in a block.
+  sigGen env st
+    =   traceSignals OldestFirst
+    <$> genTrace @(UPDATE hashAlgo) 10 env st (sigGen @(UPDATE hashAlgo))
+    -- TODO: we need to determine what is a realistic number of update
+    -- transactions to be expected in a block.
 
 
--- instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
+instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
 
---   envGen traceLength = Env <$> envGen @IMPLEMENTATION traceLength
+  envGen traceLength = do
+    env <- envGen @(IDEATION hashAlgo) traceLength
+    pure $! Env { k = Ideation.k env
+                , currentSlot = Ideation.currentSlot env
+                , asips = Ideation.asips env
+                , participants = Ideation.participants env
+                }
 
---   sigGen  Env { ideationEnv } St { ideationSt } =
---     -- For now we generate ideation payload only.
---     Ideation
---       <$> sigGen @(IDEATION hashAlgo)
---                   ideationEnv
---                   ideationSt
+  sigGen  Env { k, currentSlot, asips, participants } St { ideationSt } =
+    -- For now we generate ideation payload only.
+    Ideation
+      <$> sigGen @(IDEATION hashAlgo)
+                  Ideation.Env { Ideation.k = k
+                               , Ideation.currentSlot = currentSlot
+                               , Ideation.asips = asips
+                               , Ideation.participants = participants
+                               }
+                  ideationSt
