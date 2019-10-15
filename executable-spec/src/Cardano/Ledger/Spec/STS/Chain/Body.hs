@@ -21,7 +21,6 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
@@ -124,7 +123,7 @@ instance ( HashAlgorithm hashAlgo
                                 { Update.wrsips = Map.empty
                                 , Update.ideationSt
                                     = Ideation.St { Ideation.subsips
-                                                      = Set.empty
+                                                      = undefined -- TODO: use the initial rules of the subsystems.
                                                   , Ideation.wssips
                                                       = Map.empty
                                                   , Ideation.wrsips
@@ -265,4 +264,3 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
             , Transaction.fees = Coin
             , Transaction.update = update
             }
-

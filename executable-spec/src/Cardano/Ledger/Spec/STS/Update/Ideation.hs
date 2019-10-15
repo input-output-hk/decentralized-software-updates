@@ -18,7 +18,6 @@ import           Data.Maybe (fromMaybe)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
-import           Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Hedgehog.Gen as Gen
@@ -32,7 +31,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Ledger.Core (Slot (Slot), BlockCount (BlockCount))
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃))
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋫), (⋪), range, (◁))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Update.Data
@@ -75,7 +74,7 @@ data Env hashAlgo
 --
 data St hashAlgo
   = St
-    { subsips :: !(Set (SIP hashAlgo))
+    { subsips :: !(Map (Commit hashAlgo) (SIP hashAlgo))
       -- ^ These are the SIPs that we need to generate for the testing to
       -- take place. From these both the commited SIP's as well as the revealed SIPs
       -- will be created. This state is not part of the update protocol, it is used
@@ -120,7 +119,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
     | NoSIPToReveal (Data.SIP hashAlgo)
     | SIPAlreadyRevealed (Data.SIP hashAlgo)
     | InvalidAuthor Core.VKey
-    | SIPFailedToBeRevealed (Data.SIP hashAlgo)
+    | NoStableAndCommittedSIP (Data.SIP hashAlgo) (Map (Commit hashAlgo) Slot)
     | InvalidVoter Core.VKey
     | VoteNotForActiveSIP (Data.SIPHash hashAlgo)
     | VotingPeriodEnded (Data.SIPHash hashAlgo) Slot
@@ -146,7 +145,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           -- TODO: Add verification of signature inside SIPCommit
 
           pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
-                     , subsips = Set.insert sip subsips
+                     , subsips = subsips ⨃ [(Data.commit sipc, sip)]
                      }
 
         Reveal sip -> do
@@ -158,13 +157,13 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
           -- The Revealed SIP must correspond to a stable Commited SIP.
           -- Restrict the range of wssips to values less or equal than
-          -- currentSlot - 2k
+          -- @currentSlot - 2k@
           Data.calcCommit sip
             ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
-            ?! SIPFailedToBeRevealed sip
+            ?! NoStableAndCommittedSIP sip wssips
 
-          pure st { subsips = Set.delete sip subsips -- TODO: DISCUSS: not sure whether we need to delete this...
-                  , wssips = Map.delete (Data.calcCommit sip) wssips
+          pure st { subsips = subsips ⋫ Set.singleton sip -- TODO: DISCUSS: not sure whether we need to delete this...
+                  , wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
                   , wrsips = Map.insert (Data.sipHash sip) currentSlot wrsips
                   }
 
@@ -220,7 +219,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
-  sigGen Env{ participants } St{ subsips } = do
+  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } = do
       owner <- newOwner
       sipMData <- newSIPMetadata
       sipData <- newSipData sipMData
@@ -228,8 +227,9 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
       salt <- newSalt
       -- generate the new SIP and pass it to generateASubmission "by value"
       -- otherwise you get non-deterministic SIP!
-      newsip <- Gen.filter (`Set.notMember` subsips) $ newSIP owner sipHash salt sipData
-      case Set.toList subsips of
+      newsip <- Gen.filter (`Set.notMember` range subsips) $ newSIP owner sipHash salt sipData
+      let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
+      case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
           generateASubmission newsip owner
         xs ->

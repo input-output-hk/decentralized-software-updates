@@ -17,7 +17,6 @@ module Cardano.Ledger.Spec.STS.Chain.Chain where
 
 import           Control.Arrow ((&&&))
 import qualified Data.Bimap as Bimap
-import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
 
@@ -33,24 +32,20 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core ( Slot (Slot)
-                             , BlockCount (BlockCount)
-                             )
+import           Ledger.Core (BlockCount (BlockCount), Slot (Slot))
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
-import qualified Cardano.Ledger.Spec.STS.Chain.Header as Header
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
+import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
+import qualified Cardano.Ledger.Spec.STS.Chain.Header as Header
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
-import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data ( Commit
-                                                     , SIPData
-                                                     )
+import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
+import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
@@ -146,7 +141,7 @@ instance ( HashAlgorithm hashAlgo
                                                   , Update.ideationSt
                                                       = Ideation.St
                                                         { Ideation.subsips
-                                                            = Set.empty
+                                                            = undefined
                                                         , Ideation.wssips
                                                             = Map.empty
                                                         , Ideation.wrsips
