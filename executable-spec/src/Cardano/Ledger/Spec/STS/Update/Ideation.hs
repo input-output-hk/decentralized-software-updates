@@ -130,7 +130,11 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { k, currentSlot, asips, participants }
+      TRC ( Env { k
+                , currentSlot
+                , asips
+                , participants
+                }
           , st@St { subsips
                   , wssips
                   , wrsips
