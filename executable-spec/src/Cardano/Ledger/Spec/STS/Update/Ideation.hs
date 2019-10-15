@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -206,78 +207,81 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
     -- type, so that each STS can decide which parameters are relevant for its
     -- traces.
     <*> asipsGen
-    <*> (pure
-         $! Bimap.fromList
-         $  fmap (Core.vKey &&& Core.sKey)
-         $  fmap Core.keyPair
-         $  fmap Core.Owner $ [0 .. 10])
+    <*> participantsGen
     where
      kGen = pure $ BlockCount 10 -- k security parameter
      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- TODO: generate a realistic Map
+     -- TODO: generate a realistic Map
+     --
+     -- TODO: DISCUSS: dnadales: I don't think we can come up with a realistic
+     -- set of SIP hashes here. I wonder if we can/need-to do any better than
+     -- just returning an empty map.
      asipsGen = pure $ Map.empty
+     participantsGen = pure
+                     $! Bimap.fromList
+                     $  fmap (Core.vKey &&& Core.sKey)
+                     $  fmap Core.keyPair
+                     $  fmap Core.Owner $ [0 .. 10]
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
-  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } = do
-      owner <- newOwner
-      sipMData <- newSIPMetadata
-      sipData <- newSipData sipMData
-      sipHash <- newSipHash sipData
-      salt <- newSalt
-      -- generate the new SIP and pass it to generateASubmission "by value"
-      -- otherwise you get non-deterministic SIP!
-      newsip <- Gen.filter (`Set.notMember` range subsips) $ newSIP owner sipHash salt sipData
-      let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
+  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } =
+      let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k))) in
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
-          generateASubmission newsip owner
+          -- There are no stable commits, so we can only generate a submission.
+          submissionGen
         xs ->
           -- TODO: determine submission to revelation ratio (maybe 50/50 is fine...)
-          Gen.frequency [ (1, generateASubmission newsip owner)
-                        , (1, generateARevelation xs)
+          Gen.frequency [ (1, submissionGen)
+                        , (1, revelationGen xs)
                         ]
       where
-        newOwner = Gen.element $ Set.toList $ dom participants
+        submissionGen = do
+          sip <- Gen.filter (`Set.notMember` range subsips) sipGen
+          pure $! mkSubmission sip
+            where
+              sipGen = do
+                owner <- Gen.element $ Set.toList $ dom participants
+                sipMData <- sipMetadataGen
+                sipData <- sipDataGen sipMData
+                let sipHash = Data.SIPHash $ hash sipData
+                salt <- Gen.int (constant 0 100)
+                pure $! SIP sipHash owner salt sipData
+                  where
+                    sipMetadataGen
+                      = Data.SIPMetadata
+                      <$> versionFromGen
+                      <*> versionToGen
+                      <*> Gen.element [Data.Impact, Data.NoImpact]
+                      <*> Gen.subsequence [ Data.BlockSizeMax
+                                          , Data.TxSizeMax
+                                          , Data.SlotSize
+                                          , Data.EpochSize
+                                          ]
+                      <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
+                      where
+                        versionFromGen
+                          =  (,)
+                          <$> fmap Data.ProtVer word64Gen
+                          <*> fmap Data.ApVer word64Gen
 
-        newSIPMetadata = (Data.SIPMetadata)
-          <$> (
-              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-              )
-          <*> (
-              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-              )
-          <*> (Gen.element [Data.Impact, Data.NoImpact])
-          <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
-          <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
+                        versionToGen = versionFromGen
 
-        newSipData sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
+                        word64Gen = Gen.word64 (constant 0 100)
 
-        newSalt = Gen.int (constant 0 100)
+                    sipDataGen sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
 
-        newSipHash sipData = (Data.SIPHash . hash) <$>  (pure sipData)
+              mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
+              mkSubmission sip = Submit sipCommit sip
+                where
+                  sipCommit =
+                    Data.SIPCommit commit (Data.author sip) sipCommitSignature
+                    where
+                      commit = Data.calcCommit sip
+                      sipCommitSignature = Core.sign skey commit
+                        where
+                          skey = participants Bimap.! Data.author sip
 
-        newSIP newowner nsipHash nsalt nsipData
-          = SIP
-          <$> pure nsipHash
-          <*> pure newowner
-          <*> pure nsalt
-          <*> pure nsipData
-
-        -- Generate a submission taking a participant that hasn't submitted a proposal yet
-        generateASubmission nsip owner
-          = Submit
-          <$> ((Data.SIPCommit) <$> newCommit <*> pure owner <*> newSignature)
-          <*> pure nsip
-          where
-            newSignature = (Core.sign) <$> skey <*> newCommit
-
-            newCommit = fmap (Data.calcCommit) (pure nsip)
-
-            -- Do a Bimap lookup to get the sk from the vk
-            skey = pure $ participants Bimap.! owner
-
-        generateARevelation subsipsList =
-          fmap Reveal $ Gen.element subsipsList
+        revelationGen subsipsList =
+          fmap Reveal $! Gen.element subsipsList
