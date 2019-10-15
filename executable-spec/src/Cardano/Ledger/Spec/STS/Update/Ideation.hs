@@ -57,13 +57,17 @@ data Env hashAlgo
     , currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP will not be active any more
-    -- (i.e., end of open for voting period)
+      -- ^ Active SIP's. The slot in the range (of the map) determines when the
+      -- voting period will end.
     , participants :: Bimap Core.VKey Core.SKey
       -- ^ The set of stakeholders (i.e., participants), identified by their signing
       -- and verifying keys.
+      --
       -- There is a one-to-one correspondence between the signing and verifying keys, hence
       -- the use of 'Bimap'
+      --
+      -- TODO: DISCUSS: It seems we need this only for the generators. We might want to
+      -- remove this from the STS.
     }
   deriving (Eq, Show, Generic)
 
@@ -80,7 +84,10 @@ data St hashAlgo
       -- ^ When a SIP commitment was submitted
 
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP was revealed
+      -- ^ When a SIP was revealed
+
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Confidence))
+      -- ^ Stores the valid ballots for each SIP and for each voter
 
       -- TODO: I think we should use key hashes here as well.
       --
@@ -90,11 +97,9 @@ data St hashAlgo
       -- advantage of this construction is that any given key can only vote for
       -- a single proposal and confidence by construction (if we use three maps
       -- we have to maintain this as an invariant).
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Confidence))
-      -- ^ This stores the valid ballots for each SIP and for each voter
 
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
-      -- ^ This records the current voting result for each SIP
+      -- ^ Records the current voting result for each SIP
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
@@ -130,7 +135,6 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                   , wssips
                   , wrsips
                   , ballots
-                 -- , voteResultSIPs
                   }
           , sig
           ) <- judgmentContext
@@ -141,7 +145,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
           -- TODO: Add verification of signature inside SIPCommit
 
-          pure $! st { wssips = Map.insert (Data.commit sipc) (currentSlot) wssips
+          pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
                      , subsips = Set.insert sip subsips
                      }
 
@@ -150,33 +154,33 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           sip ∈ subsips ?! NoSIPToReveal sip
           -- TODO: Revealed SIP must belong to stable submitted SIPs
 
-          (Data.sipHash sip) ∉ (dom wrsips) ?! SIPAlreadyRevealed sip
-          --(Data.calcCommit sip) ∈ (dom wssips) ?! SIPFailedToBeRevealed sip
+          Data.sipHash sip ∉ dom wrsips ?! SIPAlreadyRevealed sip
 
           -- The Revealed SIP must correspond to a stable Commited SIP.
           -- Restrict the range of wssips to values less or equal than
           -- currentSlot - 2k
-          (Data.calcCommit sip)
-            ∈ (dom (wssips ▷<= (currentSlot -. (2 *. k))))
+          Data.calcCommit sip
+            ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
             ?! SIPFailedToBeRevealed sip
 
-          pure st { subsips = Set.delete sip subsips
+          pure st { subsips = Set.delete sip subsips -- TODO: DISCUSS: not sure whether we need to delete this...
                   , wssips = Map.delete (Data.calcCommit sip) wssips
                   , wrsips = Map.insert (Data.sipHash sip) currentSlot wrsips
                   }
 
         Vote ballot -> do
             -- voter must be a stakeholder
-            (Data.voter ballot) ∈ dom participants ?!
+            Data.voter ballot ∈ dom participants ?!
               InvalidVoter (Data.voter ballot)
 
-            -- SIP must be an active SIP
-            -- I.e., it must belong to the set of stable revealed SIPs
-            (Data.votedsipHash ballot) ∈ (dom asips) ?!
+            -- SIP must be an active SIP, i.e. it must belong to the set of
+            -- stable revealed SIPs
+            Data.votedsipHash ballot ∈ dom asips ?!
               VoteNotForActiveSIP (Data.votedsipHash ballot)
 
-            -- The Voting period end for this SIP must not have been reached yet.
-            currentSlot <= asips ! (Data.votedsipHash ballot) ?!
+            -- The end of the voting period for this SIP must not have been
+            -- reached yet.
+            currentSlot <= asips ! Data.votedsipHash ballot ?!
               VotingPeriodEnded (Data.votedsipHash ballot) currentSlot
 
             -- TODO: Signature of the vote must be verified
@@ -193,24 +197,6 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
     ]
 
 instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
-
-
-{- = Env
-    { k :: !BlockCount
-      -- ^ Chain stability parameter.
-    , currentSlot :: !Slot
-      -- ^ The current slot in the blockchain system
-    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP will not be active any more
-    -- (i.e., end of open for voting period)
-    , participants :: Bimap Core.VKey Core.SKey
-      -- ^ The set of stakeholders (i.e., participants), identified by their signing
-      -- and verifying keys.
-      -- There is a one-to-one correspondence between the signing and verifying keys, hence
-      -- the use of 'Bimap'
-    }-}
-
-
 
   envGen _traceLength
     = Env
@@ -234,9 +220,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
-  sigGen
-    Env {participants}
-    St { subsips } = do
+  sigGen Env{ participants } St{ subsips } = do
       owner <- newOwner
       sipMData <- newSIPMetadata
       sipData <- newSipData sipMData
@@ -244,20 +228,17 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
       salt <- newSalt
       -- generate the new SIP and pass it to generateASubmission "by value"
       -- otherwise you get non-deterministic SIP!
-      newsip <- newSIP owner sipHash salt sipData
+      newsip <- Gen.filter (`Set.notMember` subsips) $ newSIP owner sipHash salt sipData
       case Set.toList subsips of
         [] ->
           generateASubmission newsip owner
         xs ->
-          -- TODO: determine submission to revelation ration (maybe 50/50 is fine...)
+          -- TODO: determine submission to revelation ratio (maybe 50/50 is fine...)
           Gen.frequency [ (1, generateASubmission newsip owner)
                         , (1, generateARevelation xs)
                         ]
       where
-        newOwner =
-          Gen.element
-          $ Set.toList
-          $ dom participants
+        newOwner = Gen.element $ Set.toList $ dom participants
 
         newSIPMetadata = (Data.SIPMetadata)
           <$> (
@@ -278,27 +259,25 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
         newSipHash sipData = (Data.SIPHash . hash) <$>  (pure sipData)
 
-        newSIP newowner nsipHash nsalt nsipData =
-          (SIP)
-            <$> pure nsipHash
-            <*> pure newowner
-            <*> pure nsalt
-            <*> pure nsipData
+        newSIP newowner nsipHash nsalt nsipData
+          = SIP
+          <$> pure nsipHash
+          <*> pure newowner
+          <*> pure nsalt
+          <*> pure nsipData
 
         -- Generate a submission taking a participant that hasn't submitted a proposal yet
-        generateASubmission nsip owner = do
-          (Submit)
-            <$>
-              ((Data.SIPCommit) <$> newCommit <*> (pure owner) <*> newSignature)
-            <*>
-              (pure nsip)
+        generateASubmission nsip owner
+          = Submit
+          <$> ((Data.SIPCommit) <$> newCommit <*> pure owner <*> newSignature)
+          <*> pure nsip
           where
             newSignature = (Core.sign) <$> skey <*> newCommit
 
             newCommit = fmap (Data.calcCommit) (pure nsip)
 
             -- Do a Bimap lookup to get the sk from the vk
-            skey = (Bimap.!) <$>  (pure participants) <*> (pure owner)
+            skey = pure $ participants Bimap.! owner
 
         generateARevelation subsipsList =
           fmap Reveal $ Gen.element subsipsList
