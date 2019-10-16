@@ -153,7 +153,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
         Reveal sip -> do
           Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
-          sip ∈ subsips ?! NoSIPToReveal sip
+          sip ∈ range subsips ?! NoSIPToReveal sip
           -- TODO: Revealed SIP must belong to stable submitted SIPs
 
           Data.sipHash sip ∉ dom wrsips ?! SIPAlreadyRevealed sip
@@ -167,7 +167,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
           pure st { subsips = subsips ⋫ Set.singleton sip -- TODO: DISCUSS: not sure whether we need to delete this...
                   , wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
-                  , wrsips = Map.insert (Data.sipHash sip) currentSlot wrsips
+                  , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
                   }
 
         Vote ballot -> do

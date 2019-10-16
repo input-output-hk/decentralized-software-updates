@@ -13,10 +13,6 @@
 module Cardano.Ledger.Spec.STS.Chain.Body where
 
 import           Data.Function ((&))
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
@@ -24,16 +20,13 @@ import qualified Hedgehog.Gen as Gen
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
-import           Control.State.Transition (Embed, Environment, IRC (IRC),
-                     PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext, trans, transitionRules,
-                     wrapFailed)
+import           Control.State.Transition (Embed, Environment, PredicateFailure,
+                     STS, Signal, State, TRC (TRC), initialRules,
+                     judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (genTrace, sigGen)
 import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
                      traceSignals)
 import           Data.AbstractSize (HasTypeReps)
-
-import           Ledger.Core (Slot)
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
@@ -41,12 +34,9 @@ import           Cardano.Ledger.Spec.STS.Dummy.UTxO (Coin (Coin))
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
--- The Block BODY STS
+
 data BODY hashAlgo
 
 data BBody hashAlgo
@@ -56,23 +46,23 @@ data BBody hashAlgo
    deriving (Eq, Show, Generic)
 
 deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   ) => HasTypeReps (BBody hashAlgo)
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
          ) => Sized (BBody hashAlgo) where
   costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
 
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
          ) => STS (BODY hashAlgo) where
 
   type Environment (BODY hashAlgo) = Environment (TRANSACTION hashAlgo)
@@ -107,7 +97,7 @@ instance ( HashAlgorithm hashAlgo
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
          ) => Embed (TRANSACTION hashAlgo) (BODY hashAlgo) where
   wrapFailed = BodyFailure
 
@@ -118,8 +108,8 @@ transactionsGen
   :: forall hashAlgo
    . ( HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
-     , HasTypeReps (Commit hashAlgo)
-     , HasTypeReps (Hash hashAlgo SIPData)
+     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Hash hashAlgo Data.SIPData)
      )
   => Size
   -> Environment (BODY hashAlgo)
@@ -149,7 +139,6 @@ transactionsGen maximumSize env st
                                      , Transaction.currentSlot
                                      , Transaction.asips
                                      , Transaction.participants
-                                     , Transaction.utxoEnv
                                      }
                     )
                     (Transaction.St { Transaction.subsips = subsips

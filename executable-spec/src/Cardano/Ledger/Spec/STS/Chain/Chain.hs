@@ -15,15 +15,10 @@
 -- ticks.
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
-import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap)
-import qualified Data.Bimap as Bimap
 import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
-
-import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -34,7 +29,7 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (BlockCount (BlockCount), Slot (Slot))
+import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
@@ -48,10 +43,7 @@ import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
-import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
@@ -169,24 +161,24 @@ instance ( HashAlgorithm hashAlgo
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
 
       -- First a HEAD transition in order to update the state
-      headerSt'@Header.St { Header.currentSlot = currentSlot'
-                          , Header.wrsips = wrsips'
-                          , Header.asips = asips'
-                          }  <-
-        trans @(HEADER hashAlgo)
-          $ TRC ( Header.Env { Header.k = k }
-                , Header.St { Header.currentSlot = currentSlot
-                            , Header.wrsips = wrsips
-                            , Header.asips = asips
-                            }
-                , header
-                )
+      Header.St
+        { Header.currentSlot = currentSlot'
+        , Header.wrsips = wrsips'
+        , Header.asips = asips'
+        } <- trans @(HEADER hashAlgo)
+               $ TRC ( Header.Env { Header.k = k }
+                     , Header.St { Header.currentSlot = currentSlot
+                                 , Header.wrsips = wrsips
+                                 , Header.asips = asips
+                                 }
+                     , header
+                     )
 
       -- Second a BODY transition with the updated state from header
       Transaction.St
         { Transaction.subsips = subsips'
         , Transaction.wssips = wssips'
-        , Transaction.wrsips = wrsips'
+        , Transaction.wrsips = wrsips''
         , Transaction.ballots = ballots'
         , Transaction.voteResultSIPs = voteResultSIPs'
         , Transaction.implementationSt = implementationSt'
@@ -202,7 +194,7 @@ instance ( HashAlgorithm hashAlgo
                       , Transaction.St
                           { Transaction.subsips = subsips
                           , Transaction.wssips = wssips
-                          , Transaction.wrsips = wrsips
+                          , Transaction.wrsips = wrsips'
                           , Transaction.ballots = ballots
                           , Transaction.voteResultSIPs = voteResultSIPs
                           , Transaction.implementationSt = implementationSt
@@ -214,7 +206,7 @@ instance ( HashAlgorithm hashAlgo
                  , subsips = subsips'
                  , asips = asips'
                  , wssips = wssips'
-                 , wrsips = wrsips'
+                 , wrsips = wrsips''
                  , ballots = ballots'
                  , voteResultSIPs = voteResultSIPs'
                  , implementationSt = implementationSt'

@@ -17,12 +17,8 @@ import qualified Control.State.Transition.Trace as Trace
 
 import           Ledger.Core (dom, (∪))
 
-import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
-import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
-import qualified Cardano.Ledger.Spec.STS.Update as Update
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 
 
 onlyValidSignalsAreGenerated :: HasCallStack => Property
