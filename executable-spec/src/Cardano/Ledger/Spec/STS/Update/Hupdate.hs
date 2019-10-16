@@ -81,7 +81,7 @@ instance  STS (HUPDATE hashAlgo) where
           -- 'Map.union', since this operation is left biased.
           asips' = (wrsips ▷<= (slot -. (2 *. k))) `Map.union` asips
           -- exclude old revealed SIPs
-          wrsips' = dom asips ⋪ wrsips
+          wrsips' = dom asips' ⋪ wrsips
 
       pure $ St { wrsips = wrsips'
                 , asips = asips'
