@@ -36,8 +36,8 @@ import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
@@ -54,8 +54,13 @@ data Env hashAlgo =
 
 -- | State of the TRANSACTION STS
 data St hashAlgo =
-  St { utxoSt :: State UTXO
-     , updateSt :: State (UPDATES hashAlgo)
+  St { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
+     , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+     , implementationSt :: State IMPLEMENTATION
+     , utxoSt :: State UTXO
      }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
@@ -70,9 +75,9 @@ data Tx hashAlgo
   deriving (Eq, Show, Generic)
 
 deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   ) => HasTypeReps (Tx hashAlgo)
 
 data TxBody hashAlgo
@@ -85,16 +90,16 @@ data TxBody hashAlgo
   } deriving (Eq, Show, Generic)
 
 deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   ) => HasTypeReps (TxBody hashAlgo)
 
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Commit hashAlgo)
-         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
          ) => Sized (Tx hashAlgo) where
   costsList _
     =  [ (typeOf (undefined :: TxIn), 1)
@@ -128,8 +133,13 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                 , participants
                 , utxoEnv
                 }
-          , St { utxoSt
-               , updateSt
+          , St { subsips
+               , wssips
+               , wrsips
+               , ballots
+               , voteResultSIPs
+               , implementationSt
+               , utxoSt
                }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
@@ -140,18 +150,35 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
 
-      updateSt' <-
+      Update.St { Update.subsips = subsips'
+                , Update.wssips = wssips'
+                , Update.wrsips = wrsips'
+                , Update.ballots = ballots'
+                , Update.voteResultSIPs = voteResultSIPs'
+                , Update.implementationSt = implementationSt'
+                } <-
         trans @(UPDATES hashAlgo) $
           TRC ( Update.Env { Update.k = k
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
                            , Update.participants =  participants
                            }
-              , updateSt
+              , Update.St { Update.subsips = subsips
+                          , Update.wssips = wssips
+                          , Update.wrsips = wrsips
+                          , Update.ballots = ballots
+                          , Update.voteResultSIPs = voteResultSIPs
+                          , Update.implementationSt = implementationSt
+                          }
               , update
               )
-      pure $ St { utxoSt = utxoSt'
-                , updateSt = updateSt'
+      pure $ St { subsips = subsips'
+                , wssips = wssips'
+                , wrsips = wrsips'
+                , ballots = ballots'
+                , voteResultSIPs = voteResultSIPs'
+                , implementationSt = implementationSt'
+                , utxoSt = utxoSt'
                 }
     ]
 

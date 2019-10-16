@@ -34,11 +34,6 @@ import           Ledger.Core (Slot (Slot), BlockCount)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Update.Data  ( IdeationPayload
-                                                      , ImplementationPayload
-                                                      , SIPData
-                                                      , Commit
-                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
@@ -58,14 +53,18 @@ data Env hashAlgo
     { k :: !BlockCount
     , currentSlot :: !Slot
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , participants :: Bimap Core.VKey Core.SKey
+    , participants :: Bimap Core.VKey Core.SKey -- TODO: DISCUSS: I think we need to be consistent between using Core qualified and not.
     }
   deriving (Eq, Show, Generic)
 
 
 data St hashAlgo
   = St
-    { ideationSt :: State (IDEATION hashAlgo)
+    { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
+    , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+    , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
     , implementationSt :: State IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
@@ -74,26 +73,26 @@ data St hashAlgo
 
 
 data UpdatePayload hashAlgo
-  = Ideation (IdeationPayload hashAlgo)
-  | Implementation ImplementationPayload
+  = Ideation (Data.IdeationPayload hashAlgo)
+  | Implementation Data.ImplementationPayload
   deriving (Eq, Show, Generic)
 
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   ) => HasTypeReps (UpdatePayload hashAlgo)
 
 instance ( Typeable hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
          ) => Sized (UpdatePayload hashAlgo) where
   costsList _
-    =  costsList (undefined :: (IdeationPayload hashAlgo))
-    ++ costsList (undefined :: ImplementationPayload)
+    =  costsList (undefined :: (Data.IdeationPayload hashAlgo))
+    ++ costsList (undefined :: Data.ImplementationPayload)
 
 instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
@@ -117,7 +116,11 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                 , asips
                 , participants
                 }
-          , st@St { ideationSt
+          , st@St { subsips
+                  , wssips
+                  , wrsips
+                  , ballots
+                  , voteResultSIPs
                   , implementationSt
                   }
           , update
@@ -126,17 +129,32 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
       case update of
         Ideation ideationPayload ->
           do
-            ideationSt' <-
+            Ideation.St { Ideation.subsips = subsips'
+                        , Ideation.wssips = wssips'
+                        , Ideation.wrsips = wrsips'
+                        , Ideation.ballots = ballots'
+                        , Ideation.voteResultSIPs = voteResultSIPs'
+                        } <-
               trans @(IDEATION hashAlgo)
                 $ TRC ( Ideation.Env { Ideation.k = k
                                      , Ideation.currentSlot = currentSlot
                                      , Ideation.asips = asips
                                      , Ideation.participants = participants
                                      }
-                      , ideationSt
+                      , Ideation.St { Ideation.subsips = subsips
+                                    , Ideation.wssips = wssips
+                                    , Ideation.wrsips = wrsips
+                                    , Ideation.ballots = ballots
+                                    , Ideation.voteResultSIPs = voteResultSIPs
+                                    }
                       , ideationPayload
                       )
-            pure $ st { ideationSt = ideationSt' }
+            pure $ st { subsips = subsips'
+                      , wssips = wssips'
+                      , wrsips = wrsips'
+                      , ballots = ballots'
+                      , voteResultSIPs = voteResultSIPs'
+                      }
 
         Implementation implementationPayload ->
           do
@@ -212,7 +230,8 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                 , participants = Ideation.participants env
                 }
 
-  sigGen  Env { k, currentSlot, asips, participants } St { ideationSt } =
+  sigGen  Env { k, currentSlot, asips, participants }
+          St { subsips, wssips, wrsips, ballots, voteResultSIPs } =
     -- For now we generate ideation payload only.
     Ideation
       <$> sigGen @(IDEATION hashAlgo)
@@ -221,4 +240,9 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                                , Ideation.asips = asips
                                , Ideation.participants = participants
                                }
-                  ideationSt
+                  Ideation.St { Ideation.subsips = subsips
+                              , Ideation.wssips = wssips
+                              , Ideation.wrsips = wrsips
+                              , Ideation.ballots = ballots
+                              , Ideation.voteResultSIPs = voteResultSIPs
+                              }

@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -10,58 +10,44 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 module Cardano.Ledger.Spec.STS.Chain.Body where
 
 import           Data.Function ((&))
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import           Hedgehog (Gen)
+import qualified Hedgehog.Gen as Gen
 
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
-import           Control.State.Transition (Embed, Environment, PredicateFailure,
-                     STS, Signal, State, TRC (TRC), IRC (IRC),initialRules,
-                     judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen, genTrace)
-import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
+import           Control.State.Transition (Embed, Environment, IRC (IRC),
+                     PredicateFailure, STS, Signal, State, TRC (TRC),
+                     initialRules, judgmentContext, trans, transitionRules,
+                     wrapFailed)
+import           Control.State.Transition.Generator (genTrace, sigGen)
+import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
+                     traceSignals)
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot)
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
-import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (Coin (Coin))
---import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
+import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
+import           Cardano.Ledger.Spec.STS.Update.Data (Commit, SIPData)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 -- The Block BODY STS
 data BODY hashAlgo
-
-data Env hashAlgo
-  = Env
-    { transactionEnv :: !(Environment (TRANSACTION hashAlgo))
-    }
-    deriving (Eq, Show)
-
-data St hashAlgo
-  = St
-    { transactionSt :: !(State (TRANSACTION hashAlgo))
-    }
-    deriving (Eq, Show, Generic)
-    deriving Semigroup via GenericSemigroup (St hashAlgo)
-    deriving Monoid via GenericMonoid (St hashAlgo)
 
 data BBody hashAlgo
  = BBody
@@ -89,9 +75,9 @@ instance ( HashAlgorithm hashAlgo
          , HasTypeReps (Commit hashAlgo)
          ) => STS (BODY hashAlgo) where
 
-  type Environment (BODY hashAlgo) = Env hashAlgo
+  type Environment (BODY hashAlgo) = Environment (TRANSACTION hashAlgo)
 
-  type State (BODY hashAlgo) = St hashAlgo
+  type State (BODY hashAlgo) = State (TRANSACTION hashAlgo)
 
   type Signal (BODY hashAlgo) = BBody hashAlgo
 
@@ -106,23 +92,16 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( env@Env { transactionEnv }
-          , st@St { transactionSt }
+      TRC ( env
+          , st
           , BBody {transactions}
           ) <- judgmentContext
       case transactions of
         [] -> pure $! st
         (tx:txs') -> do
-          transactionSt' <-
-            trans @(TRANSACTION hashAlgo)
-              $ TRC ( transactionEnv
-                    , transactionSt
-                    , tx
-                    )
-          trans @(BODY hashAlgo) $ TRC ( env
-                                       , St { transactionSt = transactionSt' }
-                                       , BBody txs'
-                                       )
+          st' <- trans @(TRANSACTION hashAlgo)
+              $ TRC ( env, st, tx)
+          trans @(BODY hashAlgo) $ TRC ( env, st', BBody txs')
     ]
 
 
@@ -146,11 +125,11 @@ transactionsGen
   -> Environment (BODY hashAlgo)
   -> State (BODY hashAlgo)
   -> Gen [Transaction.Tx hashAlgo]
-transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
+transactionsGen maximumSize env st
   =   fitTransactions . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
-  <$> genTrace @(TRANSACTION hashAlgo) 30 transactionEnv transactionSt transactionGen
+  <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
 
   where
     -- Fit the transactions that fit in the given maximum block size.
@@ -173,7 +152,14 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
                                      , Transaction.utxoEnv
                                      }
                     )
-                    (Transaction.St { Transaction.updateSt = updateSt })
+                    (Transaction.St { Transaction.subsips = subsips
+                                    , Transaction.wssips = wssips
+                                    , Transaction.wrsips = wrsips
+                                    , Transaction.ballots = ballots
+                                    , Transaction.voteResultSIPs = voteResultSIPs
+                                    , Transaction.implementationSt = implementationSt
+                                    }
+                    )
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -194,7 +180,13 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
                                , Update.asips = asips
                                , Update.participants = participants
                                }
-                    updateSt
+                    Update.St { Update.subsips = subsips
+                              , Update.wssips = wssips
+                              , Update.wrsips = wrsips
+                              , Update.ballots = ballots
+                              , Update.voteResultSIPs = voteResultSIPs
+                              , Update.implementationSt = implementationSt
+                              }
               )
             ]
       where

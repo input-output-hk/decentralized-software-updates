@@ -15,12 +15,12 @@ import           Cardano.Crypto.Hash.Short (ShortHash)
 import qualified Control.State.Transition.Generator as TransitionGenerator
 import qualified Control.State.Transition.Trace as Trace
 
+import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
-import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation  as Ideation
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 
 
 onlyValidSignalsAreGenerated :: HasCallStack => Property
@@ -41,10 +41,6 @@ tracesAreClassified = withTests 300 $ property $ do
   where
     lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
     lastStateReveals tr = Trace.lastState tr
-                        & Chain.bodySt
-                        & Body.transactionSt
-                        & Transaction.updateSt
-                        & Update.ideationSt
-                        & Ideation.wrsips
+                        & Chain.wrsips
                         & length
                         & fromIntegral

@@ -38,7 +38,6 @@ import qualified Ledger.Core as Core
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit)
-import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, Confidence)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
@@ -86,7 +85,7 @@ data St hashAlgo
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
       -- ^ When a SIP was revealed
 
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Confidence))
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
       -- ^ Stores the valid ballots for each SIP and for each voter
 
       -- TODO: I think we should use key hashes here as well.
@@ -98,7 +97,7 @@ data St hashAlgo
       -- a single proposal and confidence by construction (if we use three maps
       -- we have to maintain this as an invariant).
 
-    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
+    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
       -- ^ Records the current voting result for each SIP
     }
   deriving (Eq, Show, Generic)
@@ -144,7 +143,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          author sip ∈ dom participants ?! InvalidAuthor (author sip)
+          Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
           sip ∉ subsips ?! SIPAlreadySubmitted sip
 
           -- TODO: Add verification of signature inside SIPCommit
@@ -154,7 +153,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                      }
 
         Reveal sip -> do
-          author sip ∈ dom participants ?! InvalidAuthor (author sip)
+          Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
           sip ∈ subsips ?! NoSIPToReveal sip
           -- TODO: Revealed SIP must belong to stable submitted SIPs
 
