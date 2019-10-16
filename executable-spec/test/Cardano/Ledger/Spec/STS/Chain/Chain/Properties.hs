@@ -4,7 +4,7 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Chain.Properties where
 
-
+import           Control.Arrow ((&&&))
 import           Data.Function ((&))
 import           Data.Word (Word64)
 import           GHC.Stack (HasCallStack)
@@ -15,12 +15,10 @@ import           Cardano.Crypto.Hash.Short (ShortHash)
 import qualified Control.State.Transition.Generator as TransitionGenerator
 import qualified Control.State.Transition.Trace as Trace
 
+import           Ledger.Core (dom, (∪))
+
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
-import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
-import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
-import qualified Cardano.Ledger.Spec.STS.Update as Update
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation  as Ideation
 
 
 onlyValidSignalsAreGenerated :: HasCallStack => Property
@@ -41,10 +39,8 @@ tracesAreClassified = withTests 300 $ property $ do
   where
     lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
     lastStateReveals tr = Trace.lastState tr
-                        & Chain.bodySt
-                        & Body.transactionSt
-                        & Transaction.updateSt
-                        & Update.ideationSt
-                        & Ideation.wrsips
+                        & Chain.wrsips &&& Chain.asips
+                        & uncurry (∪)
+                        & dom
                         & length
                         & fromIntegral

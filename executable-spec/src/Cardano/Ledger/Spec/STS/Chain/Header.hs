@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -13,63 +13,52 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
-import           GHC.Generics (Generic)
---import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
---                     GenericSemigroup (GenericSemigroup))
+import           Data.Map.Strict (Map)
 import           Data.Typeable (typeOf)
-import qualified Data.Map.Strict as Map
+import           GHC.Generics (Generic)
+import           Hedgehog (Gen)
+import qualified Hedgehog.Gen as Gen
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
-                     STS, Signal, State, TRC (TRC), IRC (IRC), initialRules,
+                     STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed, (?!))
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (Slot)
+import           Ledger.Core (BlockCount, Slot (Slot))
 
-import           Cardano.Ledger.Spec.STS.Update.Hupdate (HUPDATE)
-import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Hupdate (HUPDATE)
+import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 
 
 -- | The Block HEADER STS
 data HEADER hashAlgo
 
 data Env hashAlgo
-  = Env { initialSlot :: !Slot
-        , hupdateEnv :: Environment (HUPDATE hashAlgo)
-        }
+  = Env { k :: !BlockCount }
         deriving (Eq, Show)
 
 data St hashAlgo
  = St { currentSlot :: !Slot
-      , hupdateSt :: State (HUPDATE hashAlgo)
+      , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
       }
       deriving (Eq, Show, Generic)
-      -- deriving Semigroup via GenericSemigroup (St hashAlgo)
-      -- deriving Monoid via GenericMonoid (St hashAlgo)
-
 
 data BHeader
-  = BHeader
-   { slot :: !Slot
-   }
+  = BHeader { slot :: !Slot }
    deriving (Eq, Show, Generic)
 
--- deriving instance ( HasTypeReps hashAlgo
---                   , HasTypeReps (Hash hashAlgo SIPData)
---                   , HashAlgorithm hashAlgo
---                   , HasTypeReps (Commit hashAlgo)
---                   ) => HasTypeReps (BHeader)
 
 deriving instance HasTypeReps (BHeader)
 
 instance Sized BHeader where
   -- TODO: define this properly
   costsList bh = [(typeOf bh, 100)]
-
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
@@ -88,39 +77,35 @@ instance ( HashAlgorithm hashAlgo
     deriving (Eq, Show)
 
 
-  initialRules = [
-    do
-      IRC Env { initialSlot } <- judgmentContext
-      pure $! St { currentSlot = initialSlot
-                 , hupdateSt = Hupdate.St { Hupdate.wrsips = Map.empty
-                                          , Hupdate.asips = Map.empty
-                                          }
-                 }
-    ]
+  initialRules = [ ]
 
   transitionRules = [
     do
-      TRC ( Env { hupdateEnv = Hupdate.Env { Hupdate.k
-                                           , Hupdate.currentSlot = _
-                                           }
-                }
+      TRC ( Env { k }
           , St  { currentSlot
-                , hupdateSt
+                , wrsips
+                , asips
                 }
           , BHeader { slot }
           ) <- judgmentContext
 
       currentSlot < slot
         ?! BlockSlotNotIncreasing currentSlot slot
-      hupdateSt' <-
-        trans @(HUPDATE hashAlgo)
-          $ TRC ( Hupdate.Env { Hupdate.k, Hupdate.currentSlot = slot }
-                , hupdateSt
-                , slot
-                )
+      Hupdate.St { Hupdate.wrsips = wrsips'
+                 , Hupdate.asips = asips'
+                 } <- trans @(HUPDATE hashAlgo)
+                      $ TRC ( Hupdate.Env { Hupdate.k = k
+                                          , Hupdate.currentSlot = slot
+                                          }
+                            , Hupdate.St { Hupdate.wrsips = wrsips
+                                         , Hupdate.asips = asips
+                                         }
+                            , slot
+                            )
 
       pure $ St { currentSlot = slot
-                , hupdateSt = hupdateSt'
+                , wrsips = wrsips'
+                , asips = asips'
                 }
     ]
 
@@ -131,3 +116,10 @@ instance ( HashAlgorithm hashAlgo
   => Embed (HUPDATE hashAlgo) (HEADER hashAlgo)
     where
       wrapFailed = HeaderFailure
+
+-- | Generate a valid next slot, given the current slot.
+headerGen :: Slot -> Gen BHeader
+headerGen (Slot s) =
+  BHeader . Slot . (s +) <$> Gen.frequency [ (99, pure 1)
+                                          , (1, pure 2)
+                                          ]

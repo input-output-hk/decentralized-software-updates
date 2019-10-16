@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -13,27 +13,16 @@
 
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
-import           GHC.Generics (Generic)
---import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
---                     GenericSemigroup (GenericSemigroup))
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           GHC.Generics (Generic)
 
+import           Control.State.Transition (Environment, IRC (IRC),
+                     PredicateFailure, STS, Signal, State, TRC (TRC),
+                     initialRules, judgmentContext, transitionRules)
 
---import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
+import           Ledger.Core (BlockCount, Slot, dom, (*.), (-.), (⋪), (▷<=))
 
-import           Control.State.Transition (Environment, PredicateFailure,
-                     STS, Signal, State, TRC (TRC), IRC (IRC), initialRules,
-                     judgmentContext, transitionRules)
---import           Data.AbstractSize (HasTypeReps)
-
-import           Ledger.Core (Slot, BlockCount)
-import           Ledger.Core ((▷>=), (▷<=), (-.), (*.))
-
-
--- import           Cardano.Ledger.Spec.STS.Update.Data ( SIPData
---                                                      , Commit
---                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
@@ -52,18 +41,9 @@ data Env
 
 data St hashAlgo
   = St { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-       -- ^ When a SIP was revealed
        , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-       -- ^ When a SIP will not be active any more
-       -- (i.e., end of open for voting period)
        }
        deriving (Eq, Show, Generic)
-       -- deriving Semigroup via GenericSemigroup (St hashAlgo)
-       -- deriving Monoid via GenericMonoid (St hashAlgo)
-
--- deriving instance Generic (Slot)
--- deriving instance Semigroup (Slot)
--- deriving instance Monoid (Slot)
 
 instance  STS (HUPDATE hashAlgo) where
 
@@ -95,18 +75,15 @@ instance  STS (HUPDATE hashAlgo) where
           , slot
           ) <- judgmentContext
 
-      let -- exclude old revealed SIPs
-          wrsips' = wrsips ▷>= (slot -. (2 *. k))
-          -- add newely revealed (but stable) SIPs to the active sips
-          asips' = Map.union -- map.union is left biased
-                             -- in case of dublicates
-                    (wrsips ▷<= (slot -. (2 *. k)))
-                    asips
+      let
+          -- Add newly revealed (but stable) SIPs to the active sips. Note that
+          -- we place these new sips as arguments of the left hand side of the
+          -- 'Map.union', since this operation is left biased.
+          asips' = (wrsips ▷<= (slot -. (2 *. k))) `Map.union` asips
+          -- exclude old revealed SIPs
+          wrsips' = dom asips' ⋪ wrsips
 
       pure $ St { wrsips = wrsips'
                 , asips = asips'
                 }
     ]
-
-
-

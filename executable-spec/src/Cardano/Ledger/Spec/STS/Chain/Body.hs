@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -10,67 +10,34 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 module Cardano.Ledger.Spec.STS.Chain.Body where
 
 import           Data.Function ((&))
+import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
-import           GHC.Generics (Generic)
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
-                     STS, Signal, State, TRC (TRC), IRC (IRC),initialRules,
+                     STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen, genTrace)
-import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
+import           Control.State.Transition.Generator (genTrace, sigGen)
+import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
+                     traceSignals)
 import           Data.AbstractSize (HasTypeReps)
-
-import           Ledger.Core (Slot)
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
-import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (Coin (Coin))
---import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
+import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
--- The Block BODY STS
+
 data BODY hashAlgo
-
-data Env hashAlgo
-  = Env
-    { currentSlot :: !Slot
-    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP will not be active any more
-    -- (i.e., end of open for voting period)
-    , transactionEnv :: Environment (TRANSACTION hashAlgo)
-    }
-    deriving (Eq, Show)
-
-data St hashAlgo
-  = St
-    { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      -- ^ When a SIP was revealed
-    , transactionSt :: State (TRANSACTION hashAlgo)
-    }
-    deriving (Eq, Show, Generic)
-    deriving Semigroup via GenericSemigroup (St hashAlgo)
-    deriving Monoid via GenericMonoid (St hashAlgo)
-
-
 
 data BBody hashAlgo
  = BBody
@@ -79,28 +46,28 @@ data BBody hashAlgo
    deriving (Eq, Show, Generic)
 
 deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   ) => HasTypeReps (BBody hashAlgo)
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
          ) => Sized (BBody hashAlgo) where
   costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
 
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
          ) => STS (BODY hashAlgo) where
 
-  type Environment (BODY hashAlgo) = Env hashAlgo
+  type Environment (BODY hashAlgo) = Environment (TRANSACTION hashAlgo)
 
-  type State (BODY hashAlgo) = St hashAlgo
+  type State (BODY hashAlgo) = State (TRANSACTION hashAlgo)
 
   type Signal (BODY hashAlgo) = BBody hashAlgo
 
@@ -111,102 +78,48 @@ instance ( HashAlgorithm hashAlgo
 
 
   initialRules = [
-    do
-      IRC Env { } <- judgmentContext
-      pure
-        $! St { wrsips = Map.empty
-              , transactionSt
-                  = Transaction.St
-                       { Transaction.wrsips = Map.empty
-                       , Transaction.utxoSt = mempty
-                       , Transaction.updateSt
-                            = Update.St
-                                { Update.wrsips = Map.empty
-                                , Update.ideationSt
-                                    = Ideation.St { Ideation.subsips
-                                                      = Set.empty
-                                                  , Ideation.wssips
-                                                      = Map.empty
-                                                  , Ideation.wrsips
-                                                      = Map.empty
-                                                  , Ideation.ballots
-                                                      = Map.empty
-                                                  , Ideation.voteResultSIPs
-                                                      = Map.empty
-                                                  }
-                                , Update.implementationSt
-                                    = Implementation.St ()
-                                }
-                       }
-              }
     ]
 
   transitionRules = [
     do
-      TRC ( env@Env { currentSlot
-                    , asips
-                    , transactionEnv
-                       = Transaction.Env { Transaction.updatesEnv
-                                         , Transaction.utxoEnv
-                                         }
-                    }
-          , st@St { wrsips
-                  , transactionSt = Transaction.St { Transaction.utxoSt
-                                                   , Transaction.updateSt
-                                                   }
-                  }
+      TRC ( env
+          , st
           , BBody {transactions}
           ) <- judgmentContext
       case transactions of
         [] -> pure $! st
         (tx:txs') -> do
-          st'@Transaction.St { Transaction.wrsips = wrsips'
-                             } <-
-            trans @(TRANSACTION hashAlgo)
-              $ TRC ( Transaction.Env
-                       { Transaction.currentSlot
-                       , Transaction.asips
-                       , Transaction.updatesEnv
-                       , Transaction.utxoEnv
-                       }
-                    , Transaction.St { Transaction.wrsips
-                                     , Transaction.utxoSt
-                                     , Transaction.updateSt
-                                     }
-                    , tx
-                    )
-          trans @(BODY hashAlgo) $ TRC ( env
-                                       , St { wrsips = wrsips'
-                                            , transactionSt = st'
-                                            }
-                                       , BBody txs'
-                                       )
+          st' <- trans @(TRANSACTION hashAlgo)
+              $ TRC ( env, st, tx)
+          trans @(BODY hashAlgo) $ TRC ( env, st', BBody txs')
     ]
 
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
          ) => Embed (TRANSACTION hashAlgo) (BODY hashAlgo) where
   wrapFailed = BodyFailure
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
+--
+-- TODO: this seems to belong to transactions ...
 transactionsGen
   :: forall hashAlgo
    . ( HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
-     , HasTypeReps (Commit hashAlgo)
-     , HasTypeReps (Hash hashAlgo SIPData)
+     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Hash hashAlgo Data.SIPData)
      )
   => Size
   -> Environment (BODY hashAlgo)
   -> State (BODY hashAlgo)
   -> Gen [Transaction.Tx hashAlgo]
-transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
+transactionsGen maximumSize env st
   =   fitTransactions . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
-  <$> genTrace @(TRANSACTION hashAlgo) 30 transactionEnv transactionSt transactionGen
+  <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
 
   where
     -- Fit the transactions that fit in the given maximum block size.
@@ -222,12 +135,20 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
         sizes :: [Size]
         sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 
-    transactionGen  (Transaction.Env { Transaction.currentSlot
+    transactionGen  (Transaction.Env { Transaction.k
+                                     , Transaction.currentSlot
                                      , Transaction.asips
-                                     , Transaction.updatesEnv
+                                     , Transaction.participants
                                      }
                     )
-                    (Transaction.St { Transaction.updateSt })
+                    (Transaction.St { Transaction.subsips = subsips
+                                    , Transaction.wssips = wssips
+                                    , Transaction.wrsips = wrsips
+                                    , Transaction.ballots = ballots
+                                    , Transaction.voteResultSIPs = voteResultSIPs
+                                    , Transaction.implementationSt = implementationSt
+                                    }
+                    )
       -- TODO: figure out what a realistic distribution for update payload is.
       --
       -- TODO: do we need to model the __liveness__ assumption of the underlying
@@ -243,20 +164,21 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
             [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
             , (1, sigGen
                     @(UPDATES hashAlgo)
-                    Update.Env { Update.currentSlot
-                               , Update.asips
-                               , Update.ideationEnv = idEnv
-                               , Update.implementationEnv = implEnv
+                    Update.Env { Update.k = k
+                               , Update.currentSlot = currentSlot
+                               , Update.asips = asips
+                               , Update.participants = participants
                                }
-                    updateSt
+                    Update.St { Update.subsips = subsips
+                              , Update.wssips = wssips
+                              , Update.wrsips = wrsips
+                              , Update.ballots = ballots
+                              , Update.voteResultSIPs = voteResultSIPs
+                              , Update.implementationSt = implementationSt
+                              }
               )
             ]
       where
-        Update.Env { Update.currentSlot = _
-                   , Update.asips = _
-                   , Update.ideationEnv = idEnv
-                   , Update.implementationEnv = implEnv
-                   } = updatesEnv
         -- For now we don't generate inputs and outputs.
         dummyBody update
           = Transaction.TxBody
@@ -265,4 +187,3 @@ transactionsGen maximumSize (Env{transactionEnv}) (St {transactionSt})
             , Transaction.fees = Coin
             , Transaction.update = update
             }
-

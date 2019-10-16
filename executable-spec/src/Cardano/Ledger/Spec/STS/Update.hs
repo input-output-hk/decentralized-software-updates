@@ -11,15 +11,12 @@
 
 module Cardano.Ledger.Spec.STS.Update where
 
+import           Data.Bimap (Bimap)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
-import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
-
-import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -29,14 +26,10 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
 import           Data.AbstractSize (HasTypeReps)
-import           Ledger.Core (Slot (Slot))
+import           Ledger.Core (Slot, BlockCount)
+import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Update.Data  ( IdeationPayload
-                                                      , ImplementationPayload
-                                                      , SIPData
-                                                      , Commit
-                                                      )
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
@@ -49,23 +42,25 @@ data UPDATE hashAlgo
 
 -- | As we incorporate more phases, like UP (or IMPLEMENTATION), we will be
 -- adding more components to this environment.
+--
+-- See @Ideation.Env@ for more details on the meaning of each field.
 data Env hashAlgo
   = Env
-    { currentSlot :: !Slot
+    { k :: !BlockCount
+    , currentSlot :: !Slot
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    -- ^ When a SIP will not be active any more
-    -- (i.e., end of open for voting period)
-    , ideationEnv :: Environment (IDEATION hashAlgo)
-    , implementationEnv :: Environment IMPLEMENTATION
+    , participants :: Bimap Core.VKey Core.SKey -- TODO: DISCUSS: I think we need to be consistent between using Core qualified and not.
     }
   deriving (Eq, Show, Generic)
 
 
 data St hashAlgo
   = St
-    { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-       -- ^ When a SIP was revealed
-    , ideationSt :: State (IDEATION hashAlgo)
+    { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
+    , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+    , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
     , implementationSt :: State IMPLEMENTATION
     }
   deriving (Eq, Show, Generic)
@@ -74,26 +69,26 @@ data St hashAlgo
 
 
 data UpdatePayload hashAlgo
-  = Ideation (IdeationPayload hashAlgo)
-  | Implementation ImplementationPayload
+  = Ideation (Data.IdeationPayload hashAlgo)
+  | Implementation Data.ImplementationPayload
   deriving (Eq, Show, Generic)
 
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   ) => HasTypeReps (UpdatePayload hashAlgo)
 
 instance ( Typeable hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps (Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
          ) => Sized (UpdatePayload hashAlgo) where
   costsList _
-    =  costsList (undefined :: (IdeationPayload hashAlgo))
-    ++ costsList (undefined :: ImplementationPayload)
+    =  costsList (undefined :: (Data.IdeationPayload hashAlgo))
+    ++ costsList (undefined :: Data.ImplementationPayload)
 
 instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
@@ -112,17 +107,16 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot
+      TRC ( Env { k
+                , currentSlot
                 , asips
-                , ideationEnv
-                -- , implementationEnv
+                , participants
                 }
-          , st@St { wrsips
-                  , ideationSt =  Ideation.St { Ideation.subsips = sS
-                                              , Ideation.wssips = submtS
-                                              , Ideation.ballots = bS
-                                              , Ideation.voteResultSIPs = vR
-                                              }
+          , st@St { subsips
+                  , wssips
+                  , wrsips
+                  , ballots
+                  , voteResultSIPs
                   , implementationSt
                   }
           , update
@@ -131,26 +125,31 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
       case update of
         Ideation ideationPayload ->
           do
-            let Ideation.Env { Ideation.k = k
-                             , Ideation.participants = par
-                             } = ideationEnv
-            ideationSt'@Ideation.St { Ideation.wrsips = wrsips'} <-
+            Ideation.St { Ideation.subsips = subsips'
+                        , Ideation.wssips = wssips'
+                        , Ideation.wrsips = wrsips'
+                        , Ideation.ballots = ballots'
+                        , Ideation.voteResultSIPs = voteResultSIPs'
+                        } <-
               trans @(IDEATION hashAlgo)
-                $ TRC ( Ideation.Env  { Ideation.k = k
-                                      , Ideation.currentSlot = currentSlot
-                                      , Ideation.asips = asips
-                                      , Ideation.participants = par
-                                      }
-                      , Ideation.St { Ideation.subsips = sS
-                                    , Ideation.wssips = submtS
+                $ TRC ( Ideation.Env { Ideation.k = k
+                                     , Ideation.currentSlot = currentSlot
+                                     , Ideation.asips = asips
+                                     , Ideation.participants = participants
+                                     }
+                      , Ideation.St { Ideation.subsips = subsips
+                                    , Ideation.wssips = wssips
                                     , Ideation.wrsips = wrsips
-                                    , Ideation.ballots = bS
-                                    , Ideation.voteResultSIPs = vR
+                                    , Ideation.ballots = ballots
+                                    , Ideation.voteResultSIPs = voteResultSIPs
                                     }
                       , ideationPayload
                       )
-            pure $ st { wrsips = wrsips'
-                      , ideationSt = ideationSt'
+            pure $ st { subsips = subsips'
+                      , wssips = wssips'
+                      , wrsips = wrsips'
+                      , ballots = ballots'
+                      , voteResultSIPs = voteResultSIPs'
                       }
 
         Implementation implementationPayload ->
@@ -219,31 +218,27 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATES hashAlgo) where
 
 instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
 
-  envGen traceLength =
-    Env <$> currentSlotGen
-        <*> asips
-        <*> envGen @(IDEATION hashAlgo) traceLength
-        <*> envGen @IMPLEMENTATION traceLength
-    where
-      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- TODO: generate a realistic Map
-      asips = pure $ Map.empty
+  envGen traceLength = do
+    env <- envGen @(IDEATION hashAlgo) traceLength
+    pure $! Env { k = Ideation.k env
+                , currentSlot = Ideation.currentSlot env
+                , asips = Ideation.asips env
+                , participants = Ideation.participants env
+                }
 
-  sigGen  Env { currentSlot
-              , asips
-              , ideationEnv
-              }
-          St { ideationSt } =
+  sigGen  Env { k, currentSlot, asips, participants }
+          St { subsips, wssips, wrsips, ballots, voteResultSIPs } =
     -- For now we generate ideation payload only.
     Ideation
-      <$> sigGen  @(IDEATION hashAlgo)
-                  Ideation.Env  { Ideation.k = k
-                                , Ideation.currentSlot = currentSlot
-                                , Ideation.asips = asips
-                                , Ideation.participants = par
-                                }
-                  ideationSt
-    where
-      Ideation.Env  { Ideation.k = k
-                    , Ideation.participants = par
-                    } = ideationEnv
+      <$> sigGen @(IDEATION hashAlgo)
+                  Ideation.Env { Ideation.k = k
+                               , Ideation.currentSlot = currentSlot
+                               , Ideation.asips = asips
+                               , Ideation.participants = participants
+                               }
+                  Ideation.St { Ideation.subsips = subsips
+                              , Ideation.wssips = wssips
+                              , Ideation.wrsips = wrsips
+                              , Ideation.ballots = ballots
+                              , Ideation.voteResultSIPs = voteResultSIPs
+                              }
