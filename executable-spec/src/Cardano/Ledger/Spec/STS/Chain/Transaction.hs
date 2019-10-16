@@ -13,67 +13,58 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
-import           Data.Function ((&))
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
+import           Data.Bimap (Bimap)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
-import           GHC.Generics (Generic)
 import           Data.Typeable (typeOf)
-import Data.Set (Set)
+import           Data.Set (Set)
 import           Data.Map.Strict (Map)
-
+import           GHC.Generics (Generic)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (sigGen, genTrace)
-import           Control.State.Transition.Trace (traceSignals, TraceOrder(OldestFirst))
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (Slot)
+import           Ledger.Core (Slot, BlockCount)
+import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.STS.Sized (Size, size, Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData, Commit, SIPHash, VotingPeriod)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
 
-
-
-data TRANSACTIONS hashAlgo
-
 -- | Environment of the TRANSACTION STS
 data Env hashAlgo =
-  Env { currentSlot :: !Slot
-      , closedVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the closed voting periods per SIP
-      , updatesEnv :: !(Environment (UPDATES hashAlgo))
-      -- ^ Environment of the child STS (UPDATES)
+  Env { k :: !BlockCount
+      , currentSlot :: !Slot
+      , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      , participants :: Bimap Core.VKey Core.SKey
       , utxoEnv :: !(Environment UTXO)
-      -- ^ Environment of the child STS (UTXO)
       }
   deriving (Eq, Show, Generic)
 
 -- | State of the TRANSACTION STS
 data St hashAlgo =
-  St { openVotingPeriods :: !(Map (SIPHash hashAlgo) (VotingPeriod hashAlgo))
-       -- ^ Records the open voting periods  per SIP
-       -- It is included in the state of this STS,
-       -- because it must be returned updated to its parent STS
+  St { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
+     , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+     , implementationSt :: State IMPLEMENTATION
      , utxoSt :: State UTXO
-     , updateSt :: State (UPDATES hashAlgo)
      }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
   deriving Monoid via GenericMonoid (St hashAlgo)
-
 
 -- | Transactions contained in a block.
 data Tx hashAlgo
@@ -84,9 +75,9 @@ data Tx hashAlgo
   deriving (Eq, Show, Generic)
 
 deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   ) => HasTypeReps (Tx hashAlgo)
 
 data TxBody hashAlgo
@@ -99,16 +90,16 @@ data TxBody hashAlgo
   } deriving (Eq, Show, Generic)
 
 deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo)
                   ) => HasTypeReps (TxBody hashAlgo)
 
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Commit hashAlgo)
-         , HasTypeReps (Hash hashAlgo SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
          ) => Sized (Tx hashAlgo) where
   costsList _
     =  [ (typeOf (undefined :: TxIn), 1)
@@ -118,37 +109,7 @@ instance ( HashAlgorithm hashAlgo
     ++ costsList (undefined :: UpdatePayload hashAlgo)
 
 
-instance HashAlgorithm hashAlgo => STS (TRANSACTIONS hashAlgo) where
-
-  type Environment (TRANSACTIONS hashAlgo) = Environment (TRANSACTION hashAlgo)
-
-  type State (TRANSACTIONS hashAlgo) = State (TRANSACTION hashAlgo)
-
-  type Signal (TRANSACTIONS hashAlgo) = [Tx hashAlgo]
-
-  data PredicateFailure (TRANSACTIONS hashAlgo)
-    = TxFailure (PredicateFailure (TRANSACTION hashAlgo))
-    deriving (Eq, Show)
-
-  initialRules = []
-
-  transitionRules = [
-    do
-      TRC (env, st, txs) <- judgmentContext
-      case txs of
-        [] -> pure $! st
-        (tx:txs') -> do
-          st' <- trans @(TRANSACTION hashAlgo) $ TRC (env, st, tx)
-          trans @(TRANSACTIONS hashAlgo) $ TRC (env, st', txs')
-    ]
-
-
-instance HashAlgorithm hashAlgo => Embed (TRANSACTION hashAlgo) (TRANSACTIONS hashAlgo) where
-  wrapFailed = TxFailure
-
-
 data TRANSACTION hashAlgo
-
 
 instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
 
@@ -159,56 +120,65 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
   type Signal (TRANSACTION hashAlgo) = Tx hashAlgo
 
   data PredicateFailure (TRANSACTION hashAlgo)
-    = UpdatesFailure (PredicateFailure (UPDATES hashAlgo))
+    = TxFailure (PredicateFailure (UPDATES hashAlgo))
     deriving (Eq, Show)
 
   initialRules = []
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, closedVotingPeriods, utxoEnv, updatesEnv }
-          , St { openVotingPeriods
+      TRC ( Env { k
+                , currentSlot
+                , asips
+                , participants
+                , utxoEnv
+                }
+          , St { subsips
+               , wssips
+               , wrsips
+               , ballots
+               , voteResultSIPs
+               , implementationSt
                , utxoSt
-               , updateSt = Update.St { Update.openVotingPeriods = _
-                                      , Update.ideationSt = idst
-                                      , Update.implementationSt = impst
-                                      }
                }
           , Tx { body = TxBody { inputs, outputs, fees, update} }
           ) <- judgmentContext
-      -- TODO: keep in mind that some of the update rules will have to be
-      -- triggered in the header validation rules (which we currently don't
-      -- have).
-      --
+
       utxoSt' <- trans @UTXO $ TRC (utxoEnv, utxoSt, UTxO.Payload inputs outputs fees)
       -- UTXO and UPDATE transition systems should be independent, so it
       -- shouldn't matter which transition is triggered first. Even if the
       -- update mechanism can change fees, these changes should happen at epoch
       -- boundaries and at header rules.
-      let Update.Env { Update.currentSlot = _
-                     , Update.closedVotingPeriods = _
-                     , Update.ideationEnv = idEnv
-                     , Update.implementationEnv = implEnv
-                     } = updatesEnv
-      updateSt'@Update.St {Update.openVotingPeriods = ovp'} <-
+
+      Update.St { Update.subsips = subsips'
+                , Update.wssips = wssips'
+                , Update.wrsips = wrsips'
+                , Update.ballots = ballots'
+                , Update.voteResultSIPs = voteResultSIPs'
+                , Update.implementationSt = implementationSt'
+                } <-
         trans @(UPDATES hashAlgo) $
-          TRC ( Update.Env { Update.currentSlot = currentSlot
-                           , Update.closedVotingPeriods = closedVotingPeriods
-                           , Update.ideationEnv =  idEnv
-                           , Update.implementationEnv = implEnv
+          TRC ( Update.Env { Update.k = k
+                           , Update.currentSlot = currentSlot
+                           , Update.asips = asips
+                           , Update.participants =  participants
                            }
-              , Update.St { Update.openVotingPeriods = openVotingPeriods
-                              -- pass the updated openVotingPeriods state
-                          , Update.ideationSt = idst
-                          , Update.implementationSt = impst
+              , Update.St { Update.subsips = subsips
+                          , Update.wssips = wssips
+                          , Update.wrsips = wrsips
+                          , Update.ballots = ballots
+                          , Update.voteResultSIPs = voteResultSIPs
+                          , Update.implementationSt = implementationSt
                           }
               , update
               )
-      pure $ St { openVotingPeriods = ovp'
-                  -- This state (ovp') has been updated
-                  -- by the IDEATON STS
+      pure $ St { subsips = subsips'
+                , wssips = wssips'
+                , wrsips = wrsips'
+                , ballots = ballots'
+                , voteResultSIPs = voteResultSIPs'
+                , implementationSt = implementationSt'
                 , utxoSt = utxoSt'
-                , updateSt = updateSt'
                 }
     ]
 
@@ -218,81 +188,4 @@ instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo) where
 
 
 instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlgo) where
-  wrapFailed = UpdatesFailure
-
-
--- | Generate a list of 'Tx's that fit in the given maximum size.
-transactionsGen
-  :: forall hashAlgo
-   . ( HashAlgorithm hashAlgo
-     , HasTypeReps hashAlgo
-     , HasTypeReps (Commit hashAlgo)
-     , HasTypeReps (Hash hashAlgo SIPData)
-     )
-  => Size
-  -> Environment (TRANSACTIONS hashAlgo)
-  -> State (TRANSACTIONS hashAlgo)
-  -> Gen [Tx hashAlgo]
-transactionsGen maximumSize env st
-  =   fitTransactions . traceSignals OldestFirst
-  -- TODO: check what is a realistic distribution for empty blocks, or disallow
-  -- the generation of empty blocks altogether.
-  <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
-
-  where
-    -- Fit the transactions that fit in the given maximum block size.
-    fitTransactions :: [Tx hashAlgo] -> [Tx hashAlgo]
-    fitTransactions txs = zip txs (tail sizes)
-                          -- We subtract to account for the block constructor
-                          -- and the 'Word64' value of the slot.
-                        & takeWhile ((< maximumSize - 5) . snd)
-                        & fmap fst
-      where
-        -- We compute the cumulative sum of the transaction sizes. We add 3 to
-        -- account for the list constructor.
-        sizes :: [Size]
-        sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
-
-    transactionGen  (Env { currentSlot
-                         , closedVotingPeriods
-                         , updatesEnv
-                         }
-                    )
-                    (St { updateSt })
-      -- TODO: figure out what a realistic distribution for update payload is.
-      --
-      -- TODO: do we need to model the __liveness__ assumption of the underlying
-      -- protocol? That is, model the fact that honest party votes will be
-      -- eventually comitted to the chain. Or is this implicit once we start
-      -- generating votes uniformly distributed over all the parties (honest and
-      -- otherwise)
-      --
-      -- We do not generate witnesses for now
-      =   (`Tx` [])
-      .   dummyBody
-      <$> Gen.frequency
-            [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
-            , (1, sigGen
-                    @(UPDATES hashAlgo)
-                    Update.Env { Update.currentSlot = currentSlot
-                               , Update.closedVotingPeriods = closedVotingPeriods
-                               , Update.ideationEnv = idEnv
-                               , Update.implementationEnv = implEnv
-                               }
-                    updateSt
-              )
-            ]
-      where
-        Update.Env { Update.currentSlot = _
-                   , Update.closedVotingPeriods = _
-                   , Update.ideationEnv = idEnv
-                   , Update.implementationEnv = implEnv
-                   } = updatesEnv
-        -- For now we don't generate inputs and outputs.
-        dummyBody update
-          = TxBody
-            { inputs = mempty
-            , outputs = mempty
-            , fees = Coin
-            , update = update
-            }
+  wrapFailed = TxFailure

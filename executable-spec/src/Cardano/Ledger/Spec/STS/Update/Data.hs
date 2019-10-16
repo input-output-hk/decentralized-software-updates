@@ -26,12 +26,9 @@ import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
+import           Ledger.Core (Slot, Slot (Slot), SlotCount,
+                     SlotCount (SlotCount))
 import qualified Ledger.Core as Core
-import           Ledger.Core ( Slot
-                             , Slot (Slot)
-                             , SlotCount
-                             , SlotCount (SlotCount)
-                             )
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
@@ -48,9 +45,9 @@ data IdeationPayload hashAlgo
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =
-  BallotSIP { votedsipId :: !(SIPHash hashAlgo)
+  BallotSIP { votedsipHash :: !(SIPHash hashAlgo)
               -- ^ SIP id that this ballot is for
-            , conf :: !Confidence
+            , confidence :: !Confidence
               -- ^ the ballot outcome
             , voter :: !Core.VKey
               -- ^ the voter
@@ -334,6 +331,3 @@ deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
                   ) => HasTypeReps (SIPHash hashAlgo)
-
-
-

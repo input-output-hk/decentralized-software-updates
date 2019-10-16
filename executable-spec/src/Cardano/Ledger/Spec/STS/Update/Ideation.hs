@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -10,19 +10,17 @@
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
-import           Control.Arrow ((&&&))
-import           Data.Bimap (Bimap, (!))
+import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
-import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import           Data.Map.Strict (Map)
-import           Data.Set (Set)
+import           Data.Map.Strict (Map, (!), (!?))
+import           Data.Maybe (fromMaybe)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
+import qualified Data.Set as Set
 
 import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 import           Hedgehog.Range (constant)
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
@@ -31,16 +29,16 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
-import           Ledger.Core (Slot (Slot))
+import           Ledger.Core (Slot, BlockCount)
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋫), (⋪), range, (◁))
+import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Generators (kGen, participantsGen, currentSlotGen)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
-                     SIPData (SIPData), Commit, SIPCommit)
-import           Cardano.Ledger.Spec.STS.Update.Data (author, VotingResult, VotingPeriod, BallotSIP)
+                     SIPData (SIPData), Commit)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
-import           Ledger.Core (dom, (∈), (∉))
-import qualified Ledger.Core as Core
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
@@ -49,46 +47,61 @@ import qualified Ledger.Core as Core
 -- | Ideation phase of system updates
 data IDEATION hashAlgo
 
+-- Environmnet of the Ideation phase
+data Env hashAlgo
+  = Env
+    { k :: !BlockCount
+      -- ^ Chain stability parameter.
+    , currentSlot :: !Slot
+      -- ^ The current slot in the blockchain system
+    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      -- ^ Active SIP's. The slot in the range (of the map) determines when the
+      -- voting period will end.
+    , participants :: !(Bimap Core.VKey Core.SKey)
+      -- ^ The set of stakeholders (i.e., participants), identified by their signing
+      -- and verifying keys.
+      --
+      -- There is a one-to-one correspondence between the signing and verifying keys, hence
+      -- the use of 'Bimap'
+      --
+      -- TODO: DISCUSS: It seems we need this only for the generators. We might want to
+      -- remove this from the STS.
+    }
+  deriving (Eq, Show, Generic)
+
 -- | Ideation phase state
 --
 data St hashAlgo
   = St
-    { commitedSIPs :: !(Map (Commit hashAlgo) (SIPCommit hashAlgo))
-      -- ^ These are the encrypted SIPs that are submitted at the commit phase
-      -- of an SIP submission
-    , submittedSIPs :: !(Set (SIP hashAlgo))
+    { subsips :: !(Map (Commit hashAlgo) (SIP hashAlgo))
       -- ^ These are the SIPs that we need to generate for the testing to
-      -- take place. From these both the commitedSIP's as well as the revealedSIPs
+      -- take place. From these both the commited SIP's as well as the revealed SIPs
       -- will be created. This state is not part of the update protocol, it is used
       -- only for SIP generation purposes.
-    , revealedSIPs :: !(Set (SIP hashAlgo))
-      -- ^ These are the revealed SIPs
-    , ballotsForSIP :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey (BallotSIP hashAlgo)))
-      -- ^ This stores the valid ballots for each SIP and the voters
-    , openVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the open voting periods  per SIP
-    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) VotingResult)
-      -- ^ This records the current voting result for each SIP
+    , wssips :: !(Map (Commit hashAlgo) Slot)
+      -- ^ When a SIP commitment was submitted
+
+    , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      -- ^ When a SIP was revealed
+
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+      -- ^ Stores the valid ballots for each SIP and for each voter
+
+      -- TODO: I think we should use key hashes here as well.
+      --
+      -- DISCUSS: by using this representation I think we're using more data,
+      -- since we have to store the confidence as well. We could avoid this by
+      -- having three maps, say @for@, @against@, and @abstain@. However a big
+      -- advantage of this construction is that any given key can only vote for
+      -- a single proposal and confidence by construction (if we use three maps
+      -- we have to maintain this as an invariant).
+
+    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+      -- ^ Records the current voting result for each SIP
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
   deriving Monoid via GenericMonoid (St hashAlgo)
-
--- Environmnet of the Ideation phase
-data Env hashAlgo
-  = Env
-    { currentSlot :: !Slot
-      -- ^ The current slot in the blockchain system
-    , participants :: Bimap Core.VKey Core.SKey
-      -- ^ The set of stakeholders (i.e., participants), identified by their signing
-      -- and verifying keys.
-      -- There is a one-to-one correspondence the signing and verifying keys, hence
-      -- the use of 'Bimap'
-    , closedVotingPeriods :: !(Map (Data.SIPHash hashAlgo) (VotingPeriod hashAlgo))
-      -- ^ Records the closed voting periods per SIP
-    }
-  deriving (Eq, Show, Generic)
-
 
 
 instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
@@ -105,181 +118,164 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
     | NoSIPToReveal (Data.SIP hashAlgo)
     | SIPAlreadyRevealed (Data.SIP hashAlgo)
     | InvalidAuthor Core.VKey
-    | SIPFailedToBeRevealed (Data.SIP hashAlgo)
+    | NoStableAndCommittedSIP (Data.SIP hashAlgo) (Map (Commit hashAlgo) Slot)
     | InvalidVoter Core.VKey
-    | VoteNotForRevealedSIP (Data.SIPHash hashAlgo)
-    | VoteNotForOpenVotingPEriod (Data.SIPHash hashAlgo)
+    | VoteNotForActiveSIP (Data.SIPHash hashAlgo)
+    | VotingPeriodEnded (Data.SIPHash hashAlgo) Slot
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
 
   transitionRules = [
     do
-      TRC ( Env { currentSlot, participants }
-          , st@St { commitedSIPs
-                  , submittedSIPs
-                  , revealedSIPs
-                  , ballotsForSIP
-                  , openVotingPeriods -- this has been updated from CHAINS
+      TRC ( Env { k
+                , currentSlot
+                , asips
+                , participants
+                }
+          , st@St { subsips
+                  , wssips
+                  , wrsips
+                  , ballots
                   }
           , sig
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          author sip ∈ dom participants ?! InvalidAuthor (author sip)
-          sip ∉ submittedSIPs ?! SIPAlreadySubmitted sip
+          Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
+          sip ∉ subsips ?! SIPAlreadySubmitted sip
 
           -- TODO: Add verification of signature inside SIPCommit
 
-          pure $! st { commitedSIPs = Map.insert (Data.commit sipc) (sipc) commitedSIPs
-                     , submittedSIPs = Set.insert sip submittedSIPs
-                     -- TODO: if stabilization period has passed, then add commitSIP to stable commitedSIP
+          pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
+                     , subsips = subsips ⨃ [(Data.commit sipc, sip)]
                      }
 
         Reveal sip -> do
-          author sip ∈ dom participants ?! InvalidAuthor (author sip)
-          -- TODO: Commited SIP must belong to stable submitted SIPs
-          sip ∈ submittedSIPs ?! NoSIPToReveal sip
+          Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
+          sip ∈ range subsips ?! NoSIPToReveal sip
+          -- TODO: Revealed SIP must belong to stable submitted SIPs
 
-          sip ∉ revealedSIPs ?! SIPAlreadyRevealed sip
-          (Data.calcCommit sip) ∈ (dom commitedSIPs) ?! SIPFailedToBeRevealed sip
+          Data.sipHash sip ∉ dom wrsips ?! SIPAlreadyRevealed sip
 
-          pure st { submittedSIPs = Set.delete sip submittedSIPs
-                  , revealedSIPs = Set.insert sip revealedSIPs
-                  -- TODO: if stabilization period has passed, then add reveal to stable reveals and remove from reveal
-                  -- TODO: A **stable** reveal must open the voting period for this SIP
-                  , openVotingPeriods = Map.insert
-                                          (Data.sipHash sip)
-                                          (Data.createVotingPeriod currentSlot sip )
-                                          openVotingPeriods
+          -- The Revealed SIP must correspond to a stable Commited SIP.
+          -- Restrict the range of wssips to values less or equal than
+          -- @currentSlot - 2k@
+          Data.calcCommit sip
+            ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
+            ?! NoStableAndCommittedSIP sip wssips
+
+          pure st { subsips = subsips ⋫ Set.singleton sip -- TODO: DISCUSS: not sure whether we need to delete this...
+                  , wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
+                  , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
                   }
 
-        Vote ballot -> do -- error "Define the rules for voting"
+        Vote ballot -> do
             -- voter must be a stakeholder
-            (Data.voter ballot) ∈ dom participants ?!
+            Data.voter ballot ∈ dom participants ?!
               InvalidVoter (Data.voter ballot)
 
-            -- TODO: SIP must be a stable revealed SIP not just a Revealed SIP
-            (Data.votedsipId ballot) ∈ (Set.map (Data.sipHash) revealedSIPs) ?!
-              VoteNotForRevealedSIP (Data.votedsipId ballot)
+            -- SIP must be an active SIP, i.e. it must belong to the set of
+            -- stable revealed SIPs
+            Data.votedsipHash ballot ∈ dom asips ?!
+              VoteNotForActiveSIP (Data.votedsipHash ballot)
+
+            -- The end of the voting period for this SIP must not have been
+            -- reached yet.
+            currentSlot <= asips ! Data.votedsipHash ballot ?!
+              VotingPeriodEnded (Data.votedsipHash ballot) currentSlot
 
             -- TODO: Signature of the vote must be verified
 
-            -- The voting period for this SIP must be open for the vote to be valid
-            (Data.votedsipId ballot) ∈ dom openVotingPeriods ?!
-              VoteNotForOpenVotingPEriod (Data.votedsipId ballot)
+            let
+              hsip = Data.votedsipHash ballot
+              hsipBallots = fromMaybe Map.empty $ ballots !? hsip
+              hsipBallots' = hsipBallots ⨃ [(Data.voter ballot, Data.confidence ballot)]
 
-            -- Update State
-              -- Add ballot to the state of valid ballots for this SIP
-                -- If the voter has voted again, then replace his old vote with the new one
-            pure $ st { ballotsForSIP =
-                          -- Are there any votes for this SIP yet?
-                          if (Data.votedsipId ballot) ∈ dom ballotsForSIP
-                            then
-                              -- insert will overwrite the value part of the Map if the key exists
-                              Map.insert
-                                (Data.votedsipId ballot)
-                                (Map.insert
-                                    (Data.voter ballot)
-                                    ballot
-                                    (ballotsForSIP Map.! (Data.votedsipId ballot))
-                                )
-                                ballotsForSIP
-                            else
-                              Map.insert
-                                (Data.votedsipId ballot)
-                                (Map.fromList [(Data.voter ballot, ballot)])
-                                ballotsForSIP
-                      }
+            -- Note that if the voter has voted again, then replace his old vote
+            -- with the new one.
+            pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
     ]
-
 
 instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
-  envGen _traceLength =
-    Env <$> currentSlotGen
-        -- TODO: for now we generate a constant set of keys. We need to update the
-        -- 'HasTrace' class so that 'trace' can take parameter of an associated
-        -- type, so that each STS can decide which parameters are relevant for its
-        -- traces.
-        <*> (pure
-             $! Bimap.fromList
-             $  fmap (Core.vKey &&& Core.sKey)
-             $  fmap Core.keyPair
-             $  fmap Core.Owner $ [0 .. 10])
-        <*> closedVotingPeriodsGen
+  envGen _traceLength
+    = Env
+    <$> kGen
+    <*> currentSlotGen
+    -- TODO: for now we generate a constant set of keys. We need to update the
+    -- 'HasTrace' class so that 'trace' can take parameter of an associated
+    -- type, so that each STS can decide which parameters are relevant for its
+    -- traces.
+    <*> asipsGen
+    <*> participantsGen
     where
-      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      -- TODO: generate a realistic Map
-      closedVotingPeriodsGen = pure $ Map.empty
+     -- TODO: generate a realistic Map
+     --
+     -- TODO: DISCUSS: dnadales: I don't think we can come up with a realistic
+     -- set of SIP hashes here. I wonder if we can/need-to do any better than
+     -- just returning an empty map.
+     asipsGen = pure $ Map.empty
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
-  sigGen
-    Env {participants}
-    St { submittedSIPs } = do
-      owner <- newOwner
-      sipMData <- newSIPMetadata
-      sipData <- newSipData sipMData
-      sipHash <- newSipHash sipData
-      salt <- newSalt
-      -- generate the new SIP and pass it to generateASubmission "by value"
-      -- otherwise you get non-deterministic SIP!
-      newsip <- newSIP owner sipHash salt sipData
-      case Set.toList submittedSIPs of
+  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } =
+      let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k))) in
+      case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
-          generateASubmission newsip owner
+          -- There are no stable commits, so we can only generate a submission.
+          submissionGen
         xs ->
-          -- TODO: determine submission to revelation ration (maybe 50/50 is fine...)
-          Gen.frequency [ (1, generateASubmission newsip owner)
-                        , (1, generateARevelation xs)
+          -- TODO: determine submission to revelation ratio (maybe 50/50 is fine...)
+          Gen.frequency [ (1, submissionGen)
+                        , (1, revelationGen xs)
                         ]
       where
-        newOwner =
-          Gen.element
-          $ Set.toList
-          $ dom participants
+        submissionGen = do
+          sip <- Gen.filter (`Set.notMember` range subsips) sipGen
+          pure $! mkSubmission sip
+            where
+              sipGen = do
+                owner <- Gen.element $ Set.toList $ dom participants
+                sipMData <- sipMetadataGen
+                sipData <- sipDataGen sipMData
+                let sipHash = Data.SIPHash $ hash sipData
+                salt <- Gen.int (constant 0 100)
+                pure $! SIP sipHash owner salt sipData
+                  where
+                    sipMetadataGen
+                      = Data.SIPMetadata
+                      <$> versionFromGen
+                      <*> versionToGen
+                      <*> Gen.element [Data.Impact, Data.NoImpact]
+                      <*> Gen.subsequence [ Data.BlockSizeMax
+                                          , Data.TxSizeMax
+                                          , Data.SlotSize
+                                          , Data.EpochSize
+                                          ]
+                      <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
+                      where
+                        versionFromGen
+                          =  (,)
+                          <$> fmap Data.ProtVer word64Gen
+                          <*> fmap Data.ApVer word64Gen
 
-        newSIPMetadata = (Data.SIPMetadata)
-          <$> (
-              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-              )
-          <*> (
-              ((,)) <$> (fmap (Data.ProtVer) $ Gen.word64 (constant 0 100))
-                    <*> (fmap (Data.ApVer) $ Gen.word64 (constant 0 100))
-              )
-          <*> (Gen.element [Data.Impact, Data.NoImpact])
-          <*> (Gen.element [[Data.BlockSizeMax], [Data.TxSizeMax], [Data.SlotSize], [Data.EpochSize]])
-          <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
+                        versionToGen = versionFromGen
 
-        newSipData sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
+                        word64Gen = Gen.word64 (constant 0 100)
 
-        newSalt = Gen.int (constant 0 100)
+                    sipDataGen sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
 
-        newSipHash sipData = (Data.SIPHash . hash) <$>  (pure sipData)
+              mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
+              mkSubmission sip = Submit sipCommit sip
+                where
+                  sipCommit =
+                    Data.SIPCommit commit (Data.author sip) sipCommitSignature
+                    where
+                      commit = Data.calcCommit sip
+                      sipCommitSignature = Core.sign skey commit
+                        where
+                          skey = participants Bimap.! Data.author sip
 
-        newSIP newowner nsipHash nsalt nsipData =
-          (SIP)
-            <$> pure nsipHash
-            <*> pure newowner
-            <*> pure nsalt
-            <*> pure nsipData
-
-        -- Generate a submission taking a participant that hasn't submitted a proposal yet
-        generateASubmission nsip owner = do
-          (Submit)
-            <$>
-              ((Data.SIPCommit) <$> newCommit <*> (pure owner) <*> newSignature)
-            <*>
-              (pure nsip)
-          where
-            newSignature = (Core.sign) <$> skey <*> newCommit
-
-            newCommit = fmap (Data.calcCommit) (pure nsip)
-
-            -- Do a Bimap lookup to get the sk from the vk
-            skey = (!) <$>  (pure participants) <*> (pure owner)
-
-        generateARevelation submittedSIPsList =
-          fmap Reveal $ Gen.element submittedSIPsList
+        revelationGen subsipsList =
+          fmap Reveal $! Gen.element subsipsList
