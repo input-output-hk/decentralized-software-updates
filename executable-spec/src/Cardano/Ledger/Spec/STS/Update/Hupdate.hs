@@ -35,7 +35,6 @@ data HUPDATE hashAlgo
 data Env
  = Env { k :: !BlockCount
          -- ^ Chain stability parameter.
-       , currentSlot :: !Slot
        }
        deriving (Eq, Show)
 

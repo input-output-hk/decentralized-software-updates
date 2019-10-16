@@ -94,9 +94,7 @@ instance ( HashAlgorithm hashAlgo
       Hupdate.St { Hupdate.wrsips = wrsips'
                  , Hupdate.asips = asips'
                  } <- trans @(HUPDATE hashAlgo)
-                      $ TRC ( Hupdate.Env { Hupdate.k = k
-                                          , Hupdate.currentSlot = slot
-                                          }
+                      $ TRC ( Hupdate.Env { Hupdate.k = k }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips
                                          }
