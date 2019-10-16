@@ -10,7 +10,6 @@
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
-import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
@@ -22,7 +21,6 @@ import           GHC.Generics (Generic)
 import qualified Data.Set as Set
 
 import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 import           Hedgehog.Range (constant)
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
@@ -31,10 +29,11 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
-import           Ledger.Core (Slot (Slot), BlockCount (BlockCount))
+import           Ledger.Core (Slot, BlockCount)
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋫), (⋪), range, (◁))
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Generators (kGen, participantsGen, currentSlotGen)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit)
@@ -211,19 +210,12 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
     <*> asipsGen
     <*> participantsGen
     where
-     kGen = pure $ BlockCount 10 -- k security parameter
-     currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
      -- TODO: generate a realistic Map
      --
      -- TODO: DISCUSS: dnadales: I don't think we can come up with a realistic
      -- set of SIP hashes here. I wonder if we can/need-to do any better than
      -- just returning an empty map.
      asipsGen = pure $ Map.empty
-     participantsGen = pure
-                     $! Bimap.fromList
-                     $  fmap (Core.vKey &&& Core.sKey)
-                     $  fmap Core.keyPair
-                     $  fmap Core.Owner $ [0 .. 10]
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.

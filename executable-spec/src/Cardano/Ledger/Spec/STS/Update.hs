@@ -16,11 +16,7 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
-import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
-
-import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -30,7 +26,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
 import           Data.AbstractSize (HasTypeReps)
-import           Ledger.Core (Slot (Slot), BlockCount)
+import           Ledger.Core (Slot, BlockCount)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)

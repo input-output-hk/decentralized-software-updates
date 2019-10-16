@@ -21,8 +21,7 @@ import           Control.State.Transition (Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      initialRules, judgmentContext, transitionRules)
 
-import           Ledger.Core (BlockCount, Slot, dom, (*.), (-.), (⋪), (▷<=),
-                     (▷>=), (⨃))
+import           Ledger.Core (BlockCount, Slot, dom, (*.), (-.), (⋪), (▷<=))
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 

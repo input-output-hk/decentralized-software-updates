@@ -14,7 +14,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Cardano.Ledger.Spec.STS.Chain.Chain
+  exposed-modules:     Cardano.Ledger.Generators
+                     , Cardano.Ledger.Spec.STS.Chain.Chain
                      , Cardano.Ledger.Spec.STS.Chain.Header
                      , Cardano.Ledger.Spec.STS.Chain.Body
                      , Cardano.Ledger.Spec.STS.Chain.Data

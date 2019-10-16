@@ -37,6 +37,8 @@ import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (BlockCount (BlockCount), Slot (Slot))
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Generators (currentSlotGen, kGen,
+                     participantsGen)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -65,7 +67,8 @@ data Env hashAlgo
       -- instance of 'Sized'.
       --
       -- TODO: use abstract size instead.
-    , participants :: Bimap Core.VKey Core.SKey
+    , initialSlot :: !Slot
+    , participants :: !(Bimap Core.VKey Core.SKey)
     }
     deriving (Eq, Show)
 
@@ -83,8 +86,8 @@ data St hashAlgo
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-    , implementationSt :: State IMPLEMENTATION
-    , utxoSt :: State UTXO
+    , implementationSt :: !(State IMPLEMENTATION)
+    , utxoSt :: !(State UTXO)
     }
     deriving (Eq, Show)
 
@@ -130,8 +133,18 @@ instance ( HashAlgorithm hashAlgo
     deriving (Eq, Show)
 
 
-  initialRules = [
-    undefined
+  initialRules = [ do
+    IRC Env { initialSlot } <- judgmentContext
+    pure St { currentSlot = initialSlot
+            , subsips = Map.empty
+            , asips = Map.empty
+            , wssips = Map.empty
+            , wrsips = Map.empty
+            , ballots = Map.empty
+            , voteResultSIPs = Map.empty
+            , implementationSt = Implementation.St ()
+            , utxoSt = UTxO.St ()
+            }
     ]
 
   transitionRules = [
@@ -232,94 +245,47 @@ instance ( HasTypeReps hashAlgo
          ) => HasTrace (CHAIN hashAlgo) where
 
   envGen _traceLength
-    = undefined
-    -- Env <$> maxBlockSizeGen <*> headerEnvGen <*> bodyEnvGen currentSlotGen asipsGen
+    = Env
+    <$> kGen
+    <*> maxBlockSizeGen
+    <*> currentSlotGen
+    <*> participantsGen
+    where
+      -- For now we fix the maximum block size to an abstract size of 100
+      maxBlockSizeGen = pure 100
 
-    -- where
-    --   headerEnvGen
-    --    = Header.Env
-    --    <$> initialSlotGen
-    --    <*> hupdateEnvGen
-
-    --   bodyEnvGen gslot gasips
-    --     = Body.Env
-    --     <$> gslot
-    --     <*> gasips
-    --     <*> transactionEnvGen gslot gasips
-
-    --   transactionEnvGen gslot gasips
-    --     = Transaction.Env
-    --     <$> gslot
-    --     <*> gasips
-    --     <*> updatesEnvGen gslot gasips
-    --     <*> utxoEnvGen
-
-    --   utxoEnvGen = pure $ UTxO.Env
-
-    --   hupdateEnvGen = Hupdate.Env <$> kGen <*> currentSlotGen
-
-    --   -- TODO define k parameter properly
-    --   kGen = BlockCount <$> Gen.constant 10
-
-    --   initialSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-
-    --   currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-
-    --   -- TODO: Generate a realistic asips Map
-    --   asipsGen = pure $ Map.empty
-
-    --   -- For now we fix the maximum block size to an abstract size of 100
-    --   maxBlockSizeGen = pure 100
-
-    --   participantsGen = pure
-    --                   $! Bimap.fromList
-    --                   $  fmap (Core.vKey &&& Core.sKey)
-    --                   $  fmap Core.keyPair
-    --                   $  fmap Core.Owner $ [0 .. 10]
-
-    --   updatesEnvGen gslot gasips =
-    --     Update.Env
-    --       <$> gslot
-    --       <*> gasips
-    --       <*> ideationEnvGen gslot gasips
-    --       <*> implementationEnvGen gslot
-
-    --   ideationEnvGen gslot gasips
-    --     = Ideation.Env
-    --     <$> kGen
-    --     <*> gslot
-    --     <*> gasips
-    --     <*> participantsGen
-
-    --   implementationEnvGen gs = Implementation.Env <$> gs
-
-  sigGen = undefined
-    -- Block <$> gHeader cs
-    --         <*> gBody
-
-
-
-    --   -- Block <$> gNextSlot
-    --   --       <*> gTransactions ( Transaction.Env
-    --   --                           currentSlot
-    --   --                           closedVotingPeriods
-    --   --                           updEnv
-    --   --                           utxoEnv
-    --   --                         )
-    --   --                         transactionsSt
-    --   where
-    --     gHeader currSlot = Header.BHeader <$> gNextSlot currSlot
-    --     gBody = Body.BBody <$> gTransactions bodyEnv bodySt
-
-    --     -- We'd expect the slot increment to be 1 with high probability.
-    --     --
-    --     -- TODO: check the exact probability of having an empty slot.
-    --     --
-    --     gNextSlot currSlot =  Slot . (s +) <$> Gen.frequency [ (99, pure 1)
-    --                                                 , (1, pure 2)
-    --                                                 ]
-    --       where
-    --         Slot s = currSlot
-
-    --     -- We generate a list of transactions that fit in the maximum block size.
-    --     gTransactions = Body.transactionsGen maximumBlockSize
+  sigGen Env { k
+             , maximumBlockSize
+             , participants
+             }
+         St { currentSlot
+            , subsips
+            , asips
+            , wssips
+            , wrsips
+            , ballots
+            , voteResultSIPs
+            , implementationSt
+            , utxoSt
+            }
+    = Block
+    <$> Header.headerGen currentSlot
+    <*> transactionsGen
+    where
+      transactionsGen =
+        Body.BBody <$> Body.transactionsGen
+                         maximumBlockSize
+                         Transaction.Env { Transaction.k = k
+                                         , Transaction.currentSlot = currentSlot
+                                         , Transaction.asips = asips
+                                         , Transaction.participants = participants
+                                         , Transaction.utxoEnv = UTxO.Env
+                                         }
+                         Transaction.St { Transaction.subsips = subsips
+                                        , Transaction.wssips = wssips
+                                        , Transaction.wrsips = wrsips
+                                        , Transaction.ballots = ballots
+                                        , Transaction.voteResultSIPs = voteResultSIPs
+                                        , Transaction.implementationSt = implementationSt
+                                        , Transaction.utxoSt = utxoSt
+                                        }

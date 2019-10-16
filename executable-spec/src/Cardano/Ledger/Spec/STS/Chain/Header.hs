@@ -14,19 +14,19 @@
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
 import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
 import           Data.Typeable (typeOf)
 import           GHC.Generics (Generic)
+import           Hedgehog (Gen)
+import qualified Hedgehog.Gen as Gen
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
-import           Control.State.Transition (Embed, Environment, IRC (IRC),
-                     PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext, trans, transitionRules,
-                     wrapFailed, (?!))
+import           Control.State.Transition (Embed, Environment, PredicateFailure,
+                     STS, Signal, State, TRC (TRC), initialRules,
+                     judgmentContext, trans, transitionRules, wrapFailed, (?!))
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (BlockCount, Slot)
+import           Ledger.Core (BlockCount, Slot (Slot))
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)
@@ -116,3 +116,10 @@ instance ( HashAlgorithm hashAlgo
   => Embed (HUPDATE hashAlgo) (HEADER hashAlgo)
     where
       wrapFailed = HeaderFailure
+
+-- | Generate a valid next slot, given the current slot.
+headerGen :: Slot -> Gen BHeader
+headerGen (Slot s) =
+  BHeader . Slot . (s +) <$> Gen.frequency [ (99, pure 1)
+                                          , (1, pure 2)
+                                          ]
