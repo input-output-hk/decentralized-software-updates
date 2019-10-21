@@ -46,14 +46,15 @@ If the delegatee staking key for that transaction has been tallied on a delegata
 
 The sum of the private stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{abstaining stake}.
 
-Suppose that the \emph{honest stake threshold assumption} of our software updates protocol is $h$, then at the end of the tallying, a software update (i.e., a SIP or an UP) is marked one of the following:
+%Suppose that the \emph{honest stake threshold assumption} of our software updates protocol is $h$
+Suppose that we define a voting threshold $\tau_V$, then at the end of the tallying, a software update (i.e., a SIP or an UP) is marked one of the following:
 \begin{itemize}
 
-\item \emph{Approved}. When the $stake\ in\ favour \geq h$
+\item \emph{Approved}. When the $stake\ in\ favour > \tau_V$
 
-\item \emph{Rejected}. When the $stake\ against \geq h$
+\item \emph{Rejected}. When the $stake\ against > \tau_V$
 
-\item \emph{No-Quorum}. When the $abstaining\ stake \geq h$. In this case, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-quorum}$ times, which is a protocol parameter. After that, the software update becomes \emph{expired}.
+\item \emph{No-Quorum}. When the $abstaining\ stake > \tau_V$. In this case, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-quorum}$ times, which is a protocol parameter. After that, the software update becomes \emph{expired}.
 
 \item \emph{No-Majority}. In this case none of the previous cases has appeared. Essentially, there is no majority result. Similarly, we revote (i.e., enter one more voting period) for the specific software update. This revoting can take place up to $rv_{no-majority}$ times, which is a protocol parameter. After that, the software update becomes expired.
 
@@ -65,18 +66,102 @@ In our proposal, we have chosen a three-value logic for our vote (for/against/ab
 Moreover, the abstain vote can be also used as a way for the evaluator to say that the evaluation of the SU has not finished, a conclusion can not be drawn yet and indirectly submit a request for a time extension (i.e., a new voting period).
 
 \subsubsection{On Assumptions and Thresholds}
-We require that for each voting period and for every software update submitted, there is always at least a stake percent of $h$ honest parties, actively participating in the voting process (i.e., submitting a vote with a value of for/against/abstain), where $h$ is the \emph{honest stake threshold assumption} of our software updates protocol. %In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake pools}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software updates protocol (and especially the voting phases), similarly (in-concept) to the underlying consensus protocol, make the assumption that $h$ percent of honest stake is being active at all time. 
-If the underlying consensus protocol has an honest stake threshold $x$ (e.g., $x$ = 51\%), then we require $h \geq x$. %The rationale behind this is that the software updates protocol is built \emph{on top} the consensus protocol, since all the software updates protocol events are essentially transactions committed into the blockchain. Therefore, the software updates protocol cannot require less honest stake than the consensus protocol on which it is based. However, there might be cases (i.e., software updates), where a greater majority is required for the voting process and therefore a greater percent of honest stake $h$ might be used for the software updates protocol.
-
+We require that for each voting period and for every software update submitted, there is always an actual stake percent of  honest parties $h_a$ that is actively participating in the voting process (i.e., submitting a vote with a value of for/against/abstain).
+%, where $h$ is the \emph{honest stake threshold assumption} of our software updates protocol. 
+%In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake pools}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software updates protocol (and especially the voting phases), similarly (in-concept) to the underlying consensus protocol, make the assumption that $h$ percent of honest stake is being active at all time. 
+%If the underlying consensus protocol has an honest stake threshold $x$ (e.g., $x$ = 51\%), then we require $h \geq x$. %The rationale behind this is that the software updates protocol is built \emph{on top} the consensus protocol, since all the software updates protocol events are essentially transactions committed into the blockchain. Therefore, the software updates protocol cannot require less honest stake than the consensus protocol on which it is based. However, there might be cases (i.e., software updates), where a greater majority is required for the voting process and therefore a greater percent of honest stake $h$ might be used for the software updates protocol.
 Moreover, the stake considered during the tally is the stake that the voters have at that moment. That is, we only consider the stake of the voters at the moment of the tally, without taking into account the stake that the voters had in the moment that the votes were casted. Therefore, the stake distribution is not known at the moment where the voting takes place, which is a security measure against voters' coercion.
 
-With respect to the voting threshold, we have seen that for a software update (either a SIP, or an UP) to get approved the following condition should hold: $stake\ in\ favour \geq h$. Our voting mechanism, from a security perspective, has essentially two goals: a) a software update that is not approved by the stake majority will never be applied and b)  a software update that it is approved by the stake majority will be eventually applied.
+With respect to the voting threshold $\tau_V$, we have seen that for a software update (either a SIP, or an UP) to get approved the following condition should hold: $stake\ in\ favour > \tau_V$. We provide the following definition:
+\begin{definition}
+We define as an $\mu$-honest stake majority result (e.g., approval, rejection), a voting result that is voted by more than (or equal) $h_a/2 + \mu$ percent of votes coming from the honest stake exclusively, where $0 < \mu \leq h_a/2$.
 
-Let's assume that we imposed another threshold: 
-$stake\ in\ favour \geq h + d$, where $d > 0$. We know that we have at least $h$ honest parties actively voting. Then, since we need more that $h$ votes for the SU to get approved, then the adversaries could block the approval, either by voting 'against', or 'abstain', or by not voting at all.
-Similarly, if we imposed as a threshold $stake\ in\ favour \geq h - d$, where $d > 0$, then the adversaries could potentially approve a malicious SU (assuming that we have $h-d$ adversary stake), if the honest stake does not vote a unanimous rejection (i.e., some part of the honest stake votes \say{against} and the rest part votes \say{abstain}). 
+If we do not explicitly define $\mu$, then we simply say that we have an honest stake majority result. 
+\end{definition}
+Our voting mechanism, from a security perspective, has essentially two main goals: a) a software update that has not achieved an honest stake majority approval, will never be allowed to pass to the next phase in the SU lifecycle and b) a software update that has achieved an honest stake majority approval, will eventually be allowed to pass to the next phase in the SU lifecycle.
 
-In other words, the  $stake\ in\ favour \geq h$ threshold that we have chosen, guarantees that the adversaries cannot block a good software update, since there is enough honest stake majority to approve it. Moreover, due to the \emph{liveness} property of the underlying consensus protocol, all honest parties' votes will be eventually committed to the blockchain, as long as the tallying takes place after a stabilization period. At the same time, the adversaries cannot approve a malicious software update, since they do not have the majority to approve a malicious software update.
+Intuitively, failing to achieve the first goal means that we risk the adversary to be able to approve a malicious proposal that is not approved by the honest stake majority; and by failing to achieve the second goal, we risk that the adversary might block the approval of a proposal that has been approved by the honest stake majority. We call the latter a \emph{Denial of Approval} attack.
+
+We know that we have a percent of $h_a$ honest stake actively voting. Let's assume that we impose a threshold $\tau_V \geq h_a$.
+%Let's assume that we imposed another threshold: $stake\ in\ favour \geq \tau_V + \delta$, where $\delta > 0$. 
+ Then, since we need more that $h_a$ votes for the SU to get approved, then the adversary could block the approval, either by voting 'against', or 'abstain', or by not voting at all. So when the voting threshold exceeds the honest stake percentage participating in the voting process, we risk a denial of approval, even if the honest stake $h_a$ votes unanimously.
+ %, where we are constantly entering a revoting period, until the software update becomes expired.
+ 
+On the opposite side, if we impose a threshold $\tau_V < h_a$,  
+% Similarly, if we imposed as a threshold $stake\ in\ favour \geq \tau_V - \delta$
+, then the adversary could potentially approve a malicious SU, if the honest stake $h_a$ does not vote a unanimous rejection (i.e., some part of the honest stake votes \say{against}, some other part part votes \say{abstain} and maybe some part (mistakenly) votes positively) and the adversary stake votes positively, so that in total the voting threshold is reached. 
+
+In a nutshell, when the voting threshold is too low, we risk the approval of a malicious SU by the adversary stake, while when it is too high, we risk the denial of approval attack. This is a similar (but not identical) situation with the one described in Section \ref{se:informal}.
+
+Lets assume that $r$ is the resiliency\footnote{According to Garay et. al. in \cite{sok}, the resiliency is the fraction $(t/n)$ of misbehaving parties a protocol can tolerate, where $t$ are the number of adversaries and n are the total number of parties. In our case, we can assume that $t$ is the total adversary stake and $n$ is the total stake.} of the underlying consensus protocol by means of which the voting transactions are diffused in the network and on top of which the voting mechanism is implemented. Lets also define as $r_a = \frac{T}{h_a+T}$ the actual fraction between the percent of adversary stake $T$ and total stake and therefore $r_a \leq r$. Due to the necessity of the honest majority (according to Garay et al. \cite{sok}), we know that $r < 0.5$. Then, 
+%if $T$ is the total percent of adversary stake, 
+ the following hold:
+\begin{equation} \label{eq1}
+h_a = 100 -T
+\end{equation}
+\begin{equation} \label{eq2}
+T = r_a \times 100 \leq r \times 100 < 50
+\end{equation}
+\begin{equation} \label{eq3}
+h_a = (1-r_a) \times 100 \geq (1-r)\times 100 > 50
+\end{equation}
+
+With respect to our two security goals, we provide the following theorem.
+
+\begin{theorem}
+A software update that has not achieved an honest stake majority approval cannot be approved, only if $\tau_V \geq T + h_a/2 =  50 \times (r_a + 1)$.
+
+If $\tau_V = T + h_a/2 =  50 \times (r_a + 1)$, then a software update that has achieved an $\mu$-honest stake majority approval cannot be blocked by the adversary stake $T$, only if $T < \mu$.
+\end{theorem}
+\begin{proof}
+Clearly, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V \geq T + \delta$, where $0 < \delta \leq (1-r_a) \times 100$. According to our security goals, we want to give to the honest stake majority the power to control the result of the voting process. Therefore $\delta$ should be lower bounded by $h_a/2$, which based on Equations \ref{eq2} and \ref{eq3} means that $\tau_V \geq T + h_a/2 =  50 \times (r_a + 1)$.
+
+Let's assume $\tau_V = T + h_a/2$ and that we have an $\mu$-honest stake majority approval for an SU. This means that the specific SU has received a number of $h_a/2 + \mu$ positive votes from the honest stake, where $0 < \mu \leq h_a/2$. In order for the adversary not to be able to block this approval, we need $\tau_V < h_a/2 +\mu$. Then this means that $T + h_a/2 < h_a/2 + \mu$, which of course means $T < \mu$. 
+\end{proof}
+
+\begin{lemma}
+If we have a unanimous approval by the honest stake for a software update, then this cannot be blocked by the adversary stake $T$, only if $T < 1/3 \times 100$.
+\end{lemma}
+\begin{proof}
+If we have a unanimous approval by the honest stake (i.e., $h_a$ positive votes from the honest stake), then $\mu = h_a/2$. In this case, we have $T < h_a/2$ and because of Equation \ref{eq1}, we get $T < 1/3 \times 100$.
+\end{proof}
+
+\begin{lemma}
+If $\tau_V = T + h_a/2 =  50 \times (r_a + 1)$, then the voting threshold is upper bounded by 75\%, $\tau_V < 75\%$
+\end{lemma}
+\begin{proof}
+Since $\tau_V =  50 \times (r_a + 1)$ and we know that $r_a$ is upper bounded by $r$ and $r$ by definition is upper bounded by $0.5$, then $\tau_V <  50 \times (0.5 + 1) = 75$.
+\end{proof}
+
+
+
+%A naive approach would be to assume that an honest party will never vote positively for a malicious SU - not even by mistake. In this case, we can safely choose $\tau_V = 50\%$ to achieve our two security goals. Indeed, since $h_a > 50$ (Equation \ref{eq3}), we have enough honest stake to reach the voting threshold and thus the adversary cannot perform a denial of a majority result attack. In addition, if we have a malicious proposal SU, then we can have at most $T$ positive votes from the adversary, but no positive votes from the honest parties (due to our assumption). Then, since $T < 50$ (Equation \ref{eq2}), then we see that the adversary does not have enough stake to approve a malicious proposal.
+
+%Let's omit the naive assumption. Clearly, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V = r_a \times 100 + \delta$, where $0 < \delta < (1-r_a) \times 100$. According to our security goals, we want to give to the honest stake majority $h_a/2$ the power to control the result of the voting process. Therefore $\delta$ could be chosen to be equal to $h_a/2$, which based on Equation \ref{eq3} is equal to $(1-r_a) \times 100 / 2$. Which results to the following condition for the voting threshold: 
+%\begin{equation} \label{eq4}
+%\tau_V = T + h_a/2  \Leftrightarrow \tau_V = 50 \times (r_a + 1) \leq 75\%
+%\end{equation}
+%
+%Since, we know that $r_a$ is upper bounded by $r$, which is also upper bounded by $0.5$, then $\tau_V$ is upper bounded by 75\%. Therefore in this case, a malicious SU cannot be approved by the adversary stake $T$,unless the honest stake majority $h_a/2$, also agrees.
+%%For example, if the resiliency $r$ of our consensus protocol is upper bounded by $1/2$, then we need a voting threshold $\tau_V \geq 75\%$, so that a malicious proposal cannot be voted by the adversary stake, unless the honest stake majority $h_a/2$ also agrees. 
+%%The intuition behind Equation \ref{eq4} is that we have tried to increase the voting threshold, in order to avoid to give the power to the adversary to approve a malicious SU and at the same time, this increase to be the smallest possible, in order to minimize the risk the adversary to block a good SU (a denial of a majority result attack), but also give the decision power to the honest majority ($h_a/2$). Indeed, according to Equation \ref{eq4}, the worst case where the adversary $T$ has full blocking power is when we have a marginal approval of a SU from the honest stake (i.e., a stake in favor result close to $h_a/2$ - so only half of the honest stake supports a proposal) and therefore in that case, we need the whole adversary stake to vote positively, in order to reach the voting threshold. 
+%
+%%Naturally, the stronger the honest majority, the weaker becomes the power of the adversary to block a SU. 
+%Furthermore, we have seen that if the voting threshold is too high then we risk a denial of a majority result attack. In particular, if it exceeds the active honest stake $\tau_V > h_a$, then even if the whole honest stake unanimously votes for a SU, then the adversary still has the power to launch a denial of a majority attack. Therefore, from Equation \ref{eq4}, 
+%%we choose to take the lower bound for $\tau_V$, so as to keep the voting threshold as low as possible, and hence assume that $\tau_V = T + h_a/2$ and therefore 
+% we impose the condition of $T + h_a/2 \leq h_a$, in order not to risk a denial of a majority attack in the case of a \emph{unanimous result} from the honest stake $h_a$. This, due to Equation \ref{eq1} translates to the following condition:
+%\begin{equation} \label{eq5}
+% h_a \geq 2/3 \times 100 \Leftrightarrow T \leq 1/3 \times 100
+%\end{equation}
+%Condition \ref{eq5} says that if the active honest stake participating in voting process is more than or equal to $66.6\%$, then a unanimous decision from the honest stake cannot be blocked, if the voting threshold is defined according to Equation \ref{eq4}. For example, if $h_a = 70\%$, then according to Equation \ref{eq4} $\tau_V = 65\%$ and indeed a unanimous decision by the honest stake cannot be blocked.
+%
+%In the case where we don't have a unanimous decision from the active honest stake $h_a$, then there is still the risk of a denial of a majority attack. Indeed, according to Equation \ref{eq4}, the worst case where the adversary $T$ has full blocking power is when we have a marginal approval of a SU from the honest stake (i.e., a stake in favor result close to $h_a/2$ - so only half of the honest stake supports a proposal) and therefore in that case, we need the whole adversary stake to vote positively, in order to reach the voting threshold. In fact, if we want a unanimous decision by the honest stake majority $h_a/2$ not to be blocked, then we need $\tau_V \leq h_a/2$, which due to Equation \ref{eq4} leads to the condition that $T=0$. All in all, with respect to our two security goals we have proved from the above the following theorem.
+%
+For example, if $T = 20\%$, then $h_a = 80\%$ and $\tau_V = 60\%$. In this case, only $\mu = 21$-honest stake majority results cannot be blocked (i.e., we need $61\%$, or more of honest stake positive votes). In the case where we have an adversary stake percent that is greater, or equal than $1/3 \times 100$, then even if we have a unanimous honest stake majority approval, the adversary can still launch an denial of approval attack. For example, if $T = 40\%$, then $h_a = 60\%$ and $\tau_V = 70\%$ and even if all the honest stake votes positively, the adversary can still launch a denial of approval attack.
+
+ To mitigate this risk, as we have already described above, we propose that a denial of approval attack results to a no-majority result, which leads to a revoting process for the specific SU. This revoting can take place a $rv_{no-majority}$ number of times and only after $rv_{no-majority}$ times of a no-majority result the SU will become expired. Therefore, we are limiting the power of the adversary to block a SU, only for a specific voting period and give the chance to the honest stake ($rv_{no-majority}$ number of times) to reconsider its decision and maybe choose to support a candidate SU with a stronger vote.
+
+%In other words, the  $stake\ in\ favour \geq h$ threshold that we have chosen, guarantees that the adversaries cannot block a good software update, since there is enough honest stake majority to approve it. Moreover, due to the \emph{liveness} property of the underlying consensus protocol, all honest parties' votes will be eventually committed to the blockchain, as long as the tallying takes place after a stabilization period. At the same time, the adversaries cannot approve a malicious software update, since they do not have the majority to approve a malicious software update.
 
 \subsection{Delegation} \label{appxdelegation}
 Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.
