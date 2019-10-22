@@ -39,7 +39,9 @@ import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 data HEADER hashAlgo
 
 data Env hashAlgo
-  = Env { k :: !BlockCount }
+  = Env { k :: !BlockCount
+        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
+        }
         deriving (Eq, Show)
 
 data St hashAlgo
@@ -81,7 +83,7 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k }
+      TRC ( Env { k, sipdb }
           , St  { currentSlot
                 , wrsips
                 , asips
@@ -94,7 +96,9 @@ instance ( HashAlgorithm hashAlgo
       Hupdate.St { Hupdate.wrsips = wrsips'
                  , Hupdate.asips = asips'
                  } <- trans @(HUPDATE hashAlgo)
-                      $ TRC ( Hupdate.Env { Hupdate.k = k }
+                      $ TRC ( Hupdate.Env { Hupdate.k = k
+                                          , Hupdate.sipdb = sipdb
+                                          }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips
                                          }

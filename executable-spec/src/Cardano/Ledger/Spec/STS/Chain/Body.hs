@@ -144,6 +144,7 @@ transactionsGen maximumSize env st
                     (Transaction.St { Transaction.subsips = subsips
                                     , Transaction.wssips = wssips
                                     , Transaction.wrsips = wrsips
+                                    , Transaction.sipdb = sipdb
                                     , Transaction.ballots = ballots
                                     , Transaction.voteResultSIPs = voteResultSIPs
                                     , Transaction.implementationSt = implementationSt
@@ -172,6 +173,7 @@ transactionsGen maximumSize env st
                     Update.St { Update.subsips = subsips
                               , Update.wssips = wssips
                               , Update.wrsips = wrsips
+                              , Update.sipdb = sipdb
                               , Update.ballots = ballots
                               , Update.voteResultSIPs = voteResultSIPs
                               , Update.implementationSt = implementationSt

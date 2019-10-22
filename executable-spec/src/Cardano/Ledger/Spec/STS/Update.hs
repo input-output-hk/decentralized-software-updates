@@ -59,6 +59,7 @@ data St hashAlgo
     { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
     , wssips :: !(Map (Data.Commit hashAlgo) Slot)
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
     , implementationSt :: State IMPLEMENTATION
@@ -115,6 +116,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
           , st@St { subsips
                   , wssips
                   , wrsips
+                  , sipdb
                   , ballots
                   , voteResultSIPs
                   , implementationSt
@@ -128,6 +130,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
             Ideation.St { Ideation.subsips = subsips'
                         , Ideation.wssips = wssips'
                         , Ideation.wrsips = wrsips'
+                        , Ideation.sipdb = sipdb'
                         , Ideation.ballots = ballots'
                         , Ideation.voteResultSIPs = voteResultSIPs'
                         } <-
@@ -140,6 +143,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                       , Ideation.St { Ideation.subsips = subsips
                                     , Ideation.wssips = wssips
                                     , Ideation.wrsips = wrsips
+                                    , Ideation.sipdb = sipdb
                                     , Ideation.ballots = ballots
                                     , Ideation.voteResultSIPs = voteResultSIPs
                                     }
@@ -148,6 +152,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
             pure $ st { subsips = subsips'
                       , wssips = wssips'
                       , wrsips = wrsips'
+                      , sipdb = sipdb'
                       , ballots = ballots'
                       , voteResultSIPs = voteResultSIPs'
                       }
@@ -227,7 +232,7 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                 }
 
   sigGen  Env { k, currentSlot, asips, participants }
-          St { subsips, wssips, wrsips, ballots, voteResultSIPs } =
+          St { subsips, wssips, wrsips, sipdb, ballots, voteResultSIPs } =
     -- For now we generate ideation payload only.
     Ideation
       <$> sigGen @(IDEATION hashAlgo)
@@ -239,6 +244,7 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                   Ideation.St { Ideation.subsips = subsips
                               , Ideation.wssips = wssips
                               , Ideation.wrsips = wrsips
+                              , Ideation.sipdb = sipdb
                               , Ideation.ballots = ballots
                               , Ideation.voteResultSIPs = voteResultSIPs
                               }

@@ -32,9 +32,10 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 -- at the block header level
 data HUPDATE hashAlgo
 
-data Env
+data Env hashAlgo
  = Env { k :: !BlockCount
          -- ^ Chain stability parameter.
+       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
        }
        deriving (Eq, Show)
 
@@ -46,7 +47,7 @@ data St hashAlgo
 
 instance  STS (HUPDATE hashAlgo) where
 
-  type Environment (HUPDATE hashAlgo) = Env
+  type Environment (HUPDATE hashAlgo) = Env hashAlgo
 
   type State (HUPDATE hashAlgo) = St hashAlgo
 
@@ -67,7 +68,7 @@ instance  STS (HUPDATE hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { k }
+      TRC ( Env { k, sipdb }
           , St  { wrsips
                 , asips
                 }

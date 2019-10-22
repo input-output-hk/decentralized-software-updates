@@ -76,6 +76,7 @@ data St hashAlgo
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
     , wssips :: !(Map (Data.Commit hashAlgo) Slot)
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
     , implementationSt :: !(State IMPLEMENTATION)
@@ -132,6 +133,7 @@ instance ( HashAlgorithm hashAlgo
             , asips = Map.empty
             , wssips = Map.empty
             , wrsips = Map.empty
+            , sipdb = Map.empty
             , ballots = Map.empty
             , voteResultSIPs = Map.empty
             , implementationSt = Implementation.St ()
@@ -150,6 +152,7 @@ instance ( HashAlgorithm hashAlgo
                 , asips
                 , wssips
                 , wrsips
+                , sipdb
                 , ballots
                 , voteResultSIPs
                 , implementationSt
@@ -166,7 +169,7 @@ instance ( HashAlgorithm hashAlgo
         , Header.wrsips = wrsips'
         , Header.asips = asips'
         } <- trans @(HEADER hashAlgo)
-               $ TRC ( Header.Env { Header.k = k }
+               $ TRC ( Header.Env { Header.k = k, Header.sipdb = sipdb }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
                                  , Header.asips = asips
@@ -179,6 +182,7 @@ instance ( HashAlgorithm hashAlgo
         { Transaction.subsips = subsips'
         , Transaction.wssips = wssips'
         , Transaction.wrsips = wrsips''
+        , Transaction.sipdb = sipdb'
         , Transaction.ballots = ballots'
         , Transaction.voteResultSIPs = voteResultSIPs'
         , Transaction.implementationSt = implementationSt'
@@ -195,6 +199,7 @@ instance ( HashAlgorithm hashAlgo
                           { Transaction.subsips = subsips
                           , Transaction.wssips = wssips
                           , Transaction.wrsips = wrsips'
+                          , Transaction.sipdb = sipdb
                           , Transaction.ballots = ballots
                           , Transaction.voteResultSIPs = voteResultSIPs
                           , Transaction.implementationSt = implementationSt
@@ -207,6 +212,7 @@ instance ( HashAlgorithm hashAlgo
                  , asips = asips'
                  , wssips = wssips'
                  , wrsips = wrsips''
+                 , sipdb = sipdb'
                  , ballots = ballots'
                  , voteResultSIPs = voteResultSIPs'
                  , implementationSt = implementationSt'
@@ -255,6 +261,7 @@ instance ( HasTypeReps hashAlgo
             , asips
             , wssips
             , wrsips
+            , sipdb
             , ballots
             , voteResultSIPs
             , implementationSt
@@ -276,6 +283,7 @@ instance ( HasTypeReps hashAlgo
                          Transaction.St { Transaction.subsips = subsips
                                         , Transaction.wssips = wssips
                                         , Transaction.wrsips = wrsips
+                                        , Transaction.sipdb = sipdb
                                         , Transaction.ballots = ballots
                                         , Transaction.voteResultSIPs = voteResultSIPs
                                         , Transaction.implementationSt = implementationSt
