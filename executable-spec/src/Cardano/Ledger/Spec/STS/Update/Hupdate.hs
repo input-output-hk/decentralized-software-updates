@@ -13,7 +13,7 @@
 
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
-import           Data.Map.Strict (Map)
+import           Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
 
@@ -21,7 +21,7 @@ import           Control.State.Transition (Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      initialRules, judgmentContext, transitionRules)
 
-import           Ledger.Core (BlockCount, Slot, dom, (*.), (-.), (⋪), (▷<=))
+import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=))
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -79,7 +79,19 @@ instance  STS (HUPDATE hashAlgo) where
           -- Add newly revealed (but stable) SIPs to the active sips. Note that
           -- we place these new sips as arguments of the left hand side of the
           -- 'Map.union', since this operation is left biased.
-          asips' = (wrsips ▷<= (slot -. (2 *. k))) `Map.union` asips
+          asips' = ( Map.mapWithKey  -- update asips slot with voting period end slot
+                       (\sph _ -> slot `addSlot` (votPeriodEnd sph))
+                       (wrsips ▷<= (slot -. (2 *. k)))
+
+                   )
+                   `Map.union`
+                   asips
+
+          votPeriodEnd siphash =  Data.vpDurationToSlotCnt
+                                  $ Data.votPeriodDuration
+                                  . Data.metadata
+                                  . Data.sipPayload
+                                  $ (sipdb!siphash)
           -- exclude old revealed SIPs
           wrsips' = dom asips' ⋪ wrsips
 
