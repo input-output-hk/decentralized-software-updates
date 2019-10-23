@@ -78,7 +78,7 @@ data St hashAlgo
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
     , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+    , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
     , implementationSt :: !(State IMPLEMENTATION)
     , utxoSt :: !(State UTXO)
     }
@@ -135,7 +135,7 @@ instance ( HashAlgorithm hashAlgo
             , wrsips = Map.empty
             , sipdb = Map.empty
             , ballots = Map.empty
-            , voteResultSIPs = Map.empty
+            , vresips = Map.empty
             , implementationSt = Implementation.St ()
             , utxoSt = UTxO.St ()
             }
@@ -154,7 +154,7 @@ instance ( HashAlgorithm hashAlgo
                 , wrsips
                 , sipdb
                 , ballots
-                , voteResultSIPs
+                , vresips
                 , implementationSt
                 , utxoSt
                 }
@@ -168,11 +168,13 @@ instance ( HashAlgorithm hashAlgo
         { Header.currentSlot = currentSlot'
         , Header.wrsips = wrsips'
         , Header.asips = asips'
+        , Header.vresips = vresips'
         } <- trans @(HEADER hashAlgo)
                $ TRC ( Header.Env { Header.k = k, Header.sipdb = sipdb }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
                                  , Header.asips = asips
+                                 , Header.vresips = vresips
                                  }
                      , header
                      )
@@ -184,7 +186,6 @@ instance ( HashAlgorithm hashAlgo
         , Transaction.wrsips = wrsips''
         , Transaction.sipdb = sipdb'
         , Transaction.ballots = ballots'
-        , Transaction.voteResultSIPs = voteResultSIPs'
         , Transaction.implementationSt = implementationSt'
         , Transaction.utxoSt = utxoSt'
         } <- trans @(BODY hashAlgo)
@@ -201,7 +202,6 @@ instance ( HashAlgorithm hashAlgo
                           , Transaction.wrsips = wrsips'
                           , Transaction.sipdb = sipdb
                           , Transaction.ballots = ballots
-                          , Transaction.voteResultSIPs = voteResultSIPs
                           , Transaction.implementationSt = implementationSt
                           , Transaction.utxoSt = utxoSt
                           }
@@ -214,7 +214,7 @@ instance ( HashAlgorithm hashAlgo
                  , wrsips = wrsips''
                  , sipdb = sipdb'
                  , ballots = ballots'
-                 , voteResultSIPs = voteResultSIPs'
+                 , vresips = vresips'
                  , implementationSt = implementationSt'
                  , utxoSt = utxoSt'
                  }
@@ -263,7 +263,7 @@ instance ( HasTypeReps hashAlgo
             , wrsips
             , sipdb
             , ballots
-            , voteResultSIPs
+            , vresips
             , implementationSt
             , utxoSt
             }
@@ -277,6 +277,7 @@ instance ( HasTypeReps hashAlgo
                          Transaction.Env { Transaction.k = k
                                          , Transaction.currentSlot = currentSlot
                                          , Transaction.asips = asips
+                                         , Transaction.vresips = vresips
                                          , Transaction.participants = participants
                                          , Transaction.utxoEnv = UTxO.Env
                                          }
@@ -285,7 +286,6 @@ instance ( HasTypeReps hashAlgo
                                         , Transaction.wrsips = wrsips
                                         , Transaction.sipdb = sipdb
                                         , Transaction.ballots = ballots
-                                        , Transaction.voteResultSIPs = voteResultSIPs
                                         , Transaction.implementationSt = implementationSt
                                         , Transaction.utxoSt = utxoSt
                                         }

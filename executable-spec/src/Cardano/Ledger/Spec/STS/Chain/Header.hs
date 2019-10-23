@@ -41,6 +41,7 @@ data HEADER hashAlgo
 data Env hashAlgo
   = Env { k :: !BlockCount
         , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
+        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
         }
         deriving (Eq, Show)
 
@@ -48,6 +49,7 @@ data St hashAlgo
  = St { currentSlot :: !Slot
       , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
       }
       deriving (Eq, Show, Generic)
 
@@ -83,10 +85,11 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb }
+      TRC ( Env { k, sipdb, ballots }
           , St  { currentSlot
                 , wrsips
                 , asips
+                , vresips
                 }
           , BHeader { slot }
           ) <- judgmentContext
@@ -95,12 +98,15 @@ instance ( HashAlgorithm hashAlgo
         ?! BlockSlotNotIncreasing currentSlot slot
       Hupdate.St { Hupdate.wrsips = wrsips'
                  , Hupdate.asips = asips'
+                 , Hupdate.vresips = vresips'
                  } <- trans @(HUPDATE hashAlgo)
                       $ TRC ( Hupdate.Env { Hupdate.k = k
                                           , Hupdate.sipdb = sipdb
+                                          , Hupdate.ballots = ballots
                                           }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips
+                                         , Hupdate.vresips = vresips
                                          }
                             , slot
                             )
@@ -108,6 +114,7 @@ instance ( HashAlgorithm hashAlgo
       pure $ St { currentSlot = slot
                 , wrsips = wrsips'
                 , asips = asips'
+                , vresips = vresips'
                 }
     ]
 

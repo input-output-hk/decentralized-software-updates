@@ -24,6 +24,7 @@ library
                      , Cardano.Ledger.Spec.STS.Sized
                      , Cardano.Ledger.Spec.STS.Update
                      , Cardano.Ledger.Spec.STS.Update.Hupdate
+                     , Cardano.Ledger.Spec.STS.Update.Tallysip
                      , Cardano.Ledger.Spec.STS.Update.Data
                      , Cardano.Ledger.Spec.STS.Update.Ideation
                      , Cardano.Ledger.Spec.STS.Update.Implementation

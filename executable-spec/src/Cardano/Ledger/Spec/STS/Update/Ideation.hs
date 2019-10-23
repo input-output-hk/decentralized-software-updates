@@ -100,8 +100,6 @@ data St hashAlgo
       -- a single proposal and confidence by construction (if we use three maps
       -- we have to maintain this as an invariant).
 
-    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-      -- ^ Records the current voting result for each SIP
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)

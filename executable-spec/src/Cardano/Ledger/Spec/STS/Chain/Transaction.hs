@@ -48,6 +48,7 @@ data Env hashAlgo =
       , currentSlot :: !Slot
       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
       , participants :: Bimap Core.VKey Core.SKey
+      , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
       , utxoEnv :: !(Environment UTXO)
       }
   deriving (Eq, Show, Generic)
@@ -59,8 +60,7 @@ data St hashAlgo =
      , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
      , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
      , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-     , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-     , implementationSt :: State IMPLEMENTATION
+     , implementationSt :: State (IMPLEMENTATION hashAlgo)
      , utxoSt :: State UTXO
      }
   deriving (Eq, Show, Generic)
@@ -132,6 +132,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                 , currentSlot
                 , asips
                 , participants
+                , vresips
                 , utxoEnv
                 }
           , St { subsips
@@ -139,7 +140,6 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                , wrsips
                , sipdb
                , ballots
-               , voteResultSIPs
                , implementationSt
                , utxoSt
                }
@@ -157,7 +157,6 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                 , Update.wrsips = wrsips'
                 , Update.sipdb = sipdb'
                 , Update.ballots = ballots'
-                , Update.voteResultSIPs = voteResultSIPs'
                 , Update.implementationSt = implementationSt'
                 } <-
         trans @(UPDATES hashAlgo) $
@@ -165,13 +164,13 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
                            , Update.participants =  participants
+                           , Update.vresips = vresips
                            }
               , Update.St { Update.subsips = subsips
                           , Update.wssips = wssips
                           , Update.wrsips = wrsips
                           , Update.sipdb = sipdb
                           , Update.ballots = ballots
-                          , Update.voteResultSIPs = voteResultSIPs
                           , Update.implementationSt = implementationSt
                           }
               , update
@@ -181,7 +180,6 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                 , wrsips = wrsips'
                 , sipdb = sipdb'
                 , ballots = ballots'
-                , voteResultSIPs = voteResultSIPs'
                 , implementationSt = implementationSt'
                 , utxoSt = utxoSt'
                 }
