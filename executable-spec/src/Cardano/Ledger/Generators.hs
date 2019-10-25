@@ -4,6 +4,7 @@ module Cardano.Ledger.Generators
   ( kGen
   , currentSlotGen
   , participantsGen
+  , voteTGen
   )
 where
 
@@ -15,7 +16,11 @@ import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
 import qualified Ledger.Core as Core
+import           Cardano.Ledger.Spec.STS.Update.Data (VThreshold)
 
+
+voteTGen :: Gen VThreshold
+voteTGen = Gen.integral (Range.constant 50 75)
 
 kGen :: Gen Core.BlockCount
 kGen = Core.BlockCount <$> Gen.integral (Range.linear 1 10)

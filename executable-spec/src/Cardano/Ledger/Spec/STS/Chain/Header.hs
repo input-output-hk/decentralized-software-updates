@@ -14,6 +14,7 @@
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
 import           Data.Map.Strict (Map)
+import           Data.Set as Set (Set)
 import           Data.Typeable (typeOf)
 import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
@@ -43,6 +44,7 @@ data Env hashAlgo
   = Env { k :: !BlockCount
         , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
         , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+        , vThreshold :: !Data.VThreshold
         }
         deriving (Eq, Show)
 
@@ -51,6 +53,7 @@ data St hashAlgo
       , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
       , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
       }
       deriving (Eq, Show, Generic)
 
@@ -86,11 +89,12 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb, ballots }
+      TRC ( Env { k, sipdb, ballots, vThreshold }
           , St  { currentSlot
                 , wrsips
                 , asips
                 , vresips
+                , apprvsips
                 }
           , BHeader { slot }
           ) <- judgmentContext
@@ -100,14 +104,17 @@ instance ( HashAlgorithm hashAlgo
       Hupdate.St { Hupdate.wrsips = wrsips'
                  , Hupdate.asips = asips'
                  , Hupdate.vresips = vresips'
+                 , Hupdate.apprvsips = apprvsips'
                  } <- trans @(HUPDATE hashAlgo)
                       $ TRC ( Hupdate.Env { Hupdate.k = k
                                           , Hupdate.sipdb = sipdb
                                           , Hupdate.ballots = ballots
+                                          , Hupdate.vThreshold = vThreshold
                                           }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips
                                          , Hupdate.vresips = vresips
+                                         , Hupdate.apprvsips = apprvsips
                                          }
                             , slot
                             )
@@ -116,6 +123,7 @@ instance ( HashAlgorithm hashAlgo
                 , wrsips = wrsips'
                 , asips = asips'
                 , vresips = vresips'
+                , apprvsips = apprvsips'
                 }
     ]
 

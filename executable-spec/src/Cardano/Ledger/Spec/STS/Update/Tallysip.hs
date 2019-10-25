@@ -10,12 +10,15 @@ module Cardano.Ledger.Spec.STS.Update.Tallysip where
 
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
 import           GHC.Generics (Generic)
 import           Data.AbstractSize (HasTypeReps)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      initialRules, judgmentContext, trans, transitionRules, wrapFailed)
+import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=))
 import qualified Ledger.Core as Core
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
@@ -25,13 +28,23 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 data TALLYSIP hashAlgo
 
 data Env hashAlgo
- = Env { ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+ = Env { k :: !BlockCount
+         -- ^ Chain stability parameter.
+       , currentSlot :: !Slot
+       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
+       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , vThreshold :: !Data.VThreshold
        }
        deriving (Eq, Show)
 
 data St hashAlgo
   = St { vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
          -- ^ Records the current voting result for each SIP
+       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      -- ^ Active SIP's. The slot in the range (of the map) determines when the
+      -- voting period will end.
+       , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+         -- ^ Set of approved SIPs
        }
        deriving (Eq, Show, Generic)
 
@@ -52,20 +65,41 @@ instance STS (TALLYSIP hashAlgo) where
   initialRules = [
       do
         IRC Env { } <- judgmentContext
-        pure $! St { vresips = Map.empty }
+        pure $! St { vresips = Map.empty
+                   , asips = Map.empty
+                   , apprvsips = Set.empty
+                   }
       ]
 
   transitionRules = [
     do
-      TRC ( Env { ballots }
-          , St  { vresips }
+      TRC ( Env { k
+                , currentSlot
+                , sipdb
+                , ballots
+                , vThreshold
+                }
+          , St  { vresips
+                , asips
+                , apprvsips
+                }
           , sipHash
           ) <- judgmentContext
 
       -- do the tally
-      let vresips' = vresips
+      let
+        -- count the votes for the specific SIP and store result
+        vresips' = undefined
+        -- if approved then, update state of approved SIPs
+        apprvsips' = undefined
+        -- if no majority result, calculate end of new voting period
+        -- and update active sips state
+        asips' = undefined
 
-      pure $ St { vresips = vresips'}
+      pure $ St { vresips = vresips'
+                , apprvsips = apprvsips'
+                , asips = asips'
+                }
     ]
 
 -- | STS for tallying the votes of a

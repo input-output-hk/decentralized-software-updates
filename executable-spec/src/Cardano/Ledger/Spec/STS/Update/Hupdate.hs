@@ -15,6 +15,8 @@ module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
 import           Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
 import           Data.List (notElem)
 import           GHC.Generics (Generic)
 import           Data.AbstractSize (HasTypeReps)
@@ -41,6 +43,7 @@ data Env hashAlgo
          -- ^ Chain stability parameter.
        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , vThreshold :: !Data.VThreshold
        }
        deriving (Eq, Show)
 
@@ -48,6 +51,8 @@ data St hashAlgo
   = St { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
        , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
        , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+       , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+         -- ^ Set of approved SIPs
        }
        deriving (Eq, Show, Generic)
 
@@ -73,15 +78,17 @@ instance ( HashAlgorithm hashAlgo
       pure $! St { wrsips = Map.empty
                  , asips = Map.empty
                  , vresips = Map.empty
+                 , apprvsips = Set.empty
                  }
     ]
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb, ballots }
+      TRC ( Env { k, sipdb, ballots, vThreshold }
           , St  { wrsips
                 , asips
                 , vresips
+                , apprvsips
                 }
           , slot
           ) <- judgmentContext
@@ -116,17 +123,29 @@ instance ( HashAlgorithm hashAlgo
           asips'' = Map.filterWithKey (\sh _ -> sh `notElem` toTally) asips'
 
       -- do the tallying and get the voting results (vresips)
-      Tallysip.St { Tallysip.vresips = vresips'}
+      Tallysip.St { Tallysip.vresips = vresips'
+                  , Tallysip.asips = asips'''
+                  , Tallysip.apprvsips = apprvsips'
+                  }
         <- trans @(TALLYSIPS hashAlgo)
-              $ TRC ( Tallysip.Env { Tallysip.ballots = ballots }
-                    , Tallysip.St { Tallysip.vresips = vresips }
+              $ TRC ( Tallysip.Env { Tallysip.k = k
+                                   , Tallysip.currentSlot = slot
+                                   , Tallysip.sipdb = sipdb
+                                   , Tallysip.ballots = ballots
+                                   , Tallysip.vThreshold = vThreshold
+                                   }
+                    , Tallysip.St { Tallysip.vresips = vresips
+                                  , Tallysip.asips = asips''
+                                  , Tallysip.apprvsips = apprvsips
+                                  }
                     , toTally
                     )
 
       pure $! St { wrsips = wrsips'
-                , asips = asips''
-                , vresips = vresips'
-                }
+                 , asips = asips'''
+                 , vresips = vresips'
+                 , apprvsips = apprvsips'
+                 }
     ]
 
 instance ( HashAlgorithm hashAlgo

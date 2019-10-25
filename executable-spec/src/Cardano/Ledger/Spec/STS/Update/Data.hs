@@ -65,8 +65,15 @@ data Confidence = For | Against | Abstain
   deriving (Eq, Ord, Show, Generic, HasTypeReps)
 
 -- | Records the voting result for a specific software update (SIP/UP)
-data VotingResult
+data VotingResult =
+  VotingResult { stakeInFavor :: !Word64
+               , stakeAgainst :: !Word64
+               , stakeAbstain :: !Word64
+               }
   deriving (Eq, Ord, Show)
+
+-- | Voting threshold
+type VThreshold = Word
 
 -- | Records the voting period status for a software update (SIP/UP)
 data (VotingPeriod hashAlgo) =

@@ -8,8 +8,10 @@
 
 module Cardano.Ledger.Spec.STS.Update.Implementation where
 
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+--import           Data.Map.Strict (Map)
+--import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
 
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
@@ -31,7 +33,7 @@ data IMPLEMENTATION hashAlgo
 data Env hashAlgo =
   Env { currentSlot :: !Slot
         -- ^ The current slot in the blockchain system
-      , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
         -- ^ Records the current voting result for each SIP
       }
   deriving (Eq, Show, Generic)
@@ -62,9 +64,9 @@ instance STS (IMPLEMENTATION hashAlgo) where
 instance HasTrace (IMPLEMENTATION hashAlgo) where
 
   envGen _ =
-    Env <$> currentSlotGen <*> vresipsGen
+    Env <$> currentSlotGen <*> apprvsipsGen
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      vresipsGen = pure $ Map.empty
+      apprvsipsGen = pure $ Set.empty
 
   sigGen _env _st = pure $! Data.ImplementationPayload

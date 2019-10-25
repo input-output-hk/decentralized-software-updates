@@ -48,7 +48,7 @@ data Env hashAlgo =
       , currentSlot :: !Slot
       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
       , participants :: Bimap Core.VKey Core.SKey
-      , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
       , utxoEnv :: !(Environment UTXO)
       }
   deriving (Eq, Show, Generic)
@@ -132,7 +132,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                 , currentSlot
                 , asips
                 , participants
-                , vresips
+                , apprvsips
                 , utxoEnv
                 }
           , St { subsips
@@ -164,7 +164,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
                            , Update.participants =  participants
-                           , Update.vresips = vresips
+                           , Update.apprvsips = apprvsips
                            }
               , Update.St { Update.subsips = subsips
                           , Update.wssips = wssips

@@ -17,7 +17,10 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+--import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
+
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -51,7 +54,7 @@ data Env hashAlgo
     , currentSlot :: !Slot
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
     , participants :: Bimap Core.VKey Core.SKey -- TODO: DISCUSS: I think we need to be consistent between using Core qualified and not.
-    , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+    , apprvsips :: !(Set (Data.SIPHash hashAlgo))
     }
   deriving (Eq, Show, Generic)
 
@@ -113,7 +116,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                 , currentSlot
                 , asips
                 , participants
-                , vresips
+                , apprvsips
                 }
           , st@St { subsips
                   , wssips
@@ -161,7 +164,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
               trans @(IMPLEMENTATION hashAlgo) $
               TRC ( Implementation.Env
                       currentSlot
-                      vresips
+                      apprvsips
                   , implementationSt
                   , implementationPayload
                   )
@@ -229,7 +232,7 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                 , currentSlot = Ideation.currentSlot env
                 , asips = Ideation.asips env
                 , participants = Ideation.participants env
-                , vresips = Map.empty
+                , apprvsips = Set.empty
                 }
 
   sigGen  Env { k, currentSlot, asips, participants }

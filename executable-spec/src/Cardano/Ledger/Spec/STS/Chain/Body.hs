@@ -139,7 +139,7 @@ transactionsGen maximumSize env st
                                      , Transaction.currentSlot
                                      , Transaction.asips
                                      , Transaction.participants
-                                     , Transaction.vresips
+                                     , Transaction.apprvsips
                                      }
                     )
                     (Transaction.St { Transaction.subsips = subsips
@@ -169,7 +169,7 @@ transactionsGen maximumSize env st
                                , Update.currentSlot = currentSlot
                                , Update.asips = asips
                                , Update.participants = participants
-                               , Update.vresips = vresips
+                               , Update.apprvsips = apprvsips
                                }
                     Update.St { Update.subsips = subsips
                               , Update.wssips = wssips

@@ -18,6 +18,8 @@ module Cardano.Ledger.Spec.STS.Chain.Chain where
 import           Data.Bimap (Bimap)
 import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
 import           GHC.Generics (Generic)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
@@ -33,7 +35,7 @@ import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen)
+                     participantsGen, voteTGen)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -61,6 +63,7 @@ data Env hashAlgo
       -- TODO: use abstract size instead.
     , initialSlot :: !Slot
     , participants :: !(Bimap Core.VKey Core.SKey)
+    , vThreshold :: !Data.VThreshold
     }
     deriving (Eq, Show)
 
@@ -79,6 +82,7 @@ data St hashAlgo
     , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
     , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+    , apprvsips :: !(Set (Data.SIPHash hashAlgo))
     , implementationSt :: !(State (IMPLEMENTATION hashAlgo))
     , utxoSt :: !(State UTXO)
     }
@@ -136,6 +140,7 @@ instance ( HashAlgorithm hashAlgo
             , sipdb = Map.empty
             , ballots = Map.empty
             , vresips = Map.empty
+            , apprvsips = Set.empty
             , implementationSt = Implementation.St ()
             , utxoSt = UTxO.St ()
             }
@@ -146,6 +151,7 @@ instance ( HashAlgorithm hashAlgo
       TRC ( Env { k
                 , maximumBlockSize
                 , participants
+                , vThreshold
                 }
           , St  { currentSlot
                 , subsips
@@ -155,6 +161,7 @@ instance ( HashAlgorithm hashAlgo
                 , sipdb
                 , ballots
                 , vresips
+                , apprvsips
                 , implementationSt
                 , utxoSt
                 }
@@ -169,15 +176,18 @@ instance ( HashAlgorithm hashAlgo
         , Header.wrsips = wrsips'
         , Header.asips = asips'
         , Header.vresips = vresips'
+        , Header.apprvsips = apprvsips'
         } <- trans @(HEADER hashAlgo)
                $ TRC ( Header.Env { Header.k = k
                                   , Header.sipdb = sipdb
                                   , Header.ballots = ballots
+                                  , Header.vThreshold = vThreshold
                                   }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
                                  , Header.asips = asips
                                  , Header.vresips = vresips
+                                 , Header.apprvsips = apprvsips
                                  }
                      , header
                      )
@@ -197,7 +207,7 @@ instance ( HashAlgorithm hashAlgo
                           , Transaction.currentSlot = currentSlot'
                           , Transaction.asips = asips'
                           , Transaction.participants = participants
-                          , Transaction.vresips = vresips'
+                          , Transaction.apprvsips = apprvsips'
                           , Transaction.utxoEnv = UTxO.Env
                           }
                       , Transaction.St
@@ -219,6 +229,7 @@ instance ( HashAlgorithm hashAlgo
                  , sipdb = sipdb'
                  , ballots = ballots'
                  , vresips = vresips'
+                 , apprvsips = apprvsips'
                  , implementationSt = implementationSt'
                  , utxoSt = utxoSt'
                  }
@@ -252,6 +263,7 @@ instance ( HasTypeReps hashAlgo
     <*> maxBlockSizeGen
     <*> currentSlotGen
     <*> participantsGen
+    <*> voteTGen
     where
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100
@@ -267,7 +279,8 @@ instance ( HasTypeReps hashAlgo
             , wrsips
             , sipdb
             , ballots
-            , vresips
+            --, vresips
+            , apprvsips
             , implementationSt
             , utxoSt
             }
@@ -281,7 +294,7 @@ instance ( HasTypeReps hashAlgo
                          Transaction.Env { Transaction.k = k
                                          , Transaction.currentSlot = currentSlot
                                          , Transaction.asips = asips
-                                         , Transaction.vresips = vresips
+                                         , Transaction.apprvsips = apprvsips
                                          , Transaction.participants = participants
                                          , Transaction.utxoEnv = UTxO.Env
                                          }
