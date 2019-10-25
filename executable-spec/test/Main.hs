@@ -9,6 +9,8 @@ import           Test.Tasty (TestTree, defaultMain, localOption, testGroup)
 import           Test.Tasty.Hedgehog (testProperty)
 import           Test.Tasty.Ingredients.ConsoleReporter (UseColor (Auto))
 
+import qualified Test.Tasty.QuickCheck as Tasty.QuickCheck
+
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain.Properties as Chain
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Properties as Ideation
 
@@ -23,6 +25,9 @@ main = defaultMain tests
         [ testProperty
             "Only valid traces are generated"
             Ideation.onlyValidSignalsAreGenerated
+        , Tasty.QuickCheck.testProperty
+            "Only valid traces are generated (QuickCheck)"
+            Ideation.qc_onlyValidSignalsAreGenerated
         ]
     , testGroup "Chain properties"
       [ testProperty

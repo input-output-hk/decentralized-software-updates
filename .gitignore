@@ -32,6 +32,9 @@
 dist-newstyle/
 cabal.project.local
 stack.yaml.lock
+stack-local.yaml
+stack-local.yaml.lock
+
 
 # Editors
 TAGS
