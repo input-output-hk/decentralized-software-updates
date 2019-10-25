@@ -27,6 +27,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot (Slot))
+import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)

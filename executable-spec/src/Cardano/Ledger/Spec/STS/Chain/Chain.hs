@@ -79,7 +79,7 @@ data St hashAlgo
     , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
     , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-    , implementationSt :: !(State IMPLEMENTATION)
+    , implementationSt :: !(State (IMPLEMENTATION hashAlgo))
     , utxoSt :: !(State UTXO)
     }
     deriving (Eq, Show)
@@ -170,7 +170,10 @@ instance ( HashAlgorithm hashAlgo
         , Header.asips = asips'
         , Header.vresips = vresips'
         } <- trans @(HEADER hashAlgo)
-               $ TRC ( Header.Env { Header.k = k, Header.sipdb = sipdb }
+               $ TRC ( Header.Env { Header.k = k
+                                  , Header.sipdb = sipdb
+                                  , Header.ballots = ballots
+                                  }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
                                  , Header.asips = asips
@@ -194,6 +197,7 @@ instance ( HashAlgorithm hashAlgo
                           , Transaction.currentSlot = currentSlot'
                           , Transaction.asips = asips'
                           , Transaction.participants = participants
+                          , Transaction.vresips = vresips'
                           , Transaction.utxoEnv = UTxO.Env
                           }
                       , Transaction.St

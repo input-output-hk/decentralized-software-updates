@@ -17,10 +17,11 @@ import           Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 import           Data.List (notElem)
 import           GHC.Generics (Generic)
+import           Data.AbstractSize (HasTypeReps)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext, transitionRules, wrapFailed)
+                     initialRules, judgmentContext, trans, transitionRules, wrapFailed)
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
 import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=))
@@ -50,7 +51,9 @@ data St hashAlgo
        }
        deriving (Eq, Show, Generic)
 
-instance  STS (HUPDATE hashAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Data.AbstractSize.HasTypeReps hashAlgo
+         ) =>  STS (HUPDATE hashAlgo) where
 
   type Environment (HUPDATE hashAlgo) = Env hashAlgo
 
@@ -104,31 +107,30 @@ instance  STS (HUPDATE hashAlgo) where
           wrsips' = dom asips' ⋪ wrsips
 
           -- Calculate SIPHashes to be tallied
-          toTally = Tallysip.ToTally
-            $ (map fst)
-            $ Map.toList
-            $ (asips' ▷<= (slot -. (2 *. k)))
+          toTally = (map fst)
+                      $ Map.toList
+                      $ (asips' ▷<= (slot -. (2 *. k)))
 
           -- Prune asips, in order to avoid re-tallying of the same SIP
           --asips'' = (dom toTally) ⋪ asips'
-          asips'' = Map.filter (`notElem` toTally) asips'
+          asips'' = Map.filterWithKey (\sh _ -> sh `notElem` toTally) asips'
 
       -- do the tallying and get the voting results (vresips)
-      Tallysip.St { Tallysip.vresips = vresips'
-                  } <- trans @(TALLYSIPS hashAlgo)
-                          $ TRC ( Tallysip.Env { Tallysip.ballots = ballots
-                                               }
-                                , Tallysip.St { Tallysip.vresips = vresips
-                                              }
-                                , toTally
-                                )
+      Tallysip.St { Tallysip.vresips = vresips'}
+        <- trans @(TALLYSIPS hashAlgo)
+              $ TRC ( Tallysip.Env { Tallysip.ballots = ballots }
+                    , Tallysip.St { Tallysip.vresips = vresips }
+                    , toTally
+                    )
 
-      pure $ St { wrsips = wrsips'
+      pure $! St { wrsips = wrsips'
                 , asips = asips''
                 , vresips = vresips'
                 }
     ]
 
-instance HashAlgorithm hashAlgo => Embed (TALLYSIPS hashAlgo) (HUPDATE hashAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Data.AbstractSize.HasTypeReps hashAlgo
+         ) => Embed (TALLYSIPS hashAlgo) (HUPDATE hashAlgo) where
   wrapFailed = HupdateFailure
 
