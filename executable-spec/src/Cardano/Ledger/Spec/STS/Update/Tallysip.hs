@@ -8,7 +8,7 @@
 
 module Cardano.Ledger.Spec.STS.Update.Tallysip where
 
-import           Data.Map.Strict (Map)
+import           Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
@@ -18,7 +18,7 @@ import           Data.AbstractSize (HasTypeReps)
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      initialRules, judgmentContext, trans, transitionRules, wrapFailed)
-import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=))
+import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=), (⨃))
 import qualified Ledger.Core as Core
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
@@ -89,7 +89,32 @@ instance STS (TALLYSIP hashAlgo) where
       -- do the tally
       let
         -- count the votes for the specific SIP and store result
-        vresips' = undefined
+        vresips' =
+          let ballotsOfSIP = ballots!sipHash
+              stakeDist = undefined
+              vResult = Map.foldrWithKey'
+                          (\vkey conf Data.VotingResult { Data.stakeInFavor
+                                                        , Data.stakeAgainst
+                                                        , Data.stakeAbstain
+                                                        }
+                              -> let stake = stakeDist!vkey
+                                 in case conf of
+                                     Data.For -> Data.VotingResult
+                                       (stakeInFavor + stake)
+                                       stakeAgainst
+                                       stakeAbstain
+                                     Data.Against -> Data.VotingResult
+                                       stakeInFavor
+                                       (stakeAgainst + stake)
+                                       stakeAbstain
+                                     Data.Abstain -> Data.VotingResult
+                                       stakeInFavor
+                                       stakeAgainst
+                                       (stakeAbstain + stake)
+                          )
+                          (Data.VotingResult 0 0 0)
+                          ballotsOfSIP
+          in vresips ⨃ [(sipHash, vResult)]
         -- if approved then, update state of approved SIPs
         apprvsips' = undefined
         -- if no majority result, calculate end of new voting period
