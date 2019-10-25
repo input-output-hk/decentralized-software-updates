@@ -394,4 +394,4 @@ instance
       revelationGen subsipsList =
         fmap Reveal $! QC.elements subsipsList
 
-  shrinkSignal = undefined
+  shrinkSignal _ = [] -- For now we don't shrink the ideation payload
