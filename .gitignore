@@ -50,6 +50,7 @@ specs/**/.ghc.environment.x86_64-linux-*
 
 # Profiling
 *.hp
+*.hp.html
 *.prof
 *.prof.*
 *.profiterole.*
