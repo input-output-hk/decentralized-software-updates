@@ -9,11 +9,13 @@ import           Data.Function ((&))
 import           Data.Word (Word64)
 import           GHC.Stack (HasCallStack)
 import           Hedgehog (Property, forAll, property, withTests)
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash.Short (ShortHash)
 
 import qualified Control.State.Transition.Generator as TransitionGenerator
 import qualified Control.State.Transition.Trace as Trace
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 
 import           Ledger.Core (dom, (∪))
 
@@ -44,3 +46,8 @@ tracesAreClassified = withTests 300 $ property $ do
                         & dom
                         & length
                         & fromIntegral
+
+qc_onlyValidSignalsAreGenerated :: QC.Property
+qc_onlyValidSignalsAreGenerated
+  = QC.withMaxSuccess 300
+  $ Trace.QC.onlyValidSignalsAreGenerated @(CHAIN ShortHash) @() @() 100 ()

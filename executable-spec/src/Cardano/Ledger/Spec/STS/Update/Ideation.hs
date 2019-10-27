@@ -40,9 +40,9 @@ import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (�
 import qualified Ledger.Core as Core
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
-import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 
 import           Cardano.Ledger.Generators (kGen, participantsGen, currentSlotGen)
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit)
@@ -308,7 +308,7 @@ instance
   => Trace.QC.HasTrace (IDEATION hashAlgo) () () where
 
   envGen :: () -> QC.Gen (Env hashAlgo, ())
-  envGen _
+  envGen _traceGenEnv
     = do
     someK <- Gen.QC.kGen
     someCurrentSlot <- Gen.QC.currentSlotGen

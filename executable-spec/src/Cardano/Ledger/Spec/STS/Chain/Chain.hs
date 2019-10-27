@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -20,8 +21,9 @@ import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
-import           GHC.Generics (Generic)
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -30,14 +32,17 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      Threshold (Threshold), initialRules, judgmentContext,
                      trans, transitionRules, wrapFailed, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
+
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen, r_aGen, stakeDistGen
-                     , prvNoQuorumGen, prvNoMajorityGen)
+                     participantsGen, prvNoMajorityGen, prvNoQuorumGen, r_aGen,
+                     stakeDistGen)
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -320,6 +325,68 @@ instance ( HasTypeReps hashAlgo
                                         , Transaction.wrsips = wrsips
                                         , Transaction.sipdb = sipdb
                                         , Transaction.ballots = ballots
+                                        , Transaction.implementationSt = implementationSt
+                                        , Transaction.utxoSt = utxoSt
+                                        }
+
+instance ( HasTypeReps hashAlgo
+         , HashAlgorithm hashAlgo
+         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         ) => Trace.QC.HasTrace (CHAIN hashAlgo) () () where
+
+  envGen _ = do
+    someK <- Gen.QC.kGen
+    someCurrentSlot <- Gen.QC.currentSlotGen
+    -- TODO: for now we generate a constant set of keys. We need to update the
+    -- 'HasTrace' class so that 'trace' can take parameter of an associated
+    -- type, so that each STS can decide which parameters are relevant for its
+    -- traces.
+    someParticipants <- Gen.QC.participantsGen
+    let env = Env { k = someK
+                  -- For now we fix the maximum block size to an abstract size of 100
+                  , maximumBlockSize = 100
+                  , initialSlot = someCurrentSlot
+                  , participants = someParticipants
+                  }
+    pure (env, ())
+
+  sigGen
+    _traceGenEnv
+    Env { k
+        , maximumBlockSize
+        , participants
+        }
+    _traceGenSt
+    St { currentSlot
+       , subsips
+       , asips
+       , wssips
+       , wrsips
+       , ballots
+       , voteResultSIPs
+       , implementationSt
+       , utxoSt
+       }
+    = do
+    someHeader <- Header.headerQCGen currentSlot
+    someBody <- transactionsGen
+    pure (Block {header = someHeader, body = someBody } , ())
+    where
+      transactionsGen =
+        Body.BBody <$> Body.transactionsQCGen
+                         maximumBlockSize
+                         Transaction.Env { Transaction.k = k
+                                         , Transaction.currentSlot = currentSlot
+                                         , Transaction.asips = asips
+                                         , Transaction.participants = participants
+                                         , Transaction.utxoEnv = UTxO.Env
+                                         }
+                         Transaction.St { Transaction.subsips = subsips
+                                        , Transaction.wssips = wssips
+                                        , Transaction.wrsips = wrsips
+                                        , Transaction.ballots = ballots
+                                        , Transaction.voteResultSIPs = voteResultSIPs
                                         , Transaction.implementationSt = implementationSt
                                         , Transaction.utxoSt = utxoSt
                                         }

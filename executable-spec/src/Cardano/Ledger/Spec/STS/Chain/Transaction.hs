@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -20,6 +21,7 @@ import           Data.Typeable (typeOf)
 import           Data.Set (Set)
 import           Data.Map.Strict (Map)
 import           GHC.Generics (Generic)
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -30,9 +32,10 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot, BlockCount)
 import qualified Ledger.Core as Core
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
@@ -192,3 +195,72 @@ instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo) where
 
 instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlgo) where
   wrapFailed = TxFailure
+
+instance ( HasTypeReps hashAlgo
+         , HashAlgorithm hashAlgo
+         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () () where
+  envGen = undefined
+
+  sigGen
+    _traceGenEnv
+    (Env { k
+         , currentSlot
+         , asips
+         , participants
+         }
+    )
+    _traceGenSt
+    (St { subsips
+        , wssips
+        , wrsips
+        , ballots
+        , voteResultSIPs
+        , implementationSt
+        }
+    )
+    -- TODO: figure out what a realistic distribution for update payload is.
+    --
+    -- TODO: do we need to model the __liveness__ assumption of the underlying
+    -- protocol? That is, model the fact that honest party votes will be
+    -- eventually comitted to the chain. Or is this implicit once we start
+    -- generating votes uniformly distributed over all the parties (honest and
+    -- otherwise)
+    --
+    -- We do not generate witnesses for now
+    =   (,())
+    .   (`Tx` [])
+    .   dummyBody
+    <$> QC.frequency
+            [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
+            , (1, fst <$>
+                  Trace.QC.sigGen
+                    @(UPDATES hashAlgo)
+                    ()
+                    Update.Env { Update.k = k
+                               , Update.currentSlot = currentSlot
+                               , Update.asips = asips
+                               , Update.participants = participants
+                               }
+                    ()
+                    Update.St { Update.subsips = subsips
+                              , Update.wssips = wssips
+                              , Update.wrsips = wrsips
+                              , Update.ballots = ballots
+                              , Update.voteResultSIPs = voteResultSIPs
+                              , Update.implementationSt = implementationSt
+                              }
+                )
+            ]
+      where
+        -- For now we don't generate inputs and outputs.
+        dummyBody update
+          = TxBody
+            { inputs = mempty
+            , outputs = mempty
+            , fees = Coin
+            , update = update
+            }
+
+  shrinkSignal = undefined

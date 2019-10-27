@@ -16,7 +16,7 @@ import           Data.Function ((&))
 import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
-
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -26,6 +26,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Control.State.Transition.Generator (genTrace, sigGen)
 import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
                      traceSignals)
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 import           Data.AbstractSize (HasTypeReps)
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
@@ -116,25 +117,11 @@ transactionsGen
   -> State (BODY hashAlgo)
   -> Gen [Transaction.Tx hashAlgo]
 transactionsGen maximumSize env st
-  =   fitTransactions . traceSignals OldestFirst
+  =   fitTransactions maximumSize . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
   <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
-
   where
-    -- Fit the transactions that fit in the given maximum block size.
-    fitTransactions :: [Transaction.Tx hashAlgo] -> [Transaction.Tx hashAlgo]
-    fitTransactions txs = zip txs (tail sizes)
-                          -- We subtract to account for the block constructor
-                          -- and the 'Word64' value of the slot.
-                        & takeWhile ((< maximumSize - 5) . snd)
-                        & fmap fst
-      where
-        -- We compute the cumulative sum of the transaction sizes. We add 3 to
-        -- account for the list constructor.
-        sizes :: [Size]
-        sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
-
     transactionGen  (Transaction.Env { Transaction.k
                                      , Transaction.currentSlot
                                      , Transaction.asips
@@ -189,3 +176,40 @@ transactionsGen maximumSize env st
             , Transaction.fees = Coin
             , Transaction.update = update
             }
+
+-- | Return the transactions that fit in the given maximum block size.
+fitTransactions
+  :: ( HashAlgorithm hashAlgo
+     , HasTypeReps hashAlgo
+     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Hash hashAlgo Data.SIPData)
+     )
+  => Size -> [Transaction.Tx hashAlgo] -> [Transaction.Tx hashAlgo]
+fitTransactions maximumSize txs
+  = zip txs (tail sizes)
+  -- We subtract to account for the block constructor and the 'Word64' value of
+  -- the slot.
+  & takeWhile ((< maximumSize - 5) . snd)
+  & fmap fst
+  where
+    -- We compute the cumulative sum of the transaction sizes. We add 3 to
+    -- account for the list constructor.
+    sizes :: [Size]
+    sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
+
+transactionsQCGen
+  :: forall hashAlgo
+   . ( HashAlgorithm hashAlgo
+     , HasTypeReps hashAlgo
+     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Hash hashAlgo Data.SIPData)
+     )
+  => Size
+  -> Environment (BODY hashAlgo)
+  -> State (BODY hashAlgo)
+  -> QC.Gen [Transaction.Tx hashAlgo]
+transactionsQCGen maximumSize env st
+  =   fitTransactions maximumSize . traceSignals OldestFirst
+  -- TODO: check what is a realistic distribution for empty blocks, or disallow
+  -- the generation of empty blocks altogether.
+  <$> Trace.QC.traceFrom @(TRANSACTION hashAlgo) 30 () env () st
