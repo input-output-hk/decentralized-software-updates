@@ -228,39 +228,42 @@ instance ( HasTypeReps hashAlgo
     -- generating votes uniformly distributed over all the parties (honest and
     -- otherwise)
     --
-    -- We do not generate witnesses for now
-    =   (,())
-    .   (`Tx` [])
-    .   dummyBody
-    <$> QC.frequency
-            [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
-            , (1, fst <$>
-                  Trace.QC.sigGen
-                    @(UPDATES hashAlgo)
-                    ()
-                    Update.Env { Update.k = k
-                               , Update.currentSlot = currentSlot
-                               , Update.asips = asips
-                               , Update.participants = participants
-                               }
-                    ()
-                    Update.St { Update.subsips = subsips
-                              , Update.wssips = wssips
-                              , Update.wrsips = wrsips
-                              , Update.ballots = ballots
-                              , Update.voteResultSIPs = voteResultSIPs
-                              , Update.implementationSt = implementationSt
-                              }
-                )
-            ]
-      where
+    = do
+    someUpdatePayload <-
+      QC.frequency
+        [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
+        , (1, do
+              (someUpdatePayload, ()) <-
+                Trace.QC.sigGen
+                  @(UPDATES hashAlgo)
+                  ()
+                  Update.Env { Update.k = k
+                             , Update.currentSlot = currentSlot
+                             , Update.asips = asips
+                             , Update.participants = participants
+                             }
+                  ()
+                  Update.St { Update.subsips = subsips
+                            , Update.wssips = wssips
+                            , Update.wrsips = wrsips
+                            , Update.ballots = ballots
+                            , Update.voteResultSIPs = voteResultSIPs
+                            , Update.implementationSt = implementationSt
+                            }
+              pure someUpdatePayload
+          )
+        ]
+    let
+      someBody
         -- For now we don't generate inputs and outputs.
-        dummyBody update
-          = TxBody
+        = TxBody
             { inputs = mempty
             , outputs = mempty
             , fees = Coin
-            , update = update
+            , update = someUpdatePayload
             }
+      -- We do not generate witnesses for now
+      someWitnesses = []
+    pure (Tx { body = someBody, witnesses = someWitnesses}, ())
 
   shrinkSignal = undefined

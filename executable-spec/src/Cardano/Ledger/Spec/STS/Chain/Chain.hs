@@ -373,20 +373,24 @@ instance ( HasTypeReps hashAlgo
     someBody <- transactionsGen
     pure (Block {header = someHeader, body = someBody } , ())
     where
-      transactionsGen =
-        Body.BBody <$> Body.transactionsQCGen
-                         maximumBlockSize
-                         Transaction.Env { Transaction.k = k
-                                         , Transaction.currentSlot = currentSlot
-                                         , Transaction.asips = asips
-                                         , Transaction.participants = participants
-                                         , Transaction.utxoEnv = UTxO.Env
-                                         }
-                         Transaction.St { Transaction.subsips = subsips
-                                        , Transaction.wssips = wssips
-                                        , Transaction.wrsips = wrsips
-                                        , Transaction.ballots = ballots
-                                        , Transaction.voteResultSIPs = voteResultSIPs
-                                        , Transaction.implementationSt = implementationSt
-                                        , Transaction.utxoSt = utxoSt
-                                        }
+      transactionsGen = do
+        transactions <-
+          Body.transactionsQCGen
+            maximumBlockSize
+            Transaction.Env
+              { Transaction.k = k
+              , Transaction.currentSlot = currentSlot
+              , Transaction.asips = asips
+              , Transaction.participants = participants
+              , Transaction.utxoEnv = UTxO.Env
+              }
+            Transaction.St
+              { Transaction.subsips = subsips
+              , Transaction.wssips = wssips
+              , Transaction.wrsips = wrsips
+              , Transaction.ballots = ballots
+              , Transaction.voteResultSIPs = voteResultSIPs
+              , Transaction.implementationSt = implementationSt
+              , Transaction.utxoSt = utxoSt
+              }
+        pure $! Body.BBody transactions
