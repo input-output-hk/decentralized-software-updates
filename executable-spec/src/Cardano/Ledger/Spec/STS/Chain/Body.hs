@@ -212,4 +212,4 @@ transactionsQCGen maximumSize env st
   =   fitTransactions maximumSize . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
-  <$> Trace.QC.traceFrom @(TRANSACTION hashAlgo) 30 () env () st
+  <$> Trace.QC.traceFrom @(TRANSACTION hashAlgo) 30 () env st

@@ -20,4 +20,4 @@ onlyValidSignalsAreGenerated =
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated
   = QC.withMaxSuccess 300
-  $ Trace.QC.onlyValidSignalsAreGenerated @(IDEATION ShortHash) @() @() 100 ()
+  $ Trace.QC.onlyValidSignalsAreGenerated @(IDEATION ShortHash) @() 100 ()

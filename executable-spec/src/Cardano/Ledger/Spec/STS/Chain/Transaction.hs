@@ -200,7 +200,7 @@ instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () () where
+         ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () where
   envGen = undefined
 
   sigGen
@@ -211,7 +211,6 @@ instance ( HasTypeReps hashAlgo
          , participants
          }
     )
-    _traceGenSt
     (St { subsips
         , wssips
         , wrsips
@@ -233,7 +232,7 @@ instance ( HasTypeReps hashAlgo
       QC.frequency
         [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
         , (1, do
-              (someUpdatePayload, ()) <-
+              someUpdatePayload <-
                 Trace.QC.sigGen
                   @(UPDATES hashAlgo)
                   ()
@@ -242,7 +241,6 @@ instance ( HasTypeReps hashAlgo
                              , Update.asips = asips
                              , Update.participants = participants
                              }
-                  ()
                   Update.St { Update.subsips = subsips
                             , Update.wssips = wssips
                             , Update.wrsips = wrsips
@@ -264,6 +262,6 @@ instance ( HasTypeReps hashAlgo
             }
       -- We do not generate witnesses for now
       someWitnesses = []
-    pure (Tx { body = someBody, witnesses = someWitnesses}, ())
+    pure $! Tx { body = someBody, witnesses = someWitnesses }
 
   shrinkSignal = undefined

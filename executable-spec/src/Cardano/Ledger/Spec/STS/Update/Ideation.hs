@@ -305,9 +305,9 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
 instance
   HashAlgorithm hashAlgo
-  => Trace.QC.HasTrace (IDEATION hashAlgo) () () where
+  => Trace.QC.HasTrace (IDEATION hashAlgo) () where
 
-  envGen :: () -> QC.Gen (Env hashAlgo, ())
+  envGen :: () -> QC.Gen (Env hashAlgo)
   envGen _traceGenEnv
     = do
     someK <- Gen.QC.kGen
@@ -322,14 +322,13 @@ instance
                   , asips = Map.empty
                   , participants = someParticipants
                   }
-    pure (env, ())
+    pure env
 
   sigGen
     _traceGenEnv
     Env{ k, currentSlot, participants }
-    _traceGenSt
     St{ wssips, subsips } =
-      (, ()) <$> case Set.toList $ range $ stableCommits ◁ subsips of
+      case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
           -- There are no stable commits, so we can only generate a submission.
           submissionGen
@@ -371,14 +370,16 @@ instance
 
                       versionToGen = versionFromGen
 
-                      word64Gen = QC.choose (0, 100)
+                      word64Gen = -- QC.choose (0, 100)
+                        pure 0
 
                   sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
                     where
                       urlText = do
-                        n <- QC.choose (0, 20)
-                        str <- QC.vectorOf n QC.arbitraryUnicodeChar
-                        pure $! T.pack str
+                        -- n <- QC.choose (0, 20)
+                        -- str <- QC.vectorOf n QC.arbitraryUnicodeChar
+                        -- pure $! T.pack str
+                       pure $! T.pack " str"
 
             mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
             mkSubmission sip = Submit sipCommit sip

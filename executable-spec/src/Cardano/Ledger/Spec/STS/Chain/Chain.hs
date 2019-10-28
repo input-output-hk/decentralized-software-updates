@@ -333,7 +333,7 @@ instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => Trace.QC.HasTrace (CHAIN hashAlgo) () () where
+         ) => Trace.QC.HasTrace (CHAIN hashAlgo) () where
 
   envGen _ = do
     someK <- Gen.QC.kGen
@@ -349,7 +349,7 @@ instance ( HasTypeReps hashAlgo
                   , initialSlot = someCurrentSlot
                   , participants = someParticipants
                   }
-    pure (env, ())
+    pure env
 
   sigGen
     _traceGenEnv
@@ -357,7 +357,6 @@ instance ( HasTypeReps hashAlgo
         , maximumBlockSize
         , participants
         }
-    _traceGenSt
     St { currentSlot
        , subsips
        , asips
@@ -371,7 +370,7 @@ instance ( HasTypeReps hashAlgo
     = do
     someHeader <- Header.headerQCGen currentSlot
     someBody <- transactionsGen
-    pure (Block {header = someHeader, body = someBody } , ())
+    pure $! Block { header = someHeader, body = someBody }
     where
       transactionsGen = do
         transactions <-

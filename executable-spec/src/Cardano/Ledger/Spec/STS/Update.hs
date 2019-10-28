@@ -257,35 +257,33 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
 -- Trace generators (QuickCheck)
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATES hashAlgo) () () where
+instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATES hashAlgo) ()where
 
   envGen traceGenEnv = Trace.QC.envGen @(UPDATE hashAlgo) traceGenEnv
 
-  sigGen traceGenEnv env traceGenSt st
-    =   (,()) . traceSignals OldestFirst
-    <$> Trace.QC.traceFrom @(UPDATE hashAlgo) 10 () env () st
+  sigGen traceGenEnv env st
+    =   traceSignals OldestFirst
+    <$> Trace.QC.traceFrom @(UPDATE hashAlgo) 10 () env st
     -- TODO: we need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
-instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () () where
+instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () where
 
   envGen traceGenEnv = do
-    (env, ()) <- Trace.QC.envGen @(IDEATION hashAlgo) traceGenEnv
+    env <- Trace.QC.envGen @(IDEATION hashAlgo) traceGenEnv
     pure $!
-      (Env { k = Ideation.k env
-           , currentSlot = Ideation.currentSlot env
-           , asips = Ideation.asips env
-           , participants = Ideation.participants env
-           }
-      , ())
+      Env { k = Ideation.k env
+          , currentSlot = Ideation.currentSlot env
+          , asips = Ideation.asips env
+          , participants = Ideation.participants env
+          }
 
   sigGen
     ()
     Env { k, currentSlot, asips, participants }
-    ()
     St { subsips, wssips, wrsips, ballots, voteResultSIPs }
     = do
-    (ideationPayload, ()) <-
+    ideationPayload <-
       Trace.QC.sigGen
         @(IDEATION hashAlgo)
         ()
@@ -294,11 +292,10 @@ instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () () whe
                      , Ideation.asips = asips
                      , Ideation.participants = participants
                      }
-        ()
         Ideation.St { Ideation.subsips = subsips
                     , Ideation.wssips = wssips
                     , Ideation.wrsips = wrsips
                     , Ideation.ballots = ballots
                     , Ideation.voteResultSIPs = voteResultSIPs
                     }
-    pure (Ideation ideationPayload, ())
+    pure $! Ideation ideationPayload
