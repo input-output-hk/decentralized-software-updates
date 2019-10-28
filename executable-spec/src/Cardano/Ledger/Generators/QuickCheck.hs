@@ -28,4 +28,4 @@ participantsGen
   $! Bimap.fromList
   $  fmap (Core.vKey &&& Core.sKey)
   $  fmap Core.keyPair
-  $  fmap Core.Owner $ [0 .. 10]
+  $  fmap Core.Owner $ [0 .. 1]

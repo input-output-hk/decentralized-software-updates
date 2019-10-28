@@ -327,7 +327,7 @@ instance
   sigGen
     _traceGenEnv
     Env{ k, currentSlot, participants }
-    St{ wssips, subsips } =
+    St{ wssips, wrsips, subsips } =
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
           -- There are no stable commits, so we can only generate a submission.
@@ -363,23 +363,21 @@ instance
                                      ]
                     <*> QC.elements [Data.VPMin, Data.VPMedium, Data.VPLarge]
                     where
-                      versionFromGen
-                        =  (,)
-                        <$> fmap Data.ProtVer word64Gen
-                        <*> fmap Data.ApVer word64Gen
+                      versionFromGen = do
+                        protVer <- word64Gen
+                        apVer <- word64Gen
+                        pure $! (Data.ProtVer protVer, Data.ApVer apVer)
 
                       versionToGen = versionFromGen
 
-                      word64Gen = -- QC.choose (0, 100)
-                        pure 0
+                      word64Gen = QC.choose (0, 100)
 
                   sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
                     where
                       urlText = do
-                        -- n <- QC.choose (0, 20)
-                        -- str <- QC.vectorOf n QC.arbitraryUnicodeChar
-                        -- pure $! T.pack str
-                       pure $! T.pack " str"
+                        n <- QC.choose (0, 20)
+                        str <- QC.vectorOf n QC.arbitraryUnicodeChar
+                        pure $! T.pack str
 
             mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
             mkSubmission sip = Submit sipCommit sip
@@ -392,7 +390,13 @@ instance
                       where
                         skey = participants Bimap.! Data.author sip
 
-      revelationGen subsipsList =
-        fmap Reveal $! QC.elements subsipsList
+      revelationGen subsipsList = do
+        -- Problem! 'QC.suchThat' will loop forever if it cannot find a
+        -- revelation that satisfies the given predicate!
+        sip <- QC.elements subsipsList
+        if Data.sipHash sip ∉ dom wrsips
+          then pure $! Reveal sip
+          else submissionGen
 
-  shrinkSignal _ = [] -- For now we don't shrink the ideation payload
+
+  shrinkSignal x = [x] -- For now we don't shrink the ideation payload

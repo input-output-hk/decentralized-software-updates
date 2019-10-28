@@ -23,7 +23,7 @@ main = defaultMain tests
     [ testGroup "Ideation phase examples" []
     , testGroup "Ideation phase properties"
         [ testProperty
-            "Only valid traces are generated"
+            "Only valid traces are generated (Hedgehog)"
             Ideation.onlyValidSignalsAreGenerated
         , Tasty.QuickCheck.testProperty
             "Only valid traces are generated (QuickCheck)"
