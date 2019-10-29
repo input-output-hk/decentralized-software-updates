@@ -17,8 +17,9 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext, trans, transitionRules, wrapFailed)
-import           Ledger.Core (Slot, addSlot, (⨃))
+                     initialRules, judgmentContext,
+                     trans, transitionRules, wrapFailed, (?!))
+import           Ledger.Core (Slot, addSlot, (⨃), (∈), (∉), dom)
 import qualified Ledger.Core as Core
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
@@ -58,7 +59,10 @@ instance STS (TALLYSIP hashAlgo) where
 
   data PredicateFailure (TALLYSIP hashAlgo)
     =
-     TallySIPFailure (Data.SIPHash hashAlgo)
+      TallySIPFailure (Data.SIPHash hashAlgo)
+    | InvalidSIPHash (Data.SIPHash hashAlgo)
+    | SIPAlreadyApproved (Data.SIPHash hashAlgo)
+    | VoteFromInvalidStakeholder (Data.SIPHash hashAlgo)
     deriving (Eq, Show)
 
   initialRules = [
@@ -84,6 +88,16 @@ instance STS (TALLYSIP hashAlgo) where
                 }
           , sipHash
           ) <- judgmentContext
+
+      sipHash ∈ dom sipdb ?! InvalidSIPHash sipHash
+
+      sipHash ∉ apprvsips ?! SIPAlreadyApproved sipHash
+
+      -- all ballots should come from valid stakeholders
+      case Map.lookup sipHash ballots of
+        Nothing -> return ()
+        Just btsOfSip -> (dom btsOfSip) `Set.isSubsetOf ` (dom stakeDist)
+          ?! VoteFromInvalidStakeholder sipHash
 
       -- do the tally
       let
