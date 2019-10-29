@@ -50,5 +50,11 @@ main = defaultMain tests
         , Tasty.QuickCheck.testProperty
             "Traces are classified (QuickCheck)"
             Chain.qc_tracesAreClassified
+        , Tasty.QuickCheck.testProperty
+            "Traces lengths are classified (QuickCheck)"
+            Chain.qc_traceLengthsAreClassified
+        , Tasty.QuickCheck.testProperty
+            "Traces reveals are classified (QuickCheck)"
+            Chain.qc_revealsAreClassified
       ]
     ]

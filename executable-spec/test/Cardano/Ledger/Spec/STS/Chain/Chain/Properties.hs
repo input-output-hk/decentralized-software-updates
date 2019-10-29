@@ -32,24 +32,24 @@ onlyValidSignalsAreGenerated =
   withTests 300 $ TransitionGenerator.onlyValidSignalsAreGenerated @(CHAIN ShortHash) 100
 
 
--- tracesAreClassified :: Property
--- tracesAreClassified = withTests 300 $ property $ do
---   let (traceLength, step) = (100, 5)
---   tr <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) traceLength
---   TransitionGenerator.classifySize
---     "Reveals"
---     tr
---     lastStateReveals
---     traceLength
---     step
---   where
---     lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
---     lastStateReveals tr = Trace.lastState tr
---                         & Chain.wrsips &&& Chain.asips
---                         & uncurry (∪)
---                         & dom
---                         & length
---                         & fromIntegral
+tracesAreClassified :: Property
+tracesAreClassified = withTests 300 $ property $ do
+  let (traceLength, step) = (100, 5)
+  tr <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) traceLength
+  TransitionGenerator.classifySize
+    "Reveals"
+    tr
+    lastStateReveals
+    traceLength
+    step
+  where
+    lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
+    lastStateReveals tr = Trace.lastState tr
+                        & Chain.wrsips &&& Chain.asips
+                        & uncurry (∪)
+                        & dom
+                        & length
+                        & fromIntegral
 
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated
@@ -61,13 +61,18 @@ qc_onlyValidSignalsAreGenerated
 -- Temporary, to measure differences between QC and HH.
 --------------------------------------------------------------------------------
 
-tracesAreClassified :: Property
-tracesAreClassified =
-  withTests 100 $ property $ do
-    traceSample <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) 100
-    let abstractSizes = abstractSize costs <$> Trace.traceSignals Trace.OldestFirst traceSample
-        costs = Map.fromList [(typeOf (undefined :: UpdatePayload ShortHash), 1)]
-    collect $ sum abstractSizes
+-- tracesAreClassified :: Property
+-- tracesAreClassified =
+--   withTests 100 $ property $ do
+--     traceSample <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) 100
+--     let abstractSizes = abstractSize costs <$> Trace.traceSignals Trace.OldestFirst traceSample
+--         costs = Map.fromList [(typeOf (undefined :: UpdatePayload ShortHash), 1)]
+--     collect $ sum abstractSizes
+
+qc_traceLengthsAreClassified :: QC.Property
+qc_traceLengthsAreClassified =
+  QC.withMaxSuccess 100
+  $ Trace.QC.traceLengthsAreClassified @(CHAIN ShortHash) 100 10 ()
 
 qc_tracesAreClassified :: QC.Property
 qc_tracesAreClassified =
@@ -78,3 +83,19 @@ qc_tracesAreClassified =
           costs = Map.fromList [(typeOf (undefined :: UpdatePayload ShortHash), 1)]
       in
         QC.collect (sum abstractSizes) True
+
+qc_revealsAreClassified :: QC.Property
+qc_revealsAreClassified =
+  QC.withMaxSuccess 300
+  $ Trace.QC.forAllTrace @(CHAIN ShortHash) @() maxTraceLength ()
+  $ \traceSample ->
+      Trace.QC.classifySize "Reveals" traceSample lastStateReveals maxTraceLength step
+  where
+    (maxTraceLength, step) = (100, 5)
+    lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
+    lastStateReveals tr = Trace.lastState tr
+                        & Chain.wrsips &&& Chain.asips
+                        & uncurry (∪)
+                        & dom
+                        & length
+                        & fromIntegral
