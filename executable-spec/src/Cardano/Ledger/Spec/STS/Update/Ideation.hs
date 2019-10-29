@@ -348,7 +348,7 @@ instance
               sipMData <- sipMetadataGen
               sipData <- sipDataGen sipMData
               let sipHash = Data.SIPHash $ hash sipData
-              salt <- QC.choose (0, 100)
+              salt <- QC.choose (0, 10)
               pure $! SIP sipHash owner salt sipData
                 where
                   sipMetadataGen
