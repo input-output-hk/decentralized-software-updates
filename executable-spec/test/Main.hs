@@ -47,5 +47,8 @@ main = defaultMain tests
       , Tasty.QuickCheck.testProperty
           "Only valid traces are generated (QuickCheck)"
           Chain.qc_onlyValidSignalsAreGenerated
+        , Tasty.QuickCheck.testProperty
+            "Traces are classified (QuickCheck)"
+            Chain.qc_tracesAreClassified
       ]
     ]
