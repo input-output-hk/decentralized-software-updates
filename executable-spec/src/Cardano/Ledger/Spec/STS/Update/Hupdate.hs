@@ -44,6 +44,7 @@ data Env hashAlgo
        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
        , vThreshold :: !Data.VThreshold
+       , stakeDist :: !(Map Core.VKey Data.Stake)
        }
        deriving (Eq, Show)
 
@@ -84,7 +85,7 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb, ballots, vThreshold }
+      TRC ( Env { k, sipdb, ballots, vThreshold, stakeDist }
           , St  { wrsips
                 , asips
                 , vresips
@@ -128,11 +129,11 @@ instance ( HashAlgorithm hashAlgo
                   , Tallysip.apprvsips = apprvsips'
                   }
         <- trans @(TALLYSIPS hashAlgo)
-              $ TRC ( Tallysip.Env { Tallysip.k = k
-                                   , Tallysip.currentSlot = slot
+              $ TRC ( Tallysip.Env { Tallysip.currentSlot = slot
                                    , Tallysip.sipdb = sipdb
                                    , Tallysip.ballots = ballots
                                    , Tallysip.vThreshold = vThreshold
+                                   , Tallysip.stakeDist = stakeDist
                                    }
                     , Tallysip.St { Tallysip.vresips = vresips
                                   , Tallysip.asips = asips''

@@ -75,6 +75,9 @@ data VotingResult =
 -- | Voting threshold
 type VThreshold = Word
 
+-- | Stake
+type Stake = Word64
+
 -- | Records the voting period status for a software update (SIP/UP)
 data (VotingPeriod hashAlgo) =
   VotingPeriod { sipId :: !(SIPHash hashAlgo)

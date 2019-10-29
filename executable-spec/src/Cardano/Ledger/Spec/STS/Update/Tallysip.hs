@@ -18,7 +18,7 @@ import           Data.AbstractSize (HasTypeReps)
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      initialRules, judgmentContext, trans, transitionRules, wrapFailed)
-import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=), (⨃))
+import           Ledger.Core (Slot, addSlot, (⨃))
 import qualified Ledger.Core as Core
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
@@ -28,12 +28,11 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 data TALLYSIP hashAlgo
 
 data Env hashAlgo
- = Env { k :: !BlockCount
-         -- ^ Chain stability parameter.
-       , currentSlot :: !Slot
+ = Env { currentSlot :: !Slot
        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
        , vThreshold :: !Data.VThreshold
+       , stakeDist :: !(Map Core.VKey Data.Stake)
        }
        deriving (Eq, Show)
 
@@ -73,11 +72,11 @@ instance STS (TALLYSIP hashAlgo) where
 
   transitionRules = [
     do
-      TRC ( Env { k
-                , currentSlot
+      TRC ( Env { currentSlot
                 , sipdb
                 , ballots
                 , vThreshold
+                , stakeDist
                 }
           , St  { vresips
                 , asips
@@ -90,41 +89,71 @@ instance STS (TALLYSIP hashAlgo) where
       let
         -- count the votes for the specific SIP and store result
         vresips' =
-          let ballotsOfSIP = ballots!sipHash
-              stakeDist = undefined
-              vResult = Map.foldrWithKey'
-                          (\vkey conf Data.VotingResult { Data.stakeInFavor
-                                                        , Data.stakeAgainst
-                                                        , Data.stakeAbstain
-                                                        }
-                              -> let stake = stakeDist!vkey
-                                 in case conf of
-                                     Data.For -> Data.VotingResult
-                                       (stakeInFavor + stake)
-                                       stakeAgainst
-                                       stakeAbstain
-                                     Data.Against -> Data.VotingResult
-                                       stakeInFavor
-                                       (stakeAgainst + stake)
-                                       stakeAbstain
-                                     Data.Abstain -> Data.VotingResult
-                                       stakeInFavor
-                                       stakeAgainst
-                                       (stakeAbstain + stake)
-                          )
-                          (Data.VotingResult 0 0 0)
-                          ballotsOfSIP
+          let ballotsOfSIP = case Map.lookup sipHash ballots of
+                               Nothing -> (Map.empty :: Map Core.VKey Data.Confidence)
+                               Just b  -> b
+
+              vResult =
+                if ballotsOfSIP == (Map.empty :: Map Core.VKey Data.Confidence)
+                  then
+                    Data.VotingResult 0 0 0
+                  else
+                    Map.foldrWithKey'
+                      (\vkey conf Data.VotingResult { Data.stakeInFavor
+                                                    , Data.stakeAgainst
+                                                    , Data.stakeAbstain
+                                                    }
+                          -> let stake = stakeDist!vkey
+                             in case conf of
+                                 Data.For -> Data.VotingResult
+                                   (stakeInFavor + stake)
+                                   stakeAgainst
+                                   stakeAbstain
+                                 Data.Against -> Data.VotingResult
+                                   stakeInFavor
+                                   (stakeAgainst + stake)
+                                   stakeAbstain
+                                 Data.Abstain -> Data.VotingResult
+                                   stakeInFavor
+                                   stakeAgainst
+                                   (stakeAbstain + stake)
+                      )
+                      (Data.VotingResult 0 0 0)
+                      ballotsOfSIP
           in vresips ⨃ [(sipHash, vResult)]
+
         -- if approved then, update state of approved SIPs
-        apprvsips' = undefined
-        -- if no majority result, calculate end of new voting period
+        apprvsips' =
+          if Data.stakeInFavor (vresips'!sipHash) > fromIntegral vThreshold
+            then
+              Set.insert sipHash apprvsips
+            else
+              apprvsips
+
+        -- if no-majority result, or no-quorum, calculate end of new voting period
         -- and update active sips state
-        asips' = undefined
+        asips' =
+          if Data.stakeAbstain (vresips'!sipHash) > fromIntegral vThreshold
+             ||
+             (  Data.stakeInFavor (vresips'!sipHash) <= fromIntegral vThreshold
+             && Data.stakeAgainst (vresips'!sipHash) <= fromIntegral vThreshold
+             && Data.stakeAbstain (vresips'!sipHash) <= fromIntegral vThreshold
+             )
+            then -- a revoting is due - calc new voting period end
+              asips ⨃ [(sipHash, currentSlot `addSlot` (votPeriodEnd sipHash))]
+            else
+              asips
+        votPeriodEnd siphash =  Data.vpDurationToSlotCnt
+                                $ Data.votPeriodDuration
+                                . Data.metadata
+                                . Data.sipPayload
+                                $ (sipdb!siphash)
 
       pure $ St { vresips = vresips'
                 , apprvsips = apprvsips'
                 , asips = asips'
                 }
+
     ]
 
 -- | STS for tallying the votes of a

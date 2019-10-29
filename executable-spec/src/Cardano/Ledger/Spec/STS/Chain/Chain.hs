@@ -35,7 +35,7 @@ import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen, voteTGen)
+                     participantsGen, voteTGen, stakeDistGen)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -64,6 +64,7 @@ data Env hashAlgo
     , initialSlot :: !Slot
     , participants :: !(Bimap Core.VKey Core.SKey)
     , vThreshold :: !Data.VThreshold
+    , stakeDist :: !(Map Core.VKey Data.Stake)
     }
     deriving (Eq, Show)
 
@@ -152,6 +153,7 @@ instance ( HashAlgorithm hashAlgo
                 , maximumBlockSize
                 , participants
                 , vThreshold
+                , stakeDist
                 }
           , St  { currentSlot
                 , subsips
@@ -182,6 +184,7 @@ instance ( HashAlgorithm hashAlgo
                                   , Header.sipdb = sipdb
                                   , Header.ballots = ballots
                                   , Header.vThreshold = vThreshold
+                                  , Header.stakeDist = stakeDist
                                   }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
@@ -264,6 +267,7 @@ instance ( HasTypeReps hashAlgo
     <*> currentSlotGen
     <*> participantsGen
     <*> voteTGen
+    <*> stakeDistGen
     where
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100
