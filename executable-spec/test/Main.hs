@@ -11,8 +11,6 @@ import           Test.Tasty.Ingredients.ConsoleReporter (UseColor (Auto))
 
 import qualified Test.Tasty.QuickCheck as Tasty.QuickCheck
 
-import qualified Test.QuickCheck as QC
-
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain.Properties as Chain
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Properties as Ideation
 
@@ -27,15 +25,12 @@ main = defaultMain tests
         [ testProperty
             "Only valid traces are generated (Hedgehog)"
             Ideation.onlyValidSignalsAreGenerated
-        , testProperty
-            "Traces are classified (Hedgehog)"
-            Ideation.tracesAreClassified
         , Tasty.QuickCheck.testProperty
             "Only valid traces are generated (QuickCheck)"
             Ideation.qc_onlyValidSignalsAreGenerated
         , Tasty.QuickCheck.testProperty
-            "Traces are classified (QuickCheck)"
-            Ideation.qc_tracesAreClassified
+            "Trace lengths are classified (QuickCheck)"
+            Ideation.qc_traceLengthsAreClassified
         ]
     , testGroup "Chain properties"
       [ testProperty
@@ -44,12 +39,15 @@ main = defaultMain tests
       ,  testProperty
           "Traces are classified"
           Chain.tracesAreClassified
+      ,  testProperty
+          "Traces update payload counts are classified"
+          Chain.updatePayloadCountIsClassified
       , Tasty.QuickCheck.testProperty
           "Only valid traces are generated (QuickCheck)"
           Chain.qc_onlyValidSignalsAreGenerated
         , Tasty.QuickCheck.testProperty
-            "Traces are classified (QuickCheck)"
-            Chain.qc_tracesAreClassified
+            "Traces update payload counts are classified (QuickCheck)"
+            Chain.qc_updatePayloadCountIsClassified
         , Tasty.QuickCheck.testProperty
             "Traces lengths are classified (QuickCheck)"
             Chain.qc_traceLengthsAreClassified
