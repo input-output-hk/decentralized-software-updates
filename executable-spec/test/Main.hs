@@ -37,22 +37,16 @@ main = defaultMain tests
           "Only valid traces are generated"
           Chain.onlyValidSignalsAreGenerated
       ,  testProperty
-          "Traces are classified"
-          Chain.tracesAreClassified
-      ,  testProperty
-          "Traces update payload counts are classified"
-          Chain.updatePayloadCountIsClassified
+          "Trace reveals are classified"
+          Chain.traceRevealsAreClassified
       , Tasty.QuickCheck.testProperty
           "Only valid traces are generated (QuickCheck)"
           Chain.qc_onlyValidSignalsAreGenerated
-        , Tasty.QuickCheck.testProperty
-            "Traces update payload counts are classified (QuickCheck)"
-            Chain.qc_updatePayloadCountIsClassified
-        , Tasty.QuickCheck.testProperty
-            "Traces lengths are classified (QuickCheck)"
-            Chain.qc_traceLengthsAreClassified
-        , Tasty.QuickCheck.testProperty
-            "Traces reveals are classified (QuickCheck)"
-            Chain.qc_revealsAreClassified
+      , Tasty.QuickCheck.testProperty
+          "Trace lengths are classified (QuickCheck)"
+          Chain.qc_traceLengthsAreClassified
+      , Tasty.QuickCheck.testProperty
+          "Trace reveals are classified (QuickCheck)"
+          Chain.qc_revealsAreClassified
       ]
     ]

@@ -6,6 +6,10 @@ module Cardano.Ledger.Spec.STS.Chain.Chain.Properties where
 
 import qualified Data.Map.Strict as Map
 
+import qualified Debug.Trace as Debug
+
+
+
 import           Control.Arrow ((&&&))
 import           Data.Function ((&))
 import           Data.Typeable (typeOf)
@@ -27,13 +31,13 @@ import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 
+
 onlyValidSignalsAreGenerated :: HasCallStack => Property
 onlyValidSignalsAreGenerated =
   withTests 300 $ TransitionGenerator.onlyValidSignalsAreGenerated @(CHAIN ShortHash) 100
 
-
-tracesAreClassified :: Property
-tracesAreClassified = withTests 300 $ property $ do
+traceRevealsAreClassified :: Property
+traceRevealsAreClassified = withTests 300 $ property $ do
   let (traceLength, step) = (100, 5)
   tr <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) traceLength
   TransitionGenerator.classifySize
@@ -56,33 +60,10 @@ qc_onlyValidSignalsAreGenerated
   = QC.withMaxSuccess 300
   $ Trace.QC.onlyValidSignalsAreGenerated @(CHAIN ShortHash) @() 100 ()
 
-
---------------------------------------------------------------------------------
--- Temporary, to measure differences between QC and HH.
---------------------------------------------------------------------------------
-
--- tracesAreClassified :: Property
--- tracesAreClassified =
---   withTests 100 $ property $ do
---     traceSample <- forAll $ TransitionGenerator.trace @(CHAIN ShortHash) 100
---     let abstractSizes = abstractSize costs <$> Trace.traceSignals Trace.OldestFirst traceSample
---         costs = Map.fromList [(typeOf (undefined :: UpdatePayload ShortHash), 1)]
---     collect $ sum abstractSizes
-
 qc_traceLengthsAreClassified :: QC.Property
 qc_traceLengthsAreClassified =
   QC.withMaxSuccess 100
   $ Trace.QC.traceLengthsAreClassified @(CHAIN ShortHash) 100 10 ()
-
-qc_tracesAreClassified :: QC.Property
-qc_tracesAreClassified =
-  QC.withMaxSuccess 100
-  $ Trace.QC.forAllTrace @(CHAIN ShortHash) @() 100 ()
-  $ \traceSample ->
-      let abstractSizes = abstractSize costs <$> Trace.traceSignals Trace.OldestFirst traceSample
-          costs = Map.fromList [(typeOf (undefined :: UpdatePayload ShortHash), 1)]
-      in
-        QC.collect (sum abstractSizes) True
 
 qc_revealsAreClassified :: QC.Property
 qc_revealsAreClassified =
