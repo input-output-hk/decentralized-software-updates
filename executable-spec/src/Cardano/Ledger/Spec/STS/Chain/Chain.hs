@@ -370,7 +370,7 @@ instance ( HasTypeReps hashAlgo
     = do
     someHeader <- Header.headerQCGen currentSlot
     someBody <- transactionsGen
-    pure $! Block { header = someHeader, body = someBody }
+    pure $! Block { header = someHeader, body = someBody}
     where
       transactionsGen = do
         transactions <-

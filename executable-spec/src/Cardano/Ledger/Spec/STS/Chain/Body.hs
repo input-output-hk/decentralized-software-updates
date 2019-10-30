@@ -12,6 +12,8 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Body where
 
+import qualified Debug.Trace as Debug
+
 import           Data.Function ((&))
 import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
@@ -25,7 +27,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Control.State.Transition.Generator (genTrace, sigGen)
 import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
-                     traceSignals)
+                     traceLength, traceSignals)
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 import           Data.AbstractSize (HasTypeReps)
 
@@ -189,11 +191,15 @@ fitTransactions maximumSize txs
   = zip txs (tail sizes)
   -- We subtract to account for the block constructor and the 'Word64' value of
   -- the slot.
+  --
+  -- TODO: we are using abstract size instead of HeapWords, so we should remove this constant (5).
   & takeWhile ((< maximumSize - 5) . snd)
   & fmap fst
   where
     -- We compute the cumulative sum of the transaction sizes. We add 3 to
     -- account for the list constructor.
+    --
+    -- TODO: we are using abstract size, remove the constant 3.
     sizes :: [Size]
     sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
 

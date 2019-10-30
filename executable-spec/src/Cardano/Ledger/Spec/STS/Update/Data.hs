@@ -9,9 +9,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
@@ -29,7 +29,7 @@ import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (SlotCount (SlotCount))
+import           Ledger.Core (Slot (Slot), SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
@@ -45,6 +45,14 @@ data IdeationPayload hashAlgo
   | Reveal (SIP hashAlgo)
   | Vote (BallotSIP hashAlgo)
   deriving (Eq, Ord, Show, Generic)
+
+isSubmit :: IdeationPayload hashAlgo -> Bool
+isSubmit (Submit {}) = True
+isSubmit _ = False
+
+isReveal :: IdeationPayload hashAlgo -> Bool
+isReveal (Reveal {}) = True
+isReveal _ = False
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =

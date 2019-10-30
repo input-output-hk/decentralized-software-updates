@@ -17,7 +17,7 @@ import qualified Test.QuickCheck as Gen
 import qualified Ledger.Core as Core
 
 kGen :: Gen Core.BlockCount
-kGen = Core.BlockCount <$> Gen.choose (0, 10)
+kGen = Core.BlockCount <$> Gen.choose (1, 10)
 
 currentSlotGen :: Gen Core.Slot
 currentSlotGen = Core.Slot <$> Gen.choose (0, 100)
@@ -28,4 +28,4 @@ participantsGen
   $! Bimap.fromList
   $  fmap (Core.vKey &&& Core.sKey)
   $  fmap Core.keyPair
-  $  fmap Core.Owner $ [0 .. 1]
+  $  fmap Core.Owner $ [0 .. 10]

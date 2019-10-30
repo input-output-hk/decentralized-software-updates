@@ -201,6 +201,7 @@ instance ( HasTypeReps hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () where
+
   envGen = undefined
 
   sigGen
@@ -248,7 +249,7 @@ instance ( HasTypeReps hashAlgo
                             , Update.voteResultSIPs = voteResultSIPs
                             , Update.implementationSt = implementationSt
                             }
-              pure someUpdatePayload
+              pure $! someUpdatePayload
           )
         ]
     let

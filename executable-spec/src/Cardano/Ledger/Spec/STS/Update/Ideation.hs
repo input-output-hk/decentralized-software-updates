@@ -340,6 +340,7 @@ instance
     where
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
+        -- WARNING: suchThat can be very inefficient if this condition fails often.
         sip <- sipGen `QC.suchThat` (`Set.notMember` range subsips)
         pure $! mkSubmission sip
           where
@@ -348,7 +349,7 @@ instance
               sipMData <- sipMetadataGen
               sipData <- sipDataGen sipMData
               let sipHash = Data.SIPHash $ hash sipData
-              salt <- QC.choose (0, 10)
+              salt <- QC.choose (0, 100) -- TODO: we can choose smaller numbers as @salt@ value.
               pure $! SIP sipHash owner salt sipData
                 where
                   sipMetadataGen
