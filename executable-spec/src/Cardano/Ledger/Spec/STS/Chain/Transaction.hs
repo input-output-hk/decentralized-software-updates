@@ -11,9 +11,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
+import Control.Exception (assert)
 import           Data.Bimap (Bimap)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
@@ -37,7 +37,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import           Cardano.Ledger.Spec.STS.Update (UPDATES)
+import           Cardano.Ledger.Spec.STS.Update (UPDATES, UPDATE)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
@@ -202,6 +202,8 @@ instance ( HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () where
 
+  -- Since we don't use the 'TRANSACTION' STS in isolation, we don't need a
+  -- environment generator.
   envGen = undefined
 
   sigGen
@@ -265,4 +267,11 @@ instance ( HasTypeReps hashAlgo
       someWitnesses = []
     pure $! Tx { body = someBody, witnesses = someWitnesses }
 
-  shrinkSignal = undefined
+  shrinkSignal Tx { body, witnesses } =
+    assert (null witnesses) $ -- For now we rely on the set of witnesses being empty.
+    fmap (mkTx . Trace.QC.shrinkSignal @(UPDATE hashAlgo) @()) (update body)
+    where
+      mkTx :: [UpdatePayload hashAlgo] -> Tx hashAlgo
+      mkTx updatePayload = Tx { body = body', witnesses = [] }
+        where
+          body' = body { update = updatePayload }

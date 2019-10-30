@@ -18,10 +18,10 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 import           Data.Map.Strict (Map)
---import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
 
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -99,11 +99,11 @@ instance ( Typeable hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
-  type Environment (UPDATE hashAlgo) = (Env hashAlgo)
+  type Environment (UPDATE hashAlgo) = Env hashAlgo
 
-  type State (UPDATE hashAlgo) = (St hashAlgo)
+  type State (UPDATE hashAlgo) = St hashAlgo
 
-  type Signal (UPDATE hashAlgo) = (UpdatePayload hashAlgo)
+  type Signal (UPDATE hashAlgo) = UpdatePayload hashAlgo
 
   data PredicateFailure (UPDATE hashAlgo)
     = IdeationsFailure (PredicateFailure (IDEATION hashAlgo))
@@ -267,6 +267,9 @@ instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATES hashAlgo) ()where
     -- TODO: we need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
+  shrinkSignal =
+    QC.shrinkList (Trace.QC.shrinkSignal @(UPDATE hashAlgo) @())
+
 instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () where
 
   envGen traceGenEnv = do
@@ -299,3 +302,7 @@ instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () where
                     , Ideation.voteResultSIPs = voteResultSIPs
                     }
     pure $! Ideation ideationPayload
+
+  shrinkSignal (Ideation ideationPayload) =
+    Ideation <$> Trace.QC.shrinkSignal @(IDEATION hashAlgo) @() ideationPayload
+  shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."

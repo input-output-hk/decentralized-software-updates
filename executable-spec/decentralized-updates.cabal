@@ -35,10 +35,8 @@ library
                      , containers
                      , cryptonite
                      , generic-monoid
-                     , hashable
                      , hedgehog >= 1.0
                      , QuickCheck
-                     , quickcheck-text
                      , text
                      -- Cardano specific imports
                      , cardano-binary

@@ -338,10 +338,8 @@ instance ( HasTypeReps hashAlgo
   envGen _ = do
     someK <- Gen.QC.kGen
     someCurrentSlot <- Gen.QC.currentSlotGen
-    -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' class so that 'trace' can take parameter of an associated
-    -- type, so that each STS can decide which parameters are relevant for its
-    -- traces.
+    -- TODO: for now we generate a constant set of keys. The set of participants
+    -- could be an environment of the generator.
     someParticipants <- Gen.QC.participantsGen
     let env = Env { k = someK
                   -- For now we fix the maximum block size to an abstract size of 100
@@ -369,16 +367,16 @@ instance ( HasTypeReps hashAlgo
        }
     = do
     someHeader <- Header.headerQCGen currentSlot
-    someBody <- transactionsGen
+    someBody <- transactionsGen (Header.slot someHeader)
     pure $! Block { header = someHeader, body = someBody}
     where
-      transactionsGen = do
+      transactionsGen nextSlot = do
         transactions <-
           Body.transactionsQCGen
             maximumBlockSize
             Transaction.Env
               { Transaction.k = k
-              , Transaction.currentSlot = currentSlot
+              , Transaction.currentSlot = nextSlot
               , Transaction.asips = asips
               , Transaction.participants = participants
               , Transaction.utxoEnv = UTxO.Env
@@ -393,3 +391,9 @@ instance ( HasTypeReps hashAlgo
               , Transaction.utxoSt = utxoSt
               }
         pure $! Body.BBody transactions
+
+  shrinkSignal Block { header, body } =
+    -- -- TODO: for now we don't shrink the header.
+    fmap (mkBlock . Trace.QC.shrinkSignal @(TRANSACTION hashAlgo) @()) (Body.transactions body)
+    where
+      mkBlock txs = Block {header = header, body = Body.BBody txs}

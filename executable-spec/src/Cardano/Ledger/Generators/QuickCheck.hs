@@ -1,4 +1,3 @@
--- |
 
 module Cardano.Ledger.Generators.QuickCheck
   ( kGen
