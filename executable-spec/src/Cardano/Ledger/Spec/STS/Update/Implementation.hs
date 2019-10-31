@@ -34,7 +34,7 @@ data Env hashAlgo =
   Env { currentSlot :: !Slot
         -- ^ The current slot in the blockchain system
       , apprvsips :: !(Set (Data.SIPHash hashAlgo))
-        -- ^ Records the current voting result for each SIP
+        -- ^ Set of approved SIPs
       }
   deriving (Eq, Show, Generic)
 
