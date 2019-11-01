@@ -30,7 +30,7 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Ledger.Core (Slot, BlockCount)
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋫), (⋪), range, (◁))
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (kGen, participantsGen, currentSlotGen)
@@ -117,7 +117,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
   -- | IDEATION phase failures
   data PredicateFailure (IDEATION hashAlgo)
     = SIPAlreadySubmitted (Data.SIP hashAlgo)
-    | SIPSubmittedAlreadyRevealed (Data.SIP hashAlgo)
+   -- | SIPSubmittedAlreadyRevealed (Data.SIP hashAlgo)
     | NoSIPToReveal (Data.SIP hashAlgo)
     | SIPAlreadyRevealed (Data.SIP hashAlgo)
     | InvalidAuthor Core.VKey
@@ -147,8 +147,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
       case sig of
         Submit sipc sip -> do
           Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
-          sip ∉ range subsips ?! SIPAlreadySubmitted sip
-          sip ∉ range sipdb ?! SIPSubmittedAlreadyRevealed sip
+          (Data.commit sipc) ∉ dom subsips ?! SIPAlreadySubmitted sip
+          --sip ∉ range sipdb ?! SIPSubmittedAlreadyRevealed sip
 
           -- TODO: Add verification of signature inside SIPCommit
 
@@ -158,10 +158,10 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
         Reveal sip -> do
           Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
-          sip ∈ range subsips ?! NoSIPToReveal sip
-          -- TODO: Revealed SIP must belong to stable submitted SIPs
+          (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
 
-          Data.sipHash sip ∉ ((dom wrsips) `Set.union` (dom asips))?! SIPAlreadyRevealed sip
+          -- Data.sipHash sip ∉ ((dom wrsips) `Set.union` (dom asips))?! SIPAlreadyRevealed sip
+          sip ∉ range sipdb ?! SIPAlreadyRevealed sip
 
           -- The Revealed SIP must correspond to a stable Commited SIP.
           -- Restrict the range of wssips to values less or equal than
@@ -170,8 +170,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
             ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSIP sip wssips
 
-          pure st { subsips = subsips ⋫ Set.singleton sip -- TODO: DISCUSS: not sure whether we need to delete this...
-                  , wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
+          pure st { -- subsips = subsips ⋫ Set.singleton sip -- TODO: DISCUSS: not sure whether we need to delete this...
+                    wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
                   , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
                   , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
                   }
@@ -225,7 +225,7 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
 
   -- For now we ignore the predicate failure we might need to provide (if any).
   -- We're interested in valid traces only at the moment.
-  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips, sipdb } =
+  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } =
       let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k))) in
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
@@ -238,13 +238,18 @@ instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
                         ]
       where
         submissionGen = do
-          --sip <- Gen.filter (`Set.notMember` range subsips) sipGen
-          sip <- Gen.filter (`Set.notMember` ( (range subsips)
-                                               `Set.union`
-                                               (range sipdb)
-                                             )
+          -- sip <- Gen.filter (`Set.notMember` ( (range subsips)
+          --                                      `Set.union`
+          --                                      (range sipdb)
+          --                                    )
 
-                            ) sipGen
+          --                   ) sipGen
+
+          -- generate a new (never seen before) sip
+          sip <- Gen.filter
+                   (\s -> Data.calcCommit s `Set.notMember` (dom subsips))
+                   sipGen
+
           pure $! mkSubmission sip
             where
               sipGen = do

@@ -21,12 +21,13 @@ import           Data.Typeable (Typeable)
 import           Data.Typeable (typeOf)
 import           Data.Word (Word64)
 import           GHC.Generics (Generic)
+import           Data.Map.Strict (Map, (!))
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (Slot, Slot (Slot), SlotCount,
+import           Ledger.Core (Slot, SlotCount,
                      SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
@@ -78,21 +79,6 @@ type VThreshold = Word
 -- | Stake
 type Stake = Word64
 
--- | Records the voting period status for a software update (SIP/UP)
-data (VotingPeriod hashAlgo) =
-  VotingPeriod { sipId :: !(SIPHash hashAlgo)
-                 -- ^ Id of the SIP in question
-               , openingSlot :: !Slot
-                 -- ^ Slot that the voting period opens
-               , closingSlot :: !Slot
-                 -- ^ Slot that the voting period closes
-               , vpDuration :: !VPDuration
-                 -- ^ Duration of the voting period
-               , vpStatus :: !VPStatus
-               -- ^ open or closed
-               }
-  deriving (Eq, Ord, Show)
-
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
   deriving (Eq, Ord, Show, Generic, HasTypeReps)
@@ -110,23 +96,20 @@ vpDurationToSlotCnt  d =
     VPMedium -> SlotCount 50
     VPLarge -> SlotCount 100
 
--- | Create a Voting Period for a SIP
--- based on the `SIPMetadata` for the duration
--- and the current slot as an opening slot
-createVotingPeriod :: Slot -> (SIP hashAlgo) -> (VotingPeriod hashAlgo)
-createVotingPeriod slot sip =
-  VotingPeriod { sipId = sipHash sip
-               , openingSlot =  slot
-               , closingSlot = Slot 0 -- dummy value
-               , vpDuration = getVPDurationFromSIPMdata sip
-               , vpStatus = VPOpen
-               }
-  where
-    getVPDurationFromSIPMdata sp =
-      let sipdata = sipPayload sp
-          sipMdata = metadata sipdata
-      in votPeriodDuration sipMdata
-
+-- | Return in how many slots the voting period
+-- of the specific `SIP` will end, based on
+-- the voting period duration recorded
+-- in its metadata `SIPMetadata`
+-- The 2nd argument plays the role of a "SIP database"
+votPeriodEnd
+  :: (SIPHash hashAlgo)
+  -> Map (SIPHash hashAlgo) (SIP hashAlgo)
+  -> SlotCount
+votPeriodEnd siphash sipdb =  vpDurationToSlotCnt
+                           $ votPeriodDuration
+                           . metadata
+                           . sipPayload
+                           $ (sipdb!siphash)
 
 -- | Protocol version
 --

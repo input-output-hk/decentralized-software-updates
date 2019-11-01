@@ -26,7 +26,7 @@ stakeDistGen :: Gen (Map Core.VKey Stake)
 stakeDistGen = do
   p <- participantsGen
   let vkeys = Bimap.keys p
-  stks <- Gen.list (Range.singleton $ length vkeys) (Gen.word64 (Range.linear 1 1000))
+  stks <- Gen.list (Range.singleton $ length vkeys) (Gen.word64 (Range.linear 1 100))
   pure $ Map.fromList $ zip vkeys stks
 
 voteTGen :: Gen VThreshold

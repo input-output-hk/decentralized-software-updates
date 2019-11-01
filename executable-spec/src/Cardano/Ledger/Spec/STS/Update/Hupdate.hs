@@ -13,11 +13,10 @@
 
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
-import           Data.Map.Strict (Map, (!))
+import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
-import           Data.List (notElem)
 import           GHC.Generics (Generic)
 import           Data.AbstractSize (HasTypeReps)
 
@@ -99,18 +98,13 @@ instance ( HashAlgorithm hashAlgo
           -- we place these new sips as arguments of the left hand side of the
           -- 'Map.union', since this operation is left biased.
           asips' = ( Map.mapWithKey  -- update asips slot with voting period end slot
-                       (\sph _ -> slot `addSlot` (votPeriodEnd sph))
+                       (\sph _ -> slot `addSlot` (Data.votPeriodEnd sph sipdb))
                        (wrsips ▷<= (slot -. (2 *. k)))
 
                    )
                    `Map.union`
                    asips
 
-          votPeriodEnd siphash =  Data.vpDurationToSlotCnt
-                                  $ Data.votPeriodDuration
-                                  . Data.metadata
-                                  . Data.sipPayload
-                                  $ (sipdb!siphash)
           -- exclude old revealed SIPs
           wrsips' = dom asips' ⋪ wrsips
 
@@ -120,8 +114,8 @@ instance ( HashAlgorithm hashAlgo
                       $ (asips' ▷<= (slot -. (2 *. k)))
 
           -- Prune asips, in order to avoid re-tallying of the same SIP
-          --asips'' = (dom toTally) ⋪ asips'
-          asips'' = Map.filterWithKey (\sh _ -> sh `notElem` toTally) asips'
+          asips'' = (Set.fromList toTally) ⋪ asips'
+          --asips'' = Map.filterWithKey (\sh _ -> sh `notElem` toTally) asips'
 
       -- do the tallying and get the voting results (vresips)
       Tallysip.St { Tallysip.vresips = vresips'

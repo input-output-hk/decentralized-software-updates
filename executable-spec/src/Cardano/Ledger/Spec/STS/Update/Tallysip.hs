@@ -62,7 +62,7 @@ instance STS (TALLYSIP hashAlgo) where
       TallySIPFailure (Data.SIPHash hashAlgo)
     | InvalidSIPHash (Data.SIPHash hashAlgo)
     | SIPAlreadyApproved (Data.SIPHash hashAlgo)
-    | VoteFromInvalidStakeholder (Data.SIPHash hashAlgo)
+
     deriving (Eq, Show)
 
   initialRules = [
@@ -92,12 +92,6 @@ instance STS (TALLYSIP hashAlgo) where
       sipHash ∈ dom sipdb ?! InvalidSIPHash sipHash
 
       sipHash ∉ apprvsips ?! SIPAlreadyApproved sipHash
-
-      -- all ballots should come from valid stakeholders
-      case Map.lookup sipHash ballots of
-        Nothing -> return ()
-        Just btsOfSip -> (dom btsOfSip) `Set.isSubsetOf ` (dom stakeDist)
-          ?! VoteFromInvalidStakeholder sipHash
 
       -- do the tally
       let
@@ -154,14 +148,9 @@ instance STS (TALLYSIP hashAlgo) where
              && Data.stakeAbstain (vresips'!sipHash) <= fromIntegral vThreshold
              )
             then -- a revoting is due - calc new voting period end
-              asips ⨃ [(sipHash, currentSlot `addSlot` (votPeriodEnd sipHash))]
+              asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
             else
               asips
-        votPeriodEnd siphash =  Data.vpDurationToSlotCnt
-                                $ Data.votPeriodDuration
-                                . Data.metadata
-                                . Data.sipPayload
-                                $ (sipdb!siphash)
 
       pure $ St { vresips = vresips'
                 , apprvsips = apprvsips'
@@ -173,10 +162,6 @@ instance STS (TALLYSIP hashAlgo) where
 -- | STS for tallying the votes of a
 -- bunch of SIPs
 data TALLYSIPS hashAlgo
-
--- | Candidate SIPs for tallying
--- data ToTally hashAlgo = ToTally ![(Data.SIPHash hashAlgo)]  -- ![Signal (TALLYSIP hashAlgo)]
---   deriving (Eq, Show)
 
 type ToTally hashAlgo =  [Signal (TALLYSIP hashAlgo)]
 
