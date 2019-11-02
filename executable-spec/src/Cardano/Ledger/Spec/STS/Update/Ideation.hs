@@ -35,7 +35,7 @@ import           Ledger.Core (Slot, BlockCount)
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁))
 import qualified Ledger.Core as Core
 
-import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Update.Data
@@ -206,7 +206,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
 instance
   HashAlgorithm hashAlgo
-  => Trace.QC.HasTrace (IDEATION hashAlgo) () where
+  => STS.Gen.HasTrace (IDEATION hashAlgo) () where
 
   envGen :: () -> QC.Gen (Env hashAlgo)
   envGen _traceGenEnv

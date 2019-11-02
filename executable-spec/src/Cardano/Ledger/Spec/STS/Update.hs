@@ -29,7 +29,7 @@ import           Control.State.Transition.Trace (traceSignals, TraceOrder (Oldes
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot, BlockCount)
 import qualified Ledger.Core as Core
@@ -214,23 +214,23 @@ instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo) (UPDATES hashAlgo) wh
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATES hashAlgo) ()where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo) ()where
 
-  envGen traceGenEnv = Trace.QC.envGen @(UPDATE hashAlgo) traceGenEnv
+  envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo) traceGenEnv
 
   sigGen _traceGenEnv env st
     =   traceSignals OldestFirst
-    <$> Trace.QC.traceFrom @(UPDATE hashAlgo) 10 () env st
+    <$> STS.Gen.traceFrom @(UPDATE hashAlgo) 10 () env st
     -- TODO: we need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
   shrinkSignal =
-    QC.shrinkList (Trace.QC.shrinkSignal @(UPDATE hashAlgo) @())
+    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE hashAlgo) @())
 
-instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
 
   envGen traceGenEnv = do
-    env <- Trace.QC.envGen @(IDEATION hashAlgo) traceGenEnv
+    env <- STS.Gen.envGen @(IDEATION hashAlgo) traceGenEnv
     pure $!
       Env { k = Ideation.k env
           , currentSlot = Ideation.currentSlot env
@@ -244,7 +244,7 @@ instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () where
     St { subsips, wssips, wrsips, ballots, voteResultSIPs }
     = do
     ideationPayload <-
-      Trace.QC.sigGen
+      STS.Gen.sigGen
         @(IDEATION hashAlgo)
         ()
         Ideation.Env { Ideation.k = k
@@ -261,5 +261,5 @@ instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATE hashAlgo) () where
     pure $! Ideation ideationPayload
 
   shrinkSignal (Ideation ideationPayload) =
-    Ideation <$> Trace.QC.shrinkSignal @(IDEATION hashAlgo) @() ideationPayload
+    Ideation <$> STS.Gen.shrinkSignal @(IDEATION hashAlgo) @() ideationPayload
   shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."

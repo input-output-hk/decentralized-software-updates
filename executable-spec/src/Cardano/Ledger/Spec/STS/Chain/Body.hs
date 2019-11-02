@@ -24,7 +24,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
                      traceSignals)
 
-import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
@@ -120,7 +120,7 @@ shrink
   => BBody hashAlgo -> [BBody hashAlgo]
 shrink body =
   BBody <$> QC.shrinkList
-             (Trace.QC.shrinkSignal @(TRANSACTION hashAlgo) @())
+             (STS.Gen.shrinkSignal @(TRANSACTION hashAlgo) @())
              (transactions body)
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
@@ -139,7 +139,7 @@ transactionsGen maximumSize env st
   =   fitTransactions maximumSize . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
-  <$> Trace.QC.traceFrom @(TRANSACTION hashAlgo) 30 () env st
+  <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo) 30 () env st
 
 -- | Return the transactions that fit in the given maximum block size.
 fitTransactions

@@ -32,7 +32,7 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot, BlockCount)
 import qualified Ledger.Core as Core
-import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
@@ -197,7 +197,7 @@ instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlg
   wrapFailed = TxFailure
 
 instance ( HashAlgorithm hashAlgo
-         ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () where
+         ) => STS.Gen.HasTrace (TRANSACTION hashAlgo) () where
 
   -- Since we don't use the 'TRANSACTION' STS in isolation, we don't need a
   -- environment generator.
@@ -233,7 +233,7 @@ instance ( HashAlgorithm hashAlgo
         [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
         , (1, do
               someUpdatePayload <-
-                Trace.QC.sigGen
+                STS.Gen.sigGen
                   @(UPDATES hashAlgo)
                   ()
                   Update.Env { Update.k = k
@@ -266,7 +266,7 @@ instance ( HashAlgorithm hashAlgo
 
   shrinkSignal Tx { body, witnesses } =
     assert (null witnesses) $ -- For now we rely on the set of witnesses being empty.
-    fmap (mkTx . Trace.QC.shrinkSignal @(UPDATE hashAlgo) @()) (update body)
+    fmap (mkTx . STS.Gen.shrinkSignal @(UPDATE hashAlgo) @()) (update body)
     where
       mkTx :: [UpdatePayload hashAlgo] -> Tx hashAlgo
       mkTx updatePayload = Tx { body = body', witnesses = [] }

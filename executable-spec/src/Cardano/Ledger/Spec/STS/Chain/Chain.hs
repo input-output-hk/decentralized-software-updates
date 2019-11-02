@@ -30,7 +30,7 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      Threshold (Threshold), initialRules, judgmentContext,
                      trans, transitionRules, wrapFailed, (?!))
-import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Data.AbstractSize (HasTypeReps)
 
@@ -272,7 +272,7 @@ instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => Trace.QC.HasTrace (CHAIN hashAlgo) () where
+         ) => STS.Gen.HasTrace (CHAIN hashAlgo) () where
 
   envGen _ = do
     someK <- Gen.QC.kGen
