@@ -37,7 +37,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import           Cardano.Ledger.Spec.STS.Update (UPDATES, UPDATE)
+import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
@@ -266,7 +266,7 @@ instance ( HashAlgorithm hashAlgo
 
   shrinkSignal Tx { body, witnesses } =
     assert (null witnesses) $ -- For now we rely on the set of witnesses being empty.
-    fmap (mkTx . STS.Gen.shrinkSignal @(UPDATE hashAlgo) @()) (update body)
+    mkTx <$> STS.Gen.shrinkSignal @(UPDATES hashAlgo) @() (update body)
     where
       mkTx :: [UpdatePayload hashAlgo] -> Tx hashAlgo
       mkTx updatePayload = Tx { body = body', witnesses = [] }
