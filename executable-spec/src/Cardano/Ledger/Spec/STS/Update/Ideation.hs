@@ -26,22 +26,17 @@ import qualified Data.Set as Set
 
 import qualified Test.QuickCheck as QC
 
-import qualified Hedgehog.Gen as Gen
-import           Hedgehog.Range (constant)
-
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Ledger.Core (Slot, BlockCount)
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁))
 import qualified Ledger.Core as Core
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 
-import           Cardano.Ledger.Generators (kGen, participantsGen, currentSlotGen)
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
@@ -209,100 +204,6 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
             pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
     ]
 
-instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
-
-  envGen _traceLength
-    = Env
-    <$> kGen
-    <*> currentSlotGen
-    -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' class so that 'trace' can take parameter of an associated
-    -- type, so that each STS can decide which parameters are relevant for its
-    -- traces.
-    <*> asipsGen
-    <*> participantsGen
-    where
-     -- TODO: generate a realistic Map
-     --
-     -- TODO: DISCUSS: dnadales: I don't think we can come up with a realistic
-     -- set of SIP hashes here. I wonder if we can/need-to do any better than
-     -- just returning an empty map.
-     asipsGen = pure $ Map.empty
-
-  -- For now we ignore the predicate failure we might need to provide (if any).
-  -- We're interested in valid traces only at the moment.
-  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } =
-      let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k))) in
-      case Set.toList $ range $ stableCommits ◁ subsips of
-        [] ->
-          -- There are no stable commits, so we can only generate a submission.
-          submissionGen
-        xs ->
-          -- TODO: determine submission to revelation ratio (maybe 50/50 is fine...)
-          Gen.frequency [ (1, submissionGen)
-                        , (1, revelationGen xs)
-                        ]
-      where
-        submissionGen = do
-          -- sip <- Gen.filter (`Set.notMember` ( (range subsips)
-          --                                      `Set.union`
-          --                                      (range sipdb)
-          --                                    )
-
-          --                   ) sipGen
-
-          -- generate a new (never seen before) sip
-          sip <- Gen.filter
-                   (\s -> Data.calcCommit s `Set.notMember` (dom subsips))
-                   sipGen
-
-          pure $! mkSubmission sip
-            where
-              sipGen = do
-                owner <- Gen.element $ Set.toList $ dom participants
-                sipMData <- sipMetadataGen
-                sipData <- sipDataGen sipMData
-                let sipHash = Data.SIPHash $ hash sipData
-                salt <- Gen.int (constant 0 100)
-                pure $! SIP sipHash owner salt sipData
-                  where
-                    sipMetadataGen
-                      = Data.SIPMetadata
-                      <$> versionFromGen
-                      <*> versionToGen
-                      <*> Gen.element [Data.Impact, Data.NoImpact]
-                      <*> Gen.subsequence [ Data.BlockSizeMax
-                                          , Data.TxSizeMax
-                                          , Data.SlotSize
-                                          , Data.EpochSize
-                                          ]
-                      <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
-                      where
-                        versionFromGen
-                          =  (,)
-                          <$> fmap Data.ProtVer word64Gen
-                          <*> fmap Data.ApVer word64Gen
-
-                        versionToGen = versionFromGen
-
-                        word64Gen = Gen.word64 (constant 0 100)
-
-                    sipDataGen sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
-
-              mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
-              mkSubmission sip = Submit sipCommit sip
-                where
-                  sipCommit =
-                    Data.SIPCommit commit (Data.author sip) sipCommitSignature
-                    where
-                      commit = Data.calcCommit sip
-                      sipCommitSignature = Core.sign skey commit
-                        where
-                          skey = participants Bimap.! Data.author sip
-
-        revelationGen subsipsList =
-          fmap Reveal $! Gen.element subsipsList
-
 instance
   HashAlgorithm hashAlgo
   => Trace.QC.HasTrace (IDEATION hashAlgo) () where
@@ -406,6 +307,6 @@ instance
   --
   -- So with this trace generation framework I can't think of good shrinks for
   -- these signals.
-  shrinkSignal (Submit sipc sip) = []
-  shrinkSignal (Reveal sip) = []
-  shrinkSignal (Vote ballot) = []
+  shrinkSignal (Submit _sipc _sip) = []
+  shrinkSignal (Reveal _sip) = []
+  shrinkSignal (Vote _ballot) = []

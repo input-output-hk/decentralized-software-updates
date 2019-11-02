@@ -17,13 +17,9 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 
-import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
-
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
-import           Ledger.Core (Slot (Slot))
+import           Ledger.Core (Slot)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -59,14 +55,3 @@ instance STS (IMPLEMENTATION hashAlgo) where
   initialRules = []
 
   transitionRules = [ pure $! St () ]
-
-
-instance HasTrace (IMPLEMENTATION hashAlgo) where
-
-  envGen _ =
-    Env <$> currentSlotGen <*> apprvsipsGen
-    where
-      currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
-      apprvsipsGen = pure $ Set.empty
-
-  sigGen _env _st = pure $! Data.ImplementationPayload

@@ -18,8 +18,6 @@ import           Data.Set as Set (Set)
 import           Data.Typeable (typeOf)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
 import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
@@ -149,15 +147,8 @@ instance ( HashAlgorithm hashAlgo
       wrapFailed = HeaderFailure
 
 -- | Generate a valid next slot, given the current slot.
-headerGen :: Slot -> Gen BHeader
+headerGen :: Slot -> QC.Gen BHeader
 headerGen (Slot s) =
-  BHeader . Slot . (s +) <$> Gen.frequency [ (99, pure 1)
-                                           , (1, pure 2)
-                                           ]
-
--- | QuickCheck version of 'headerGen'
-headerQCGen :: Slot -> QC.Gen BHeader
-headerQCGen (Slot s) =
   BHeader . Slot . (s +) <$> QC.frequency [ (99, pure 1)
                                           , (1, pure 2)
                                           ]

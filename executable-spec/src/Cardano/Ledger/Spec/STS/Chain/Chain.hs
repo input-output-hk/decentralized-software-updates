@@ -23,7 +23,6 @@ import           Data.Set as Set (Set)
 import qualified Data.Set as Set
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
-import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -31,7 +30,6 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      Threshold (Threshold), initialRules, judgmentContext,
                      trans, transitionRules, wrapFailed, (?!))
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 
 import           Data.AbstractSize (HasTypeReps)
@@ -39,9 +37,6 @@ import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen, prvNoMajorityGen, prvNoQuorumGen, r_aGen,
-                     stakeDistGen)
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
@@ -269,65 +264,9 @@ instance ( HashAlgorithm hashAlgo
          ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo) where
   wrapFailed = ChainFailureHeader
 
-
-instance ( HasTypeReps hashAlgo
-         , HashAlgorithm hashAlgo
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => HasTrace (CHAIN hashAlgo) where
-
-  envGen _traceLength
-    = Env
-    <$> kGen
-    <*> maxBlockSizeGen
-    <*> currentSlotGen
-    <*> participantsGen
-    <*> r_aGen
-    <*> stakeDistGen
-    <*> prvNoQuorumGen
-    <*> prvNoMajorityGen
-    where
-      -- For now we fix the maximum block size to an abstract size of 100
-      maxBlockSizeGen = pure 100
-
-  sigGen Env { k
-             , maximumBlockSize
-             , participants
-             }
-         St { currentSlot
-            , subsips
-            , asips
-            , wssips
-            , wrsips
-            , sipdb
-            , ballots
-            --, vresips
-            , apprvsips
-            , implementationSt
-            , utxoSt
-            }
-    = Block
-    <$> Header.headerGen currentSlot
-    <*> transactionsGen
-    where
-      transactionsGen =
-        Body.BBody <$> Body.transactionsGen
-                         maximumBlockSize
-                         Transaction.Env { Transaction.k = k
-                                         , Transaction.currentSlot = currentSlot
-                                         , Transaction.asips = asips
-                                         , Transaction.apprvsips = apprvsips
-                                         , Transaction.participants = participants
-                                         , Transaction.utxoEnv = UTxO.Env
-                                         }
-                         Transaction.St { Transaction.subsips = subsips
-                                        , Transaction.wssips = wssips
-                                        , Transaction.wrsips = wrsips
-                                        , Transaction.sipdb = sipdb
-                                        , Transaction.ballots = ballots
-                                        , Transaction.implementationSt = implementationSt
-                                        , Transaction.utxoSt = utxoSt
-                                        }
+--------------------------------------------------------------------------------
+-- HasTrace instance
+--------------------------------------------------------------------------------
 
 instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
@@ -366,34 +305,31 @@ instance ( HasTypeReps hashAlgo
        , utxoSt
        }
     = do
-    someHeader <- Header.headerQCGen currentSlot
-    someBody <- transactionsGen (Header.slot someHeader)
+    someHeader <- Header.headerGen currentSlot
+    let
+      transactionEnv =
+        Transaction.Env
+          { Transaction.k = k
+          , Transaction.currentSlot = Header.slot someHeader
+          , Transaction.asips = asips
+          , Transaction.participants = participants
+          , Transaction.utxoEnv = UTxO.Env
+          }
+      transactionSt =
+        Transaction.St
+          { Transaction.subsips = subsips
+          , Transaction.wssips = wssips
+          , Transaction.wrsips = wrsips
+          , Transaction.ballots = ballots
+          , Transaction.voteResultSIPs = voteResultSIPs
+          , Transaction.implementationSt = implementationSt
+          , Transaction.utxoSt = utxoSt
+          }
+    someBody <- Body.gen maximumBlockSize transactionEnv transactionSt
     pure $! Block { header = someHeader, body = someBody}
-    where
-      transactionsGen nextSlot = do
-        transactions <-
-          Body.transactionsQCGen
-            maximumBlockSize
-            Transaction.Env
-              { Transaction.k = k
-              , Transaction.currentSlot = nextSlot
-              , Transaction.asips = asips
-              , Transaction.participants = participants
-              , Transaction.utxoEnv = UTxO.Env
-              }
-            Transaction.St
-              { Transaction.subsips = subsips
-              , Transaction.wssips = wssips
-              , Transaction.wrsips = wrsips
-              , Transaction.ballots = ballots
-              , Transaction.voteResultSIPs = voteResultSIPs
-              , Transaction.implementationSt = implementationSt
-              , Transaction.utxoSt = utxoSt
-              }
-        pure $! Body.BBody transactions
 
   shrinkSignal Block { header, body } =
     -- TODO: for now we don't shrink the header.
-    fmap (mkBlock . Trace.QC.shrinkSignal @(TRANSACTION hashAlgo) @()) (Body.transactions body)
+    mkBlock <$> Body.shrink body
     where
-      mkBlock txs = Block {header = header, body = Body.BBody txs}
+      mkBlock shrunkBody = Block { header = header, body = shrunkBody }

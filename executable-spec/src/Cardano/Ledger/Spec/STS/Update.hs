@@ -29,7 +29,6 @@ import           Control.State.Transition.Trace (traceSignals, TraceOrder (Oldes
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as Trace.QC
 import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot, BlockCount)
@@ -215,53 +214,11 @@ instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo) (UPDATES hashAlgo) wh
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => HasTrace (UPDATES hashAlgo) where
-
-  envGen traceLength = envGen @(UPDATE hashAlgo) traceLength
-
-  sigGen env st
-    =   traceSignals OldestFirst
-    <$> genTrace @(UPDATE hashAlgo) 10 env st (sigGen @(UPDATE hashAlgo))
-    -- TODO: we need to determine what is a realistic number of update
-    -- transactions to be expected in a block.
-
-instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
-
-  envGen traceLength = do
-    env <- envGen @(IDEATION hashAlgo) traceLength
-    pure $! Env { k = Ideation.k env
-                , currentSlot = Ideation.currentSlot env
-                , asips = Ideation.asips env
-                , participants = Ideation.participants env
-                , apprvsips = Set.empty
-                }
-
-  sigGen  Env { k, currentSlot, asips, participants }
-          St { subsips, wssips, wrsips, sipdb, ballots } =
-    -- For now we generate ideation payload only.
-    Ideation
-      <$> sigGen @(IDEATION hashAlgo)
-                  Ideation.Env { Ideation.k = k
-                               , Ideation.currentSlot = currentSlot
-                               , Ideation.asips = asips
-                               , Ideation.participants = participants
-                               }
-                  Ideation.St { Ideation.subsips = subsips
-                              , Ideation.wssips = wssips
-                              , Ideation.wrsips = wrsips
-                              , Ideation.sipdb = sipdb
-                              , Ideation.ballots = ballots
-                              }
-
---------------------------------------------------------------------------------
--- Trace generators (QuickCheck)
---------------------------------------------------------------------------------
-
 instance HashAlgorithm hashAlgo => Trace.QC.HasTrace (UPDATES hashAlgo) ()where
 
   envGen traceGenEnv = Trace.QC.envGen @(UPDATE hashAlgo) traceGenEnv
 
-  sigGen traceGenEnv env st
+  sigGen _traceGenEnv env st
     =   traceSignals OldestFirst
     <$> Trace.QC.traceFrom @(UPDATE hashAlgo) 10 () env st
     -- TODO: we need to determine what is a realistic number of update

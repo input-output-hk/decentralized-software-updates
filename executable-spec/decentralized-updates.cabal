@@ -14,8 +14,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Cardano.Ledger.Generators
-                     , Cardano.Ledger.Generators.QuickCheck
+  exposed-modules:     Cardano.Ledger.Generators.QuickCheck
                      , Cardano.Ledger.Spec.STS.Chain.Chain
                      , Cardano.Ledger.Spec.STS.Chain.Header
                      , Cardano.Ledger.Spec.STS.Chain.Body
@@ -35,7 +34,6 @@ library
                      , containers
                      , cryptonite
                      , generic-monoid
-                     , hedgehog >= 1.0
                      , QuickCheck
                      , text
                      -- Cardano specific imports
@@ -59,10 +57,8 @@ test-suite ledger-rules-test
   default-language:    Haskell2010
   build-depends:       base
                      , containers
-                     , hedgehog >= 1.0
                      , tasty
                      , tasty-hunit
-                     , tasty-hedgehog
                      , QuickCheck
                      , tasty-quickcheck
                      -- Cardano specific imports

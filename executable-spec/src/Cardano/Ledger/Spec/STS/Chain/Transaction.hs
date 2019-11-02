@@ -196,10 +196,7 @@ instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo) where
 instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlgo) where
   wrapFailed = TxFailure
 
-instance ( HasTypeReps hashAlgo
-         , HashAlgorithm hashAlgo
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
+instance ( HashAlgorithm hashAlgo
          ) => Trace.QC.HasTrace (TRANSACTION hashAlgo) () where
 
   -- Since we don't use the 'TRANSACTION' STS in isolation, we don't need a
