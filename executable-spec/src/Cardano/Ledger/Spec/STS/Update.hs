@@ -214,7 +214,7 @@ instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo) (UPDATES hashAlgo) wh
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo) ()where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo) () where
 
   envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo) traceGenEnv
 

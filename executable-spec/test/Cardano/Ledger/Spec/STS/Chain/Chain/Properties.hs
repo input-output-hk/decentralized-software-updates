@@ -26,22 +26,23 @@ qc_onlyValidSignalsAreGenerated
   $ STS.Gen.onlyValidSignalsAreGenerated @(CHAIN ShortHash) @() 25 ()
 
 qc_traceLengthsAreClassified :: QC.Property
-qc_traceLengthsAreClassified =
-  QC.withMaxSuccess 100
+qc_traceLengthsAreClassified
+  = QC.withMaxSuccess 100
   $ STS.Gen.traceLengthsAreClassified @(CHAIN ShortHash) 100 10 ()
 
 qc_revealsAreClassified :: QC.Property
-qc_revealsAreClassified =
-  QC.withMaxSuccess 300
+qc_revealsAreClassified
+  = QC.withMaxSuccess 300
   $ STS.Gen.forAllTrace @(CHAIN ShortHash) @() maxTraceLength ()
   $ \traceSample ->
       STS.Gen.classifySize "Reveals" traceSample lastStateReveals maxTraceLength step
   where
     (maxTraceLength, step) = (100, 5)
     lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
-    lastStateReveals tr = Trace.lastState tr
-                        & Chain.wrsips &&& Chain.asips
-                        & uncurry (∪)
-                        & dom
-                        & length
-                        & fromIntegral
+    lastStateReveals tr
+      = Trace.lastState tr
+      & Chain.wrsips &&& Chain.asips
+      & uncurry (∪)
+      & dom
+      & length
+      & fromIntegral

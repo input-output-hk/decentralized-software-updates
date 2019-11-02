@@ -35,6 +35,7 @@ library
                      , cryptonite
                      , generic-monoid
                      , QuickCheck
+                     , random
                      , text
                      -- Cardano specific imports
                      , cardano-binary

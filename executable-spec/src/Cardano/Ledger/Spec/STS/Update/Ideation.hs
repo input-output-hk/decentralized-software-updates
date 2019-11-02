@@ -13,7 +13,6 @@
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
-import Data.Text as T
 import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
@@ -21,9 +20,9 @@ import           Data.Map.Strict (Map, (!), (!?))
 import           Data.Maybe (fromMaybe)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
-import           GHC.Generics (Generic)
 import qualified Data.Set as Set
-
+import           Data.Text as T
+import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
@@ -37,7 +36,7 @@ import qualified Ledger.Core as Core
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
-import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit)
@@ -211,13 +210,13 @@ instance
   envGen :: () -> QC.Gen (Env hashAlgo)
   envGen _traceGenEnv
     = do
-    someK <- Gen.QC.kGen
-    someCurrentSlot <- Gen.QC.currentSlotGen
+    someK <- Gen.kGen
+    someCurrentSlot <- Gen.currentSlotGen
     -- TODO: for now we generate a constant set of keys. We need to update the
     -- 'HasTrace' class so that 'trace' can take parameter of an associated
     -- type, so that each STS can decide which parameters are relevant for its
     -- traces.
-    someParticipants <- Gen.QC.participantsGen
+    someParticipants <- Gen.participantsGen
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
                   , asips = Map.empty
@@ -250,7 +249,7 @@ instance
               sipMData <- sipMetadataGen
               sipData <- sipDataGen sipMData
               let sipHash = Data.SIPHash $ hash sipData
-              salt <- QC.choose (0, 100) -- TODO: we can choose smaller numbers as @salt@ value.
+              salt <- QC.bounded 2
               pure $! SIP sipHash owner salt sipData
                 where
                   sipMetadataGen
@@ -272,7 +271,7 @@ instance
 
                       versionToGen = versionFromGen
 
-                      word64Gen = QC.choose (0, 100)
+                      word64Gen = Gen.bounded 5
 
                   sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
                     where

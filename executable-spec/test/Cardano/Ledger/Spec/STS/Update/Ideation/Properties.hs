@@ -17,6 +17,6 @@ qc_onlyValidSignalsAreGenerated
   $ STS.Gen.onlyValidSignalsAreGenerated @(IDEATION ShortHash) @() 100 ()
 
 qc_traceLengthsAreClassified :: QC.Property
-qc_traceLengthsAreClassified =
-  QC.withMaxSuccess 300
+qc_traceLengthsAreClassified
+  =  QC.withMaxSuccess 300
   $ STS.Gen.traceLengthsAreClassified @(IDEATION ShortHash) 100 10 ()
