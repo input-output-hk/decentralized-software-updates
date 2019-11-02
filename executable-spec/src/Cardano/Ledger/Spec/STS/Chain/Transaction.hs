@@ -13,7 +13,7 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
-import Control.Exception (assert)
+import           Control.Exception (assert)
 import           Data.Bimap (Bimap)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))

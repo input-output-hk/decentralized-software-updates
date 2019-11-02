@@ -400,4 +400,12 @@ instance
           else submissionGen
 
 
-  shrinkSignal x = [x] -- For now we don't shrink the ideation payload
+  -- TODO: I don't think @IdeationPayload@ can be shrunk. If we shrink the SIP,
+  -- we have to modify the commit, but then all the ballots will refer to
+  -- invalid commits.
+  --
+  -- So with this trace generation framework I can't think of good shrinks for
+  -- these signals.
+  shrinkSignal (Submit sipc sip) = []
+  shrinkSignal (Reveal sip) = []
+  shrinkSignal (Vote ballot) = []

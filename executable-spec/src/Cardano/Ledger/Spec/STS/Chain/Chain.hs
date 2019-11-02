@@ -393,7 +393,7 @@ instance ( HasTypeReps hashAlgo
         pure $! Body.BBody transactions
 
   shrinkSignal Block { header, body } =
-    -- -- TODO: for now we don't shrink the header.
+    -- TODO: for now we don't shrink the header.
     fmap (mkBlock . Trace.QC.shrinkSignal @(TRANSACTION hashAlgo) @()) (Body.transactions body)
     where
       mkBlock txs = Block {header = header, body = Body.BBody txs}

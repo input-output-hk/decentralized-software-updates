@@ -57,8 +57,8 @@ traceRevealsAreClassified = withTests 300 $ property $ do
 
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated
-  = QC.withMaxSuccess 300
-  $ Trace.QC.onlyValidSignalsAreGenerated @(CHAIN ShortHash) @() 100 ()
+  = QC.withMaxSuccess 1000
+  $ Trace.QC.onlyValidSignalsAreGenerated @(CHAIN ShortHash) @() 25 ()
 
 qc_traceLengthsAreClassified :: QC.Property
 qc_traceLengthsAreClassified =
