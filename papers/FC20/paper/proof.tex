@@ -11,12 +11,12 @@ In the protocol $\Pi$, by assumption, we have that $\asmp_2[t]=1$ for all $t\geq
 That is, when an honest party is activated she waits to be sure that also the other honest parties are activated. Hence, from the chain-growth and the common-prefix parameters
 each party needs to wait at most $\Delta_1=k\cg^{-1}$ time slots.
 From the moment when $\asmp_2$ becomes true the activation process takes $\Delta_2=k \cg^{-1} + k \cg^{-1}$  time slots more to be completed.
-This is because the parties need to wait that the $(j+k)$-th block of $\state_1$ is part of $\state^{P_i}[t]$ \nnote{$\check \state_1^{P_i}[t]$ (step 1 in the protocol)} for all $P_i$ and that $k$ blocks are generated in $\state_2$. Note that when $k$ blocks are generated in $\state_2$ at least 
+This is because the parties need to wait that the $(j+k)$-th block of $\state_1$ is part of $\check \state_1^{P_i}[t]$  for all $P_i$ and that $k$ blocks are generated in $\state_2$. Note that when $k$ blocks are generated in $\state_2$ at least 
 $k$ blocks are generated in $\state_1$ since $\ledger_2$ and $\ledger_1$ have the same parameters and that the honest parties that maintain $\ledger_1$ are greater or equal than the parties that maintain $\ledger_2$. Therefore, the parties need to wait the \emph{special genesis block} of $\ledger_2$ to appear 
 in $\state_2^P[t]$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $\cg^{-1}$ time slots then we have that $\Delta_2=k \cg^{-1} + k \cg^{-1}$.
 In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
 using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
-Let $t'$ be \nnote{the } smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
+Let $t'$ be the smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
 If we take the execution of the protocol from time $t^\upd$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
 that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
 that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
