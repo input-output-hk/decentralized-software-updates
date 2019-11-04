@@ -19,7 +19,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Typeable (Typeable)
 import           Data.Typeable (typeOf)
-import           Data.Word (Word64)
+import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 import           Data.Map.Strict (Map, (!))
 
@@ -74,7 +74,7 @@ data VotingResult =
   deriving (Eq, Ord, Show)
 
 -- | Voting threshold
-type VThreshold = Word
+type VThreshold = Word8
 
 -- | Stake
 type Stake = Word64

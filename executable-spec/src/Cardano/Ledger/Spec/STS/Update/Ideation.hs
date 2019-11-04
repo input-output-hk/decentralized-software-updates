@@ -146,9 +146,8 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
-          (Data.commit sipc) ∉ dom subsips ?! SIPAlreadySubmitted sip
-          --sip ∉ range sipdb ?! SIPSubmittedAlreadyRevealed sip
+          Data._author sipc ∈ dom participants ?! InvalidAuthor (Data.author sip)
+          Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
           -- TODO: Add verification of signature inside SIPCommit
 
