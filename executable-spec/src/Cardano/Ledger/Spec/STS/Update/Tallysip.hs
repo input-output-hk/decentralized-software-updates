@@ -154,7 +154,11 @@ instance STS (TALLYSIP hashAlgo) where
 
         -- if approved then, update state of approved SIPs
         apprvsips' =
-          if Data.stakeInFavor (vresips'!sipHash) > vThreshold r_a
+          if (fromIntegral $ Data.stakeInFavor (vresips'!sipHash))
+             /
+             (fromIntegral $ Data.totalStake stakeDist)
+             * 100
+             > (fromIntegral (vThreshold r_a :: Integer) :: Float)
             then
               Set.insert sipHash apprvsips
             else
@@ -166,7 +170,11 @@ instance STS (TALLYSIP hashAlgo) where
         stakeA = Data.stakeAgainst $ vresips'!sipHash
         stakeAb = Data.stakeAbstain $ vresips'!sipHash
         (asips', vResult') =
-          if (  Data.stakeAbstain (vresips'!sipHash) > vThreshold r_a
+          if (  (fromIntegral $ Data.stakeAbstain (vresips'!sipHash))
+                /
+                (fromIntegral $ Data.totalStake stakeDist)
+                * 100
+                > (fromIntegral (vThreshold r_a :: Integer) :: Float)
              && rvNoQ <= p_rvNoQuorum
              )
             then
@@ -175,9 +183,23 @@ instance STS (TALLYSIP hashAlgo) where
               , Data.VotingResult stakeInF stakeA stakeAb (rvNoQ + 1)  rvNoM
               )
             else
-              if (  Data.stakeInFavor (vresips'!sipHash) <= vThreshold r_a
-                 && Data.stakeAgainst (vresips'!sipHash) <= vThreshold r_a
-                 && Data.stakeAbstain (vresips'!sipHash) <= vThreshold r_a
+              if ( (fromIntegral $ Data.stakeInFavor (vresips'!sipHash))
+                   /
+                   (fromIntegral $ Data.totalStake stakeDist)
+                   * 100
+                   <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 &&
+                   (fromIntegral $ Data.stakeAgainst (vresips'!sipHash))
+                   /
+                   (fromIntegral $ Data.totalStake stakeDist)
+                   * 100
+                   <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 &&
+                   (fromIntegral $ Data.stakeAbstain (vresips'!sipHash))
+                   /
+                   (fromIntegral $ Data.totalStake stakeDist)
+                   * 100
+                   <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
                  && rvNoM <= p_rvNoMajority
                  )
                 then

@@ -22,7 +22,7 @@ import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
 import qualified Ledger.Core as Core
-import           Cardano.Ledger.Spec.STS.Update.Data (Stake)
+import           Cardano.Ledger.Spec.STS.Update.Data (Stake, Stake(Stake))
 
 
 p_rvNoQuorumGen :: Gen Word8
@@ -36,7 +36,7 @@ stakeDistGen = do
   p <- participantsGen
   let vkeys = Bimap.keys p
   stks <- Gen.list (Range.singleton $ length vkeys) (Gen.word64 (Range.linear 1 100))
-  pure $ Map.fromList $ zip vkeys stks
+  pure $ Map.fromList $ zip vkeys (Stake <$> stks)
 
 -- voteTGen :: Gen VThreshold
 -- voteTGen = Gen.integral (Range.constant 50 75)

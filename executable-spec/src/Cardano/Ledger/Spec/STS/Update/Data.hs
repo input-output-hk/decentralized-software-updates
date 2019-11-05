@@ -22,6 +22,7 @@ import           Data.Typeable (typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 import           Data.Map.Strict (Map, (!))
+import qualified Data.Map.Strict as Map
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
@@ -67,9 +68,9 @@ data Confidence = For | Against | Abstain
 
 -- | Records the voting result for a specific software update (SIP/UP)
 data VotingResult =
-  VotingResult { stakeInFavor :: !Word64
-               , stakeAgainst :: !Word64
-               , stakeAbstain :: !Word64
+  VotingResult { stakeInFavor :: !Stake
+               , stakeAgainst :: !Stake
+               , stakeAbstain :: !Stake
                , rvNoQuorum :: Word8
                  -- ^ No quorum revoting : how many times
                  -- revoting has taken place due to a no quorum result
@@ -80,7 +81,28 @@ data VotingResult =
   deriving (Eq, Ord, Show)
 
 -- | Stake
-type Stake = Word64
+newtype Stake = Stake { getStake :: Word64 }
+ deriving (Eq, Ord, Show, Enum)
+
+instance Num Stake where
+  (+) (Stake s1) (Stake s2) = Stake (s1 + s2)
+  (*) (Stake s1) (Stake s2) = Stake (s1 * s2)
+  abs (Stake s) = Stake (abs s)
+  signum (Stake s) = Stake (signum s)
+  fromInteger i = Stake (fromIntegral i)
+  (-) (Stake s1) (Stake s2) = Stake $ s1 - s2
+
+instance Integral Stake where
+  toInteger (Stake s) = toInteger s
+  quotRem (Stake s1) (Stake s2) = (Stake $ quot s1 s2, Stake $ rem s1 s2)
+
+instance Real Stake where
+  toRational (Stake s) = toRational s
+
+-- | Returns the total stake from a stake distribution
+totalStake :: (Map Core.VKey Stake) -> Stake
+totalStake m =
+  Map.foldr' (\stk tot -> tot + stk) (Stake 0) m
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
