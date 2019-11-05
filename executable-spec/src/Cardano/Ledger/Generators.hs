@@ -6,6 +6,8 @@ module Cardano.Ledger.Generators
   , participantsGen
   , voteTGen
   , stakeDistGen
+  , p_rvNoQuorumGen
+  , p_rvNoMajorityGen
   )
 where
 
@@ -14,6 +16,7 @@ import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Word (Word8)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
@@ -21,6 +24,12 @@ import qualified Hedgehog.Range as Range
 import qualified Ledger.Core as Core
 import           Cardano.Ledger.Spec.STS.Update.Data (VThreshold, Stake)
 
+
+p_rvNoQuorumGen :: Gen Word8
+p_rvNoQuorumGen = Gen.integral (Range.constant 3 7)
+
+p_rvNoMajorityGen :: Gen Word8
+p_rvNoMajorityGen = Gen.integral (Range.constant 3 7)
 
 stakeDistGen :: Gen (Map Core.VKey Stake)
 stakeDistGen = do

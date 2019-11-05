@@ -21,6 +21,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
 import           GHC.Generics (Generic)
+import           Data.Word (Word8)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -35,7 +36,8 @@ import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen, voteTGen, stakeDistGen)
+                     participantsGen, voteTGen, stakeDistGen
+                     , p_rvNoQuorumGen, p_rvNoMajorityGen)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -65,6 +67,10 @@ data Env hashAlgo
     , participants :: !(Bimap Core.VKey Core.SKey)
     , vThreshold :: !Data.VThreshold
     , stakeDist :: !(Map Core.VKey Data.Stake)
+    , p_rvNoQuorum :: !Word8
+      -- How many times a revoting is allowed due to a no quorum result
+    , p_rvNoMajority :: !Word8
+      -- How many times a revoting is allowed due to a no majority result
     }
     deriving (Eq, Show)
 
@@ -154,6 +160,8 @@ instance ( HashAlgorithm hashAlgo
                 , participants
                 , vThreshold
                 , stakeDist
+                , p_rvNoQuorum
+                , p_rvNoMajority
                 }
           , St  { currentSlot
                 , subsips
@@ -185,6 +193,8 @@ instance ( HashAlgorithm hashAlgo
                                   , Header.ballots = ballots
                                   , Header.vThreshold = vThreshold
                                   , Header.stakeDist = stakeDist
+                                  , Header.p_rvNoQuorum = p_rvNoQuorum
+                                  , Header.p_rvNoMajority = p_rvNoMajority
                                   }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
@@ -268,6 +278,8 @@ instance ( HasTypeReps hashAlgo
     <*> participantsGen
     <*> voteTGen
     <*> stakeDistGen
+    <*> p_rvNoQuorumGen
+    <*> p_rvNoMajorityGen
     where
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100

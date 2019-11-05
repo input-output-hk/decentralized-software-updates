@@ -70,6 +70,12 @@ data VotingResult =
   VotingResult { stakeInFavor :: !Word64
                , stakeAgainst :: !Word64
                , stakeAbstain :: !Word64
+               , rvNoQuorum :: Word8
+                 -- ^ No quorum revoting : how many times
+                 -- revoting has taken place due to a no quorum result
+              , rvNoMajority :: Word8
+                 -- ^ No majority revoting : how many times
+                 -- revoting has taken place due to a no majority result
                }
   deriving (Eq, Ord, Show)
 

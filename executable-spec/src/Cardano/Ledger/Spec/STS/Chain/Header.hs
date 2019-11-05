@@ -19,6 +19,7 @@ import           Data.Typeable (typeOf)
 import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
+import           Data.Word (Word8)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -46,6 +47,10 @@ data Env hashAlgo
         , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
         , vThreshold :: !Data.VThreshold
         , stakeDist :: !(Map Core.VKey Data.Stake)
+        , p_rvNoQuorum :: !Word8
+         -- How many times a revoting is allowed due to a no quorum result
+        , p_rvNoMajority :: !Word8
+         -- How many times a revoting is allowed due to a no majority result
         }
         deriving (Eq, Show)
 
@@ -90,7 +95,9 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb, ballots, vThreshold, stakeDist }
+      TRC ( Env { k, sipdb, ballots, vThreshold
+                , stakeDist, p_rvNoQuorum, p_rvNoMajority
+                }
           , St  { currentSlot
                 , wrsips
                 , asips
@@ -112,6 +119,8 @@ instance ( HashAlgorithm hashAlgo
                                           , Hupdate.ballots = ballots
                                           , Hupdate.vThreshold = vThreshold
                                           , Hupdate.stakeDist = stakeDist
+                                          , Hupdate.p_rvNoQuorum = p_rvNoQuorum
+                                          , Hupdate.p_rvNoMajority = p_rvNoMajority
                                           }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips

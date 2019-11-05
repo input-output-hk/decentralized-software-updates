@@ -14,6 +14,7 @@ import           Data.Set as Set (Set)
 import qualified Data.Set as Set
 import           GHC.Generics (Generic)
 import           Data.AbstractSize (HasTypeReps)
+import           Data.Word (Word8)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
@@ -34,6 +35,10 @@ data Env hashAlgo
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
        , vThreshold :: !Data.VThreshold
        , stakeDist :: !(Map Core.VKey Data.Stake)
+       , p_rvNoQuorum :: !Word8
+         -- How many times a revoting is allowed due to a no quorum result
+       , p_rvNoMajority :: !Word8
+         -- How many times a revoting is allowed due to a no majority result
        }
        deriving (Eq, Show)
 
@@ -81,6 +86,8 @@ instance STS (TALLYSIP hashAlgo) where
                 , ballots
                 , vThreshold
                 , stakeDist
+                , p_rvNoQuorum
+                , p_rvNoMajority
                 }
           , St  { vresips
                 , asips
@@ -95,6 +102,13 @@ instance STS (TALLYSIP hashAlgo) where
 
       -- do the tally
       let
+        -- get revoting counters for this SIP
+        (rvNoQ, rvNoM) = case Map.lookup sipHash vresips of
+                           Nothing -> (0,0)
+                           Just vr -> ( Data.rvNoQuorum vr
+                                      , Data.rvNoMajority vr
+                                      )
+
         -- count the votes for the specific SIP and store result
         vresips' =
           let ballotsOfSIP = case Map.lookup sipHash ballots of
@@ -104,7 +118,7 @@ instance STS (TALLYSIP hashAlgo) where
               vResult =
                 if ballotsOfSIP == (Map.empty :: Map Core.VKey Data.Confidence)
                   then
-                    Data.VotingResult 0 0 0
+                    Data.VotingResult 0 0 0 rvNoQ rvNoM
                   else
                     Map.foldrWithKey'
                       (\vkey conf Data.VotingResult { Data.stakeInFavor
@@ -117,16 +131,22 @@ instance STS (TALLYSIP hashAlgo) where
                                    (stakeInFavor + stake)
                                    stakeAgainst
                                    stakeAbstain
+                                   rvNoQ
+                                   rvNoM
                                  Data.Against -> Data.VotingResult
                                    stakeInFavor
                                    (stakeAgainst + stake)
                                    stakeAbstain
+                                   rvNoQ
+                                   rvNoM
                                  Data.Abstain -> Data.VotingResult
                                    stakeInFavor
                                    stakeAgainst
                                    (stakeAbstain + stake)
+                                   rvNoQ
+                                   rvNoM
                       )
-                      (Data.VotingResult 0 0 0)
+                      (Data.VotingResult 0 0 0 rvNoQ rvNoM)
                       ballotsOfSIP
           in vresips ⨃ [(sipHash, vResult)]
 
@@ -140,19 +160,38 @@ instance STS (TALLYSIP hashAlgo) where
 
         -- if no-majority result, or no-quorum, calculate end of new voting period
         -- and update active sips state
-        asips' =
-          if Data.stakeAbstain (vresips'!sipHash) > fromIntegral vThreshold
-             ||
-             (  Data.stakeInFavor (vresips'!sipHash) <= fromIntegral vThreshold
-             && Data.stakeAgainst (vresips'!sipHash) <= fromIntegral vThreshold
-             && Data.stakeAbstain (vresips'!sipHash) <= fromIntegral vThreshold
+        stakeInF = Data.stakeInFavor $ vresips'!sipHash
+        stakeA = Data.stakeAgainst $ vresips'!sipHash
+        stakeAb = Data.stakeAbstain $ vresips'!sipHash
+        (asips', vResult') =
+          if (  Data.stakeAbstain (vresips'!sipHash) > fromIntegral vThreshold
+             && rvNoQ <= p_rvNoQuorum
              )
-            then -- a revoting is due - calc new voting period end
-              asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
+            then
+              (-- a revoting is due No Quorum - calc new voting period end
+                asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
+              , Data.VotingResult stakeInF stakeA stakeAb (rvNoQ + 1)  rvNoM
+              )
             else
-              asips
+              if (  Data.stakeInFavor (vresips'!sipHash) <= fromIntegral vThreshold
+                 && Data.stakeAgainst (vresips'!sipHash) <= fromIntegral vThreshold
+                 && Data.stakeAbstain (vresips'!sipHash) <= fromIntegral vThreshold
+                 && rvNoM <= p_rvNoMajority
+                 )
+                then
+                  (-- a revoting is due No Majority - calc new voting period end
+                    asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
+                  , Data.VotingResult stakeInF stakeA stakeAb rvNoQ  (rvNoM + 1)
+                  )
+                else
+                  (asips, vresips'!sipHash)
 
-      pure $ St { vresips = vresips'
+        -- if a revoting took place then update rv counters
+        vresips'' = Map.insert sipHash vResult' vresips' -- this overwrites
+                                                         -- existing pair
+
+
+      pure $ St { vresips = vresips''
                 , apprvsips = apprvsips'
                 , asips = asips'
                 }
