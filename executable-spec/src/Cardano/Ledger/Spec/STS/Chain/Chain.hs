@@ -36,7 +36,7 @@ import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen, voteTGen, stakeDistGen
+                     participantsGen, r_aGen, stakeDistGen
                      , p_rvNoQuorumGen, p_rvNoMajorityGen)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
@@ -65,7 +65,8 @@ data Env hashAlgo
       -- TODO: use abstract size instead.
     , initialSlot :: !Slot
     , participants :: !(Bimap Core.VKey Core.SKey)
-    , vThreshold :: !Data.VThreshold
+    , r_a :: !Float
+      -- ^ adversary stake ratio
     , stakeDist :: !(Map Core.VKey Data.Stake)
     , p_rvNoQuorum :: !Word8
       -- How many times a revoting is allowed due to a no quorum result
@@ -158,7 +159,7 @@ instance ( HashAlgorithm hashAlgo
       TRC ( Env { k
                 , maximumBlockSize
                 , participants
-                , vThreshold
+                , r_a
                 , stakeDist
                 , p_rvNoQuorum
                 , p_rvNoMajority
@@ -191,7 +192,7 @@ instance ( HashAlgorithm hashAlgo
                $ TRC ( Header.Env { Header.k = k
                                   , Header.sipdb = sipdb
                                   , Header.ballots = ballots
-                                  , Header.vThreshold = vThreshold
+                                  , Header.r_a = r_a
                                   , Header.stakeDist = stakeDist
                                   , Header.p_rvNoQuorum = p_rvNoQuorum
                                   , Header.p_rvNoMajority = p_rvNoMajority
@@ -276,7 +277,7 @@ instance ( HasTypeReps hashAlgo
     <*> maxBlockSizeGen
     <*> currentSlotGen
     <*> participantsGen
-    <*> voteTGen
+    <*> r_aGen
     <*> stakeDistGen
     <*> p_rvNoQuorumGen
     <*> p_rvNoMajorityGen

@@ -25,6 +25,7 @@ import qualified Ledger.Core as Core
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 -- | STS for tallying the votes of a single SIP
 data TALLYSIP hashAlgo
@@ -33,12 +34,13 @@ data Env hashAlgo
  = Env { currentSlot :: !Slot
        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-       , vThreshold :: !Data.VThreshold
+       , r_a :: !Float
+         -- ^ adversary stake ratio
        , stakeDist :: !(Map Core.VKey Data.Stake)
        , p_rvNoQuorum :: !Word8
-         -- How many times a revoting is allowed due to a no quorum result
+         -- ^ How many times a revoting is allowed due to a no quorum result
        , p_rvNoMajority :: !Word8
-         -- How many times a revoting is allowed due to a no majority result
+         -- ^ How many times a revoting is allowed due to a no majority result
        }
        deriving (Eq, Show)
 
@@ -84,7 +86,7 @@ instance STS (TALLYSIP hashAlgo) where
       TRC ( Env { currentSlot
                 , sipdb
                 , ballots
-                , vThreshold
+                , r_a
                 , stakeDist
                 , p_rvNoQuorum
                 , p_rvNoMajority
@@ -152,7 +154,7 @@ instance STS (TALLYSIP hashAlgo) where
 
         -- if approved then, update state of approved SIPs
         apprvsips' =
-          if Data.stakeInFavor (vresips'!sipHash) > fromIntegral vThreshold
+          if Data.stakeInFavor (vresips'!sipHash) > vThreshold r_a
             then
               Set.insert sipHash apprvsips
             else
@@ -164,7 +166,7 @@ instance STS (TALLYSIP hashAlgo) where
         stakeA = Data.stakeAgainst $ vresips'!sipHash
         stakeAb = Data.stakeAbstain $ vresips'!sipHash
         (asips', vResult') =
-          if (  Data.stakeAbstain (vresips'!sipHash) > fromIntegral vThreshold
+          if (  Data.stakeAbstain (vresips'!sipHash) > vThreshold r_a
              && rvNoQ <= p_rvNoQuorum
              )
             then
@@ -173,9 +175,9 @@ instance STS (TALLYSIP hashAlgo) where
               , Data.VotingResult stakeInF stakeA stakeAb (rvNoQ + 1)  rvNoM
               )
             else
-              if (  Data.stakeInFavor (vresips'!sipHash) <= fromIntegral vThreshold
-                 && Data.stakeAgainst (vresips'!sipHash) <= fromIntegral vThreshold
-                 && Data.stakeAbstain (vresips'!sipHash) <= fromIntegral vThreshold
+              if (  Data.stakeInFavor (vresips'!sipHash) <= vThreshold r_a
+                 && Data.stakeAgainst (vresips'!sipHash) <= vThreshold r_a
+                 && Data.stakeAbstain (vresips'!sipHash) <= vThreshold r_a
                  && rvNoM <= p_rvNoMajority
                  )
                 then

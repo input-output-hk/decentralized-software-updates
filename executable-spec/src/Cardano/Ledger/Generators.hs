@@ -4,7 +4,7 @@ module Cardano.Ledger.Generators
   ( kGen
   , currentSlotGen
   , participantsGen
-  , voteTGen
+  , r_aGen
   , stakeDistGen
   , p_rvNoQuorumGen
   , p_rvNoMajorityGen
@@ -22,7 +22,7 @@ import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
 import qualified Ledger.Core as Core
-import           Cardano.Ledger.Spec.STS.Update.Data (VThreshold, Stake)
+import           Cardano.Ledger.Spec.STS.Update.Data (Stake)
 
 
 p_rvNoQuorumGen :: Gen Word8
@@ -38,8 +38,12 @@ stakeDistGen = do
   stks <- Gen.list (Range.singleton $ length vkeys) (Gen.word64 (Range.linear 1 100))
   pure $ Map.fromList $ zip vkeys stks
 
-voteTGen :: Gen VThreshold
-voteTGen = Gen.integral (Range.constant 50 75)
+-- voteTGen :: Gen VThreshold
+-- voteTGen = Gen.integral (Range.constant 50 75)
+
+-- | Generates an adversary ratio in [0,0.5)
+r_aGen :: Gen Float
+r_aGen = Gen.float (Range.constant 0 0.5)
 
 kGen :: Gen Core.BlockCount
 kGen = Core.BlockCount <$> Gen.integral (Range.linear 1 10)

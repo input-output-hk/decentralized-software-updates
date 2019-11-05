@@ -43,12 +43,13 @@ data Env hashAlgo
          -- ^ Chain stability parameter.
        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-       , vThreshold :: !Data.VThreshold
+       , r_a :: !Float
+         -- ^ adversary stake ratio
        , stakeDist :: !(Map Core.VKey Data.Stake)
        , p_rvNoQuorum :: !Word8
-         -- How many times a revoting is allowed due to a no quorum result
+         -- ^ How many times a revoting is allowed due to a no quorum result
        , p_rvNoMajority :: !Word8
-         -- How many times a revoting is allowed due to a no majority result
+         -- ^ How many times a revoting is allowed due to a no majority result
        }
        deriving (Eq, Show)
 
@@ -89,7 +90,7 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb, ballots, vThreshold, stakeDist
+      TRC ( Env { k, sipdb, ballots, r_a, stakeDist
                 , p_rvNoQuorum, p_rvNoMajority
                 }
           , St  { wrsips
@@ -133,7 +134,7 @@ instance ( HashAlgorithm hashAlgo
               $ TRC ( Tallysip.Env { Tallysip.currentSlot = slot
                                    , Tallysip.sipdb = sipdb
                                    , Tallysip.ballots = ballots
-                                   , Tallysip.vThreshold = vThreshold
+                                   , Tallysip.r_a = r_a
                                    , Tallysip.stakeDist = stakeDist
                                    , Tallysip.p_rvNoQuorum = p_rvNoQuorum
                                    , Tallysip.p_rvNoMajority = p_rvNoMajority

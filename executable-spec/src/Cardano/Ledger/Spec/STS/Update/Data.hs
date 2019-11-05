@@ -27,7 +27,7 @@ import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (Slot, SlotCount,
+import           Ledger.Core (SlotCount,
                      SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
@@ -78,9 +78,6 @@ data VotingResult =
                  -- revoting has taken place due to a no majority result
                }
   deriving (Eq, Ord, Show)
-
--- | Voting threshold
-type VThreshold = Word8
 
 -- | Stake
 type Stake = Word64

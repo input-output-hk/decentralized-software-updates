@@ -28,6 +28,7 @@ library
                      , Cardano.Ledger.Spec.STS.Update.Data
                      , Cardano.Ledger.Spec.STS.Update.Ideation
                      , Cardano.Ledger.Spec.STS.Update.Implementation
+                     , Cardano.Ledger.Spec.STS.Update.Definitions
   build-depends:       base >=4.11 && <5
                      , containers
                      , generic-monoid
