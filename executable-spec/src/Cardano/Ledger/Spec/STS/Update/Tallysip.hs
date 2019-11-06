@@ -152,7 +152,7 @@ instance STS (TALLYSIP hashAlgo) where
           in vresips ⨃ [(sipHash, vResult)]
 
         -- update state and
-        -- in the case of revoting update both state and voting result
+        -- in the case of revoting, update both state and voting result
         (apprvsips', asips', vResult') =
           case Data.tallyOutcome
                  (vresips'!sipHash)

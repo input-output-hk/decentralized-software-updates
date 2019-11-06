@@ -11,6 +11,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
@@ -93,53 +94,44 @@ tallyOutcome
   -> Float  -- ^ adversary stake ratio
   -> TallyOutcome
 tallyOutcome vres sDist pNoQ pNoM r_a =
-  if (fromIntegral $ stakeInFavor vres)
-     /
-     (fromIntegral $ totalStake sDist)
-     * 100
-     > (fromIntegral (vThreshold r_a :: Integer) :: Float)
+  if stakePercentRound (stakeInFavor vres) (totalStake sDist)
+     > vThreshold r_a
     then
       Approved
     else
-      if (fromIntegral $ stakeAgainst vres)
-         /
-         (fromIntegral $ totalStake sDist)
-         * 100
-         > (fromIntegral (vThreshold r_a :: Integer) :: Float)
+      if stakePercentRound (stakeAgainst vres) (totalStake sDist)
+         > vThreshold r_a
         then
           Rejected
         else
-          if (fromIntegral $ stakeAbstain vres)
-             /
-             (fromIntegral $ totalStake sDist)
-             * 100
-             > (fromIntegral (vThreshold r_a :: Integer) :: Float)
+          if stakePercentRound (stakeAbstain vres) (totalStake sDist)
+             > vThreshold r_a
              && rvNoQuorum vres <= pNoQ
             then
               NoQuorum
             else
-              if (fromIntegral $ stakeInFavor vres )
-                 /
-                 (fromIntegral $ totalStake sDist)
-                 * 100
-                 <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+              if stakePercentRound (stakeInFavor vres) (totalStake sDist)
+                 <= vThreshold r_a
                  &&
-                 (fromIntegral $ stakeAgainst vres)
-                 /
-                 (fromIntegral $ totalStake sDist)
-                 * 100
-                 <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 stakePercentRound (stakeAgainst vres) (totalStake sDist)
+                 <= vThreshold r_a
                  &&
-                 (fromIntegral $ stakeAbstain vres)
-                 /
-                 (fromIntegral $ totalStake sDist)
-                 * 100
-                 <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 stakePercentRound (stakeAbstain vres) (totalStake sDist)
+                 <= vThreshold r_a
                  && rvNoMajority vres <= pNoM
                 then
                   NoMajority
                 else
                   Expired
+
+-- | Returns the stake percent as a rounded value
+-- in the range [0,100]
+stakePercentRound
+ :: Stake
+ -> Stake -- ^ Stake total
+ -> Word8
+stakePercentRound st totSt =
+  round @Float $ fromIntegral st / fromIntegral totSt * 100
 
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }
