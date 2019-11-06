@@ -1,22 +1,11 @@
-{ decentralizedUpdatesPackages ? import ../default.nix {}
-, pkgs ? decentralizedUpdatesPackages.pkgs
-, buildTools ? with pkgs; [ git gnumake ]
+{ iohkSkeletonPackages ? import ../default.nix {}
+, pkgs ? iohkSkeletonPackages.pkgs
+, iohkLib ? iohkSkeletonPackages.iohkLib
 }:
 
-with pkgs.lib;
-with pkgs;
-
-let
-  baseTools = [ stack gnused coreutils nix gnutar gzip ];
-  deps = ps: [ps.turtle ps.safe ps.transformers];
-
-  stackRebuild = runCommand "stack-rebuild" {} ''
-    ${haskellPackages.ghcWithPackages deps}/bin/ghc -o $out ${./rebuild.hs}
-  '';
-
-in
-  writeScript "stack-rebuild-wrapped" ''
-    #!${stdenv.shell}
-    export PATH=${lib.makeBinPath (baseTools ++ buildTools)}
-    exec ${stackRebuild} "$@"
-  ''
+iohkLib.haskellBuildUtils.stackRebuild {
+  script = ./rebuild.hs;
+  buildTools = [];
+  libs = ps: [];
+  shell = import ../nix/stack-shell.nix {};
+}
