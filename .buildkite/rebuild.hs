@@ -9,19 +9,10 @@
 import           Build (LibraryName (LibraryName), Optimizations (Standard),
                      TestArguments (TestArguments), TestRuns (TestRuns),
                      doBuild)
-import           BuildArgs (BuildArgs (BuildArgs, command, options),
-                     Command (Build, CleanupCache, PurgeCache),
-                     RebuildOpts (RebuildOpts, optBuildDirectory, optCacheDirectory, optDryRun),
-                     parseArgs)
 import           CommonBuild (CoverallsConfig (CoverallsConfig),
                      CoverallsTokenEnvVar (CoverallsTokenEnvVar),
                      ExtraShcArgs (ExtraShcArgs), IO,
                      TixDirectory (TixDirectory))
-
-import           Data.Maybe (fromMaybe)
-import           System.Exit (exitWith)
-
-import qualified Data.Text as T
 
 
 main :: IO ()
