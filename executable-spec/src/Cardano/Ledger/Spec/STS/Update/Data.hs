@@ -14,6 +14,8 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
+import           Data.Map.Strict (Map, (!))
+import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -21,15 +23,12 @@ import           Data.Typeable (Typeable)
 import           Data.Typeable (typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
-import           Data.Map.Strict (Map, (!))
-import qualified Data.Map.Strict as Map
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (SlotCount,
-                     SlotCount (SlotCount))
+import           Ledger.Core (SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
@@ -82,22 +81,7 @@ data VotingResult =
 
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }
- deriving (Eq, Ord, Show, Enum)
-
-instance Num Stake where
-  (+) (Stake s1) (Stake s2) = Stake (s1 + s2)
-  (*) (Stake s1) (Stake s2) = Stake (s1 * s2)
-  abs (Stake s) = Stake (abs s)
-  signum (Stake s) = Stake (signum s)
-  fromInteger i = Stake (fromIntegral i)
-  (-) (Stake s1) (Stake s2) = Stake $ s1 - s2
-
-instance Integral Stake where
-  toInteger (Stake s) = toInteger s
-  quotRem (Stake s1) (Stake s2) = (Stake $ quot s1 s2, Stake $ rem s1 s2)
-
-instance Real Stake where
-  toRational (Stake s) = toRational s
+ deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real)
 
 -- | Returns the total stake from a stake distribution
 totalStake :: (Map Core.VKey Stake) -> Stake
