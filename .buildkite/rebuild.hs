@@ -6,7 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-import           Build (LibraryName (LibraryName), Optimizations (Fast),
+import           Build (LibraryName (LibraryName), Optimizations (Standard),
                      TestArguments (TestArguments), TestRuns (TestRuns),
                      doBuild)
 import           BuildArgs (BuildArgs (BuildArgs, command, options),
