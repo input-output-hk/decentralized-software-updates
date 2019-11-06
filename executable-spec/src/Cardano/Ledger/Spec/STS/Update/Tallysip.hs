@@ -166,9 +166,6 @@ instance STS (TALLYSIP hashAlgo) where
 
         -- if no-majority result, or no-quorum, calculate end of new voting period
         -- and update active sips state
-        stakeInF = Data.stakeInFavor $ vresips'!sipHash
-        stakeA = Data.stakeAgainst $ vresips'!sipHash
-        stakeAb = Data.stakeAbstain $ vresips'!sipHash
         (asips', vResult') =
           if (  (fromIntegral $ Data.stakeAbstain (vresips'!sipHash))
                 /
@@ -180,7 +177,7 @@ instance STS (TALLYSIP hashAlgo) where
             then
               (-- a revoting is due No Quorum - calc new voting period end
                 asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
-              , Data.VotingResult stakeInF stakeA stakeAb (rvNoQ + 1)  rvNoM
+              , Data.VotingResult 0 0 0 (rvNoQ + 1)  rvNoM
               )
             else
               if ( (fromIntegral $ Data.stakeInFavor (vresips'!sipHash))
@@ -205,7 +202,7 @@ instance STS (TALLYSIP hashAlgo) where
                 then
                   (-- a revoting is due No Majority - calc new voting period end
                     asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
-                  , Data.VotingResult stakeInF stakeA stakeAb rvNoQ  (rvNoM + 1)
+                  , Data.VotingResult 0 0 0 rvNoQ  (rvNoM + 1)
                   )
                 else
                   (asips, vresips'!sipHash)
