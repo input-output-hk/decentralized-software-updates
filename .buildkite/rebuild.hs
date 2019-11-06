@@ -6,13 +6,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- | To test this you can run:
+--
+-- > nix-shell .buildkite --run "ghci .buildkite/rebuild.hs"
+--
+
 import           Build (LibraryName (LibraryName), Optimizations (Standard),
-                     TestArguments (TestArguments), TestRuns (TestRuns),
-                     doBuild)
+                     QALevel (FullTest), TestArguments (TestArguments),
+                     TestRun (TestRun), doBuild)
 import           CommonBuild (CoverallsConfig (CoverallsConfig),
                      CoverallsTokenEnvVar (CoverallsTokenEnvVar),
                      ExtraShcArgs (ExtraShcArgs), IO,
-                     TixDirectory (TixDirectory))
+                     TixDirectory (TixDirectory), const)
 
 
 main :: IO ()
@@ -20,7 +25,8 @@ main =
   doBuild
     (LibraryName "decentralized-software-updates")
     Standard
-    (TestRuns [TestArguments []])
+    (const FullTest)
+    [TestRun (TestArguments []) []]
     (CoverallsConfig
        (CoverallsTokenEnvVar "")
        (ExtraShcArgs [])
