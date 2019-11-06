@@ -123,7 +123,6 @@ instance ( HashAlgorithm hashAlgo
 
           -- Prune asips, in order to avoid re-tallying of the same SIP
           asips'' = (Set.fromList toTally) ⋪ asips'
-          --asips'' = Map.filterWithKey (\sh _ -> sh `notElem` toTally) asips'
 
       -- do the tallying and get the voting results (vresips)
       Tallysip.St { Tallysip.vresips = vresips'

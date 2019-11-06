@@ -159,7 +159,6 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
           (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
 
-          -- Data.sipHash sip ∉ ((dom wrsips) `Set.union` (dom asips))?! SIPAlreadyRevealed sip
           sip ∉ range sipdb ?! SIPAlreadyRevealed sip
 
           -- The Revealed SIP must correspond to a stable Commited SIP.
@@ -169,8 +168,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
             ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSIP sip wssips
 
-          pure st { -- subsips = subsips ⋫ Set.singleton sip -- TODO: DISCUSS: not sure whether we need to delete this...
-                    wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
+          pure st { wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
                   , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
                   , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
                   }
