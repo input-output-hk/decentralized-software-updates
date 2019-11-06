@@ -6,8 +6,8 @@ module Cardano.Ledger.Generators
   , participantsGen
   , r_aGen
   , stakeDistGen
-  , p_rvNoQuorumGen
-  , p_rvNoMajorityGen
+  , prvNoQuorumGen
+  , prvNoMajorityGen
   )
 where
 
@@ -25,11 +25,11 @@ import qualified Ledger.Core as Core
 import           Cardano.Ledger.Spec.STS.Update.Data (Stake, Stake(Stake))
 
 
-p_rvNoQuorumGen :: Gen Word8
-p_rvNoQuorumGen = Gen.integral (Range.constant 3 7)
+prvNoQuorumGen :: Gen Word8
+prvNoQuorumGen = Gen.integral (Range.constant 3 7)
 
-p_rvNoMajorityGen :: Gen Word8
-p_rvNoMajorityGen = Gen.integral (Range.constant 3 7)
+prvNoMajorityGen :: Gen Word8
+prvNoMajorityGen = Gen.integral (Range.constant 3 7)
 
 stakeDistGen :: Gen (Map Core.VKey Stake)
 stakeDistGen = do

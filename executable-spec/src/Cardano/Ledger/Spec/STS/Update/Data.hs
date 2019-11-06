@@ -32,6 +32,7 @@ import           Ledger.Core (SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 
 data ImplementationPayload = ImplementationPayload
@@ -78,6 +79,67 @@ data VotingResult =
                  -- revoting has taken place due to a no majority result
                }
   deriving (Eq, Ord, Show)
+
+data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
+  deriving (Eq, Ord, Show)
+
+-- | Return the outcome of the tally based on a  `VotingResult` and
+-- a stake distribution.
+tallyOutcome
+  :: VotingResult
+  -> Map Core.VKey Stake
+  -> Word8  -- ^ max number of revoting for No Quorum
+  -> Word8  -- ^ max number of revoting for No Majority
+  -> Float  -- ^ adversary stake ratio
+  -> TallyOutcome
+tallyOutcome vres sDist pNoQ pNoM r_a =
+  if (fromIntegral $ stakeInFavor vres)
+     /
+     (fromIntegral $ totalStake sDist)
+     * 100
+     > (fromIntegral (vThreshold r_a :: Integer) :: Float)
+    then
+      Approved
+    else
+      if (fromIntegral $ stakeAgainst vres)
+         /
+         (fromIntegral $ totalStake sDist)
+         * 100
+         > (fromIntegral (vThreshold r_a :: Integer) :: Float)
+        then
+          Rejected
+        else
+          if (fromIntegral $ stakeAbstain vres)
+             /
+             (fromIntegral $ totalStake sDist)
+             * 100
+             > (fromIntegral (vThreshold r_a :: Integer) :: Float)
+             && rvNoQuorum vres <= pNoQ
+            then
+              NoQuorum
+            else
+              if (fromIntegral $ stakeInFavor vres )
+                 /
+                 (fromIntegral $ totalStake sDist)
+                 * 100
+                 <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 &&
+                 (fromIntegral $ stakeAgainst vres)
+                 /
+                 (fromIntegral $ totalStake sDist)
+                 * 100
+                 <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 &&
+                 (fromIntegral $ stakeAbstain vres)
+                 /
+                 (fromIntegral $ totalStake sDist)
+                 * 100
+                 <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
+                 && rvNoMajority vres <= pNoM
+                then
+                  NoMajority
+                else
+                  Expired
 
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }

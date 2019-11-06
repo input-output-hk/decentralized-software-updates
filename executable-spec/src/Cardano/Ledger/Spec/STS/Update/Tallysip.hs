@@ -25,7 +25,6 @@ import qualified Ledger.Core as Core
 import           Cardano.Crypto.Hash (HashAlgorithm)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 -- | STS for tallying the votes of a single SIP
 data TALLYSIP hashAlgo
@@ -37,9 +36,9 @@ data Env hashAlgo
        , r_a :: !Float
          -- ^ adversary stake ratio
        , stakeDist :: !(Map Core.VKey Data.Stake)
-       , p_rvNoQuorum :: !Word8
+       , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
-       , p_rvNoMajority :: !Word8
+       , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
        }
        deriving (Eq, Show)
@@ -88,8 +87,8 @@ instance STS (TALLYSIP hashAlgo) where
                 , ballots
                 , r_a
                 , stakeDist
-                , p_rvNoQuorum
-                , p_rvNoMajority
+                , prvNoQuorum
+                , prvNoMajority
                 }
           , St  { vresips
                 , asips
@@ -152,66 +151,49 @@ instance STS (TALLYSIP hashAlgo) where
                       ballotsOfSIP
           in vresips ⨃ [(sipHash, vResult)]
 
-        -- if approved then, update state of approved SIPs
-        apprvsips' =
-          if (fromIntegral $ Data.stakeInFavor (vresips'!sipHash))
-             /
-             (fromIntegral $ Data.totalStake stakeDist)
-             * 100
-             > (fromIntegral (vThreshold r_a :: Integer) :: Float)
-            then
-              Set.insert sipHash apprvsips
-            else
-              apprvsips
-
-        -- if no-majority result, or no-quorum, calculate end of new voting period
-        -- and update active sips state
-        (asips', vResult') =
-          if (  (fromIntegral $ Data.stakeAbstain (vresips'!sipHash))
-                /
-                (fromIntegral $ Data.totalStake stakeDist)
-                * 100
-                > (fromIntegral (vThreshold r_a :: Integer) :: Float)
-             && rvNoQ <= p_rvNoQuorum
-             )
-            then
-              (-- a revoting is due No Quorum - calc new voting period end
-                asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
+        -- update state and
+        -- in the case of revoting update both state and voting result
+        (apprvsips', asips', vResult') =
+          case Data.tallyOutcome
+                 (vresips'!sipHash)
+                 stakeDist
+                 prvNoQuorum
+                 prvNoMajority
+                 r_a of
+            Data.Approved   ->
+              ( Set.insert sipHash apprvsips
+              , asips
+              , (vresips'!sipHash)
+              )
+            Data.Rejected   ->
+              ( apprvsips
+              , asips
+              , (vresips'!sipHash)
+              )
+            Data.NoQuorum   ->
+              ( apprvsips
+              , asips ⨃ [( sipHash
+                         , currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb)
+                         )
+                        ]
               , Data.VotingResult 0 0 0 (rvNoQ + 1)  rvNoM
               )
-            else
-              if ( (fromIntegral $ Data.stakeInFavor (vresips'!sipHash))
-                   /
-                   (fromIntegral $ Data.totalStake stakeDist)
-                   * 100
-                   <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
-                 &&
-                   (fromIntegral $ Data.stakeAgainst (vresips'!sipHash))
-                   /
-                   (fromIntegral $ Data.totalStake stakeDist)
-                   * 100
-                   <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
-                 &&
-                   (fromIntegral $ Data.stakeAbstain (vresips'!sipHash))
-                   /
-                   (fromIntegral $ Data.totalStake stakeDist)
-                   * 100
-                   <= (fromIntegral (vThreshold r_a :: Integer) :: Float)
-                 && rvNoM <= p_rvNoMajority
-                 )
-                then
-                  (-- a revoting is due No Majority - calc new voting period end
-                    asips ⨃ [(sipHash, currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb))]
-                  , Data.VotingResult 0 0 0 rvNoQ  (rvNoM + 1)
-                  )
-                else
-                  (asips, vresips'!sipHash)
+            Data.NoMajority ->
+              ( apprvsips
+              , asips ⨃ [( sipHash,
+                           currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb)
+                         )
+                        ]
+              , Data.VotingResult 0 0 0 rvNoQ  (rvNoM + 1)
+              )
+            Data.Expired   ->
+              ( apprvsips
+              , asips
+              , (vresips'!sipHash)
+              )
 
-        -- if a revoting took place then update rv counters
         vresips'' = Map.insert sipHash vResult' vresips' -- this overwrites
                                                          -- existing pair
-
-
       pure $ St { vresips = vresips''
                 , apprvsips = apprvsips'
                 , asips = asips'
@@ -261,7 +243,6 @@ instance (HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          ) => Embed (TALLYSIP hashAlgo) (TALLYSIPS hashAlgo) where
     wrapFailed = TallySIPsFailure
-
 
 
 

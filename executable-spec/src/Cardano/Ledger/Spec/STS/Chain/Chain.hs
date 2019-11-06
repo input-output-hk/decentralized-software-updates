@@ -37,7 +37,7 @@ import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Generators (currentSlotGen, kGen,
                      participantsGen, r_aGen, stakeDistGen
-                     , p_rvNoQuorumGen, p_rvNoMajorityGen)
+                     , prvNoQuorumGen, prvNoMajorityGen)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -68,9 +68,9 @@ data Env hashAlgo
     , r_a :: !Float
       -- ^ adversary stake ratio
     , stakeDist :: !(Map Core.VKey Data.Stake)
-    , p_rvNoQuorum :: !Word8
+    , prvNoQuorum :: !Word8
       -- How many times a revoting is allowed due to a no quorum result
-    , p_rvNoMajority :: !Word8
+    , prvNoMajority :: !Word8
       -- How many times a revoting is allowed due to a no majority result
     }
     deriving (Eq, Show)
@@ -161,8 +161,8 @@ instance ( HashAlgorithm hashAlgo
                 , participants
                 , r_a
                 , stakeDist
-                , p_rvNoQuorum
-                , p_rvNoMajority
+                , prvNoQuorum
+                , prvNoMajority
                 }
           , St  { currentSlot
                 , subsips
@@ -194,8 +194,8 @@ instance ( HashAlgorithm hashAlgo
                                   , Header.ballots = ballots
                                   , Header.r_a = r_a
                                   , Header.stakeDist = stakeDist
-                                  , Header.p_rvNoQuorum = p_rvNoQuorum
-                                  , Header.p_rvNoMajority = p_rvNoMajority
+                                  , Header.prvNoQuorum = prvNoQuorum
+                                  , Header.prvNoMajority = prvNoMajority
                                   }
                      , Header.St { Header.currentSlot = currentSlot
                                  , Header.wrsips = wrsips
@@ -279,8 +279,8 @@ instance ( HasTypeReps hashAlgo
     <*> participantsGen
     <*> r_aGen
     <*> stakeDistGen
-    <*> p_rvNoQuorumGen
-    <*> p_rvNoMajorityGen
+    <*> prvNoQuorumGen
+    <*> prvNoMajorityGen
     where
       -- For now we fix the maximum block size to an abstract size of 100
       maxBlockSizeGen = pure 100

@@ -48,9 +48,9 @@ data Env hashAlgo
        , r_a :: !Float
          -- ^ adversary stake ratio
         , stakeDist :: !(Map Core.VKey Data.Stake)
-        , p_rvNoQuorum :: !Word8
+        , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
-        , p_rvNoMajority :: !Word8
+        , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
         }
         deriving (Eq, Show)
@@ -97,7 +97,7 @@ instance ( HashAlgorithm hashAlgo
   transitionRules = [
     do
       TRC ( Env { k, sipdb, ballots, r_a
-                , stakeDist, p_rvNoQuorum, p_rvNoMajority
+                , stakeDist, prvNoQuorum, prvNoMajority
                 }
           , St  { currentSlot
                 , wrsips
@@ -120,8 +120,8 @@ instance ( HashAlgorithm hashAlgo
                                           , Hupdate.ballots = ballots
                                           , Hupdate.r_a = r_a
                                           , Hupdate.stakeDist = stakeDist
-                                          , Hupdate.p_rvNoQuorum = p_rvNoQuorum
-                                          , Hupdate.p_rvNoMajority = p_rvNoMajority
+                                          , Hupdate.prvNoQuorum = prvNoQuorum
+                                          , Hupdate.prvNoMajority = prvNoMajority
                                           }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips
