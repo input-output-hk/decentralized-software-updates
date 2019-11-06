@@ -28,7 +28,7 @@ main =
     (const FullTest)
     [TestRun (TestArguments []) []]
     (CoverallsConfig
-       (CoverallsTokenEnvVar "")
+       (CoverallsTokenEnvVar "DSU_COVERALLS_TOKEN")
        (ExtraShcArgs [])
        (TixDirectory ".")
     )
