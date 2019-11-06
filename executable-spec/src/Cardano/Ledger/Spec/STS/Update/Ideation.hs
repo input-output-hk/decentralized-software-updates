@@ -249,7 +249,7 @@ instance
               sipMData <- sipMetadataGen
               sipData <- sipDataGen sipMData
               let sipHash = Data.SIPHash $ hash sipData
-              salt <- QC.bounded 2
+              salt <- Gen.bounded 2
               pure $! SIP sipHash owner salt sipData
                 where
                   sipMetadataGen
