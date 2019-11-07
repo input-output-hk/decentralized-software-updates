@@ -11,26 +11,29 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
+import           Data.Map.Strict (Map, (!))
+import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Typeable (Typeable)
 import           Data.Typeable (typeOf)
-import           Data.Word (Word64)
+import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (Slot, Slot (Slot), SlotCount,
-                     SlotCount (SlotCount))
+import           Ledger.Core (SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 
 data ImplementationPayload = ImplementationPayload
@@ -65,23 +68,79 @@ data Confidence = For | Against | Abstain
   deriving (Eq, Ord, Show, Generic, HasTypeReps)
 
 -- | Records the voting result for a specific software update (SIP/UP)
-data VotingResult
-  deriving (Eq, Ord, Show)
-
--- | Records the voting period status for a software update (SIP/UP)
-data (VotingPeriod hashAlgo) =
-  VotingPeriod { sipId :: !(SIPHash hashAlgo)
-                 -- ^ Id of the SIP in question
-               , openingSlot :: !Slot
-                 -- ^ Slot that the voting period opens
-               , closingSlot :: !Slot
-                 -- ^ Slot that the voting period closes
-               , vpDuration :: !VPDuration
-                 -- ^ Duration of the voting period
-               , vpStatus :: !VPStatus
-               -- ^ open or closed
+data VotingResult =
+  VotingResult { stakeInFavor :: !Stake
+               , stakeAgainst :: !Stake
+               , stakeAbstain :: !Stake
+               , rvNoQuorum :: Word8
+                 -- ^ No quorum revoting : how many times
+                 -- revoting has taken place due to a no quorum result
+              , rvNoMajority :: Word8
+                 -- ^ No majority revoting : how many times
+                 -- revoting has taken place due to a no majority result
                }
   deriving (Eq, Ord, Show)
+
+data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
+  deriving (Eq, Ord, Show)
+
+-- | Return the outcome of the tally based on a  `VotingResult` and
+-- a stake distribution.
+tallyOutcome
+  :: VotingResult
+  -> Map Core.VKey Stake
+  -> Word8  -- ^ max number of revoting for No Quorum
+  -> Word8  -- ^ max number of revoting for No Majority
+  -> Float  -- ^ adversary stake ratio
+  -> TallyOutcome
+tallyOutcome vres sDist pNoQ pNoM r_a =
+  if stakePercentRound (stakeInFavor vres) (totalStake sDist)
+     > vThreshold r_a
+    then
+      Approved
+    else
+      if stakePercentRound (stakeAgainst vres) (totalStake sDist)
+         > vThreshold r_a
+        then
+          Rejected
+        else
+          if stakePercentRound (stakeAbstain vres) (totalStake sDist)
+             > vThreshold r_a
+             && rvNoQuorum vres <= pNoQ
+            then
+              NoQuorum
+            else
+              if stakePercentRound (stakeInFavor vres) (totalStake sDist)
+                 <= vThreshold r_a
+                 &&
+                 stakePercentRound (stakeAgainst vres) (totalStake sDist)
+                 <= vThreshold r_a
+                 &&
+                 stakePercentRound (stakeAbstain vres) (totalStake sDist)
+                 <= vThreshold r_a
+                 && rvNoMajority vres <= pNoM
+                then
+                  NoMajority
+                else
+                  Expired
+
+-- | Returns the stake percent as a rounded value
+-- in the range [0,100]
+stakePercentRound
+ :: Stake
+ -> Stake -- ^ Stake total
+ -> Word8
+stakePercentRound st totSt =
+  round @Float $ fromIntegral st / fromIntegral totSt * 100
+
+-- | Stake
+newtype Stake = Stake { getStake :: Word64 }
+ deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real)
+
+-- | Returns the total stake from a stake distribution
+totalStake :: (Map Core.VKey Stake) -> Stake
+totalStake m =
+  Map.foldr' (\stk tot -> tot + stk) (Stake 0) m
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
@@ -100,23 +159,20 @@ vpDurationToSlotCnt  d =
     VPMedium -> SlotCount 50
     VPLarge -> SlotCount 100
 
--- | Create a Voting Period for a SIP
--- based on the `SIPMetadata` for the duration
--- and the current slot as an opening slot
-createVotingPeriod :: Slot -> (SIP hashAlgo) -> (VotingPeriod hashAlgo)
-createVotingPeriod slot sip =
-  VotingPeriod { sipId = sipHash sip
-               , openingSlot =  slot
-               , closingSlot = Slot 0 -- dummy value
-               , vpDuration = getVPDurationFromSIPMdata sip
-               , vpStatus = VPOpen
-               }
-  where
-    getVPDurationFromSIPMdata sp =
-      let sipdata = sipPayload sp
-          sipMdata = metadata sipdata
-      in votPeriodDuration sipMdata
-
+-- | Return in how many slots the voting period
+-- of the specific `SIP` will end, based on
+-- the voting period duration recorded
+-- in its metadata `SIPMetadata`
+-- The 2nd argument plays the role of a "SIP database"
+votPeriodEnd
+  :: (SIPHash hashAlgo)
+  -> Map (SIPHash hashAlgo) (SIP hashAlgo)
+  -> SlotCount
+votPeriodEnd siphash sipdb =  vpDurationToSlotCnt
+                           $ votPeriodDuration
+                           . metadata
+                           . sipPayload
+                           $ (sipdb!siphash)
 
 -- | Protocol version
 --

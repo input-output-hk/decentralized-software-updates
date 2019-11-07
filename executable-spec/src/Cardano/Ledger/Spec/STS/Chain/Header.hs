@@ -14,10 +14,12 @@
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
 import           Data.Map.Strict (Map)
+import           Data.Set as Set (Set)
 import           Data.Typeable (typeOf)
 import           GHC.Generics (Generic)
 import           Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
+import           Data.Word (Word8)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -27,6 +29,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot (Slot))
+import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)
@@ -39,13 +42,25 @@ import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 data HEADER hashAlgo
 
 data Env hashAlgo
-  = Env { k :: !BlockCount }
+  = Env { k :: !BlockCount
+        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
+        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , r_a :: !Float
+         -- ^ adversary stake ratio
+        , stakeDist :: !(Map Core.VKey Data.Stake)
+        , prvNoQuorum :: !Word8
+         -- ^ How many times a revoting is allowed due to a no quorum result
+        , prvNoMajority :: !Word8
+         -- ^ How many times a revoting is allowed due to a no majority result
+        }
         deriving (Eq, Show)
 
 data St hashAlgo
  = St { currentSlot :: !Slot
       , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+      , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
       }
       deriving (Eq, Show, Generic)
 
@@ -81,10 +96,14 @@ instance ( HashAlgorithm hashAlgo
 
   transitionRules = [
     do
-      TRC ( Env { k }
+      TRC ( Env { k, sipdb, ballots, r_a
+                , stakeDist, prvNoQuorum, prvNoMajority
+                }
           , St  { currentSlot
                 , wrsips
                 , asips
+                , vresips
+                , apprvsips
                 }
           , BHeader { slot }
           ) <- judgmentContext
@@ -93,10 +112,21 @@ instance ( HashAlgorithm hashAlgo
         ?! BlockSlotNotIncreasing currentSlot slot
       Hupdate.St { Hupdate.wrsips = wrsips'
                  , Hupdate.asips = asips'
+                 , Hupdate.vresips = vresips'
+                 , Hupdate.apprvsips = apprvsips'
                  } <- trans @(HUPDATE hashAlgo)
-                      $ TRC ( Hupdate.Env { Hupdate.k = k }
+                      $ TRC ( Hupdate.Env { Hupdate.k = k
+                                          , Hupdate.sipdb = sipdb
+                                          , Hupdate.ballots = ballots
+                                          , Hupdate.r_a = r_a
+                                          , Hupdate.stakeDist = stakeDist
+                                          , Hupdate.prvNoQuorum = prvNoQuorum
+                                          , Hupdate.prvNoMajority = prvNoMajority
+                                          }
                             , Hupdate.St { Hupdate.wrsips = wrsips
                                          , Hupdate.asips = asips
+                                         , Hupdate.vresips = vresips
+                                         , Hupdate.apprvsips = apprvsips
                                          }
                             , slot
                             )
@@ -104,6 +134,8 @@ instance ( HashAlgorithm hashAlgo
       pure $ St { currentSlot = slot
                 , wrsips = wrsips'
                 , asips = asips'
+                , vresips = vresips'
+                , apprvsips = apprvsips'
                 }
     ]
 

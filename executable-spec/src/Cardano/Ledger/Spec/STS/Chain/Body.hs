@@ -139,13 +139,14 @@ transactionsGen maximumSize env st
                                      , Transaction.currentSlot
                                      , Transaction.asips
                                      , Transaction.participants
+                                     , Transaction.apprvsips
                                      }
                     )
                     (Transaction.St { Transaction.subsips = subsips
                                     , Transaction.wssips = wssips
                                     , Transaction.wrsips = wrsips
+                                    , Transaction.sipdb = sipdb
                                     , Transaction.ballots = ballots
-                                    , Transaction.voteResultSIPs = voteResultSIPs
                                     , Transaction.implementationSt = implementationSt
                                     }
                     )
@@ -168,12 +169,13 @@ transactionsGen maximumSize env st
                                , Update.currentSlot = currentSlot
                                , Update.asips = asips
                                , Update.participants = participants
+                               , Update.apprvsips = apprvsips
                                }
                     Update.St { Update.subsips = subsips
                               , Update.wssips = wssips
                               , Update.wrsips = wrsips
+                              , Update.sipdb = sipdb
                               , Update.ballots = ballots
-                              , Update.voteResultSIPs = voteResultSIPs
                               , Update.implementationSt = implementationSt
                               }
               )

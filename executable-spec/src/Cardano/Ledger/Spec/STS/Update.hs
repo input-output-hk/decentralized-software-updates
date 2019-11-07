@@ -17,6 +17,10 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 import           Data.Map.Strict (Map)
+--import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
+
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -50,6 +54,7 @@ data Env hashAlgo
     , currentSlot :: !Slot
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
     , participants :: Bimap Core.VKey Core.SKey -- TODO: DISCUSS: I think we need to be consistent between using Core qualified and not.
+    , apprvsips :: !(Set (Data.SIPHash hashAlgo))
     }
   deriving (Eq, Show, Generic)
 
@@ -59,9 +64,9 @@ data St hashAlgo
     { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
     , wssips :: !(Map (Data.Commit hashAlgo) Slot)
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
+    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-    , voteResultSIPs :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-    , implementationSt :: State IMPLEMENTATION
+    , implementationSt :: State (IMPLEMENTATION hashAlgo)
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
@@ -100,7 +105,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
   data PredicateFailure (UPDATE hashAlgo)
     = IdeationsFailure (PredicateFailure (IDEATION hashAlgo))
-    | ImplementationsFailure (PredicateFailure IMPLEMENTATION)
+    | ImplementationsFailure (PredicateFailure (IMPLEMENTATION hashAlgo))
     deriving (Eq, Show)
 
   initialRules = []
@@ -111,12 +116,13 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                 , currentSlot
                 , asips
                 , participants
+                , apprvsips
                 }
           , st@St { subsips
                   , wssips
                   , wrsips
+                  , sipdb
                   , ballots
-                  , voteResultSIPs
                   , implementationSt
                   }
           , update
@@ -128,8 +134,8 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
             Ideation.St { Ideation.subsips = subsips'
                         , Ideation.wssips = wssips'
                         , Ideation.wrsips = wrsips'
+                        , Ideation.sipdb = sipdb'
                         , Ideation.ballots = ballots'
-                        , Ideation.voteResultSIPs = voteResultSIPs'
                         } <-
               trans @(IDEATION hashAlgo)
                 $ TRC ( Ideation.Env { Ideation.k = k
@@ -140,23 +146,25 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                       , Ideation.St { Ideation.subsips = subsips
                                     , Ideation.wssips = wssips
                                     , Ideation.wrsips = wrsips
+                                    , Ideation.sipdb = sipdb
                                     , Ideation.ballots = ballots
-                                    , Ideation.voteResultSIPs = voteResultSIPs
                                     }
                       , ideationPayload
                       )
             pure $ st { subsips = subsips'
                       , wssips = wssips'
                       , wrsips = wrsips'
+                      , sipdb = sipdb'
                       , ballots = ballots'
-                      , voteResultSIPs = voteResultSIPs'
                       }
 
         Implementation implementationPayload ->
           do
             implementationSt' <-
-              trans @IMPLEMENTATION $
-              TRC ( Implementation.Env currentSlot
+              trans @(IMPLEMENTATION hashAlgo) $
+              TRC ( Implementation.Env
+                      currentSlot
+                      apprvsips
                   , implementationSt
                   , implementationPayload
                   )
@@ -167,7 +175,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 instance HashAlgorithm hashAlgo => Embed (IDEATION hashAlgo) (UPDATE hashAlgo) where
   wrapFailed = IdeationsFailure
 
-instance HashAlgorithm hashAlgo => Embed IMPLEMENTATION (UPDATE hashAlgo) where
+instance HashAlgorithm hashAlgo => Embed (IMPLEMENTATION hashAlgo) (UPDATE hashAlgo) where
   wrapFailed = ImplementationsFailure
 
 data UPDATES hashAlgo
@@ -224,10 +232,11 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                 , currentSlot = Ideation.currentSlot env
                 , asips = Ideation.asips env
                 , participants = Ideation.participants env
+                , apprvsips = Set.empty
                 }
 
   sigGen  Env { k, currentSlot, asips, participants }
-          St { subsips, wssips, wrsips, ballots, voteResultSIPs } =
+          St { subsips, wssips, wrsips, sipdb, ballots } =
     -- For now we generate ideation payload only.
     Ideation
       <$> sigGen @(IDEATION hashAlgo)
@@ -239,6 +248,6 @@ instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
                   Ideation.St { Ideation.subsips = subsips
                               , Ideation.wssips = wssips
                               , Ideation.wrsips = wrsips
+                              , Ideation.sipdb = sipdb
                               , Ideation.ballots = ballots
-                              , Ideation.voteResultSIPs = voteResultSIPs
                               }

@@ -8,6 +8,11 @@
 
 module Cardano.Ledger.Spec.STS.Update.Implementation where
 
+--import           Data.Map.Strict (Map)
+--import qualified Data.Map.Strict as Map
+import           Data.Set as Set (Set)
+import qualified Data.Set as Set
+
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
@@ -23,11 +28,13 @@ import           Ledger.Core (Slot (Slot))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
-data IMPLEMENTATION
+data IMPLEMENTATION hashAlgo
 
-data Env =
+data Env hashAlgo =
   Env { currentSlot :: !Slot
         -- ^ The current slot in the blockchain system
+      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+        -- ^ Set of approved SIPs
       }
   deriving (Eq, Show, Generic)
 
@@ -37,15 +44,15 @@ data St = St ()
   deriving Monoid via GenericMonoid St
 
 
-instance STS IMPLEMENTATION where
+instance STS (IMPLEMENTATION hashAlgo) where
 
-  type Environment IMPLEMENTATION = Env
+  type Environment (IMPLEMENTATION hashAlgo) = Env hashAlgo
 
-  type State IMPLEMENTATION = St
+  type State (IMPLEMENTATION hashAlgo) = St
 
-  type Signal IMPLEMENTATION = Data.ImplementationPayload
+  type Signal (IMPLEMENTATION hashAlgo) = Data.ImplementationPayload
 
-  data PredicateFailure IMPLEMENTATION
+  data PredicateFailure (IMPLEMENTATION hashAlgo)
     = ImplementationFailure
     deriving (Eq, Show)
 
@@ -54,11 +61,12 @@ instance STS IMPLEMENTATION where
   transitionRules = [ pure $! St () ]
 
 
-instance HasTrace IMPLEMENTATION where
+instance HasTrace (IMPLEMENTATION hashAlgo) where
 
   envGen _ =
-    Env <$> currentSlotGen
+    Env <$> currentSlotGen <*> apprvsipsGen
     where
       currentSlotGen = Slot <$> Gen.integral (Range.constant 0 100)
+      apprvsipsGen = pure $ Set.empty
 
   sigGen _env _st = pure $! Data.ImplementationPayload
