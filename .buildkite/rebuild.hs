@@ -12,12 +12,14 @@
 --
 
 import           Build (LibraryName (LibraryName), Optimizations (Standard),
-                     QALevel (FullTest), TestArguments (TestArguments),
+                     ShouldUploadCoverage (ShouldUploadCoverage),
+                     StackExtraTestArgs (StackExtraTestArgs),
                      TestRun (TestRun), doBuild)
-import           CommonBuild (CoverallsConfig (CoverallsConfig),
+import           CommonBuild (Bool (True), CoverallsConfig (CoverallsConfig),
                      CoverallsTokenEnvVar (CoverallsTokenEnvVar),
-                     ExtraShcArgs (ExtraShcArgs), IO,
-                     TixDirectory (TixDirectory), const)
+                     ExtraShcArgs (ExtraShcArgs),
+                     ExtraTixFilesDirectory (ExtraTixFilesDirectory), IO,
+                     const, ($))
 
 
 main :: IO ()
@@ -25,10 +27,10 @@ main =
   doBuild
     (LibraryName "decentralized-software-updates")
     Standard
-    (const FullTest)
-    [TestRun (TestArguments []) []]
+    (ShouldUploadCoverage $ const True)
+    [TestRun $ StackExtraTestArgs $ const []]
     (CoverallsConfig
        (CoverallsTokenEnvVar "DSU_COVERALLS_TOKEN")
        (ExtraShcArgs [])
-       (TixDirectory ".")
+       (ExtraTixFilesDirectory ".")
     )
