@@ -210,13 +210,13 @@ instance
   envGen :: () -> QC.Gen (Env hashAlgo)
   envGen _traceGenEnv
     = do
-    someK <- Gen.kGen
-    someCurrentSlot <- Gen.currentSlotGen
+    someK <- Gen.k
+    someCurrentSlot <- Gen.currentSlot
     -- TODO: for now we generate a constant set of keys. We need to update the
     -- 'HasTrace' class so that 'trace' can take parameter of an associated
     -- type, so that each STS can decide which parameters are relevant for its
     -- traces.
-    someParticipants <- Gen.participantsGen
+    someParticipants <- Gen.participants
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
                   , asips = Map.empty

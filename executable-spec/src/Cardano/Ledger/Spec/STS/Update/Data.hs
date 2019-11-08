@@ -20,8 +20,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Typeable (Typeable)
-import           Data.Typeable (typeOf)
+import           Data.Typeable (Typeable, typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 
@@ -29,7 +28,7 @@ import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (Slot (Slot), SlotCount (SlotCount))
+import           Ledger.Core (SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)

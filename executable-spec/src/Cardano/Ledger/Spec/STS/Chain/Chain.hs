@@ -7,7 +7,6 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -66,10 +65,10 @@ data Env hashAlgo
     , initialSlot :: !Slot
     , participants :: !(Bimap Core.VKey Core.SKey)
     , r_a :: !Float
-      -- ^ adversary stake ratio
+      -- ^ Adversary stake ratio
     , stakeDist :: !(Map Core.VKey Data.Stake)
     , prvNoQuorum :: !Word8
-      -- How many times a revoting is allowed due to a no quorum result
+      -- ^ How many times a revoting is allowed due to a no quorum result
     , prvNoMajority :: !Word8
       -- How many times a revoting is allowed due to a no majority result
     }
@@ -275,16 +274,24 @@ instance ( HasTypeReps hashAlgo
          ) => STS.Gen.HasTrace (CHAIN hashAlgo) () where
 
   envGen _ = do
-    someK <- Gen.QC.kGen
-    someCurrentSlot <- Gen.QC.currentSlotGen
+    someK <- Gen.QC.k
+    someCurrentSlot <- Gen.QC.currentSlot
     -- TODO: for now we generate a constant set of keys. The set of participants
     -- could be an environment of the generator.
-    someParticipants <- Gen.QC.participantsGen
+    someParticipants <- Gen.QC.participants
+    someRa <- Gen.QC.rA
+    someStakeDist <- Gen.QC.stakeDist
+    somePrvNoQuorum <- Gen.QC.prvNoQuorum
+    somePrvNoMajority <- Gen.QC.prvNoMajority
     let env = Env { k = someK
                   -- For now we fix the maximum block size to an abstract size of 100
                   , maximumBlockSize = 100
                   , initialSlot = someCurrentSlot
                   , participants = someParticipants
+                  , r_a = someRa
+                  , stakeDist = someStakeDist
+                  , prvNoQuorum = somePrvNoQuorum
+                  , prvNoMajority = somePrvNoMajority
                   }
     pure env
 
@@ -299,8 +306,9 @@ instance ( HasTypeReps hashAlgo
        , asips
        , wssips
        , wrsips
+       , sipdb
        , ballots
-       , voteResultSIPs
+       , apprvsips
        , implementationSt
        , utxoSt
        }
@@ -314,6 +322,7 @@ instance ( HasTypeReps hashAlgo
           , Transaction.asips = asips
           , Transaction.participants = participants
           , Transaction.utxoEnv = UTxO.Env
+          , Transaction.apprvsips = apprvsips
           }
       transactionSt =
         Transaction.St
@@ -321,7 +330,7 @@ instance ( HasTypeReps hashAlgo
           , Transaction.wssips = wssips
           , Transaction.wrsips = wrsips
           , Transaction.ballots = ballots
-          , Transaction.voteResultSIPs = voteResultSIPs
+          , Transaction.sipdb = sipdb
           , Transaction.implementationSt = implementationSt
           , Transaction.utxoSt = utxoSt
           }

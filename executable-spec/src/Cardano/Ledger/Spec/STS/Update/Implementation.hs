@@ -8,10 +8,7 @@
 
 module Cardano.Ledger.Spec.STS.Update.Implementation where
 
---import           Data.Map.Strict (Map)
---import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
-import qualified Data.Set as Set
 
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))

@@ -68,7 +68,7 @@ data BHeader
    deriving (Eq, Show, Generic)
 
 
-deriving instance HasTypeReps (BHeader)
+deriving instance HasTypeReps BHeader
 
 instance Sized BHeader where
   -- TODO: define this properly

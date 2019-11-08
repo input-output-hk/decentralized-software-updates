@@ -236,12 +236,13 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
           , currentSlot = Ideation.currentSlot env
           , asips = Ideation.asips env
           , participants = Ideation.participants env
+          , apprvsips = Set.empty
           }
 
   sigGen
     ()
     Env { k, currentSlot, asips, participants }
-    St { subsips, wssips, wrsips, ballots, voteResultSIPs }
+    St { subsips, wssips, wrsips, sipdb, ballots }
     = do
     ideationPayload <-
       STS.Gen.sigGen
@@ -256,7 +257,7 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
                     , Ideation.wssips = wssips
                     , Ideation.wrsips = wrsips
                     , Ideation.ballots = ballots
-                    , Ideation.voteResultSIPs = voteResultSIPs
+                    , Ideation.sipdb = sipdb
                     }
     pure $! Ideation ideationPayload
 

@@ -209,13 +209,14 @@ instance ( HashAlgorithm hashAlgo
          , currentSlot
          , asips
          , participants
+         , apprvsips
          }
     )
     (St { subsips
         , wssips
         , wrsips
+        , sipdb
         , ballots
-        , voteResultSIPs
         , implementationSt
         }
     )
@@ -240,12 +241,13 @@ instance ( HashAlgorithm hashAlgo
                              , Update.currentSlot = currentSlot
                              , Update.asips = asips
                              , Update.participants = participants
+                             , Update.apprvsips = apprvsips
                              }
                   Update.St { Update.subsips = subsips
                             , Update.wssips = wssips
                             , Update.wrsips = wrsips
+                            , Update.sipdb = sipdb
                             , Update.ballots = ballots
-                            , Update.voteResultSIPs = voteResultSIPs
                             , Update.implementationSt = implementationSt
                             }
               pure $! someUpdatePayload
