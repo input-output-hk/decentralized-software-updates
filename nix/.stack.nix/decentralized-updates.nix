@@ -58,13 +58,13 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."generic-monoid" or (buildDepError "generic-monoid"))
           (hsPkgs."bimap" or (buildDepError "bimap"))
-          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."hashable" or (buildDepError "hashable"))
+          (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
+          (hsPkgs."generic-monoid" or (buildDepError "generic-monoid"))
+          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+          (hsPkgs."random" or (buildDepError "random"))
+          (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
@@ -76,10 +76,11 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "ledger-rules-test" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+            (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
             (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-hedgehog" or (buildDepError "tasty-hedgehog"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))

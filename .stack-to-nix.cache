@@ -5,3 +5,6 @@ https://github.com/input-output-hk/cardano-ledger-specs d474b630d67d6548172874cf
 https://github.com/input-output-hk/cardano-ledger-specs d474b630d67d6548172874cfe7a1c87e3c616927 byron/ledger/executable-spec 0z997sj4d8xj338gb1rls5mbvd7pz73h2zpvgm760f4nw2g6bqk4 cs-ledger cs-ledger.nix
 https://github.com/input-output-hk/goblins 545448938bf620bb2a25212e1686916cfa3acee9 . 1b9whagxvspzmll7b63ilxvbdq2ha3fkcfmgjnlpn4b939fgpclm goblins goblins.nix
 https://github.com/input-output-hk/cardano-crypto 3c707936ba0a665375acf5bd240dc4b6eaa6c0bc . 0g8ln8k8wx4csdv92bz09pr7v9dp4lcyv1334b09c9rgwdwhqg1b cardano-crypto cardano-crypto.nix
+https://github.com/input-output-hk/cardano-ledger-specs 9f822167500a52aa816e722a71e8810623af69dd byron/semantics/executable-spec 1w2g7g1q6fg3fi0c2nbdgl48kk9y5q0z53nzxr2qwhbychjpiy60 small-steps small-steps.nix
+https://github.com/input-output-hk/cardano-ledger-specs 9f822167500a52aa816e722a71e8810623af69dd byron/ledger/executable-spec 1w2g7g1q6fg3fi0c2nbdgl48kk9y5q0z53nzxr2qwhbychjpiy60 cs-ledger cs-ledger.nix
+https://github.com/input-output-hk/goblins 26d35ad52fe9ade3391532dbfeb2f416f07650bc . 17p5x0hj6c67jkdqx0cysqlwq2zs2l87azihn1alzajy9ak6ii0b goblins goblins.nix
