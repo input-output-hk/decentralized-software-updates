@@ -16,10 +16,9 @@ module Cardano.Ledger.Spec.STS.Chain.Header where
 import           Data.Map.Strict (Map)
 import           Data.Set as Set (Set)
 import           Data.Typeable (typeOf)
-import           GHC.Generics (Generic)
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -69,7 +68,7 @@ data BHeader
    deriving (Eq, Show, Generic)
 
 
-deriving instance HasTypeReps (BHeader)
+deriving instance HasTypeReps BHeader
 
 instance Sized BHeader where
   -- TODO: define this properly
@@ -148,8 +147,8 @@ instance ( HashAlgorithm hashAlgo
       wrapFailed = HeaderFailure
 
 -- | Generate a valid next slot, given the current slot.
-headerGen :: Slot -> Gen BHeader
+headerGen :: Slot -> QC.Gen BHeader
 headerGen (Slot s) =
-  BHeader . Slot . (s +) <$> Gen.frequency [ (99, pure 1)
+  BHeader . Slot . (s +) <$> QC.frequency [ (99, pure 1)
                                           , (1, pure 2)
                                           ]

@@ -14,26 +14,22 @@ module Cardano.Ledger.Spec.STS.Chain.Body where
 
 import           Data.Function ((&))
 import           GHC.Generics (Generic)
-import           Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
-
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (genTrace, sigGen)
 import           Control.State.Transition.Trace (TraceOrder (OldestFirst),
                      traceSignals)
+
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (Coin (Coin))
 import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
-import           Cardano.Ledger.Spec.STS.Update (UPDATES)
-import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
@@ -101,9 +97,33 @@ instance ( HashAlgorithm hashAlgo
          ) => Embed (TRANSACTION hashAlgo) (BODY hashAlgo) where
   wrapFailed = BodyFailure
 
+-- | Block body generator.
+gen
+  :: ( HashAlgorithm hashAlgo
+     , HasTypeReps hashAlgo
+     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Hash hashAlgo Data.SIPData)
+     )
+  => Size
+  -> Environment (BODY hashAlgo)
+  -> State (BODY hashAlgo)
+  -> QC.Gen (BBody hashAlgo)
+gen maximumBlockSize transactionEnv transactionSt = do
+  transactions <-
+    transactionsGen maximumBlockSize transactionEnv transactionSt
+  pure $! BBody transactions
+
+-- | Shrink a block body signal.
+shrink
+  :: forall hashAlgo
+   . ( HashAlgorithm hashAlgo )
+  => BBody hashAlgo -> [BBody hashAlgo]
+shrink body =
+  BBody <$> QC.shrinkList
+             (STS.Gen.shrinkSignal @(TRANSACTION hashAlgo) @())
+             (transactions body)
+
 -- | Generate a list of 'Tx's that fit in the given maximum size.
---
--- TODO: this seems to belong to transactions ...
 transactionsGen
   :: forall hashAlgo
    . ( HashAlgorithm hashAlgo
@@ -114,78 +134,31 @@ transactionsGen
   => Size
   -> Environment (BODY hashAlgo)
   -> State (BODY hashAlgo)
-  -> Gen [Transaction.Tx hashAlgo]
+  -> QC.Gen [Transaction.Tx hashAlgo]
 transactionsGen maximumSize env st
-  =   fitTransactions . traceSignals OldestFirst
+  =   fitTransactions maximumSize . traceSignals OldestFirst
   -- TODO: check what is a realistic distribution for empty blocks, or disallow
   -- the generation of empty blocks altogether.
-  <$> genTrace @(TRANSACTION hashAlgo) 30 env st transactionGen
+  <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo) 30 () env st
 
+-- | Return the transactions that fit in the given maximum block size.
+fitTransactions
+  :: ( HashAlgorithm hashAlgo
+     , HasTypeReps hashAlgo
+     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Hash hashAlgo Data.SIPData)
+     )
+  => Size -> [Transaction.Tx hashAlgo] -> [Transaction.Tx hashAlgo]
+fitTransactions maximumSize txs
+  = zip txs (tail sizes)
+  -- We subtract to account for the block constructor and the 'Word64' value of
+  -- the slot.
+  --
+  & takeWhile ((< maximumSize) . snd)
+  & fmap fst
   where
-    -- Fit the transactions that fit in the given maximum block size.
-    fitTransactions :: [Transaction.Tx hashAlgo] -> [Transaction.Tx hashAlgo]
-    fitTransactions txs = zip txs (tail sizes)
-                          -- We subtract to account for the block constructor
-                          -- and the 'Word64' value of the slot.
-                        & takeWhile ((< maximumSize - 5) . snd)
-                        & fmap fst
-      where
-        -- We compute the cumulative sum of the transaction sizes. We add 3 to
-        -- account for the list constructor.
-        sizes :: [Size]
-        sizes = scanl (\acc tx -> acc + size tx + 3) 0 txs
-
-    transactionGen  (Transaction.Env { Transaction.k
-                                     , Transaction.currentSlot
-                                     , Transaction.asips
-                                     , Transaction.participants
-                                     , Transaction.apprvsips
-                                     }
-                    )
-                    (Transaction.St { Transaction.subsips = subsips
-                                    , Transaction.wssips = wssips
-                                    , Transaction.wrsips = wrsips
-                                    , Transaction.sipdb = sipdb
-                                    , Transaction.ballots = ballots
-                                    , Transaction.implementationSt = implementationSt
-                                    }
-                    )
-      -- TODO: figure out what a realistic distribution for update payload is.
-      --
-      -- TODO: do we need to model the __liveness__ assumption of the underlying
-      -- protocol? That is, model the fact that honest party votes will be
-      -- eventually comitted to the chain. Or is this implicit once we start
-      -- generating votes uniformly distributed over all the parties (honest and
-      -- otherwise)
-      --
-      -- We do not generate witnesses for now
-      =   (`Transaction.Tx` [])
-      .   dummyBody
-      <$> Gen.frequency
-            [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
-            , (1, sigGen
-                    @(UPDATES hashAlgo)
-                    Update.Env { Update.k = k
-                               , Update.currentSlot = currentSlot
-                               , Update.asips = asips
-                               , Update.participants = participants
-                               , Update.apprvsips = apprvsips
-                               }
-                    Update.St { Update.subsips = subsips
-                              , Update.wssips = wssips
-                              , Update.wrsips = wrsips
-                              , Update.sipdb = sipdb
-                              , Update.ballots = ballots
-                              , Update.implementationSt = implementationSt
-                              }
-              )
-            ]
-      where
-        -- For now we don't generate inputs and outputs.
-        dummyBody update
-          = Transaction.TxBody
-            { Transaction.inputs = mempty
-            , Transaction.outputs = mempty
-            , Transaction.fees = Coin
-            , Transaction.update = update
-            }
+    -- We compute the cumulative sum of the transaction sizes. We add 3 to
+    -- account for the list constructor.
+    --
+    sizes :: [Size]
+    sizes = scanl (\acc tx -> acc + size tx) 0 txs

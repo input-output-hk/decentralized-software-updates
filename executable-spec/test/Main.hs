@@ -6,8 +6,8 @@ module Main
 where
 
 import           Test.Tasty (TestTree, defaultMain, localOption, testGroup)
-import           Test.Tasty.Hedgehog (testProperty)
 import           Test.Tasty.Ingredients.ConsoleReporter (UseColor (Auto))
+import           Test.Tasty.QuickCheck (testProperty)
 
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain.Properties as Chain
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Properties as Ideation
@@ -22,14 +22,20 @@ main = defaultMain tests
     , testGroup "Ideation phase properties"
         [ testProperty
             "Only valid traces are generated"
-            Ideation.onlyValidSignalsAreGenerated
+            Ideation.qc_onlyValidSignalsAreGenerated
+        , testProperty
+            "Trace lengths are classified"
+            Ideation.qc_traceLengthsAreClassified
         ]
     , testGroup "Chain properties"
       [ testProperty
           "Only valid traces are generated"
-          Chain.onlyValidSignalsAreGenerated
-      ,  testProperty
-          "Traces are classified"
-          Chain.tracesAreClassified
+          Chain.qc_onlyValidSignalsAreGenerated
+      , testProperty
+          "Trace lengths are classified"
+          Chain.qc_traceLengthsAreClassified
+      , testProperty
+          "Trace reveals are classified"
+          Chain.qc_revealsAreClassified
       ]
     ]

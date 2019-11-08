@@ -20,8 +20,8 @@ import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
-import           GHC.Generics (Generic)
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -29,15 +29,14 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      Threshold (Threshold), initialRules, judgmentContext,
                      trans, transitionRules, wrapFailed, (?!))
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
+
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Generators (currentSlotGen, kGen,
-                     participantsGen, r_aGen, stakeDistGen
-                     , prvNoQuorumGen, prvNoMajorityGen)
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -66,10 +65,10 @@ data Env hashAlgo
     , initialSlot :: !Slot
     , participants :: !(Bimap Core.VKey Core.SKey)
     , r_a :: !Float
-      -- ^ adversary stake ratio
+      -- ^ Adversary stake ratio
     , stakeDist :: !(Map Core.VKey Data.Stake)
     , prvNoQuorum :: !Word8
-      -- How many times a revoting is allowed due to a no quorum result
+      -- ^ How many times a revoting is allowed due to a no quorum result
     , prvNoMajority :: !Word8
       -- How many times a revoting is allowed due to a no majority result
     }
@@ -264,62 +263,82 @@ instance ( HashAlgorithm hashAlgo
          ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo) where
   wrapFailed = ChainFailureHeader
 
+--------------------------------------------------------------------------------
+-- HasTrace instance
+--------------------------------------------------------------------------------
 
 instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => HasTrace (CHAIN hashAlgo) where
+         ) => STS.Gen.HasTrace (CHAIN hashAlgo) () where
 
-  envGen _traceLength
-    = Env
-    <$> kGen
-    <*> maxBlockSizeGen
-    <*> currentSlotGen
-    <*> participantsGen
-    <*> r_aGen
-    <*> stakeDistGen
-    <*> prvNoQuorumGen
-    <*> prvNoMajorityGen
-    where
-      -- For now we fix the maximum block size to an abstract size of 100
-      maxBlockSizeGen = pure 100
+  envGen _ = do
+    someK <- Gen.QC.k
+    someCurrentSlot <- Gen.QC.currentSlot
+    -- TODO: for now we generate a constant set of keys. The set of participants
+    -- could be an environment of the generator.
+    someParticipants <- Gen.QC.participants
+    someRa <- Gen.QC.rA
+    someStakeDist <- Gen.QC.stakeDist
+    somePrvNoQuorum <- Gen.QC.prvNoQuorum
+    somePrvNoMajority <- Gen.QC.prvNoMajority
+    let env = Env { k = someK
+                  -- For now we fix the maximum block size to an abstract size of 100
+                  , maximumBlockSize = 100
+                  , initialSlot = someCurrentSlot
+                  , participants = someParticipants
+                  , r_a = someRa
+                  , stakeDist = someStakeDist
+                  , prvNoQuorum = somePrvNoQuorum
+                  , prvNoMajority = somePrvNoMajority
+                  }
+    pure env
 
-  sigGen Env { k
-             , maximumBlockSize
-             , participants
-             }
-         St { currentSlot
-            , subsips
-            , asips
-            , wssips
-            , wrsips
-            , sipdb
-            , ballots
-            --, vresips
-            , apprvsips
-            , implementationSt
-            , utxoSt
-            }
-    = Block
-    <$> Header.headerGen currentSlot
-    <*> transactionsGen
+  sigGen
+    _traceGenEnv
+    Env { k
+        , maximumBlockSize
+        , participants
+        }
+    St { currentSlot
+       , subsips
+       , asips
+       , wssips
+       , wrsips
+       , sipdb
+       , ballots
+       , apprvsips
+       , implementationSt
+       , utxoSt
+       }
+    = do
+    someHeader <- Header.headerGen currentSlot
+    let
+      transactionEnv =
+        Transaction.Env
+          { Transaction.k = k
+          , Transaction.currentSlot = Header.slot someHeader
+          , Transaction.asips = asips
+          , Transaction.participants = participants
+          , Transaction.utxoEnv = UTxO.Env
+          , Transaction.apprvsips = apprvsips
+          }
+      transactionSt =
+        Transaction.St
+          { Transaction.subsips = subsips
+          , Transaction.wssips = wssips
+          , Transaction.wrsips = wrsips
+          , Transaction.ballots = ballots
+          , Transaction.sipdb = sipdb
+          , Transaction.implementationSt = implementationSt
+          , Transaction.utxoSt = utxoSt
+          }
+    someBody <- Body.gen maximumBlockSize transactionEnv transactionSt
+    pure $! Block { header = someHeader, body = someBody}
+
+  shrinkSignal Block { header, body } =
+    -- TODO: for now we don't shrink the header.
+    mkBlock <$> Body.shrink body
     where
-      transactionsGen =
-        Body.BBody <$> Body.transactionsGen
-                         maximumBlockSize
-                         Transaction.Env { Transaction.k = k
-                                         , Transaction.currentSlot = currentSlot
-                                         , Transaction.asips = asips
-                                         , Transaction.apprvsips = apprvsips
-                                         , Transaction.participants = participants
-                                         , Transaction.utxoEnv = UTxO.Env
-                                         }
-                         Transaction.St { Transaction.subsips = subsips
-                                        , Transaction.wssips = wssips
-                                        , Transaction.wrsips = wrsips
-                                        , Transaction.sipdb = sipdb
-                                        , Transaction.ballots = ballots
-                                        , Transaction.implementationSt = implementationSt
-                                        , Transaction.utxoSt = utxoSt
-                                        }
+      mkBlock shrunkBody = Block { header = header, body = shrunkBody }

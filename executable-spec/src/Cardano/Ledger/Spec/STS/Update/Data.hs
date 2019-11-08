@@ -9,9 +9,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
@@ -20,8 +20,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Typeable (Typeable)
-import           Data.Typeable (typeOf)
+import           Data.Typeable (Typeable, typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 
@@ -45,6 +44,14 @@ data IdeationPayload hashAlgo
   | Reveal (SIP hashAlgo)
   | Vote (BallotSIP hashAlgo)
   deriving (Eq, Ord, Show, Generic)
+
+isSubmit :: IdeationPayload hashAlgo -> Bool
+isSubmit (Submit {}) = True
+isSubmit _ = False
+
+isReveal :: IdeationPayload hashAlgo -> Bool
+isReveal (Reveal {}) = True
+isReveal _ = False
 
 -- | This is the ballot for a SIP
 data (BallotSIP hashAlgo) =

@@ -1,7 +1,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,23 +20,23 @@ import           Data.Map.Strict (Map, (!), (!?))
 import           Data.Maybe (fromMaybe)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
-import           GHC.Generics (Generic)
 import qualified Data.Set as Set
-
-import qualified Hedgehog.Gen as Gen
-import           Hedgehog.Range (constant)
+import           Data.Text as T
+import           GHC.Generics (Generic)
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen)
 import           Ledger.Core (Slot, BlockCount)
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁))
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Generators (kGen, participantsGen, currentSlotGen)
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
+
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData), Commit)
@@ -200,96 +203,109 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
             pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
     ]
 
-instance HashAlgorithm hashAlgo => HasTrace (IDEATION hashAlgo) where
+instance
+  HashAlgorithm hashAlgo
+  => STS.Gen.HasTrace (IDEATION hashAlgo) () where
 
-  envGen _traceLength
-    = Env
-    <$> kGen
-    <*> currentSlotGen
+  envGen :: () -> QC.Gen (Env hashAlgo)
+  envGen _traceGenEnv
+    = do
+    someK <- Gen.k
+    someCurrentSlot <- Gen.currentSlot
     -- TODO: for now we generate a constant set of keys. We need to update the
     -- 'HasTrace' class so that 'trace' can take parameter of an associated
     -- type, so that each STS can decide which parameters are relevant for its
     -- traces.
-    <*> asipsGen
-    <*> participantsGen
-    where
-     -- TODO: generate a realistic Map
-     --
-     -- TODO: DISCUSS: dnadales: I don't think we can come up with a realistic
-     -- set of SIP hashes here. I wonder if we can/need-to do any better than
-     -- just returning an empty map.
-     asipsGen = pure $ Map.empty
+    someParticipants <- Gen.participants
+    let env = Env { k = someK
+                  , currentSlot = someCurrentSlot
+                  , asips = Map.empty
+                  , participants = someParticipants
+                  }
+    pure env
 
-  -- For now we ignore the predicate failure we might need to provide (if any).
-  -- We're interested in valid traces only at the moment.
-  sigGen Env{ k, currentSlot, participants } St{ wssips, subsips } =
-      let stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k))) in
+  sigGen
+    _traceGenEnv
+    Env{ k, currentSlot, participants }
+    St{ wssips, wrsips, subsips } =
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
           -- There are no stable commits, so we can only generate a submission.
           submissionGen
         xs ->
           -- TODO: determine submission to revelation ratio (maybe 50/50 is fine...)
-          Gen.frequency [ (1, submissionGen)
-                        , (1, revelationGen xs)
-                        ]
-      where
-        submissionGen = do
-          -- sip <- Gen.filter (`Set.notMember` ( (range subsips)
-          --                                      `Set.union`
-          --                                      (range sipdb)
-          --                                    )
-
-          --                   ) sipGen
-
-          -- generate a new (never seen before) sip
-          sip <- Gen.filter
-                   (\s -> Data.calcCommit s `Set.notMember` (dom subsips))
-                   sipGen
-
-          pure $! mkSubmission sip
-            where
-              sipGen = do
-                owner <- Gen.element $ Set.toList $ dom participants
-                sipMData <- sipMetadataGen
-                sipData <- sipDataGen sipMData
-                let sipHash = Data.SIPHash $ hash sipData
-                salt <- Gen.int (constant 0 100)
-                pure $! SIP sipHash owner salt sipData
-                  where
-                    sipMetadataGen
-                      = Data.SIPMetadata
-                      <$> versionFromGen
-                      <*> versionToGen
-                      <*> Gen.element [Data.Impact, Data.NoImpact]
-                      <*> Gen.subsequence [ Data.BlockSizeMax
-                                          , Data.TxSizeMax
-                                          , Data.SlotSize
-                                          , Data.EpochSize
-                                          ]
-                      <*> Gen.element [Data.VPMin, Data.VPMedium, Data.VPLarge]
-                      where
-                        versionFromGen
-                          =  (,)
-                          <$> fmap Data.ProtVer word64Gen
-                          <*> fmap Data.ApVer word64Gen
-
-                        versionToGen = versionFromGen
-
-                        word64Gen = Gen.word64 (constant 0 100)
-
-                    sipDataGen sipMData = (SIPData) <$> (Data.URL <$> Gen.text (constant 1 20) Gen.alpha) <*> (pure sipMData)
-
-              mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
-              mkSubmission sip = Submit sipCommit sip
+          QC.frequency [ (1, submissionGen)
+                       , (1, revelationGen xs)
+                       ]
+    where
+      stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
+      submissionGen = do
+        -- WARNING: suchThat can be very inefficient if this condition fails often.
+        sip <- sipGen `QC.suchThat` (`Set.notMember` range subsips)
+        pure $! mkSubmission sip
+          where
+            sipGen = do
+              owner <- QC.elements $ Set.toList $ dom participants
+              sipMData <- sipMetadataGen
+              sipData <- sipDataGen sipMData
+              let sipHash = Data.SIPHash $ hash sipData
+              salt <- Gen.bounded 2
+              pure $! SIP sipHash owner salt sipData
                 where
-                  sipCommit =
-                    Data.SIPCommit commit (Data.author sip) sipCommitSignature
+                  sipMetadataGen
+                    = Data.SIPMetadata
+                    <$> versionFromGen
+                    <*> versionToGen
+                    <*> QC.elements [Data.Impact, Data.NoImpact]
+                    <*> QC.sublistOf [ Data.BlockSizeMax
+                                     , Data.TxSizeMax
+                                     , Data.SlotSize
+                                     , Data.EpochSize
+                                     ]
+                    <*> QC.elements [Data.VPMin, Data.VPMedium, Data.VPLarge]
                     where
-                      commit = Data.calcCommit sip
-                      sipCommitSignature = Core.sign skey commit
-                        where
-                          skey = participants Bimap.! Data.author sip
+                      versionFromGen = do
+                        protVer <- word64Gen
+                        apVer <- word64Gen
+                        pure $! (Data.ProtVer protVer, Data.ApVer apVer)
 
-        revelationGen subsipsList =
-          fmap Reveal $! Gen.element subsipsList
+                      versionToGen = versionFromGen
+
+                      word64Gen = Gen.bounded 5
+
+                  sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
+                    where
+                      urlText = do
+                        n <- QC.choose (0, 20)
+                        str <- QC.vectorOf n QC.arbitraryUnicodeChar
+                        pure $! T.pack str
+
+            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
+            mkSubmission sip = Submit sipCommit sip
+              where
+                sipCommit =
+                  Data.SIPCommit commit (Data.author sip) sipCommitSignature
+                  where
+                    commit = Data.calcCommit sip
+                    sipCommitSignature = Core.sign skey commit
+                      where
+                        skey = participants Bimap.! Data.author sip
+
+      revelationGen subsipsList = do
+        -- Problem! 'QC.suchThat' will loop forever if it cannot find a
+        -- revelation that satisfies the given predicate!
+        sip <- QC.elements subsipsList
+        if Data.sipHash sip ∉ dom wrsips
+          then pure $! Reveal sip
+          else submissionGen
+
+
+  -- TODO: I don't think @IdeationPayload@ can be shrunk. If we shrink the SIP,
+  -- we have to modify the commit, but then all the ballots will refer to
+  -- invalid commits.
+  --
+  -- So with this trace generation framework I can't think of good shrinks for
+  -- these signals.
+  shrinkSignal (Submit _sipc _sip) = []
+  shrinkSignal (Reveal _sip) = []
+  shrinkSignal (Vote _ballot) = []

@@ -6,13 +6,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
+import           Control.Exception (assert)
 import           Data.Bimap (Bimap)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
@@ -20,6 +21,7 @@ import           Data.Typeable (typeOf)
 import           Data.Set (Set)
 import           Data.Map.Strict (Map)
 import           GHC.Generics (Generic)
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -30,9 +32,10 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot, BlockCount)
 import qualified Ledger.Core as Core
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin, Witness)
+import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import           Cardano.Ledger.Spec.STS.Update (UPDATES)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
@@ -192,3 +195,82 @@ instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo) where
 
 instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlgo) where
   wrapFailed = TxFailure
+
+instance ( HashAlgorithm hashAlgo
+         ) => STS.Gen.HasTrace (TRANSACTION hashAlgo) () where
+
+  -- Since we don't use the 'TRANSACTION' STS in isolation, we don't need a
+  -- environment generator.
+  envGen = undefined
+
+  sigGen
+    _traceGenEnv
+    (Env { k
+         , currentSlot
+         , asips
+         , participants
+         , apprvsips
+         }
+    )
+    (St { subsips
+        , wssips
+        , wrsips
+        , sipdb
+        , ballots
+        , implementationSt
+        }
+    )
+    -- TODO: figure out what a realistic distribution for update payload is.
+    --
+    -- TODO: do we need to model the __liveness__ assumption of the underlying
+    -- protocol? That is, model the fact that honest party votes will be
+    -- eventually comitted to the chain. Or is this implicit once we start
+    -- generating votes uniformly distributed over all the parties (honest and
+    -- otherwise)
+    --
+    = do
+    someUpdatePayload <-
+      QC.frequency
+        [ (9, pure $! []) -- We don't generate payload in 9/10 of the cases.
+        , (1, do
+              someUpdatePayload <-
+                STS.Gen.sigGen
+                  @(UPDATES hashAlgo)
+                  ()
+                  Update.Env { Update.k = k
+                             , Update.currentSlot = currentSlot
+                             , Update.asips = asips
+                             , Update.participants = participants
+                             , Update.apprvsips = apprvsips
+                             }
+                  Update.St { Update.subsips = subsips
+                            , Update.wssips = wssips
+                            , Update.wrsips = wrsips
+                            , Update.sipdb = sipdb
+                            , Update.ballots = ballots
+                            , Update.implementationSt = implementationSt
+                            }
+              pure $! someUpdatePayload
+          )
+        ]
+    let
+      someBody
+        -- For now we don't generate inputs and outputs.
+        = TxBody
+            { inputs = mempty
+            , outputs = mempty
+            , fees = Coin
+            , update = someUpdatePayload
+            }
+      -- We do not generate witnesses for now
+      someWitnesses = []
+    pure $! Tx { body = someBody, witnesses = someWitnesses }
+
+  shrinkSignal Tx { body, witnesses } =
+    assert (null witnesses) $ -- For now we rely on the set of witnesses being empty.
+    mkTx <$> STS.Gen.shrinkSignal @(UPDATES hashAlgo) @() (update body)
+    where
+      mkTx :: [UpdatePayload hashAlgo] -> Tx hashAlgo
+      mkTx updatePayload = Tx { body = body', witnesses = [] }
+        where
+          body' = body { update = updatePayload }

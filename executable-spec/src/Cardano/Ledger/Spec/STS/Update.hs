@@ -5,6 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,10 +18,10 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 import           Data.Map.Strict (Map)
---import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
 
+import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -28,7 +29,7 @@ import           Control.State.Transition.Trace (traceSignals, TraceOrder (Oldes
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import           Control.State.Transition.Generator (HasTrace, envGen, sigGen, genTrace)
+import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot, BlockCount)
 import qualified Ledger.Core as Core
@@ -97,11 +98,11 @@ instance ( Typeable hashAlgo
 
 instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
-  type Environment (UPDATE hashAlgo) = (Env hashAlgo)
+  type Environment (UPDATE hashAlgo) = Env hashAlgo
 
-  type State (UPDATE hashAlgo) = (St hashAlgo)
+  type State (UPDATE hashAlgo) = St hashAlgo
 
-  type Signal (UPDATE hashAlgo) = (UpdatePayload hashAlgo)
+  type Signal (UPDATE hashAlgo) = UpdatePayload hashAlgo
 
   data PredicateFailure (UPDATE hashAlgo)
     = IdeationsFailure (PredicateFailure (IDEATION hashAlgo))
@@ -213,41 +214,53 @@ instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo) (UPDATES hashAlgo) wh
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => HasTrace (UPDATES hashAlgo) where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo) () where
 
-  envGen traceLength = envGen @(UPDATE hashAlgo) traceLength
+  envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo) traceGenEnv
 
-  sigGen env st
+  sigGen _traceGenEnv env st
     =   traceSignals OldestFirst
-    <$> genTrace @(UPDATE hashAlgo) 10 env st (sigGen @(UPDATE hashAlgo))
+    <$> STS.Gen.traceFrom @(UPDATE hashAlgo) 10 () env st
     -- TODO: we need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
+  shrinkSignal =
+    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE hashAlgo) @())
 
-instance HashAlgorithm hashAlgo => HasTrace (UPDATE hashAlgo) where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
 
-  envGen traceLength = do
-    env <- envGen @(IDEATION hashAlgo) traceLength
-    pure $! Env { k = Ideation.k env
-                , currentSlot = Ideation.currentSlot env
-                , asips = Ideation.asips env
-                , participants = Ideation.participants env
-                , apprvsips = Set.empty
-                }
+  envGen traceGenEnv = do
+    env <- STS.Gen.envGen @(IDEATION hashAlgo) traceGenEnv
+    pure $!
+      Env { k = Ideation.k env
+          , currentSlot = Ideation.currentSlot env
+          , asips = Ideation.asips env
+          , participants = Ideation.participants env
+          , apprvsips = Set.empty
+          }
 
-  sigGen  Env { k, currentSlot, asips, participants }
-          St { subsips, wssips, wrsips, sipdb, ballots } =
-    -- For now we generate ideation payload only.
-    Ideation
-      <$> sigGen @(IDEATION hashAlgo)
-                  Ideation.Env { Ideation.k = k
-                               , Ideation.currentSlot = currentSlot
-                               , Ideation.asips = asips
-                               , Ideation.participants = participants
-                               }
-                  Ideation.St { Ideation.subsips = subsips
-                              , Ideation.wssips = wssips
-                              , Ideation.wrsips = wrsips
-                              , Ideation.sipdb = sipdb
-                              , Ideation.ballots = ballots
-                              }
+  sigGen
+    ()
+    Env { k, currentSlot, asips, participants }
+    St { subsips, wssips, wrsips, sipdb, ballots }
+    = do
+    ideationPayload <-
+      STS.Gen.sigGen
+        @(IDEATION hashAlgo)
+        ()
+        Ideation.Env { Ideation.k = k
+                     , Ideation.currentSlot = currentSlot
+                     , Ideation.asips = asips
+                     , Ideation.participants = participants
+                     }
+        Ideation.St { Ideation.subsips = subsips
+                    , Ideation.wssips = wssips
+                    , Ideation.wrsips = wrsips
+                    , Ideation.ballots = ballots
+                    , Ideation.sipdb = sipdb
+                    }
+    pure $! Ideation ideationPayload
+
+  shrinkSignal (Ideation ideationPayload) =
+    Ideation <$> STS.Gen.shrinkSignal @(IDEATION hashAlgo) @() ideationPayload
+  shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."
