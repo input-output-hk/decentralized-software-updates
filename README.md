@@ -81,3 +81,11 @@ installation , or in `~/.config/nix/nix.conf` if you have a local installation:
 substituters        = https://hydra.iohk.io https://cache.nixos.org/
 trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 ```
+
+<hr/>
+
+<p align="center">
+  <a href="https://github.com/input-output-hk/decentralized-software-updates/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/input-output-hk/cardano-wallet.svg?style=for-the-badge"/>
+  </a>
+</p>
