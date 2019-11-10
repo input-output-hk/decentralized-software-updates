@@ -1,4 +1,13 @@
-﻿<h1 align="center">On decentralized software updates for blockchain systems.</h1>
+<h1 align="center">On decentralized software updates for blockchain systems.</h1>
+
+<p align="center">
+  <a href="https://buildkite.com/input-output-hk/decentralized-software-updates">
+    <img alt="Build Status" src="https://img.shields.io/buildkite/0400e4f455135087dc9f04095439712f6c0225226e9d2ab623?style=for-the-badge"/>
+  </a>
+  <a href="https://coveralls.io/github/input-output-hk/decentralized-software-updates?branch=master">
+    <img alt="Coverage Status" src="https://img.shields.io/coveralls/github/input-output-hk/decentralized-software-updates?style=for-the-badge"/>
+  </a>
+</p>
 
 ## Executable specification
 
