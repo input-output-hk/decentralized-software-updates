@@ -60,7 +60,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."bimap" or (buildDepError "bimap"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
           (hsPkgs."generic-monoid" or (buildDepError "generic-monoid"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."random" or (buildDepError "random"))
@@ -76,9 +75,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "ledger-rules-test" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
