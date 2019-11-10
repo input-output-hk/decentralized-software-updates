@@ -67,8 +67,6 @@ data Env hashAlgo
       -- There is a one-to-one correspondence between the signing and verifying keys, hence
       -- the use of 'Bimap'
       --
-      -- TODO: DISCUSS: It seems we need this only for the generators. We might want to
-      -- remove this from the STS.
     }
   deriving (Eq, Show, Generic)
 
@@ -93,16 +91,7 @@ data St hashAlgo
 
     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
       -- ^ Stores the valid ballots for each SIP and for each voter
-
-      -- TODO: I think we should use key hashes here as well.
       --
-      -- DISCUSS: by using this representation I think we're using more data,
-      -- since we have to store the confidence as well. We could avoid this by
-      -- having three maps, say @for@, @against@, and @abstain@. However a big
-      -- advantage of this construction is that any given key can only vote for
-      -- a single proposal and confidence by construction (if we use three maps
-      -- we have to maintain this as an invariant).
-
     }
   deriving (Eq, Show, Generic)
   deriving Semigroup via GenericSemigroup (St hashAlgo)
@@ -152,8 +141,6 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
           Data._author sipc ∈ dom participants ?! InvalidAuthor (Data.author sip)
           Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
-          -- TODO: Add verification of signature inside SIPCommit
-
           pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
                      , subsips = subsips ⨃ [(Data.commit sipc, sip)]
                      }
@@ -171,7 +158,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
             ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSIP sip wssips
 
-          pure st { wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips -- TODO: domain/range restriction should be able to take a foldable.
+          pure st { wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips
                   , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
                   , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
                   }
@@ -190,8 +177,6 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
             -- reached yet.
             currentSlot <= asips ! Data.votedsipHash ballot ?!
               VotingPeriodEnded (Data.votedsipHash ballot) currentSlot
-
-            -- TODO: Signature of the vote must be verified
 
             let
               hsip = Data.votedsipHash ballot
@@ -212,10 +197,6 @@ instance
     = do
     someK <- Gen.k
     someCurrentSlot <- Gen.currentSlot
-    -- TODO: for now we generate a constant set of keys. We need to update the
-    -- 'HasTrace' class so that 'trace' can take parameter of an associated
-    -- type, so that each STS can decide which parameters are relevant for its
-    -- traces.
     someParticipants <- Gen.participants
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
@@ -233,7 +214,8 @@ instance
           -- There are no stable commits, so we can only generate a submission.
           submissionGen
         xs ->
-          -- TODO: determine submission to revelation ratio (maybe 50/50 is fine...)
+          -- We use a 50/50 submission to revelation ratio. This can be changed
+          -- if necessary.
           QC.frequency [ (1, submissionGen)
                        , (1, revelationGen xs)
                        ]
@@ -300,12 +282,12 @@ instance
           else submissionGen
 
 
-  -- TODO: I don't think @IdeationPayload@ can be shrunk. If we shrink the SIP,
-  -- we have to modify the commit, but then all the ballots will refer to
-  -- invalid commits.
+  -- It doesn't seem plausible that the @IdeationPayload@ can be shrunk in a
+  -- meaningful way. If we shrink the SIP, we have to modify the commit, but
+  -- then all the ballots will refer to invalid commits.
   --
-  -- So with this trace generation framework I can't think of good shrinks for
-  -- these signals.
+  -- With this trace generation framework it might not be possible to get good
+  -- shrinks for these signals.
   shrinkSignal (Submit _sipc _sip) = []
   shrinkSignal (Reveal _sip) = []
   shrinkSignal (Vote _ballot) = []

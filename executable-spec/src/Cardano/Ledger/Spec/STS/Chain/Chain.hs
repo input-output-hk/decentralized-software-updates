@@ -61,7 +61,6 @@ data Env hashAlgo
       -- ^ Maximum block size. The interpretation of this value depends on the
       -- instance of 'Sized'.
       --
-      -- TODO: use abstract size instead.
     , initialSlot :: !Slot
     , participants :: !(Bimap Core.VKey Core.SKey)
     , r_a :: !Float
@@ -76,10 +75,6 @@ data Env hashAlgo
 
 
 data St hashAlgo
-  -- TODO: DISCUSS: here I think it doesn't make sense to have a header state
-  -- and body state. We have that both states contain variables which we will
-  -- have to keep in sync in the CHAIN rules if we duplicate them. So it's
-  -- better just to expand the inner components, and reduce duplication.
   = St
     { currentSlot :: !Slot
     , subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
@@ -276,8 +271,8 @@ instance ( HasTypeReps hashAlgo
   envGen _ = do
     someK <- Gen.QC.k
     someCurrentSlot <- Gen.QC.currentSlot
-    -- TODO: for now we generate a constant set of keys. The set of participants
-    -- could be an environment of the generator.
+    -- For now we generate a constant set of keys. The set of participants could
+    -- be an environment of the generator.
     someParticipants <- Gen.QC.participants
     someRa <- Gen.QC.rA
     someStakeDist <- Gen.QC.stakeDist
@@ -338,7 +333,7 @@ instance ( HasTypeReps hashAlgo
     pure $! Block { header = someHeader, body = someBody}
 
   shrinkSignal Block { header, body } =
-    -- TODO: for now we don't shrink the header.
+    -- For now we don't shrink the header. Define this as needed.
     mkBlock <$> Body.shrink body
     where
       mkBlock shrunkBody = Block { header = header, body = shrunkBody }

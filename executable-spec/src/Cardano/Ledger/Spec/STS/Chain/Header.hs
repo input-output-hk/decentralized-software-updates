@@ -71,7 +71,6 @@ data BHeader
 deriving instance HasTypeReps BHeader
 
 instance Sized BHeader where
-  -- TODO: define this properly
   costsList bh = [(typeOf bh, 100)]
 
 instance ( HashAlgorithm hashAlgo
