@@ -272,7 +272,6 @@ newtype Commit hashAlgo =
            , Hash hashAlgo (SIP hashAlgo)
            )
     }
-   -- TODO: ask Nikos: we need to give a type to the commit hash, should this be (Int, Key, Hash SIP)?
   deriving stock (Generic)
   deriving (Show, Eq, Ord)
 
@@ -334,21 +333,19 @@ deriving instance ( Typeable hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
                   , HasTypeReps hashAlgo
                   ) => HasTypeReps (BallotSIP hashAlgo)
+
 --------------------------------------------------------------------------------
 -- Sized instances
 --------------------------------------------------------------------------------
 
 instance Sized ImplementationPayload where
-  -- TODO: define this properly
   costsList implementationPayload = [(typeOf implementationPayload, 10)]
 
 instance ( Typeable hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps hashAlgo
          ) => Sized (IdeationPayload hashAlgo) where
-  -- TODO: define this properly
   costsList ideationPayload = [(typeOf ideationPayload, 10)]
-
 
 --------------------------------------------------------------------------------
 -- ToCBOR instances

@@ -220,14 +220,6 @@ instance ( HashAlgorithm hashAlgo
         , implementationSt
         }
     )
-    -- TODO: figure out what a realistic distribution for update payload is.
-    --
-    -- TODO: do we need to model the __liveness__ assumption of the underlying
-    -- protocol? That is, model the fact that honest party votes will be
-    -- eventually comitted to the chain. Or is this implicit once we start
-    -- generating votes uniformly distributed over all the parties (honest and
-    -- otherwise)
-    --
     = do
     someUpdatePayload <-
       QC.frequency

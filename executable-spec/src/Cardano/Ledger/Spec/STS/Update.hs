@@ -54,7 +54,7 @@ data Env hashAlgo
     { k :: !BlockCount
     , currentSlot :: !Slot
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , participants :: Bimap Core.VKey Core.SKey -- TODO: DISCUSS: I think we need to be consistent between using Core qualified and not.
+    , participants :: Bimap Core.VKey Core.SKey
     , apprvsips :: !(Set (Data.SIPHash hashAlgo))
     }
   deriving (Eq, Show, Generic)
@@ -221,7 +221,7 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo) () where
   sigGen _traceGenEnv env st
     =   traceSignals OldestFirst
     <$> STS.Gen.traceFrom @(UPDATE hashAlgo) 10 () env st
-    -- TODO: we need to determine what is a realistic number of update
+    -- We need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
   shrinkSignal =

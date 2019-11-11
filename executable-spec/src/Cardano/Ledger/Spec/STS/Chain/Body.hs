@@ -137,8 +137,6 @@ transactionsGen
   -> QC.Gen [Transaction.Tx hashAlgo]
 transactionsGen maximumSize env st
   =   fitTransactions maximumSize . traceSignals OldestFirst
-  -- TODO: check what is a realistic distribution for empty blocks, or disallow
-  -- the generation of empty blocks altogether.
   <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo) 30 () env st
 
 -- | Return the transactions that fit in the given maximum block size.
