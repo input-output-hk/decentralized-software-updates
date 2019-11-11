@@ -20,9 +20,11 @@ import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
+import           Data.Typeable (Typeable)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
@@ -51,7 +53,7 @@ import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 
-data CHAIN hashAlgo
+data CHAIN hashAlgo dsignAlgo
 
 
 data Env hashAlgo
@@ -91,43 +93,49 @@ data St hashAlgo
     deriving (Eq, Show)
 
 
-data Block hashAlgo
+data Block hashAlgo dsignAlgo
   = Block
     { header :: Signal (HEADER hashAlgo)
-    , body :: Signal (BODY hashAlgo)
+    , body :: Signal (BODY hashAlgo dsignAlgo)
     }
     deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps hashAlgo
+deriving instance ( Typeable dsignAlgo
+                  , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Data.Commit hashAlgo)
-                  ) => HasTypeReps (Block hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  ) => HasTypeReps (Block hashAlgo dsignAlgo)
 
 
-instance ( HashAlgorithm hashAlgo
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          , HasTypeReps (Data.Commit hashAlgo)
-         ) => Sized (Block hashAlgo) where
-  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => Sized (Block hashAlgo dsignAlgo) where
+  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo dsignAlgo))
 
 
-instance ( HashAlgorithm hashAlgo
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          , HasTypeReps (Data.Commit hashAlgo)
-         ) => STS (CHAIN hashAlgo) where
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => STS (CHAIN hashAlgo dsignAlgo) where
 
-  type Environment (CHAIN hashAlgo) = Env hashAlgo
+  type Environment (CHAIN hashAlgo dsignAlgo) = Env hashAlgo
 
-  type State (CHAIN hashAlgo) = St hashAlgo
+  type State (CHAIN hashAlgo dsignAlgo) = St hashAlgo
 
-  type Signal (CHAIN hashAlgo) = Block hashAlgo
+  type Signal (CHAIN hashAlgo dsignAlgo) = Block hashAlgo dsignAlgo
 
-  data PredicateFailure (CHAIN hashAlgo)
+  data PredicateFailure (CHAIN hashAlgo dsignAlgo)
     = MaximumBlockSizeExceeded Size (Threshold Size)
-    | ChainFailureBody (PredicateFailure (BODY hashAlgo))
+    | ChainFailureBody (PredicateFailure (BODY hashAlgo dsignAlgo))
     | ChainFailureHeader (PredicateFailure (HEADER hashAlgo))
     deriving (Eq, Show)
 
@@ -209,7 +217,7 @@ instance ( HashAlgorithm hashAlgo
         , Transaction.ballots = ballots'
         , Transaction.implementationSt = implementationSt'
         , Transaction.utxoSt = utxoSt'
-        } <- trans @(BODY hashAlgo)
+        } <- trans @(BODY hashAlgo dsignAlgo)
                $ TRC ( Transaction.Env
                           { Transaction.k = k
                           , Transaction.currentSlot = currentSlot'
@@ -244,29 +252,35 @@ instance ( HashAlgorithm hashAlgo
     ]
 
 
-instance ( HashAlgorithm hashAlgo
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          , HasTypeReps (Data.Commit hashAlgo)
-         ) => Embed (BODY hashAlgo) (CHAIN hashAlgo) where
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => Embed (BODY hashAlgo dsignAlgo) (CHAIN hashAlgo dsignAlgo) where
   wrapFailed = ChainFailureBody
 
-instance ( HashAlgorithm hashAlgo
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          , HasTypeReps (Data.Commit hashAlgo)
-         ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo) where
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo dsignAlgo) where
   wrapFailed = ChainFailureHeader
 
 --------------------------------------------------------------------------------
 -- HasTrace instance
 --------------------------------------------------------------------------------
 
-instance ( HasTypeReps hashAlgo
+instance ( Typeable dsignAlgo
+         , HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => STS.Gen.HasTrace (CHAIN hashAlgo) () where
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => STS.Gen.HasTrace (CHAIN hashAlgo dsignAlgo) () where
 
   envGen _ = do
     someK <- Gen.QC.k

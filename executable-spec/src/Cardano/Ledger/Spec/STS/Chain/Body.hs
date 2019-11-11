@@ -13,9 +13,11 @@
 module Cardano.Ledger.Spec.STS.Chain.Body where
 
 import           Data.Function ((&))
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -33,43 +35,47 @@ import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
-data BODY hashAlgo
+data BODY hashAlgo dsignAlgo
 
-data BBody hashAlgo
+data BBody hashAlgo dsignAlgo
  = BBody
-   { transactions :: ![Signal (TRANSACTION hashAlgo)]
+   { transactions :: ![Signal (TRANSACTION hashAlgo dsignAlgo)]
    }
    deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps hashAlgo
+deriving instance ( Typeable dsignAlgo
+                  , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Data.Commit hashAlgo)
-                  ) => HasTypeReps (BBody hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  ) => HasTypeReps (BBody hashAlgo dsignAlgo)
+
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
+         , HasTypeReps hashAlgo
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => Sized (BBody hashAlgo dsignAlgo) where
+  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo dsignAlgo))
+
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          , HasTypeReps (Data.Commit hashAlgo)
-         ) => Sized (BBody hashAlgo) where
-  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
+         ) => STS (BODY hashAlgo dsignAlgo) where
 
+  type Environment (BODY hashAlgo dsignAlgo) = Environment (TRANSACTION hashAlgo dsignAlgo)
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         ) => STS (BODY hashAlgo) where
+  type State (BODY hashAlgo dsignAlgo) = State (TRANSACTION hashAlgo dsignAlgo)
 
-  type Environment (BODY hashAlgo) = Environment (TRANSACTION hashAlgo)
+  type Signal (BODY hashAlgo dsignAlgo) = BBody hashAlgo dsignAlgo
 
-  type State (BODY hashAlgo) = State (TRANSACTION hashAlgo)
-
-  type Signal (BODY hashAlgo) = BBody hashAlgo
-
-  data PredicateFailure (BODY hashAlgo)
+  data PredicateFailure (BODY hashAlgo dsignAlgo)
     =
-     BodyFailure (PredicateFailure (TRANSACTION hashAlgo))
+     BodyFailure (PredicateFailure (TRANSACTION hashAlgo dsignAlgo))
     deriving (Eq, Show)
 
 
@@ -85,29 +91,31 @@ instance ( HashAlgorithm hashAlgo
       case transactions of
         [] -> pure $! st
         (tx:txs') -> do
-          st' <- trans @(TRANSACTION hashAlgo)
+          st' <- trans @(TRANSACTION hashAlgo dsignAlgo)
               $ TRC ( env, st, tx)
-          trans @(BODY hashAlgo) $ TRC ( env, st', BBody txs')
+          trans @(BODY hashAlgo dsignAlgo) $ TRC ( env, st', BBody txs')
     ]
 
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => Embed (TRANSACTION hashAlgo) (BODY hashAlgo) where
+         ) => Embed (TRANSACTION hashAlgo dsignAlgo) (BODY hashAlgo dsignAlgo) where
   wrapFailed = BodyFailure
 
 -- | Block body generator.
 gen
-  :: ( HashAlgorithm hashAlgo
+  :: ( Typeable dsignAlgo
+     , HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
+     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
      )
   => Size
-  -> Environment (BODY hashAlgo)
-  -> State (BODY hashAlgo)
-  -> QC.Gen (BBody hashAlgo)
+  -> Environment (BODY hashAlgo dsignAlgo)
+  -> State (BODY hashAlgo dsignAlgo)
+  -> QC.Gen (BBody hashAlgo dsignAlgo)
 gen maximumBlockSize transactionEnv transactionSt = do
   transactions <-
     transactionsGen maximumBlockSize transactionEnv transactionSt
@@ -115,38 +123,42 @@ gen maximumBlockSize transactionEnv transactionSt = do
 
 -- | Shrink a block body signal.
 shrink
-  :: forall hashAlgo
+  :: forall hashAlgo dsignAlgo
    . ( HashAlgorithm hashAlgo )
-  => BBody hashAlgo -> [BBody hashAlgo]
+  => BBody hashAlgo dsignAlgo -> [BBody hashAlgo dsignAlgo]
 shrink body =
   BBody <$> QC.shrinkList
-             (STS.Gen.shrinkSignal @(TRANSACTION hashAlgo) @())
+             (STS.Gen.shrinkSignal @(TRANSACTION hashAlgo dsignAlgo) @())
              (transactions body)
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
 transactionsGen
-  :: forall hashAlgo
-   . ( HashAlgorithm hashAlgo
+  :: forall hashAlgo dsignAlgo
+   . ( Typeable dsignAlgo
+     , HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
+     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
      )
   => Size
-  -> Environment (BODY hashAlgo)
-  -> State (BODY hashAlgo)
-  -> QC.Gen [Transaction.Tx hashAlgo]
+  -> Environment (BODY hashAlgo dsignAlgo)
+  -> State (BODY hashAlgo dsignAlgo)
+  -> QC.Gen [Transaction.Tx hashAlgo dsignAlgo]
 transactionsGen maximumSize env st
   =   fitTransactions maximumSize . traceSignals OldestFirst
-  <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo) 30 () env st
+  <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo dsignAlgo) 30 () env st
 
 -- | Return the transactions that fit in the given maximum block size.
 fitTransactions
-  :: ( HashAlgorithm hashAlgo
+  :: ( Typeable dsignAlgo
+     , HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
+     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
      )
-  => Size -> [Transaction.Tx hashAlgo] -> [Transaction.Tx hashAlgo]
+  => Size -> [Transaction.Tx hashAlgo dsignAlgo] -> [Transaction.Tx hashAlgo dsignAlgo]
 fitTransactions maximumSize txs
   = zip txs (tail sizes)
   -- We subtract to account for the block constructor and the 'Word64' value of

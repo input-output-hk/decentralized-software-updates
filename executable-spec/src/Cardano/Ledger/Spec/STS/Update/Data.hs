@@ -25,6 +25,7 @@ import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
@@ -39,17 +40,17 @@ data ImplementationPayload = ImplementationPayload
   deriving (Eq, Show, Generic, HasTypeReps)
 
 -- | Ideation signals.
-data IdeationPayload hashAlgo
-  = Submit (SIPCommit hashAlgo) (SIP hashAlgo)
+data IdeationPayload hashAlgo dsignAlgo
+  = Submit (SIPCommit hashAlgo dsignAlgo) (SIP hashAlgo)
   | Reveal (SIP hashAlgo)
   | Vote (BallotSIP hashAlgo)
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Show, Generic)
 
-isSubmit :: IdeationPayload hashAlgo -> Bool
+isSubmit :: IdeationPayload hashAlgo dsignAlgo -> Bool
 isSubmit (Submit {}) = True
 isSubmit _ = False
 
-isReveal :: IdeationPayload hashAlgo -> Bool
+isReveal :: IdeationPayload hashAlgo dsignAlgo -> Bool
 isReveal (Reveal {}) = True
 isReveal _ = False
 
@@ -61,8 +62,7 @@ data (BallotSIP hashAlgo) =
               -- ^ the ballot outcome
             , voter :: !Core.VKey
               -- ^ the voter
-            , voterSig :: !(Core.Sig (
-                                       (SIPHash hashAlgo)
+            , voterSig :: !(Core.Sig ( SIPHash hashAlgo
                                      , Confidence
                                      , Core.VKey
                                      )
@@ -276,17 +276,17 @@ newtype Commit hashAlgo =
   deriving (Show, Eq, Ord)
 
 -- | The System improvement proposal at the commit phase
-data SIPCommit hashAlgo =
+data SIPCommit hashAlgo dsignAlgo =
   SIPCommit
     { commit :: !(Commit hashAlgo)
       -- ^ A salted commitment (a hash) to the SIP id, the public key and the
       -- `hash` `SIP` (H(salt||pk||H(SIP)))
     , _author :: !Core.VKey
       -- ^ Who submitted the proposal.
-    , upSig :: !(Core.Sig (Commit hashAlgo))
+    , upSig :: !(SignedDSIGN dsignAlgo (Commit hashAlgo))
       -- ^ A signature on commit by the author public key
     }
-  deriving (Eq, Show, Ord, Generic)
+  deriving (Eq, Show, Generic)
 
 -- | Calculate a `Commit` from a `SIP`
 calcCommit :: HashAlgorithm hashAlgo => SIP hashAlgo -> Commit hashAlgo
@@ -305,10 +305,12 @@ instance HasTypeReps URL where
       : replicate (T.length text) (typeOf (undefined :: Char))
 
 deriving instance ( Typeable hashAlgo
+                  , Typeable dsignAlgo
                   , HasTypeReps (SIP hashAlgo)
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
-                  ) => HasTypeReps (IdeationPayload hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo))
+                  ) => HasTypeReps (IdeationPayload hashAlgo dsignAlgo)
 
 deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
                   , Typeable hashAlgo
@@ -325,8 +327,10 @@ instance Typeable hashAlgo => HasTypeReps (Hash hashAlgo (Commit hashAlgo)) wher
   typeReps commitHash = Seq.singleton (typeOf commitHash)
 
 deriving instance ( Typeable hashAlgo
+                  , Typeable dsignAlgo
                   , HasTypeReps hashAlgo
-                  ) => HasTypeReps (SIPCommit hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo))
+                  ) => HasTypeReps (SIPCommit hashAlgo dsignAlgo)
 
 
 deriving instance ( Typeable hashAlgo
@@ -342,9 +346,11 @@ instance Sized ImplementationPayload where
   costsList implementationPayload = [(typeOf implementationPayload, 10)]
 
 instance ( Typeable hashAlgo
+         , Typeable dsignAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps hashAlgo
-         ) => Sized (IdeationPayload hashAlgo) where
+         , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo))
+         ) => Sized (IdeationPayload hashAlgo dsignAlgo) where
   costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 --------------------------------------------------------------------------------

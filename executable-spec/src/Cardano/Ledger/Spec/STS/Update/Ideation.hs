@@ -48,7 +48,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 --------------------------------------------------------------------------------
 
 -- | Ideation phase of system updates
-data IDEATION hashAlgo
+data IDEATION hashAlgo dsignAlgo
 
 -- Environmnet of the Ideation phase
 data Env hashAlgo
@@ -98,16 +98,16 @@ data St hashAlgo
   deriving Monoid via GenericMonoid (St hashAlgo)
 
 
-instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
+instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo dsignAlgo) where
 
-  type Environment (IDEATION hashAlgo) = Env hashAlgo
+  type Environment (IDEATION hashAlgo dsignAlgo) = Env hashAlgo
 
-  type State (IDEATION hashAlgo) = St hashAlgo
+  type State (IDEATION hashAlgo dsignAlgo) = St hashAlgo
 
-  type Signal (IDEATION hashAlgo) = IdeationPayload hashAlgo
+  type Signal (IDEATION hashAlgo dsignAlgo) = IdeationPayload hashAlgo dsignAlgo
 
   -- | IDEATION phase failures
-  data PredicateFailure (IDEATION hashAlgo)
+  data PredicateFailure (IDEATION hashAlgo dsignAlgo)
     = SIPAlreadySubmitted (Data.SIP hashAlgo)
    -- | SIPSubmittedAlreadyRevealed (Data.SIP hashAlgo)
     | NoSIPToReveal (Data.SIP hashAlgo)
@@ -190,7 +190,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
 
 instance
   HashAlgorithm hashAlgo
-  => STS.Gen.HasTrace (IDEATION hashAlgo) () where
+  => STS.Gen.HasTrace (IDEATION hashAlgo dsignAlgo) () where
 
   envGen :: () -> QC.Gen (Env hashAlgo)
   envGen _traceGenEnv
@@ -262,16 +262,18 @@ instance
                         str <- QC.vectorOf n QC.arbitraryUnicodeChar
                         pure $! T.pack str
 
-            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
+            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo dsignAlgo
             mkSubmission sip = Submit sipCommit sip
               where
                 sipCommit =
                   Data.SIPCommit commit (Data.author sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
-                    sipCommitSignature = Core.sign skey commit
-                      where
-                        skey = participants Bimap.! Data.author sip
+                    sipCommitSignature = undefined
+                    -- TODO: we should use the 'MockDSIGN' instance here (so this instance is not parametric over `dsignAlgo`).
+                    -- Core.sign skey commit
+                      -- where
+                      --   skey = participants Bimap.! Data.author sip
 
       revelationGen subsipsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a

@@ -22,8 +22,10 @@ import           Data.Set (Set)
 import           Data.Map.Strict (Map)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
+import           Data.Typeable (Typeable)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
@@ -71,60 +73,66 @@ data St hashAlgo =
   deriving Monoid via GenericMonoid (St hashAlgo)
 
 -- | Transactions contained in a block.
-data Tx hashAlgo
+data Tx hashAlgo dsignAlgo
   = Tx
-  { body :: TxBody hashAlgo
+  { body :: TxBody hashAlgo dsignAlgo
   , witnesses :: ![Witness]
   }
   deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps hashAlgo
+deriving instance ( Typeable dsignAlgo
+                  , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Data.Commit hashAlgo)
-                  ) => HasTypeReps (Tx hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  ) => HasTypeReps (Tx hashAlgo dsignAlgo)
 
-data TxBody hashAlgo
+data TxBody hashAlgo dsignAlgo
   = TxBody
   { inputs :: !(Set TxIn)
   , outputs :: ![TxOut]
   , fees :: !Coin
-  , update :: ![UpdatePayload hashAlgo]
+  , update :: ![UpdatePayload hashAlgo dsignAlgo]
     -- ^ Update payload
   } deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps hashAlgo
+deriving instance ( Typeable dsignAlgo
+                  , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Data.Commit hashAlgo)
-                  ) => HasTypeReps (TxBody hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  ) => HasTypeReps (TxBody hashAlgo dsignAlgo)
 
 
-instance ( HashAlgorithm hashAlgo
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => Sized (Tx hashAlgo) where
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => Sized (Tx hashAlgo dsignAlgo) where
   costsList _
     =  [ (typeOf (undefined :: TxIn), 1)
        , (typeOf (undefined :: TxOut), 1)
        , (typeOf (undefined :: Coin), 1)
        ]
-    ++ costsList (undefined :: UpdatePayload hashAlgo)
+    ++ costsList (undefined :: UpdatePayload hashAlgo dsignAlgo)
 
 
-data TRANSACTION hashAlgo
+data TRANSACTION hashAlgo dsignAlgo
 
-instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
+instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo dsignAlgo) where
 
-  type Environment (TRANSACTION hashAlgo) = Env hashAlgo
+  type Environment (TRANSACTION hashAlgo dsignAlgo) = Env hashAlgo
 
-  type State (TRANSACTION hashAlgo) = St hashAlgo
+  type State (TRANSACTION hashAlgo dsignAlgo) = St hashAlgo
 
-  type Signal (TRANSACTION hashAlgo) = Tx hashAlgo
+  type Signal (TRANSACTION hashAlgo dsignAlgo) = Tx hashAlgo dsignAlgo
 
-  data PredicateFailure (TRANSACTION hashAlgo)
-    = TxFailure (PredicateFailure (UPDATES hashAlgo))
+  data PredicateFailure (TRANSACTION hashAlgo dsignAlgo)
+    = TxFailure (PredicateFailure (UPDATES hashAlgo dsignAlgo))
     deriving (Eq, Show)
 
   initialRules = []
@@ -162,7 +170,7 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
                 , Update.ballots = ballots'
                 , Update.implementationSt = implementationSt'
                 } <-
-        trans @(UPDATES hashAlgo) $
+        trans @(UPDATES hashAlgo dsignAlgo) $
           TRC ( Update.Env { Update.k = k
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
@@ -189,15 +197,15 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo) where
     ]
 
 
-instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo) where
+instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo dsignAlgo) where
   wrapFailed = error "UTXO transition shouldn't fail (yet)"
 
 
-instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo) (TRANSACTION hashAlgo) where
+instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo dsignAlgo) (TRANSACTION hashAlgo dsignAlgo) where
   wrapFailed = TxFailure
 
 instance ( HashAlgorithm hashAlgo
-         ) => STS.Gen.HasTrace (TRANSACTION hashAlgo) () where
+         ) => STS.Gen.HasTrace (TRANSACTION hashAlgo dsignAlgo) () where
 
   -- Since we don't use the 'TRANSACTION' STS in isolation, we don't need a
   -- environment generator.
@@ -227,7 +235,7 @@ instance ( HashAlgorithm hashAlgo
         , (1, do
               someUpdatePayload <-
                 STS.Gen.sigGen
-                  @(UPDATES hashAlgo)
+                  @(UPDATES hashAlgo dsignAlgo)
                   ()
                   Update.Env { Update.k = k
                              , Update.currentSlot = currentSlot
@@ -260,9 +268,9 @@ instance ( HashAlgorithm hashAlgo
 
   shrinkSignal Tx { body, witnesses } =
     assert (null witnesses) $ -- For now we rely on the set of witnesses being empty.
-    mkTx <$> STS.Gen.shrinkSignal @(UPDATES hashAlgo) @() (update body)
+    mkTx <$> STS.Gen.shrinkSignal @(UPDATES hashAlgo dsignAlgo) @() (update body)
     where
-      mkTx :: [UpdatePayload hashAlgo] -> Tx hashAlgo
+      mkTx :: [UpdatePayload hashAlgo dsignAlgo] -> Tx hashAlgo dsignAlgo
       mkTx updatePayload = Tx { body = body', witnesses = [] }
         where
           body' = body { update = updatePayload }

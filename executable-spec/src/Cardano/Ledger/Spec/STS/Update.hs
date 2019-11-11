@@ -24,6 +24,7 @@ import qualified Data.Set as Set
 import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 
 import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -42,7 +43,7 @@ import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 
 
-data UPDATE hashAlgo
+data UPDATE hashAlgo dsignAlgo
 
 
 -- | As we incorporate more phases, like UP (or IMPLEMENTATION), we will be
@@ -74,38 +75,42 @@ data St hashAlgo
   deriving Monoid via GenericMonoid (St hashAlgo)
 
 
-data UpdatePayload hashAlgo
-  = Ideation (Data.IdeationPayload hashAlgo)
+data UpdatePayload hashAlgo dsignAlgo
+  = Ideation (Data.IdeationPayload hashAlgo dsignAlgo)
   | Implementation Data.ImplementationPayload
   deriving (Eq, Show, Generic)
 
 deriving instance ( Typeable hashAlgo
+                  , Typeable dsignAlgo
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Data.Commit hashAlgo)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
-                  ) => HasTypeReps (UpdatePayload hashAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  ) => HasTypeReps (UpdatePayload hashAlgo dsignAlgo)
 
 instance ( Typeable hashAlgo
+         , Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
          , HasTypeReps (Data.Commit hashAlgo)
-         ) => Sized (UpdatePayload hashAlgo) where
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         ) => Sized (UpdatePayload hashAlgo dsignAlgo) where
   costsList _
-    =  costsList (undefined :: (Data.IdeationPayload hashAlgo))
+    =  costsList (undefined :: Data.IdeationPayload hashAlgo dsignAlgo)
     ++ costsList (undefined :: Data.ImplementationPayload)
 
-instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
+instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo dsignAlgo) where
 
-  type Environment (UPDATE hashAlgo) = Env hashAlgo
+  type Environment (UPDATE hashAlgo dsignAlgo) = Env hashAlgo
 
-  type State (UPDATE hashAlgo) = St hashAlgo
+  type State (UPDATE hashAlgo dsignAlgo) = St hashAlgo
 
-  type Signal (UPDATE hashAlgo) = UpdatePayload hashAlgo
+  type Signal (UPDATE hashAlgo dsignAlgo) = UpdatePayload hashAlgo dsignAlgo
 
-  data PredicateFailure (UPDATE hashAlgo)
-    = IdeationsFailure (PredicateFailure (IDEATION hashAlgo))
+  data PredicateFailure (UPDATE hashAlgo dsignAlgo)
+    = IdeationsFailure (PredicateFailure (IDEATION hashAlgo dsignAlgo))
     | ImplementationsFailure (PredicateFailure (IMPLEMENTATION hashAlgo))
     deriving (Eq, Show)
 
@@ -138,7 +143,7 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
                         , Ideation.sipdb = sipdb'
                         , Ideation.ballots = ballots'
                         } <-
-              trans @(IDEATION hashAlgo)
+              trans @(IDEATION hashAlgo dsignAlgo)
                 $ TRC ( Ideation.Env { Ideation.k = k
                                      , Ideation.currentSlot = currentSlot
                                      , Ideation.asips = asips
@@ -173,24 +178,24 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo) where
 
     ]
 
-instance HashAlgorithm hashAlgo => Embed (IDEATION hashAlgo) (UPDATE hashAlgo) where
+instance HashAlgorithm hashAlgo => Embed (IDEATION hashAlgo dsignAlgo) (UPDATE hashAlgo dsignAlgo) where
   wrapFailed = IdeationsFailure
 
-instance HashAlgorithm hashAlgo => Embed (IMPLEMENTATION hashAlgo) (UPDATE hashAlgo) where
+instance HashAlgorithm hashAlgo => Embed (IMPLEMENTATION hashAlgo) (UPDATE hashAlgo dsignAlgo) where
   wrapFailed = ImplementationsFailure
 
-data UPDATES hashAlgo
+data UPDATES hashAlgo dsignAlgo
 
-instance HashAlgorithm hashAlgo => STS (UPDATES hashAlgo) where
+instance HashAlgorithm hashAlgo => STS (UPDATES hashAlgo dsignAlgo) where
 
-  type Environment (UPDATES hashAlgo) = Environment (UPDATE hashAlgo)
+  type Environment (UPDATES hashAlgo dsignAlgo) = Environment (UPDATE hashAlgo dsignAlgo)
 
-  type State (UPDATES hashAlgo) = State (UPDATE hashAlgo)
+  type State (UPDATES hashAlgo dsignAlgo) = State (UPDATE hashAlgo dsignAlgo)
 
-  type Signal (UPDATES hashAlgo) = [Signal (UPDATE hashAlgo)]
+  type Signal (UPDATES hashAlgo dsignAlgo) = [Signal (UPDATE hashAlgo dsignAlgo)]
 
-  data PredicateFailure (UPDATES hashAlgo)
-    = UpdateFailure (PredicateFailure (UPDATE hashAlgo))
+  data PredicateFailure (UPDATES hashAlgo dsignAlgo)
+    = UpdateFailure (PredicateFailure (UPDATE hashAlgo dsignAlgo))
     deriving (Eq, Show)
 
   initialRules = []
@@ -202,35 +207,35 @@ instance HashAlgorithm hashAlgo => STS (UPDATES hashAlgo) where
         [] -> pure $! st
         (update:updates') ->
           do
-            st' <- trans @(UPDATE hashAlgo) $ TRC (env, st, update)
-            trans @(UPDATES hashAlgo) $ TRC (env, st', updates')
+            st' <- trans @(UPDATE hashAlgo dsignAlgo) $ TRC (env, st, update)
+            trans @(UPDATES hashAlgo dsignAlgo) $ TRC (env, st', updates')
     ]
 
 
-instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo) (UPDATES hashAlgo) where
+instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo dsignAlgo) (UPDATES hashAlgo dsignAlgo) where
   wrapFailed = UpdateFailure
 
 --------------------------------------------------------------------------------
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo) () where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo dsignAlgo) () where
 
-  envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo) traceGenEnv
+  envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo dsignAlgo) traceGenEnv
 
   sigGen _traceGenEnv env st
     =   traceSignals OldestFirst
-    <$> STS.Gen.traceFrom @(UPDATE hashAlgo) 10 () env st
+    <$> STS.Gen.traceFrom @(UPDATE hashAlgo dsignAlgo) 10 () env st
     -- We need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
   shrinkSignal =
-    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE hashAlgo) @())
+    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE hashAlgo dsignAlgo) @())
 
-instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo dsignAlgo) () where
 
   envGen traceGenEnv = do
-    env <- STS.Gen.envGen @(IDEATION hashAlgo) traceGenEnv
+    env <- STS.Gen.envGen @(IDEATION hashAlgo dsignAlgo) traceGenEnv
     pure $!
       Env { k = Ideation.k env
           , currentSlot = Ideation.currentSlot env
@@ -246,7 +251,7 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
     = do
     ideationPayload <-
       STS.Gen.sigGen
-        @(IDEATION hashAlgo)
+        @(IDEATION hashAlgo dsignAlgo)
         ()
         Ideation.Env { Ideation.k = k
                      , Ideation.currentSlot = currentSlot
@@ -262,5 +267,5 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo) () where
     pure $! Ideation ideationPayload
 
   shrinkSignal (Ideation ideationPayload) =
-    Ideation <$> STS.Gen.shrinkSignal @(IDEATION hashAlgo) @() ideationPayload
+    Ideation <$> STS.Gen.shrinkSignal @(IDEATION hashAlgo dsignAlgo) @() ideationPayload
   shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."
