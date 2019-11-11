@@ -24,18 +24,17 @@ let
 
   jobs = {
     native = mapTestOn (packagePlatforms project);
-  }
-  // {
+  } // (
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
-    required = mkRequiredJob (
+    mkRequiredJob (
       collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
       # Add your project executables to this list if any:
       [ # jobs.native.decentralized-updates.x86_64-linux
       ]
-    );
-  }
+    )
+  )
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
   // mapTestOn (packagePlatforms { inherit (project) shell; });
