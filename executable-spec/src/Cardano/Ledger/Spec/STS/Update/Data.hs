@@ -25,7 +25,8 @@ import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
-import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Crypto.DSIGN.Class (DSIGNAlgorithm, SignedDSIGN,
+                     VerKeyDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
@@ -41,10 +42,21 @@ data ImplementationPayload = ImplementationPayload
 
 -- | Ideation signals.
 data IdeationPayload hashAlgo dsignAlgo
-  = Submit (SIPCommit hashAlgo dsignAlgo) (SIP hashAlgo)
-  | Reveal (SIP hashAlgo)
-  | Vote (BallotSIP hashAlgo)
-  deriving (Eq, Show, Generic)
+  = Submit (SIPCommit hashAlgo dsignAlgo) (SIP hashAlgo dsignAlgo)
+  | Reveal (SIP hashAlgo dsignAlgo)
+  | Vote (BallotSIP hashAlgo dsignAlgo)
+  deriving (Generic)
+
+deriving instance
+  ( DSIGNAlgorithm dsignAlgo
+  , Eq (VerKeyDSIGN dsignAlgo)
+  ) => Eq (IdeationPayload hashAlgo dsignAlgo)
+
+deriving instance
+  ( DSIGNAlgorithm dsignAlgo
+  , Show (VerKeyDSIGN dsignAlgo)
+  ) => Show (IdeationPayload hashAlgo dsignAlgo)
+
 
 isSubmit :: IdeationPayload hashAlgo dsignAlgo -> Bool
 isSubmit (Submit {}) = True
@@ -55,20 +67,29 @@ isReveal (Reveal {}) = True
 isReveal _ = False
 
 -- | This is the ballot for a SIP
-data (BallotSIP hashAlgo) =
+data (BallotSIP hashAlgo dsignAlgo) =
   BallotSIP { votedsipHash :: !(SIPHash hashAlgo)
               -- ^ SIP id that this ballot is for
             , confidence :: !Confidence
               -- ^ the ballot outcome
-            , voter :: !Core.VKey
+            , voter :: !(VerKeyDSIGN dsignAlgo)
               -- ^ the voter
             , voterSig :: !(Core.Sig ( SIPHash hashAlgo
                                      , Confidence
-                                     , Core.VKey
+                                     , VerKeyDSIGN dsignAlgo
                                      )
                            )
             }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Generic)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (BallotSIP hashAlgo dsignAlgo)
+
+deriving instance
+  (Ord (VerKeyDSIGN dsignAlgo)) => Ord (BallotSIP hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (BallotSIP hashAlgo dsignAlgo)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
@@ -95,7 +116,7 @@ data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
 -- a stake distribution.
 tallyOutcome
   :: VotingResult
-  -> Map Core.VKey Stake
+  -> Map (VerKeyDSIGN dsignAlgo) Stake
   -> Word8  -- ^ max number of revoting for No Quorum
   -> Word8  -- ^ max number of revoting for No Majority
   -> Float  -- ^ adversary stake ratio
@@ -145,7 +166,7 @@ newtype Stake = Stake { getStake :: Word64 }
  deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real)
 
 -- | Returns the total stake from a stake distribution
-totalStake :: (Map Core.VKey Stake) -> Stake
+totalStake :: Map (VerKeyDSIGN dsignAlgo) Stake -> Stake
 totalStake m =
   Map.foldr' (\stk tot -> tot + stk) (Stake 0) m
 
@@ -173,7 +194,7 @@ vpDurationToSlotCnt  d =
 -- The 2nd argument plays the role of a "SIP database"
 votPeriodEnd
   :: (SIPHash hashAlgo)
-  -> Map (SIPHash hashAlgo) (SIP hashAlgo)
+  -> Map (SIPHash hashAlgo) (SIP hashAlgo dsignAlgo)
   -> SlotCount
 votPeriodEnd siphash sipdb =  vpDurationToSlotCnt
                            $ votPeriodDuration
@@ -247,29 +268,39 @@ data SIPHash hashAlgo = SIPHash (Hash hashAlgo SIPData)
   deriving (Eq, Generic, Ord, Show)
 
 -- | System improvement proposal
-data SIP hashAlgo =
+data SIP hashAlgo dsignAlgo =
   SIP
     { sipHash :: SIPHash hashAlgo
       -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
       -- unique id
-    , author :: !Core.VKey
+    , author :: !(VerKeyDSIGN dsignAlgo)
       -- ^ Who submitted the proposal.
     , salt :: !Int
       -- ^ The salt used during the commit phase
     , sipPayload :: !SIPData
       -- ^ The actual contents of the SIP.
     }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Generic)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (SIP hashAlgo dsignAlgo)
+
+deriving instance
+  (Ord (VerKeyDSIGN dsignAlgo)) => Ord (SIP hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (SIP hashAlgo dsignAlgo)
+
 
 -- | A commitment data type.
 -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
-newtype Commit hashAlgo =
+newtype Commit hashAlgo dsignAlgo =
   Commit
     { getCommit
       :: Hash hashAlgo
            ( Int
-           , Core.VKey
-           , Hash hashAlgo (SIP hashAlgo)
+           , VerKeyDSIGN dsignAlgo
+           , Hash hashAlgo (SIP hashAlgo dsignAlgo)
            )
     }
   deriving stock (Generic)
@@ -278,18 +309,24 @@ newtype Commit hashAlgo =
 -- | The System improvement proposal at the commit phase
 data SIPCommit hashAlgo dsignAlgo =
   SIPCommit
-    { commit :: !(Commit hashAlgo)
+    { commit :: !(Commit hashAlgo dsignAlgo)
       -- ^ A salted commitment (a hash) to the SIP id, the public key and the
       -- `hash` `SIP` (H(salt||pk||H(SIP)))
-    , _author :: !Core.VKey
+    , _author :: !(VerKeyDSIGN dsignAlgo)
       -- ^ Who submitted the proposal.
-    , upSig :: !(SignedDSIGN dsignAlgo (Commit hashAlgo))
+    , upSig :: !(SignedDSIGN dsignAlgo (Commit hashAlgo dsignAlgo))
       -- ^ A signature on commit by the author public key
     }
   deriving (Eq, Show, Generic)
 
 -- | Calculate a `Commit` from a `SIP`
-calcCommit :: HashAlgorithm hashAlgo => SIP hashAlgo -> Commit hashAlgo
+calcCommit
+  :: ( HashAlgorithm hashAlgo
+     , Typeable dsignAlgo
+     , ToCBOR (VerKeyDSIGN dsignAlgo)
+     )
+  => SIP hashAlgo dsignAlgo
+  -> Commit hashAlgo dsignAlgo
 calcCommit sip@SIP { salt, author } =
   Commit $ hash (salt, author, hash sip)
 
@@ -306,37 +343,45 @@ instance HasTypeReps URL where
 
 deriving instance ( Typeable hashAlgo
                   , Typeable dsignAlgo
-                  , HasTypeReps (SIP hashAlgo)
+                  , HasTypeReps (SIP hashAlgo dsignAlgo)
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo SIPData)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo dsignAlgo))
                   ) => HasTypeReps (IdeationPayload hashAlgo dsignAlgo)
 
-deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
-                  , Typeable hashAlgo
+deriving instance ( Typeable hashAlgo
+                  , Typeable dsignAlgo
                   , HasTypeReps hashAlgo
-                  ) => HasTypeReps (SIP hashAlgo)
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
+                  ) => HasTypeReps (SIP hashAlgo dsignAlgo)
 
 -- | A commit is basically wrapping the hash of some salt, owner verification
 -- key, and SIP. The size of the hash is determined by the type of hash
 -- algorithm
-instance HasTypeReps hashAlgo => HasTypeReps (Commit hashAlgo) where
+instance HasTypeReps hashAlgo => HasTypeReps (Commit hashAlgo dsignAlgo) where
   typeReps _ = typeReps (undefined :: hashAlgo)
 
-instance Typeable hashAlgo => HasTypeReps (Hash hashAlgo (Commit hashAlgo)) where
+instance ( Typeable hashAlgo
+         , Typeable dsignAlgo
+         ) => HasTypeReps (Hash hashAlgo (Commit hashAlgo dsignAlgo)) where
   typeReps commitHash = Seq.singleton (typeOf commitHash)
 
 deriving instance ( Typeable hashAlgo
                   , Typeable dsignAlgo
                   , HasTypeReps hashAlgo
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo dsignAlgo))
                   ) => HasTypeReps (SIPCommit hashAlgo dsignAlgo)
 
 
 deriving instance ( Typeable hashAlgo
+                  , Typeable dsignAlgo
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
                   , HasTypeReps (Hash hashAlgo SIPData)
                   , HasTypeReps hashAlgo
-                  ) => HasTypeReps (BallotSIP hashAlgo)
+                  ) => HasTypeReps (BallotSIP hashAlgo dsignAlgo)
 
 deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
@@ -354,7 +399,8 @@ instance ( Typeable hashAlgo
          , Typeable dsignAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
          , HasTypeReps hashAlgo
-         , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo))
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Commit hashAlgo dsignAlgo))
          ) => Sized (IdeationPayload hashAlgo dsignAlgo) where
   costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
@@ -362,7 +408,10 @@ instance ( Typeable hashAlgo
 -- ToCBOR instances
 --------------------------------------------------------------------------------
 
-instance (HashAlgorithm hashAlgo) => ToCBOR (SIP hashAlgo) where
+instance
+  ( HashAlgorithm hashAlgo
+  , Typeable dsignAlgo
+  , ToCBOR (VerKeyDSIGN dsignAlgo)) => ToCBOR (SIP hashAlgo dsignAlgo) where
   toCBOR SIP { sipHash, author, salt, sipPayload }
     =  encodeListLen 4
     <> toCBOR sipHash
@@ -398,5 +447,8 @@ instance ToCBOR ConcensusImpact where
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
 
-instance (Typeable hashAlgo, HashAlgorithm hashAlgo) => ToCBOR (Commit hashAlgo) where
+instance
+  ( Typeable hashAlgo
+  , Typeable dsignAlgo
+  , HashAlgorithm hashAlgo ) => ToCBOR (Commit hashAlgo dsignAlgo) where
   toCBOR (Commit someHash) = toCBOR someHash

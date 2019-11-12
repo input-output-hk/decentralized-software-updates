@@ -24,8 +24,9 @@ import qualified Data.Set as Set
 
 import qualified Test.QuickCheck as QC
 
+import           Cardano.Binary (ToCBOR)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
-import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN, VerKeyDSIGN, SignKeyDSIGN)
 import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 
 import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
@@ -35,7 +36,6 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot, BlockCount)
-import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
@@ -52,30 +52,40 @@ data UPDATE hashAlgo dsignAlgo
 -- adding more components to this environment.
 --
 -- See @Ideation.Env@ for more details on the meaning of each field.
-data Env hashAlgo
+data Env hashAlgo dsignAlgo
   = Env
     { k :: !BlockCount
     , currentSlot :: !Slot
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , participants :: Bimap Core.VKey Core.SKey
+    , participants :: Bimap (VerKeyDSIGN dsignAlgo) (SignKeyDSIGN dsignAlgo)
     , apprvsips :: !(Set (Data.SIPHash hashAlgo))
     }
-  deriving (Eq, Show, Generic)
+  deriving (Generic)
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo), Eq (SignKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
 
-data St hashAlgo
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo), Show (SignKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
+
+data St hashAlgo dsignAlgo
   = St
-    { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
-    , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+    { subsips :: !(Map (Data.Commit hashAlgo dsignAlgo) (Data.SIP hashAlgo dsignAlgo))
+    , wssips :: !(Map (Data.Commit hashAlgo dsignAlgo) Slot)
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
     , implementationSt :: State (IMPLEMENTATION hashAlgo)
     }
-  deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup (St hashAlgo)
-  deriving Monoid via GenericMonoid (St hashAlgo)
+  deriving (Generic)
+  deriving Semigroup via GenericSemigroup (St hashAlgo dsignAlgo)
+  deriving Monoid via GenericMonoid (St hashAlgo dsignAlgo)
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (St hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (St hashAlgo dsignAlgo)
 
 data UpdatePayload hashAlgo dsignAlgo
   = Ideation (Data.IdeationPayload hashAlgo dsignAlgo)
@@ -85,10 +95,11 @@ data UpdatePayload hashAlgo dsignAlgo
 deriving instance ( Typeable hashAlgo
                   , Typeable dsignAlgo
                   , HasTypeReps hashAlgo
-                  , HasTypeReps (Data.Commit hashAlgo)
+                  , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
                   , HashAlgorithm hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
                   ) => HasTypeReps (UpdatePayload hashAlgo dsignAlgo)
 
 instance ( Typeable hashAlgo
@@ -96,25 +107,32 @@ instance ( Typeable hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
          ) => Sized (UpdatePayload hashAlgo dsignAlgo) where
   costsList _
     =  costsList (undefined :: Data.IdeationPayload hashAlgo dsignAlgo)
     ++ costsList (undefined :: Data.ImplementationPayload)
 
-instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo dsignAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => STS (UPDATE hashAlgo dsignAlgo) where
 
-  type Environment (UPDATE hashAlgo dsignAlgo) = Env hashAlgo
+  type Environment (UPDATE hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (UPDATE hashAlgo dsignAlgo) = St hashAlgo
+  type State (UPDATE hashAlgo dsignAlgo) = St hashAlgo dsignAlgo
 
   type Signal (UPDATE hashAlgo dsignAlgo) = UpdatePayload hashAlgo dsignAlgo
 
   data PredicateFailure (UPDATE hashAlgo dsignAlgo)
     = IdeationsFailure (PredicateFailure (IDEATION hashAlgo dsignAlgo))
     | ImplementationsFailure (PredicateFailure (IMPLEMENTATION hashAlgo))
-    deriving (Eq, Show)
 
   initialRules = []
 
@@ -180,15 +198,43 @@ instance HashAlgorithm hashAlgo => STS (UPDATE hashAlgo dsignAlgo) where
 
     ]
 
-instance HashAlgorithm hashAlgo => Embed (IDEATION hashAlgo dsignAlgo) (UPDATE hashAlgo dsignAlgo) where
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (PredicateFailure (UPDATE hashAlgo dsignAlgo))
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (PredicateFailure (UPDATE hashAlgo dsignAlgo))
+
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => Embed (IDEATION hashAlgo dsignAlgo) (UPDATE hashAlgo dsignAlgo) where
   wrapFailed = IdeationsFailure
 
-instance HashAlgorithm hashAlgo => Embed (IMPLEMENTATION hashAlgo) (UPDATE hashAlgo dsignAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => Embed (IMPLEMENTATION hashAlgo) (UPDATE hashAlgo dsignAlgo) where
   wrapFailed = ImplementationsFailure
 
 data UPDATES hashAlgo dsignAlgo
 
-instance HashAlgorithm hashAlgo => STS (UPDATES hashAlgo dsignAlgo) where
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
+         , Eq (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => STS (UPDATES hashAlgo dsignAlgo) where
 
   type Environment (UPDATES hashAlgo dsignAlgo) = Environment (UPDATE hashAlgo dsignAlgo)
 
@@ -198,7 +244,6 @@ instance HashAlgorithm hashAlgo => STS (UPDATES hashAlgo dsignAlgo) where
 
   data PredicateFailure (UPDATES hashAlgo dsignAlgo)
     = UpdateFailure (PredicateFailure (UPDATE hashAlgo dsignAlgo))
-    deriving (Eq, Show)
 
   initialRules = []
 
@@ -213,8 +258,21 @@ instance HashAlgorithm hashAlgo => STS (UPDATES hashAlgo dsignAlgo) where
             trans @(UPDATES hashAlgo dsignAlgo) $ TRC (env, st', updates')
     ]
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (PredicateFailure (UPDATES hashAlgo dsignAlgo))
 
-instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo dsignAlgo) (UPDATES hashAlgo dsignAlgo) where
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (PredicateFailure (UPDATES hashAlgo dsignAlgo))
+
+instance ( Typeable dsignAlgo
+         , HashAlgorithm hashAlgo
+         , Eq (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => Embed (UPDATE hashAlgo dsignAlgo) (UPDATES hashAlgo dsignAlgo) where
   wrapFailed = UpdateFailure
 
 --------------------------------------------------------------------------------

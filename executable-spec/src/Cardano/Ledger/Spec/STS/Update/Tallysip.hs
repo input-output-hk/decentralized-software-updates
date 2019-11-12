@@ -1,37 +1,37 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Ledger.Spec.STS.Update.Tallysip where
 
+import           Data.AbstractSize (HasTypeReps)
 import           Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
-import           GHC.Generics (Generic)
-import           Data.AbstractSize (HasTypeReps)
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
 
+import           Cardano.Crypto.Hash (HashAlgorithm)
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext,
-                     trans, transitionRules, wrapFailed, (?!))
-import           Ledger.Core (Slot, addSlot, (⨃), (∈), (∉), dom)
+                     initialRules, judgmentContext, trans, transitionRules,
+                     wrapFailed, (?!))
+import           Ledger.Core (Slot, addSlot, dom, (∈), (∉), (⨃))
 import qualified Ledger.Core as Core
-import           Cardano.Crypto.Hash (HashAlgorithm)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 -- | STS for tallying the votes of a single SIP
-data TALLYSIP hashAlgo
+data TALLYSIP hashAlgo dsignAlgo
 
-data Env hashAlgo
+data Env hashAlgo dsignAlgo
  = Env { currentSlot :: !Slot
-       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
+       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
        , r_a :: !Float
          -- ^ adversary stake ratio
@@ -43,7 +43,7 @@ data Env hashAlgo
        }
        deriving (Eq, Show)
 
-data St hashAlgo
+data St hashAlgo dsignAlgo
   = St { vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
          -- ^ Records the current voting result for each SIP
        , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
@@ -55,13 +55,13 @@ data St hashAlgo
        deriving (Eq, Show, Generic)
 
 
-instance STS (TALLYSIP hashAlgo) where
+instance STS (TALLYSIP hashAlgo dsignAlgo) where
 
-  type Environment (TALLYSIP hashAlgo) = (Env hashAlgo)
+  type Environment (TALLYSIP hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (TALLYSIP hashAlgo) = (St hashAlgo)
+  type State (TALLYSIP hashAlgo dsignAlgo) = St hashAlgo dsignAlgo
 
-  type Signal (TALLYSIP hashAlgo) = (Data.SIPHash hashAlgo)
+  type Signal (TALLYSIP hashAlgo dsignAlgo) = Data.SIPHash hashAlgo
 
   data PredicateFailure (TALLYSIP hashAlgo)
     =
@@ -243,6 +243,3 @@ instance (HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          ) => Embed (TALLYSIP hashAlgo) (TALLYSIPS hashAlgo) where
     wrapFailed = TallySIPsFailure
-
-
-

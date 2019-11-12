@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -6,11 +8,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DerivingVia #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -23,10 +24,13 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import qualified Data.Set as Set
 import           Data.Text as T
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
+import           Cardano.Binary (ToCBOR)
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
+import           Cardano.Crypto.DSIGN.Class (VerKeyDSIGN, SignKeyDSIGN)
 import           Cardano.Crypto.DSIGN.Mock (mockSigned, MockDSIGN)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
@@ -34,7 +38,6 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Ledger.Core (Slot, BlockCount)
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁))
-import qualified Ledger.Core as Core
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -53,7 +56,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 data IDEATION hashAlgo dsignAlgo
 
 -- Environmnet of the Ideation phase
-data Env hashAlgo
+data Env hashAlgo dsignAlgo
   = Env
     { k :: !BlockCount
       -- ^ Chain stability parameter.
@@ -62,7 +65,7 @@ data Env hashAlgo
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
       -- ^ Active SIP's. The slot in the range (of the map) determines when the
       -- voting period will end.
-    , participants :: !(Bimap Core.VKey Core.SKey)
+    , participants :: !(Bimap (VerKeyDSIGN dsignAlgo) (SignKeyDSIGN dsignAlgo))
       -- ^ The set of stakeholders (i.e., participants), identified by their signing
       -- and verifying keys.
       --
@@ -70,56 +73,73 @@ data Env hashAlgo
       -- the use of 'Bimap'
       --
     }
-  deriving (Eq, Show, Generic)
+  deriving (Generic)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo), Eq (SignKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo), Show (SignKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
+
 
 -- | Ideation phase state
 --
-data St hashAlgo
+data St hashAlgo dsignAlgo
   = St
-    { subsips :: !(Map (Commit hashAlgo) (SIP hashAlgo))
+    { subsips :: !(Map (Commit hashAlgo dsignAlgo) (SIP hashAlgo dsignAlgo))
       -- ^ These are the SIPs that we need to generate for the testing to
       -- take place. From these both the commited SIP's as well as the revealed SIPs
       -- will be created. This state is not part of the update protocol, it is used
       -- only for SIP generation purposes.
-    , wssips :: !(Map (Commit hashAlgo) Slot)
+    , wssips :: !(Map (Commit hashAlgo dsignAlgo) Slot)
       -- ^ When a SIP commitment was submitted
 
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
       -- ^ When a SIP was revealed
 
-    , sipdb :: !(Map (Data.SIPHash hashAlgo) (SIP hashAlgo))
+    , sipdb :: !(Map (Data.SIPHash hashAlgo) (SIP hashAlgo dsignAlgo))
       -- ^ Local SIP state. Includes all revealed SIPs from the
       -- beginning of time
 
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
       -- ^ Stores the valid ballots for each SIP and for each voter
       --
     }
-  deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup (St hashAlgo)
-  deriving Monoid via GenericMonoid (St hashAlgo)
+  deriving (Generic)
+  deriving Semigroup via GenericSemigroup (St hashAlgo dsignAlgo)
+  deriving Monoid via GenericMonoid (St hashAlgo dsignAlgo)
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (St hashAlgo dsignAlgo)
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (St hashAlgo dsignAlgo)
 
-instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo dsignAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , Ord (SignKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , Show (VerKeyDSIGN dsignAlgo)
+         ) => STS (IDEATION hashAlgo dsignAlgo) where
 
-  type Environment (IDEATION hashAlgo dsignAlgo) = Env hashAlgo
+  type Environment (IDEATION hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (IDEATION hashAlgo dsignAlgo) = St hashAlgo
+  type State (IDEATION hashAlgo dsignAlgo) = St hashAlgo dsignAlgo
 
   type Signal (IDEATION hashAlgo dsignAlgo) = IdeationPayload hashAlgo dsignAlgo
 
   -- | IDEATION phase failures
   data PredicateFailure (IDEATION hashAlgo dsignAlgo)
-    = SIPAlreadySubmitted (Data.SIP hashAlgo)
-   -- | SIPSubmittedAlreadyRevealed (Data.SIP hashAlgo)
-    | NoSIPToReveal (Data.SIP hashAlgo)
-    | SIPAlreadyRevealed (Data.SIP hashAlgo)
-    | InvalidAuthor Core.VKey
-    | NoStableAndCommittedSIP (Data.SIP hashAlgo) (Map (Commit hashAlgo) Slot)
-    | InvalidVoter Core.VKey
+    = SIPAlreadySubmitted (Data.SIP hashAlgo dsignAlgo)
+    | NoSIPToReveal (Data.SIP hashAlgo dsignAlgo)
+    | SIPAlreadyRevealed (Data.SIP hashAlgo dsignAlgo)
+    | InvalidAuthor (VerKeyDSIGN dsignAlgo)
+    | NoStableAndCommittedSIP
+        (Data.SIP hashAlgo dsignAlgo)
+        (Map (Commit hashAlgo dsignAlgo) Slot)
+    | InvalidVoter (VerKeyDSIGN dsignAlgo)
     | VoteNotForActiveSIP (Data.SIPHash hashAlgo)
     | VotingPeriodEnded (Data.SIPHash hashAlgo) Slot
-    deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
 
@@ -142,6 +162,10 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo dsignAlgo) where
         Submit sipc sip -> do
           Data._author sipc ∈ dom participants ?! InvalidAuthor (Data.author sip)
           Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
+
+          -- case verifySignedDSIGN (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) of
+          --   Left err -> failBecause (CommitSignatureError err)
+          --   Right () -> pure ()
 
           pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
                      , subsips = subsips ⨃ [(Data.commit sipc, sip)]
@@ -190,11 +214,18 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo dsignAlgo) where
             pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
     ]
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (PredicateFailure (IDEATION hashAlgo dsignAlgo))
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (PredicateFailure (IDEATION hashAlgo dsignAlgo))
+
+
 instance
   HashAlgorithm hashAlgo
   => STS.Gen.HasTrace (IDEATION hashAlgo MockDSIGN) () where
 
-  envGen :: () -> QC.Gen (Env hashAlgo)
+  envGen :: () -> QC.Gen (Env hashAlgo MockDSIGN)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -264,17 +295,16 @@ instance
                         str <- QC.vectorOf n QC.arbitraryUnicodeChar
                         pure $! T.pack str
 
-            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo MockDSIGN
+            mkSubmission :: SIP hashAlgo MockDSIGN -> IdeationPayload hashAlgo MockDSIGN
             mkSubmission sip = Submit sipCommit sip
               where
                 sipCommit =
                   Data.SIPCommit commit (Data.author sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
-                    sipCommitSignature = mockSigned commit (fromInteger $ toInteger n)
+                    sipCommitSignature = mockSigned commit skey
                       where
                         skey = participants Bimap.! Data.author sip
-                        (Core.Owner n) = Core.owner skey
 
       revelationGen subsipsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
