@@ -16,7 +16,6 @@ where
 import           Control.Arrow ((&&&))
 import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
-import           Data.Coerce (coerce)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Word (Word8)

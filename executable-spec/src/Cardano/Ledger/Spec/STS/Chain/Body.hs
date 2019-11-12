@@ -131,7 +131,6 @@ gen
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo MockDSIGN)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (VerKeyDSIGN MockDSIGN)
      )
   => Size
   -> Environment (BODY hashAlgo MockDSIGN)
@@ -160,7 +159,6 @@ transactionsGen
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo MockDSIGN)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (VerKeyDSIGN MockDSIGN)
      )
   => Size
   -> Environment (BODY hashAlgo MockDSIGN)
