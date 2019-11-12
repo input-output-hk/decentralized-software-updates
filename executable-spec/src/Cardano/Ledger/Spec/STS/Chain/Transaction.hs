@@ -25,9 +25,10 @@ import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 import           Data.Typeable (Typeable)
 
+import           Cardano.Binary (ToCBOR)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
-import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
-import           Cardano.Crypto.DSIGN.Mock (mockSigned, MockDSIGN)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN, SignKeyDSIGN, VerKeyDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
@@ -35,7 +36,6 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot, BlockCount)
-import qualified Ledger.Core as Core
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
@@ -50,29 +50,41 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 
 
 -- | Environment of the TRANSACTION STS
-data Env hashAlgo =
+data Env hashAlgo dsignAlgo =
   Env { k :: !BlockCount
       , currentSlot :: !Slot
       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      , participants :: Bimap Core.VKey Core.SKey
+      , participants :: !(Bimap (VerKeyDSIGN dsignAlgo) (SignKeyDSIGN dsignAlgo))
       , apprvsips :: !(Set (Data.SIPHash hashAlgo))
       , utxoEnv :: !(Environment UTXO)
       }
-  deriving (Eq, Show, Generic)
+  deriving (Generic)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo), Eq (SignKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo), Show (SignKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
 
 -- | State of the TRANSACTION STS
-data St hashAlgo =
-  St { subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
-     , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+data St hashAlgo dsignAlgo =
+  St { subsips :: !(Map (Data.Commit hashAlgo dsignAlgo) (Data.SIP hashAlgo dsignAlgo))
+     , wssips :: !(Map (Data.Commit hashAlgo dsignAlgo) Slot)
      , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-     , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+     , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
+     , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
      , implementationSt :: State (IMPLEMENTATION hashAlgo)
      , utxoSt :: State UTXO
      }
-  deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup (St hashAlgo)
-  deriving Monoid via GenericMonoid (St hashAlgo)
+  deriving (Generic)
+  deriving Semigroup via GenericSemigroup (St hashAlgo dsignAlgo)
+  deriving Monoid via GenericMonoid (St hashAlgo dsignAlgo)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (St hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (St hashAlgo dsignAlgo)
 
 -- | Transactions contained in a block.
 data Tx hashAlgo dsignAlgo
@@ -86,8 +98,9 @@ deriving instance ( Typeable dsignAlgo
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Data.Commit hashAlgo)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
                   ) => HasTypeReps (Tx hashAlgo dsignAlgo)
 
 data TxBody hashAlgo dsignAlgo
@@ -103,17 +116,19 @@ deriving instance ( Typeable dsignAlgo
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Data.Commit hashAlgo)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
                   ) => HasTypeReps (TxBody hashAlgo dsignAlgo)
 
 
 instance ( Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
          ) => Sized (Tx hashAlgo dsignAlgo) where
   costsList _
     =  [ (typeOf (undefined :: TxIn), 1)
@@ -125,17 +140,23 @@ instance ( Typeable dsignAlgo
 
 data TRANSACTION hashAlgo dsignAlgo
 
-instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo dsignAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => STS (TRANSACTION hashAlgo dsignAlgo) where
 
-  type Environment (TRANSACTION hashAlgo dsignAlgo) = Env hashAlgo
+  type Environment (TRANSACTION hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (TRANSACTION hashAlgo dsignAlgo) = St hashAlgo
+  type State (TRANSACTION hashAlgo dsignAlgo) = St hashAlgo dsignAlgo
 
   type Signal (TRANSACTION hashAlgo dsignAlgo) = Tx hashAlgo dsignAlgo
 
   data PredicateFailure (TRANSACTION hashAlgo dsignAlgo)
     = TxFailure (PredicateFailure (UPDATES hashAlgo dsignAlgo))
-    deriving (Eq, Show)
 
   initialRules = []
 
@@ -199,11 +220,34 @@ instance HashAlgorithm hashAlgo => STS (TRANSACTION hashAlgo dsignAlgo) where
     ]
 
 
-instance HashAlgorithm hashAlgo => Embed UTXO (TRANSACTION hashAlgo dsignAlgo) where
+deriving instance
+  ( Eq (VerKeyDSIGN dsignAlgo)
+  ) => Eq (PredicateFailure (TRANSACTION hashAlgo dsignAlgo))
+
+deriving instance
+  ( Show (VerKeyDSIGN dsignAlgo)
+  ) => Show (PredicateFailure (TRANSACTION hashAlgo dsignAlgo))
+
+
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => Embed UTXO (TRANSACTION hashAlgo dsignAlgo) where
   wrapFailed = error "UTXO transition shouldn't fail (yet)"
 
 
-instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo dsignAlgo) (TRANSACTION hashAlgo dsignAlgo) where
+instance ( HashAlgorithm hashAlgo
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
+         ) => Embed (UPDATES hashAlgo dsignAlgo) (TRANSACTION hashAlgo dsignAlgo) where
   wrapFailed = TxFailure
 
 instance ( HashAlgorithm hashAlgo

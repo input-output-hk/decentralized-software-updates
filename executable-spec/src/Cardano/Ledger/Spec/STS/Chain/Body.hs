@@ -18,8 +18,10 @@ import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
-import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
-import           Cardano.Crypto.DSIGN.Mock (MockDSIGN, mockSigned)
+import           Cardano.Binary (ToCBOR)
+import           Cardano.Crypto.DSIGN.Class (SignKeyDSIGN, SignedDSIGN,
+                     VerKeyDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -49,16 +51,18 @@ deriving instance ( Typeable dsignAlgo
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Data.Commit hashAlgo)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
                   ) => HasTypeReps (BBody hashAlgo dsignAlgo)
 
 instance ( Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
          ) => Sized (BBody hashAlgo dsignAlgo) where
   costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo dsignAlgo))
 
@@ -66,7 +70,13 @@ instance ( Typeable dsignAlgo
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
          ) => STS (BODY hashAlgo dsignAlgo) where
 
   type Environment (BODY hashAlgo dsignAlgo) = Environment (TRANSACTION hashAlgo dsignAlgo)
@@ -78,8 +88,6 @@ instance ( HashAlgorithm hashAlgo
   data PredicateFailure (BODY hashAlgo dsignAlgo)
     =
      BodyFailure (PredicateFailure (TRANSACTION hashAlgo dsignAlgo))
-    deriving (Eq, Show)
-
 
   initialRules = [
     ]
@@ -99,9 +107,21 @@ instance ( HashAlgorithm hashAlgo
     ]
 
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (PredicateFailure (BODY hashAlgo dsignAlgo))
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (PredicateFailure (BODY hashAlgo dsignAlgo))
+
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
+         , Typeable dsignAlgo
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo)
+         , Ord (SignKeyDSIGN dsignAlgo)
          ) => Embed (TRANSACTION hashAlgo dsignAlgo) (BODY hashAlgo dsignAlgo) where
   wrapFailed = BodyFailure
 
@@ -109,9 +129,9 @@ instance ( HashAlgorithm hashAlgo
 gen
   :: ( HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
-     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Data.Commit hashAlgo MockDSIGN)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo))
+     , HasTypeReps (VerKeyDSIGN MockDSIGN)
      )
   => Size
   -> Environment (BODY hashAlgo MockDSIGN)
@@ -125,7 +145,8 @@ gen maximumBlockSize transactionEnv transactionSt = do
 -- | Shrink a block body signal.
 shrink
   :: forall hashAlgo
-   . ( HashAlgorithm hashAlgo )
+   . ( HashAlgorithm hashAlgo
+     )
   => BBody hashAlgo MockDSIGN -> [BBody hashAlgo MockDSIGN]
 shrink body =
   BBody <$> QC.shrinkList
@@ -135,12 +156,11 @@ shrink body =
 -- | Generate a list of 'Tx's that fit in the given maximum size.
 transactionsGen
   :: forall hashAlgo
-   . ( Typeable MockDSIGN
-     , HashAlgorithm hashAlgo
+   . ( HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
-     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Data.Commit hashAlgo MockDSIGN)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo))
+     , HasTypeReps (VerKeyDSIGN MockDSIGN)
      )
   => Size
   -> Environment (BODY hashAlgo MockDSIGN)
@@ -155,9 +175,10 @@ fitTransactions
   :: ( Typeable dsignAlgo
      , HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
-     , HasTypeReps (Data.Commit hashAlgo)
+     , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+     , HasTypeReps (VerKeyDSIGN dsignAlgo)
      )
   => Size -> [Transaction.Tx hashAlgo dsignAlgo] -> [Transaction.Tx hashAlgo dsignAlgo]
 fitTransactions maximumSize txs

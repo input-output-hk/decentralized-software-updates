@@ -20,6 +20,7 @@ import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
+import           Cardano.Crypto.DSIGN.Class (VerKeyDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -28,7 +29,6 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot (Slot))
-import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)
@@ -38,21 +38,26 @@ import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 
 
 -- | The Block HEADER STS
-data HEADER hashAlgo
+data HEADER hashAlgo dsignAlgo
 
-data Env hashAlgo
+data Env hashAlgo dsignAlgo
   = Env { k :: !BlockCount
-        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
+       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
        , r_a :: !Float
          -- ^ adversary stake ratio
-        , stakeDist :: !(Map Core.VKey Data.Stake)
-        , prvNoQuorum :: !Word8
+       , stakeDist :: !(Map (VerKeyDSIGN dsignAlgo) Data.Stake)
+       , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
-        , prvNoMajority :: !Word8
+       , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
-        }
-        deriving (Eq, Show)
+       }
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
 
 data St hashAlgo
  = St { currentSlot :: !Slot
@@ -76,17 +81,18 @@ instance Sized BHeader where
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
-         ) => STS (HEADER hashAlgo) where
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
+         ) => STS (HEADER hashAlgo dsignAlgo) where
 
-  type Environment (HEADER hashAlgo) = Env hashAlgo
+  type Environment (HEADER hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (HEADER hashAlgo) = St hashAlgo
+  type State (HEADER hashAlgo dsignAlgo) = St hashAlgo
 
-  type Signal (HEADER hashAlgo) = BHeader
+  type Signal (HEADER hashAlgo dsignAlgo) = BHeader
 
-  data PredicateFailure (HEADER hashAlgo)
+  data PredicateFailure (HEADER hashAlgo dsignAlgo)
     = BlockSlotNotIncreasing Slot Slot
-    | HeaderFailure (PredicateFailure (HUPDATE hashAlgo))
+    | HeaderFailure (PredicateFailure (HUPDATE hashAlgo dsignAlgo))
     deriving (Eq, Show)
 
 
@@ -112,7 +118,7 @@ instance ( HashAlgorithm hashAlgo
                  , Hupdate.asips = asips'
                  , Hupdate.vresips = vresips'
                  , Hupdate.apprvsips = apprvsips'
-                 } <- trans @(HUPDATE hashAlgo)
+                 } <- trans @(HUPDATE hashAlgo dsignAlgo)
                       $ TRC ( Hupdate.Env { Hupdate.k = k
                                           , Hupdate.sipdb = sipdb
                                           , Hupdate.ballots = ballots
@@ -140,8 +146,9 @@ instance ( HashAlgorithm hashAlgo
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo SIPData)
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
          )
-  => Embed (HUPDATE hashAlgo) (HEADER hashAlgo)
+  => Embed (HUPDATE hashAlgo dsignAlgo) (HEADER hashAlgo dsignAlgo)
     where
       wrapFailed = HeaderFailure
 

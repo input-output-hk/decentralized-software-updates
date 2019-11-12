@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,12 +18,13 @@ import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
 import           Cardano.Crypto.Hash (HashAlgorithm)
+import           Cardano.Crypto.DSIGN.Class (VerKeyDSIGN)
+
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
                      initialRules, judgmentContext, trans, transitionRules,
                      wrapFailed, (?!))
 import           Ledger.Core (Slot, addSlot, dom, (∈), (∉), (⨃))
-import qualified Ledger.Core as Core
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -32,16 +34,22 @@ data TALLYSIP hashAlgo dsignAlgo
 data Env hashAlgo dsignAlgo
  = Env { currentSlot :: !Slot
        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
-       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
        , r_a :: !Float
          -- ^ adversary stake ratio
-       , stakeDist :: !(Map Core.VKey Data.Stake)
+       , stakeDist :: !(Map (VerKeyDSIGN dsignAlgo) Data.Stake)
        , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
        , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
        }
-       deriving (Eq, Show)
+   deriving (Generic)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
 
 data St hashAlgo dsignAlgo
   = St { vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
@@ -52,10 +60,17 @@ data St hashAlgo dsignAlgo
        , apprvsips :: !(Set (Data.SIPHash hashAlgo))
          -- ^ Set of approved SIPs
        }
-       deriving (Eq, Show, Generic)
+       deriving (Generic)
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (St hashAlgo dsignAlgo)
 
-instance STS (TALLYSIP hashAlgo dsignAlgo) where
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (St hashAlgo dsignAlgo)
+
+instance
+  ( Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
+  ) => STS (TALLYSIP hashAlgo dsignAlgo) where
 
   type Environment (TALLYSIP hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
@@ -63,7 +78,7 @@ instance STS (TALLYSIP hashAlgo dsignAlgo) where
 
   type Signal (TALLYSIP hashAlgo dsignAlgo) = Data.SIPHash hashAlgo
 
-  data PredicateFailure (TALLYSIP hashAlgo)
+  data PredicateFailure (TALLYSIP hashAlgo dsignAlgo)
     =
       TallySIPFailure (Data.SIPHash hashAlgo)
     | InvalidSIPHash (Data.SIPHash hashAlgo)
@@ -113,11 +128,11 @@ instance STS (TALLYSIP hashAlgo dsignAlgo) where
         -- count the votes for the specific SIP and store result
         vresips' =
           let ballotsOfSIP = case Map.lookup sipHash ballots of
-                               Nothing -> (Map.empty :: Map Core.VKey Data.Confidence)
+                               Nothing -> (Map.empty :: Map (VerKeyDSIGN dsignAlgo) Data.Confidence)
                                Just b  -> b
 
               vResult =
-                if ballotsOfSIP == (Map.empty :: Map Core.VKey Data.Confidence)
+                if ballotsOfSIP == (Map.empty :: Map (VerKeyDSIGN dsignAlgo) Data.Confidence)
                   then
                     Data.VotingResult 0 0 0 rvNoQ rvNoM
                   else
@@ -203,23 +218,23 @@ instance STS (TALLYSIP hashAlgo dsignAlgo) where
 
 -- | STS for tallying the votes of a
 -- bunch of SIPs
-data TALLYSIPS hashAlgo
+data TALLYSIPS hashAlgo dsignAlgo
 
-type ToTally hashAlgo =  [Signal (TALLYSIP hashAlgo)]
+type ToTally hashAlgo dsignAlgo =  [Signal (TALLYSIP hashAlgo dsignAlgo)]
 
 instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         ) => STS (TALLYSIPS hashAlgo) where
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
+         ) => STS (TALLYSIPS hashAlgo dsignAlgo) where
 
-  type Environment (TALLYSIPS hashAlgo) = Environment (TALLYSIP hashAlgo)
+  type Environment (TALLYSIPS hashAlgo dsignAlgo) = Environment (TALLYSIP hashAlgo dsignAlgo)
 
-  type State (TALLYSIPS hashAlgo) = State (TALLYSIP hashAlgo)
+  type State (TALLYSIPS hashAlgo dsignAlgo) = State (TALLYSIP hashAlgo dsignAlgo)
 
-  type Signal (TALLYSIPS hashAlgo) = ToTally hashAlgo
+  type Signal (TALLYSIPS hashAlgo dsignAlgo) = ToTally hashAlgo dsignAlgo
 
-  data PredicateFailure (TALLYSIPS hashAlgo)
-    =
-     TallySIPsFailure (PredicateFailure (TALLYSIP hashAlgo))
+  data PredicateFailure (TALLYSIPS hashAlgo dsignAlgo)
+    = TallySIPsFailure (PredicateFailure (TALLYSIP hashAlgo dsignAlgo))
     deriving (Eq, Show)
 
   initialRules = []
@@ -234,12 +249,13 @@ instance ( HashAlgorithm hashAlgo
         [] -> pure $! st
         (sh:siphashes) ->
           do
-            st' <- trans @(TALLYSIP hashAlgo) $ TRC (env, st, sh)
-            trans @(TALLYSIPS hashAlgo) $ TRC (env, st', siphashes)
+            st' <- trans @(TALLYSIP hashAlgo dsignAlgo) $ TRC (env, st, sh)
+            trans @(TALLYSIPS hashAlgo dsignAlgo) $ TRC (env, st', siphashes)
     ]
 
 
-instance (HashAlgorithm hashAlgo
+instance ( HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
-         ) => Embed (TALLYSIP hashAlgo) (TALLYSIPS hashAlgo) where
+         ,  Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
+         ) => Embed (TALLYSIP hashAlgo dsignAlgo) (TALLYSIPS hashAlgo dsignAlgo) where
     wrapFailed = TallySIPsFailure

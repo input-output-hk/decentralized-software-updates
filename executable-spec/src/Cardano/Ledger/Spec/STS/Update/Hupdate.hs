@@ -13,21 +13,24 @@
 
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
+import           Data.AbstractSize (HasTypeReps)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set as Set (Set)
 import qualified Data.Set as Set
-import           GHC.Generics (Generic)
-import           Data.AbstractSize (HasTypeReps)
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
 
+import           Cardano.Crypto.DSIGN.Class (VerKeyDSIGN)
+
+import           Cardano.Crypto.Hash (HashAlgorithm)
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext, trans, transitionRules, wrapFailed)
-import           Cardano.Crypto.Hash (HashAlgorithm)
+                     initialRules, judgmentContext, trans, transitionRules,
+                     wrapFailed)
 
-import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=))
-import qualified Ledger.Core as Core
+import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪),
+                     (▷<=))
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Tallysip (TALLYSIPS)
@@ -36,22 +39,27 @@ import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 -- | The Header Update STS
 -- Incorporates "update logic" processing
 -- at the block header level
-data HUPDATE hashAlgo
+data HUPDATE hashAlgo dsignAlgo
 
-data Env hashAlgo
+data Env hashAlgo dsignAlgo
  = Env { k :: !BlockCount
          -- ^ Chain stability parameter.
-       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
+       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
        , r_a :: !Float
          -- ^ adversary stake ratio
-       , stakeDist :: !(Map Core.VKey Data.Stake)
+       , stakeDist :: !(Map (VerKeyDSIGN dsignAlgo) Data.Stake)
        , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
        , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
        }
-       deriving (Eq, Show)
+
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
 
 data St hashAlgo
   = St { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
@@ -64,17 +72,18 @@ data St hashAlgo
 
 instance ( HashAlgorithm hashAlgo
          , Data.AbstractSize.HasTypeReps hashAlgo
-         ) =>  STS (HUPDATE hashAlgo) where
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
+         ) =>  STS (HUPDATE hashAlgo dsignAlgo) where
 
-  type Environment (HUPDATE hashAlgo) = Env hashAlgo
+  type Environment (HUPDATE hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (HUPDATE hashAlgo) = St hashAlgo
+  type State (HUPDATE hashAlgo dsignAlgo) = St hashAlgo
 
-  type Signal (HUPDATE hashAlgo) = Slot
+  type Signal (HUPDATE hashAlgo dsignAlgo) = Slot
 
-  data PredicateFailure (HUPDATE hashAlgo)
+  data PredicateFailure (HUPDATE hashAlgo dsignAlgo)
     = ErrorOnHUpdate Slot Slot
-    | HupdateFailure (PredicateFailure (TALLYSIPS hashAlgo))
+    | HupdateFailure (PredicateFailure (TALLYSIPS hashAlgo dsignAlgo))
     deriving (Eq, Show)
 
 
@@ -129,7 +138,7 @@ instance ( HashAlgorithm hashAlgo
                   , Tallysip.asips = asips'''
                   , Tallysip.apprvsips = apprvsips'
                   }
-        <- trans @(TALLYSIPS hashAlgo)
+        <- trans @(TALLYSIPS hashAlgo dsignAlgo)
               $ TRC ( Tallysip.Env { Tallysip.currentSlot = slot
                                    , Tallysip.sipdb = sipdb
                                    , Tallysip.ballots = ballots
@@ -154,6 +163,6 @@ instance ( HashAlgorithm hashAlgo
 
 instance ( HashAlgorithm hashAlgo
          , Data.AbstractSize.HasTypeReps hashAlgo
-         ) => Embed (TALLYSIPS hashAlgo) (HUPDATE hashAlgo) where
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: remove this constraint
+         ) => Embed (TALLYSIPS hashAlgo dsignAlgo) (HUPDATE hashAlgo dsignAlgo) where
   wrapFailed = HupdateFailure
-

@@ -25,7 +25,9 @@ import           Data.Typeable (Typeable)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
-import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Binary (ToCBOR)
+import           Cardano.Crypto.DSIGN.Class (SignKeyDSIGN, SignedDSIGN,
+                     VerKeyDSIGN)
 import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
@@ -38,7 +40,6 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
-import qualified Ledger.Core as Core
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
@@ -58,7 +59,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 data CHAIN hashAlgo dsignAlgo
 
 
-data Env hashAlgo
+data Env hashAlgo dsignAlgo
   = Env
     { k :: !BlockCount
     , maximumBlockSize :: !Size
@@ -66,38 +67,46 @@ data Env hashAlgo
       -- instance of 'Sized'.
       --
     , initialSlot :: !Slot
-    , participants :: !(Bimap Core.VKey Core.SKey)
+    , participants :: !(Bimap (VerKeyDSIGN dsignAlgo) (SignKeyDSIGN dsignAlgo))
     , r_a :: !Float
       -- ^ Adversary stake ratio
-    , stakeDist :: !(Map Core.VKey Data.Stake)
+    , stakeDist :: !(Map (VerKeyDSIGN dsignAlgo) Data.Stake)
     , prvNoQuorum :: !Word8
       -- ^ How many times a revoting is allowed due to a no quorum result
     , prvNoMajority :: !Word8
       -- How many times a revoting is allowed due to a no majority result
     }
-    deriving (Eq, Show)
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo), Eq (SignKeyDSIGN dsignAlgo)) => Eq (Env hashAlgo dsignAlgo)
 
-data St hashAlgo
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo), Show (SignKeyDSIGN dsignAlgo)) => Show (Env hashAlgo dsignAlgo)
+
+data St hashAlgo dsignAlgo
   = St
     { currentSlot :: !Slot
-    , subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
+    , subsips :: !(Map (Data.Commit hashAlgo dsignAlgo) (Data.SIP hashAlgo dsignAlgo))
     , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , wssips :: !(Map (Data.Commit hashAlgo) Slot)
+    , wssips :: !(Map (Data.Commit hashAlgo dsignAlgo) Slot)
     , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo dsignAlgo))
+    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map (VerKeyDSIGN dsignAlgo) Data.Confidence))
     , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
     , apprvsips :: !(Set (Data.SIPHash hashAlgo))
     , implementationSt :: !(State (IMPLEMENTATION hashAlgo))
     , utxoSt :: !(State UTXO)
     }
-    deriving (Eq, Show)
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (St hashAlgo dsignAlgo)
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (St hashAlgo dsignAlgo)
 
 data Block hashAlgo dsignAlgo
   = Block
-    { header :: Signal (HEADER hashAlgo)
+    { header :: Signal (HEADER hashAlgo dsignAlgo)
     , body :: Signal (BODY hashAlgo dsignAlgo)
     }
     deriving (Eq, Show, Generic)
@@ -106,8 +115,10 @@ deriving instance ( Typeable dsignAlgo
                   , HasTypeReps hashAlgo
                   , HasTypeReps (Hash hashAlgo Data.SIPData)
                   , HashAlgorithm hashAlgo
-                  , HasTypeReps (Data.Commit hashAlgo)
-                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+                  , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+                  , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+                  , HasTypeReps (VerKeyDSIGN dsignAlgo)
+                  , Show (SignKeyDSIGN dsignAlgo)
                   ) => HasTypeReps (Block hashAlgo dsignAlgo)
 
 
@@ -115,8 +126,10 @@ instance ( Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
          ) => Sized (Block hashAlgo dsignAlgo) where
   costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo dsignAlgo))
 
@@ -125,22 +138,26 @@ instance ( Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , Ord (SignKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
          ) => STS (CHAIN hashAlgo dsignAlgo) where
 
-  type Environment (CHAIN hashAlgo dsignAlgo) = Env hashAlgo
+  type Environment (CHAIN hashAlgo dsignAlgo) = Env hashAlgo dsignAlgo
 
-  type State (CHAIN hashAlgo dsignAlgo) = St hashAlgo
+  type State (CHAIN hashAlgo dsignAlgo) = St hashAlgo dsignAlgo
 
   type Signal (CHAIN hashAlgo dsignAlgo) = Block hashAlgo dsignAlgo
 
   data PredicateFailure (CHAIN hashAlgo dsignAlgo)
     = MaximumBlockSizeExceeded Size (Threshold Size)
     | ChainFailureBody (PredicateFailure (BODY hashAlgo dsignAlgo))
-    | ChainFailureHeader (PredicateFailure (HEADER hashAlgo))
-    deriving (Eq, Show)
-
+    | ChainFailureHeader (PredicateFailure (HEADER hashAlgo dsignAlgo))
 
   initialRules = [ do
     IRC Env { initialSlot } <- judgmentContext
@@ -192,7 +209,7 @@ instance ( Typeable dsignAlgo
         , Header.asips = asips'
         , Header.vresips = vresips'
         , Header.apprvsips = apprvsips'
-        } <- trans @(HEADER hashAlgo)
+        } <- trans @(HEADER hashAlgo dsignAlgo)
                $ TRC ( Header.Env { Header.k = k
                                   , Header.sipdb = sipdb
                                   , Header.ballots = ballots
@@ -254,12 +271,25 @@ instance ( Typeable dsignAlgo
     ]
 
 
+deriving instance
+  (Eq (VerKeyDSIGN dsignAlgo)) => Eq (PredicateFailure (CHAIN hashAlgo dsignAlgo))
+
+deriving instance
+  (Show (VerKeyDSIGN dsignAlgo)) => Show (PredicateFailure (CHAIN hashAlgo dsignAlgo))
+
+
 instance ( Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , Ord (SignKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
          ) => Embed (BODY hashAlgo dsignAlgo) (CHAIN hashAlgo dsignAlgo) where
   wrapFailed = ChainFailureBody
 
@@ -267,9 +297,15 @@ instance ( Typeable dsignAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps hashAlgo
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
-         ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo dsignAlgo) where
+         , HasTypeReps (Data.Commit hashAlgo dsignAlgo)
+         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo dsignAlgo))
+         , ToCBOR (VerKeyDSIGN dsignAlgo)
+         , Show (VerKeyDSIGN dsignAlgo)
+         , Show (SignKeyDSIGN dsignAlgo)
+         , Ord (VerKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , Ord (SignKeyDSIGN dsignAlgo) -- TODO: Remove Ord constraint on key hashes.
+         , HasTypeReps (VerKeyDSIGN dsignAlgo)
+         ) => Embed (HEADER hashAlgo dsignAlgo) (CHAIN hashAlgo dsignAlgo) where
   wrapFailed = ChainFailureHeader
 
 --------------------------------------------------------------------------------
@@ -278,9 +314,10 @@ instance ( Typeable dsignAlgo
 
 instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
-         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Data.Commit hashAlgo MockDSIGN)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo))
+         , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo MockDSIGN))
+         , HasTypeReps (VerKeyDSIGN MockDSIGN)
          ) => STS.Gen.HasTrace (CHAIN hashAlgo MockDSIGN) () where
 
   envGen _ = do
