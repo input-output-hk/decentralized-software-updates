@@ -271,11 +271,10 @@ instance
                   Data.SIPCommit commit (Data.author sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
-                    sipCommitSignature = mockSigned commit undefined
-                    -- TODO: we should use the 'MockDSIGN' instance here (so this instance is not parametric over `dsignAlgo`).
-                    -- Core.sign skey commit
-                      -- where
-                      --   skey = participants Bimap.! Data.author sip
+                    sipCommitSignature = mockSigned commit (fromInteger $ toInteger n)
+                      where
+                        skey = participants Bimap.! Data.author sip
+                        (Core.Owner n) = Core.owner skey
 
       revelationGen subsipsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
