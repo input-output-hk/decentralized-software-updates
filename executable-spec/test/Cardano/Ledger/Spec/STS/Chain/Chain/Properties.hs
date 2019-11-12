@@ -46,3 +46,24 @@ qc_revealsAreClassified
       & dom
       & length
       & fromIntegral
+
+relevantCasesAreCovered :: QC.Property
+relevantCasesAreCovered
+  = QC.withMaxSuccess 300
+  $ STS.Gen.forAllTrace @(CHAIN ShortHash) @() maxTraceLength ()
+  $ \traceSample ->
+      -- 80% of traces should include a [1 - 20] percent of update payload
+      QC.cover 40
+        (Trace.traceLength traceSample <= 100)
+        "there are at least as many delegation certificates as blocks"
+        $
+      -- X% of traces should
+      QC.cover 40
+        (Trace.traceLength traceSample <= 100)
+        "there are at least as many delegation certificates as blocks"
+        $ qc_onlyValidSignalsAreGenerated
+  where
+    maxTraceLength = 100
+
+
+
