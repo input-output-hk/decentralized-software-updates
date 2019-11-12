@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -26,6 +27,7 @@ import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
+import           Cardano.Crypto.DSIGN.Mock (mockSigned, MockDSIGN)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
@@ -190,7 +192,7 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo dsignAlgo) where
 
 instance
   HashAlgorithm hashAlgo
-  => STS.Gen.HasTrace (IDEATION hashAlgo dsignAlgo) () where
+  => STS.Gen.HasTrace (IDEATION hashAlgo MockDSIGN) () where
 
   envGen :: () -> QC.Gen (Env hashAlgo)
   envGen _traceGenEnv
@@ -262,14 +264,14 @@ instance
                         str <- QC.vectorOf n QC.arbitraryUnicodeChar
                         pure $! T.pack str
 
-            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo dsignAlgo
+            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo MockDSIGN
             mkSubmission sip = Submit sipCommit sip
               where
                 sipCommit =
                   Data.SIPCommit commit (Data.author sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
-                    sipCommitSignature = undefined
+                    sipCommitSignature = mockSigned commit undefined
                     -- TODO: we should use the 'MockDSIGN' instance here (so this instance is not parametric over `dsignAlgo`).
                     -- Core.sign skey commit
                       -- where

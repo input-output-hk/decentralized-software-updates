@@ -338,6 +338,11 @@ deriving instance ( Typeable hashAlgo
                   , HasTypeReps hashAlgo
                   ) => HasTypeReps (BallotSIP hashAlgo)
 
+deriving instance ( Typeable hashAlgo
+                  , HasTypeReps hashAlgo
+                  , HasTypeReps (Hash hashAlgo SIPData)
+                  ) => HasTypeReps (SIPHash hashAlgo)
+
 --------------------------------------------------------------------------------
 -- Sized instances
 --------------------------------------------------------------------------------
@@ -393,7 +398,5 @@ instance ToCBOR ConcensusImpact where
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
 
-deriving instance ( Typeable hashAlgo
-                  , HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
-                  ) => HasTypeReps (SIPHash hashAlgo)
+instance (Typeable hashAlgo, HashAlgorithm hashAlgo) => ToCBOR (Commit hashAlgo) where
+  toCBOR (Commit someHash) = toCBOR someHash

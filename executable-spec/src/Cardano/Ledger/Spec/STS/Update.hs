@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -25,6 +26,7 @@ import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 
 import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -219,23 +221,23 @@ instance HashAlgorithm hashAlgo => Embed (UPDATE hashAlgo dsignAlgo) (UPDATES ha
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo dsignAlgo) () where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATES hashAlgo MockDSIGN) () where
 
-  envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo dsignAlgo) traceGenEnv
+  envGen traceGenEnv = STS.Gen.envGen @(UPDATE hashAlgo MockDSIGN) traceGenEnv
 
   sigGen _traceGenEnv env st
     =   traceSignals OldestFirst
-    <$> STS.Gen.traceFrom @(UPDATE hashAlgo dsignAlgo) 10 () env st
+    <$> STS.Gen.traceFrom @(UPDATE hashAlgo MockDSIGN) 10 () env st
     -- We need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
   shrinkSignal =
-    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE hashAlgo dsignAlgo) @())
+    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE hashAlgo MockDSIGN) @())
 
-instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo dsignAlgo) () where
+instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo MockDSIGN) () where
 
   envGen traceGenEnv = do
-    env <- STS.Gen.envGen @(IDEATION hashAlgo dsignAlgo) traceGenEnv
+    env <- STS.Gen.envGen @(IDEATION hashAlgo MockDSIGN) traceGenEnv
     pure $!
       Env { k = Ideation.k env
           , currentSlot = Ideation.currentSlot env
@@ -251,7 +253,7 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo dsignAlgo) 
     = do
     ideationPayload <-
       STS.Gen.sigGen
-        @(IDEATION hashAlgo dsignAlgo)
+        @(IDEATION hashAlgo MockDSIGN)
         ()
         Ideation.Env { Ideation.k = k
                      , Ideation.currentSlot = currentSlot
@@ -267,5 +269,5 @@ instance HashAlgorithm hashAlgo => STS.Gen.HasTrace (UPDATE hashAlgo dsignAlgo) 
     pure $! Ideation ideationPayload
 
   shrinkSignal (Ideation ideationPayload) =
-    Ideation <$> STS.Gen.shrinkSignal @(IDEATION hashAlgo dsignAlgo) @() ideationPayload
+    Ideation <$> STS.Gen.shrinkSignal @(IDEATION hashAlgo MockDSIGN) @() ideationPayload
   shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."

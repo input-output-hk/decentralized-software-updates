@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -18,6 +19,7 @@ import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN, mockSigned)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
@@ -105,17 +107,16 @@ instance ( HashAlgorithm hashAlgo
 
 -- | Block body generator.
 gen
-  :: ( Typeable dsignAlgo
-     , HashAlgorithm hashAlgo
+  :: ( HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+     , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo))
      )
   => Size
-  -> Environment (BODY hashAlgo dsignAlgo)
-  -> State (BODY hashAlgo dsignAlgo)
-  -> QC.Gen (BBody hashAlgo dsignAlgo)
+  -> Environment (BODY hashAlgo MockDSIGN)
+  -> State (BODY hashAlgo MockDSIGN)
+  -> QC.Gen (BBody hashAlgo MockDSIGN)
 gen maximumBlockSize transactionEnv transactionSt = do
   transactions <-
     transactionsGen maximumBlockSize transactionEnv transactionSt
@@ -123,31 +124,31 @@ gen maximumBlockSize transactionEnv transactionSt = do
 
 -- | Shrink a block body signal.
 shrink
-  :: forall hashAlgo dsignAlgo
+  :: forall hashAlgo
    . ( HashAlgorithm hashAlgo )
-  => BBody hashAlgo dsignAlgo -> [BBody hashAlgo dsignAlgo]
+  => BBody hashAlgo MockDSIGN -> [BBody hashAlgo MockDSIGN]
 shrink body =
   BBody <$> QC.shrinkList
-             (STS.Gen.shrinkSignal @(TRANSACTION hashAlgo dsignAlgo) @())
+             (STS.Gen.shrinkSignal @(TRANSACTION hashAlgo MockDSIGN) @())
              (transactions body)
 
 -- | Generate a list of 'Tx's that fit in the given maximum size.
 transactionsGen
-  :: forall hashAlgo dsignAlgo
-   . ( Typeable dsignAlgo
+  :: forall hashAlgo
+   . ( Typeable MockDSIGN
      , HashAlgorithm hashAlgo
      , HasTypeReps hashAlgo
      , HasTypeReps (Data.Commit hashAlgo)
      , HasTypeReps (Hash hashAlgo Data.SIPData)
-     , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
+     , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo))
      )
   => Size
-  -> Environment (BODY hashAlgo dsignAlgo)
-  -> State (BODY hashAlgo dsignAlgo)
-  -> QC.Gen [Transaction.Tx hashAlgo dsignAlgo]
+  -> Environment (BODY hashAlgo MockDSIGN)
+  -> State (BODY hashAlgo MockDSIGN)
+  -> QC.Gen [Transaction.Tx hashAlgo MockDSIGN]
 transactionsGen maximumSize env st
   =   fitTransactions maximumSize . traceSignals OldestFirst
-  <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo dsignAlgo) 30 () env st
+  <$> STS.Gen.traceFrom @(TRANSACTION hashAlgo MockDSIGN) 30 () env st
 
 -- | Return the transactions that fit in the given maximum block size.
 fitTransactions

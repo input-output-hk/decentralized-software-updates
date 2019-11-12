@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -26,6 +27,7 @@ import           Data.Typeable (Typeable)
 
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (mockSigned, MockDSIGN)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
@@ -205,7 +207,7 @@ instance HashAlgorithm hashAlgo => Embed (UPDATES hashAlgo dsignAlgo) (TRANSACTI
   wrapFailed = TxFailure
 
 instance ( HashAlgorithm hashAlgo
-         ) => STS.Gen.HasTrace (TRANSACTION hashAlgo dsignAlgo) () where
+         ) => STS.Gen.HasTrace (TRANSACTION hashAlgo MockDSIGN) () where
 
   -- Since we don't use the 'TRANSACTION' STS in isolation, we don't need a
   -- environment generator.
@@ -235,7 +237,7 @@ instance ( HashAlgorithm hashAlgo
         , (1, do
               someUpdatePayload <-
                 STS.Gen.sigGen
-                  @(UPDATES hashAlgo dsignAlgo)
+                  @(UPDATES hashAlgo MockDSIGN)
                   ()
                   Update.Env { Update.k = k
                              , Update.currentSlot = currentSlot
@@ -268,9 +270,9 @@ instance ( HashAlgorithm hashAlgo
 
   shrinkSignal Tx { body, witnesses } =
     assert (null witnesses) $ -- For now we rely on the set of witnesses being empty.
-    mkTx <$> STS.Gen.shrinkSignal @(UPDATES hashAlgo dsignAlgo) @() (update body)
+    mkTx <$> STS.Gen.shrinkSignal @(UPDATES hashAlgo MockDSIGN) @() (update body)
     where
-      mkTx :: [UpdatePayload hashAlgo dsignAlgo] -> Tx hashAlgo dsignAlgo
+      mkTx :: [UpdatePayload hashAlgo MockDSIGN] -> Tx hashAlgo MockDSIGN
       mkTx updatePayload = Tx { body = body', witnesses = [] }
         where
           body' = body { update = updatePayload }

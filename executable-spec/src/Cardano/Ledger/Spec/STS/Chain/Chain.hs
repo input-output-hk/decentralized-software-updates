@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -25,6 +26,7 @@ import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
@@ -274,13 +276,12 @@ instance ( Typeable dsignAlgo
 -- HasTrace instance
 --------------------------------------------------------------------------------
 
-instance ( Typeable dsignAlgo
-         , HasTypeReps hashAlgo
+instance ( HasTypeReps hashAlgo
          , HashAlgorithm hashAlgo
          , HasTypeReps (Data.Commit hashAlgo)
          , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (SignedDSIGN dsignAlgo (Data.Commit hashAlgo))
-         ) => STS.Gen.HasTrace (CHAIN hashAlgo dsignAlgo) () where
+         , HasTypeReps (SignedDSIGN MockDSIGN (Data.Commit hashAlgo))
+         ) => STS.Gen.HasTrace (CHAIN hashAlgo MockDSIGN) () where
 
   envGen _ = do
     someK <- Gen.QC.k
