@@ -332,6 +332,77 @@ instance ( HasTypeReps hashAlgo
     someBody <- Body.gen maximumBlockSize transactionEnv transactionSt
     pure $! Block { header = someHeader, body = someBody}
 
+
+instance ( HasTypeReps hashAlgo
+         , HashAlgorithm hashAlgo
+         , HasTypeReps (Data.Commit hashAlgo)
+         , HasTypeReps (Hash hashAlgo Data.SIPData)
+         ) => STS.Gen.HasTrace (CHAIN hashAlgo) (Env hashAlgo) where
+
+  envGen _ = do
+    someK <- Gen.QC.k
+    someCurrentSlot <- Gen.QC.currentSlot
+    -- For now we generate a constant set of keys. The set of participants could
+    -- be an environment of the generator.
+    someParticipants <- Gen.QC.participants
+    someRa <- Gen.QC.rA
+    someStakeDist <- Gen.QC.stakeDist
+    somePrvNoQuorum <- Gen.QC.prvNoQuorum
+    somePrvNoMajority <- Gen.QC.prvNoMajority
+    let env = Env { k = someK
+                  -- For now we fix the maximum block size to an abstract size of 100
+                  , maximumBlockSize = 100
+                  , initialSlot = someCurrentSlot
+                  , participants = someParticipants
+                  , r_a = someRa
+                  , stakeDist = someStakeDist
+                  , prvNoQuorum = somePrvNoQuorum
+                  , prvNoMajority = somePrvNoMajority
+                  }
+    pure env
+
+  sigGen
+    _traceGenEnv
+    Env { k
+        , maximumBlockSize
+        , participants
+        }
+    St { currentSlot
+       , subsips
+       , asips
+       , wssips
+       , wrsips
+       , sipdb
+       , ballots
+       , apprvsips
+       , implementationSt
+       , utxoSt
+       }
+    = do
+    someHeader <- Header.headerGen currentSlot
+    let
+      transactionEnv =
+        Transaction.Env
+          { Transaction.k = k
+          , Transaction.currentSlot = Header.slot someHeader
+          , Transaction.asips = asips
+          , Transaction.participants = participants
+          , Transaction.utxoEnv = UTxO.Env
+          , Transaction.apprvsips = apprvsips
+          }
+      transactionSt =
+        Transaction.St
+          { Transaction.subsips = subsips
+          , Transaction.wssips = wssips
+          , Transaction.wrsips = wrsips
+          , Transaction.ballots = ballots
+          , Transaction.sipdb = sipdb
+          , Transaction.implementationSt = implementationSt
+          , Transaction.utxoSt = utxoSt
+          }
+    someBody <- Body.gen maximumBlockSize transactionEnv transactionSt
+    pure $! Block { header = someHeader, body = someBody}
+
   shrinkSignal Block { header, body } =
     -- For now we don't shrink the header. Define this as needed.
     mkBlock <$> Body.shrink body
