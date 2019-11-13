@@ -30,10 +30,10 @@ import qualified Test.QuickCheck as QC
 
 import           Cardano.Binary (ToCBOR)
 import           Cardano.Crypto.Hash (HashAlgorithm, hash)
-import           Cardano.Crypto.DSIGN.Class (VerKeyDSIGN, SignKeyDSIGN)
+import           Cardano.Crypto.DSIGN.Class (VerKeyDSIGN, SignKeyDSIGN, verifySignedDSIGN)
 import           Cardano.Crypto.DSIGN.Mock (mockSigned, MockDSIGN)
 
-import           Control.State.Transition (Environment, PredicateFailure, STS,
+import           Control.State.Transition (Environment, PredicateFailure, STS, failBecause,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Ledger.Core (Slot, BlockCount)
@@ -140,6 +140,7 @@ instance ( HashAlgorithm hashAlgo
     | InvalidVoter (VerKeyDSIGN dsignAlgo)
     | VoteNotForActiveSIP (Data.SIPHash hashAlgo)
     | VotingPeriodEnded (Data.SIPHash hashAlgo) Slot
+    | CommitSignatureError String
 
   initialRules = [ pure $! mempty ]
 
@@ -163,7 +164,15 @@ instance ( HashAlgorithm hashAlgo
           Data._author sipc ∈ dom participants ?! InvalidAuthor (Data.author sip)
           Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
-          -- case verifySignedDSIGN (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) of
+          -- The code below will require the constraints:
+          --
+          -- > Cardano.Crypto.DSIGN.Class.Signable dsignAlgo (Commit hashAlgo dsignAlgo)
+          --
+          -- and
+          --
+          -- > Cardano.Crypto.DSIGN.Class.DSIGNAlgorithm dsignAlgo
+          --
+          -- case verifySignedDSIGN undefined (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) of
           --   Left err -> failBecause (CommitSignatureError err)
           --   Right () -> pure ()
 
