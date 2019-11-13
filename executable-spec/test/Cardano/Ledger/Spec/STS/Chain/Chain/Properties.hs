@@ -55,22 +55,22 @@ relevantCasesAreCovered
   $ \traceSample ->
       -- 80% of traces should include a [1 - 20] percent of update payload
       QC.cover 80
-        ( (updatePayloadPct @(CHAIN ShortHash) @() () traceSample) >= 1
+        ( (updatePayloadPct traceSample) >= 1
         &&
-          (updatePayloadPct @(CHAIN ShortHash) @() () traceSample) <= 20
+          (updatePayloadPct traceSample) <= 20
         )
         "a reasonable pct of update payload appears in the trace "
         $
 
       -- X% of traces should: stake distribution is skewed
       QC.cover 10
-         (stakeDistIsSkewed @(CHAIN ShortHash) @(Chain.Env ShortHash) (Trace._traceEnv traceSample) traceSample)
+         (stakeDistIsSkewed traceSample)
          "stake distribution is skewed"
          $
 
       -- X% of traces should: stake distribution is uniform
       QC.cover 10
-         (stakeDistIsUniform @(CHAIN ShortHash) @(Chain.Env ShortHash) (Trace._traceEnv traceSample) traceSample)
+         (stakeDistIsUniform traceSample)
          "stake distribution is uniform"
          $
       -- X% of traces should: Submitted SIPs in the trace are unique
@@ -113,23 +113,16 @@ relevantCasesAreCovered
 
 -- | Returns the percent of update payload in the signals of a trace
 updatePayloadPct
-  :: (STS.Gen.HasTrace sts traceGenEnv)
-  => traceGenEnv
-  -> Trace.Trace sts
+  :: Trace.Trace sts
   -> Float
 updatePayloadPct = undefined
 
-
 stakeDistIsSkewed
-  :: (STS.Gen.HasTrace sts traceGenEnv)
-  => traceGenEnv
-  -> Trace.Trace sts
+  :: Trace.Trace sts
   -> Bool
 stakeDistIsSkewed = undefined
 
 stakeDistIsUniform
-  :: (STS.Gen.HasTrace sts traceGenEnv)
-  => traceGenEnv
-  -> Trace.Trace sts
+  :: Trace.Trace sts
   -> Bool
 stakeDistIsUniform = undefined
