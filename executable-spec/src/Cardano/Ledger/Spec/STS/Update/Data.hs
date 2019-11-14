@@ -91,6 +91,17 @@ data VotingResult =
 data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
   deriving (Eq, Ord, Show)
 
+-- | Return a SIP hash -> Tally Outcome map
+tallyOutcomeMap
+  :: Map (SIPHash hashAlgo) VotingResult -- ^ Voting Results
+  -> Map Core.VKey Stake
+  -> Word8  -- ^ max number of revoting for No Quorum
+  -> Word8  -- ^ max number of revoting for No Majority
+  -> Float  -- ^ adversary stake ratio
+  -> Map (SIPHash hashAlgo) TallyOutcome
+tallyOutcomeMap vresips sDist pNoQ pNoM r_a =
+  Map.map (\vr -> tallyOutcome vr sDist pNoQ pNoM r_a) vresips
+
 -- | Return the outcome of the tally based on a  `VotingResult` and
 -- a stake distribution.
 tallyOutcome

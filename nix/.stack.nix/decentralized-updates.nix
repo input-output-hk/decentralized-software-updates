@@ -82,6 +82,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
             (hsPkgs."small-steps" or (buildDepError "small-steps"))
+            (hsPkgs."containers" or (buildDepError "containers"))
             ];
           buildable = true;
           };
