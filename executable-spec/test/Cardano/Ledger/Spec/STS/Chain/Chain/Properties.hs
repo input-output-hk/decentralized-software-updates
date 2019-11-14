@@ -111,13 +111,13 @@ relevantCasesAreCovered
       -- X% of traces should: there are SIPs that got no majority
       QC.cover 20
         (outcomeAny Data.NoMajority traceSample)
-        "There are no-quorum SIPs"
+        "There are no-majority SIPs"
         $
 
       -- X% of traces should: there are SIPs that got expired
       QC.cover 10
         (outcomeAny Data.Expired traceSample)
-        "There are no-quorum SIPs"
+        "There are expired SIPs"
         $
 
       -- X% of traces should: should have submitted SIPs
