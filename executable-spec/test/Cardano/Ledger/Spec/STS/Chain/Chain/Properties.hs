@@ -8,7 +8,7 @@ module Cardano.Ledger.Spec.STS.Chain.Chain.Properties where
 import           Control.Arrow ((&&&))
 import           Data.Function ((&))
 import           Data.Word (Word64)
-import           Data.List (foldl', any)
+import           Data.List (foldl', any, sortBy)
 import qualified Test.QuickCheck as QC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -85,7 +85,7 @@ relevantCasesAreCovered
 
       -- Lifecycle coverage:
       -- There is at least one proposal in every phase of the lifecycle
-      QC.cover 80
+      QC.cover 50
         (lifecycleCoverage traceSample)
         "The lifecycle of a software update is sufficently covered"
         $
@@ -120,36 +120,53 @@ relevantCasesAreCovered
         "There are no-quorum SIPs"
         $
 
-      -- X% of traces should: there are SIPs that got rejected
+      -- X% of traces should: should have submitted SIPs
+      QC.cover 80
+        (submittedSIPsExist traceSample)
+        "Submitted SIPs exist"
+        $
 
-      -- X% of traces should: there are SIPs that got no-quorum
+      -- X% of traces should: should have revealed SIPs
+      QC.cover 80
+        (revealedSIPsExist traceSample)
+        "Revealed SIPs exist"
+        $
 
-      -- X% of traces should: there are SIPs that got no-majority
+      -- X% of traces should: should have ballots for SIPs
+      QC.cover 80
+        (sipBallotsExist traceSample)
+        "Ballots for SIPs exist"
+        $
 
-      -- X% of traces should: there are SIPs that got expired
+      -- X% of traces should: should have voting results for SIPs
+      QC.cover 80
+        (voteResultsExist traceSample)
+        "Voting results for SIPs exist"
+        $
 
-      -- X% of traces should: Submitted SIPs in the trace are unique
+      -- TODO covers:
+        -- X% of traces should: Submitted SIPs in the trace are unique
 
-      -- X% of traces should: Submitted SIPs in the trace are not unique
+        -- X% of traces should: Submitted SIPs in the trace are not unique
 
-      -- X% of traces should: Submitted SIPs correspond only to valid stake holders
+        -- X% of traces should: Submitted SIPs correspond only to valid stake holders
 
-      -- X% of traces should: Submitted SIPs correspond also to invalid stake holders
+        -- X% of traces should: Submitted SIPs correspond also to invalid stake holders
 
-      -- X% of traces should: for every Submitted SIP there is a Reveal
+        -- X% of traces should: for every Submitted SIP there is a Reveal
 
-      -- X% of traces should: there are Submitted SIPs that have not been Revealed yet
+        -- X% of traces should: there are Submitted SIPs that have not been Revealed yet
 
-      -- X% of traces should: there are Revealed SIPs that have not been submitted
+        -- X% of traces should: there are Revealed SIPs that have not been submitted
 
-      -- X% of traces should: Votes correspond only to active SIPs
+        -- X% of traces should: Votes correspond only to active SIPs
 
-      -- X% of traces should: Votes correspond also to non-active SIPs
-      -- (e.g., revealed, not revealed, submitted, not submitted)
+        -- X% of traces should: Votes correspond also to non-active SIPs
+        -- (e.g., revealed, not revealed, submitted, not submitted)
 
-      -- X% of traces should: There are active SIPs with no votes
+        -- X% of traces should: There are active SIPs with no votes
 
-      -- X% of traces should: stake distribution is skewed
+        -- X% of traces should: stake distribution is skewed
       QC.cover 25
          (stakeDistIsSkewed traceSample)
          "stake distribution is skewed"
@@ -176,7 +193,7 @@ getMinTraceLength k =
 
 -- | Returns the percent of Txs with a non-empty update payload in the input Trace
 updatePayloadPct
-  :: Trace.Trace (CHAIN ShortHash) -- Trace.Trace sts
+  :: Trace.Trace (CHAIN ShortHash)
   -> Float
 updatePayloadPct tr =
   let -- get the total of transactions in tr
@@ -195,11 +212,31 @@ updatePayloadPct tr =
 
   in (fromIntegral txupdTot) / (fromIntegral txTot) * 100
 
+submittedSIPsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+submittedSIPsExist tr =
+  let lastSt = Trace.lastState tr
+  in Chain.subsips lastSt /= Map.empty
+
+revealedSIPsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+revealedSIPsExist tr =
+  let lastSt = Trace.lastState tr
+  in Chain.sipdb lastSt /= Map.empty
+
+sipBallotsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+sipBallotsExist tr =
+  let lastSt = Trace.lastState tr
+  in Chain.ballots lastSt /= Map.empty
+
+voteResultsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+voteResultsExist tr =
+  let lastSt = Trace.lastState tr
+  in Chain.vresips lastSt /= Map.empty
+
 -- Returns true if the last state of the inpuτ trace
 -- shows that all phased in the liefecycle of a software update
 -- have been covered
 lifecycleCoverage
-  :: Trace.Trace (CHAIN ShortHash) -- Trace.Trace sts
+  :: Trace.Trace (CHAIN ShortHash)
   -> Bool
 lifecycleCoverage tr =
   let lastSt = Trace.lastState tr
@@ -226,11 +263,29 @@ outcomeAny outc tr =
      $ Map.toList $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
 
 stakeDistIsSkewed
-  :: Trace.Trace sts
+  :: Trace.Trace (CHAIN ShortHash)
   -> Bool
-stakeDistIsSkewed = undefined
+stakeDistIsSkewed tr =
+  let env = Trace._traceEnv tr
+      sDist = Chain.stakeDist env
+      sDistPct = Data.stakeDistPct sDist
+      pcts =  Map.elems sDistPct
+      pctsSortDesc = sortBy (\x y -> compare y x) pcts
+      pct20 = take (round $ (fromIntegral $ length pcts) * 0.20) pctsSortDesc
+      pct20Stake = foldl' (\tot s -> tot + s) 0 pct20
+  in -- 20% of stakeholders hold 80% of stake
+    pct20Stake >= 80
 
 stakeDistIsUniform
-  :: Trace.Trace sts
+  :: Trace.Trace (CHAIN ShortHash)
   -> Bool
-stakeDistIsUniform = undefined
+stakeDistIsUniform tr =
+  let env = Trace._traceEnv tr
+      sDist = Chain.stakeDist env
+      sDistPct = Data.stakeDistPct sDist
+      pcts =  Map.elems sDistPct
+      pctsSortDesc = sortBy (\x y -> compare y x) pcts
+      pct80 = take (round $ (fromIntegral $ length pcts) * 0.80) pctsSortDesc
+      pct20Stake = foldl' (\tot s -> tot + s) 0 pct80
+  in -- 80% of stakeholders hold 80% of stake
+    pct20Stake >= 80

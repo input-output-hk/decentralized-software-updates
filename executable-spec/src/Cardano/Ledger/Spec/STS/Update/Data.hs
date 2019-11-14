@@ -160,6 +160,14 @@ totalStake :: (Map Core.VKey Stake) -> Stake
 totalStake m =
   Map.foldr' (\stk tot -> tot + stk) (Stake 0) m
 
+-- | Returns a map showing the percent ([0,100])
+-- of stake ownership of each stakeholder
+stakeDistPct
+  :: Map Core.VKey Stake -- ^ stake distribution
+  -> Map Core.VKey Word8
+stakeDistPct sd =
+  Map.map (\st -> stakePercentRound st $ totalStake sd) sd
+
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
   deriving (Eq, Ord, Show, Generic, HasTypeReps)
