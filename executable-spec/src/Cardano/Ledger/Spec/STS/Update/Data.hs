@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -15,8 +16,6 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
-import           Data.Map.Strict (Map, (!))
-import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -25,44 +24,42 @@ import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
-import           Cardano.Crypto.Hash (Hash, HashAlgorithm, hash)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
 import           Ledger.Core (SlotCount (SlotCount))
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
+                     hash)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 
 data ImplementationPayload = ImplementationPayload
   deriving (Eq, Show, Generic, HasTypeReps)
 
 -- | Ideation signals.
-data IdeationPayload hashAlgo
-  = Submit (SIPCommit hashAlgo) (SIP hashAlgo)
-  | Reveal (SIP hashAlgo)
-  | Vote (BallotSIP hashAlgo)
+data IdeationPayload p
+  = Submit (SIPCommit p) (SIP p)
+  | Reveal (SIP p)
+  | Vote (VoteForSIP p)
   deriving (Eq, Ord, Show, Generic)
 
-isSubmit :: IdeationPayload hashAlgo -> Bool
+isSubmit :: IdeationPayload p -> Bool
 isSubmit (Submit {}) = True
 isSubmit _ = False
 
-isReveal :: IdeationPayload hashAlgo -> Bool
+isReveal :: IdeationPayload p -> Bool
 isReveal (Reveal {}) = True
 isReveal _ = False
 
--- | This is the ballot for a SIP
-data (BallotSIP hashAlgo) =
-  BallotSIP { votedsipHash :: !(SIPHash hashAlgo)
+data (VoteForSIP p) =
+  VoteForSIP { votedsipHash :: !(SIPHash p)
               -- ^ SIP id that this ballot is for
             , confidence :: !Confidence
-              -- ^ the ballot outcome
+              -- ^ The ballot outcome
             , voter :: !Core.VKey
-              -- ^ the voter
-            , voterSig :: !(Core.Sig (
-                                       (SIPHash hashAlgo)
+              -- ^ The voter
+            , voterSig :: !(Core.Sig ( SIPHash p
                                      , Confidence
                                      , Core.VKey
                                      )
@@ -80,67 +77,31 @@ data VotingResult =
                , stakeAgainst :: !Stake
                , stakeAbstain :: !Stake
                , rvNoQuorum :: Word8
-                 -- ^ No quorum revoting : how many times
-                 -- revoting has taken place due to a no quorum result
+               -- ^ No quorum revoting : how many times revoting has taken place
+               -- due to a no quorum result
+               --
+               -- TODO: this should be a newtype
               , rvNoMajority :: Word8
-                 -- ^ No majority revoting : how many times
-                 -- revoting has taken place due to a no majority result
+               -- ^ No majority revoting : how many times revoting has taken
+               -- place due to a no majority result
+               --
+               -- TODO: this should be a newtype
                }
   deriving (Eq, Ord, Show)
 
+addVote :: Stake -> Confidence -> VotingResult -> VotingResult
+addVote
+  stake
+  confidence
+  votingResult@VotingResult { stakeInFavor, stakeAgainst, stakeAbstain }
+  =
+  case confidence of
+    For -> votingResult { stakeInFavor = stakeInFavor + stake}
+    Against -> votingResult { stakeAgainst = stakeAgainst + stake}
+    Abstain -> votingResult { stakeAbstain = stakeAbstain + stake}
+
 data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
   deriving (Eq, Ord, Show)
-
--- | Return a SIP-hash to TallyOutcome map
-tallyOutcomeMap
-  :: Map (SIPHash hashAlgo) VotingResult -- ^ Voting Results
-  -> Map Core.VKey Stake
-  -> Word8  -- ^ max number of revoting for No Quorum
-  -> Word8  -- ^ max number of revoting for No Majority
-  -> Float  -- ^ adversary stake ratio
-  -> Map (SIPHash hashAlgo) TallyOutcome
-tallyOutcomeMap vresips sDist pNoQ pNoM r_a =
-  Map.map (\vr -> tallyOutcome vr sDist pNoQ pNoM r_a) vresips
-
--- | Return the outcome of the tally based on a  `VotingResult` and
--- a stake distribution.
-tallyOutcome
-  :: VotingResult
-  -> Map Core.VKey Stake
-  -> Word8  -- ^ max number of revoting for No Quorum
-  -> Word8  -- ^ max number of revoting for No Majority
-  -> Float  -- ^ adversary stake ratio
-  -> TallyOutcome
-tallyOutcome vres sDist pNoQ pNoM r_a =
-  if stakePercentRound (stakeInFavor vres) (totalStake sDist)
-     > vThreshold r_a
-    then
-      Approved
-    else
-      if stakePercentRound (stakeAgainst vres) (totalStake sDist)
-         > vThreshold r_a
-        then
-          Rejected
-        else
-          if stakePercentRound (stakeAbstain vres) (totalStake sDist)
-             > vThreshold r_a
-             && rvNoQuorum vres <= pNoQ
-            then
-              NoQuorum
-            else
-              if stakePercentRound (stakeInFavor vres) (totalStake sDist)
-                 <= vThreshold r_a
-                 &&
-                 stakePercentRound (stakeAgainst vres) (totalStake sDist)
-                 <= vThreshold r_a
-                 &&
-                 stakePercentRound (stakeAbstain vres) (totalStake sDist)
-                 <= vThreshold r_a
-                 && rvNoMajority vres <= pNoM
-                then
-                  NoMajority
-                else
-                  Expired
 
 -- | Returns the stake percent as a rounded value
 -- in the range [0,100]
@@ -154,19 +115,6 @@ stakePercentRound st totSt =
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }
  deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real)
-
--- | Returns the total stake from a stake distribution
-totalStake :: (Map Core.VKey Stake) -> Stake
-totalStake m =
-  Map.foldr' (\stk tot -> tot + stk) (Stake 0) m
-
--- | Returns a map showing the percent ([0,100])
--- of stake ownership of each stakeholder
-stakeDistPct
-  :: Map Core.VKey Stake -- ^ stake distribution
-  -> Map Core.VKey Word8
-stakeDistPct sd =
-  Map.map (\st -> stakePercentRound st $ totalStake sd) sd
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
@@ -184,21 +132,6 @@ vpDurationToSlotCnt  d =
     VPMin -> SlotCount 20
     VPMedium -> SlotCount 50
     VPLarge -> SlotCount 100
-
--- | Return in how many slots the voting period
--- of the specific `SIP` will end, based on
--- the voting period duration recorded
--- in its metadata `SIPMetadata`
--- The 2nd argument plays the role of a "SIP database"
-votPeriodEnd
-  :: (SIPHash hashAlgo)
-  -> Map (SIPHash hashAlgo) (SIP hashAlgo)
-  -> SlotCount
-votPeriodEnd siphash sipdb =  vpDurationToSlotCnt
-                           $ votPeriodDuration
-                           . metadata
-                           . sipPayload
-                           $ (sipdb!siphash)
 
 -- | Protocol version
 --
@@ -262,13 +195,17 @@ newtype URL = URL { getText :: Text }
 
 -- | Hash of the SIP contents (`SIPData`) also plays the role of a SIP
 -- unique id
-data SIPHash hashAlgo = SIPHash (Hash hashAlgo SIPData)
-  deriving (Eq, Generic, Ord, Show)
+data SIPHash p = SIPHash (Hash p SIPData)
+  deriving (Generic)
+
+deriving instance Hashable p => Eq (SIPHash p)
+deriving instance Hashable p => Ord (SIPHash p)
+deriving instance Hashable p => Show (SIPHash p)
 
 -- | System improvement proposal
-data SIP hashAlgo =
+data SIP p =
   SIP
-    { sipHash :: SIPHash hashAlgo
+    { sipHash :: SIPHash p
       -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
       -- unique id
     , author :: !Core.VKey
@@ -278,37 +215,39 @@ data SIP hashAlgo =
     , sipPayload :: !SIPData
       -- ^ The actual contents of the SIP.
     }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | A commitment data type.
 -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
-newtype Commit hashAlgo =
+newtype Commit p =
   Commit
-    { getCommit
-      :: Hash hashAlgo
-           ( Int
-           , Core.VKey
-           , Hash hashAlgo (SIP hashAlgo)
-           )
+    { getCommit :: Hash p (Int, Core.VKey, Hash p (SIP p))
     }
   deriving stock (Generic)
-  deriving (Show, Eq, Ord)
+
+deriving instance Hashable p => Eq (Commit p)
+deriving instance Hashable p => Ord (Commit p)
+deriving instance Hashable p => Show (Commit p)
 
 -- | The System improvement proposal at the commit phase
-data SIPCommit hashAlgo =
+data SIPCommit p =
   SIPCommit
-    { commit :: !(Commit hashAlgo)
+    { commit :: !(Commit p)
       -- ^ A salted commitment (a hash) to the SIP id, the public key and the
       -- `hash` `SIP` (H(salt||pk||H(SIP)))
     , _author :: !Core.VKey
       -- ^ Who submitted the proposal.
-    , upSig :: !(Core.Sig (Commit hashAlgo))
+    , upSig :: !(Core.Sig (Commit p))
       -- ^ A signature on commit by the author public key
     }
-  deriving (Eq, Show, Ord, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | Calculate a `Commit` from a `SIP`
-calcCommit :: HashAlgorithm hashAlgo => SIP hashAlgo -> Commit hashAlgo
+calcCommit
+  :: ( Hashable p
+     , HasHash p (SIP p)
+     , HasHash p (Int, Core.VKey, Hash p (SIP p))
+     ) => SIP p -> Commit p
 calcCommit sip@SIP { salt, author } =
   Commit $ hash (salt, author, hash sip)
 
@@ -323,35 +262,36 @@ instance HasTypeReps URL where
     $ typeOf (undefined :: URL)
       : replicate (T.length text) (typeOf (undefined :: Char))
 
-deriving instance ( Typeable hashAlgo
-                  , HasTypeReps (SIP hashAlgo)
-                  , HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
-                  ) => HasTypeReps (IdeationPayload hashAlgo)
+deriving instance ( Typeable p
+                  , HasTypeReps p
+                  , HasTypeReps (SIPHash p)
+                  ) => HasTypeReps (IdeationPayload p)
 
-deriving instance ( HasTypeReps (Hash hashAlgo SIPData)
-                  , Typeable hashAlgo
-                  , HasTypeReps hashAlgo
-                  ) => HasTypeReps (SIP hashAlgo)
+deriving instance ( Typeable p
+                  , HasTypeReps (SIPHash p)
+                  ) => HasTypeReps (SIP p)
 
 -- | A commit is basically wrapping the hash of some salt, owner verification
 -- key, and SIP. The size of the hash is determined by the type of hash
 -- algorithm
-instance HasTypeReps hashAlgo => HasTypeReps (Commit hashAlgo) where
-  typeReps _ = typeReps (undefined :: hashAlgo)
+instance HasTypeReps p => HasTypeReps (Commit p) where
+  typeReps _ = typeReps (undefined :: p)
 
-instance Typeable hashAlgo => HasTypeReps (Hash hashAlgo (Commit hashAlgo)) where
+instance Typeable p => HasTypeReps (Hash p (Commit p)) where
   typeReps commitHash = Seq.singleton (typeOf commitHash)
 
-deriving instance ( Typeable hashAlgo
-                  , HasTypeReps hashAlgo
-                  ) => HasTypeReps (SIPCommit hashAlgo)
+deriving instance ( Typeable p
+                  , HasTypeReps p
+                  ) => HasTypeReps (SIPCommit p)
 
 
-deriving instance ( Typeable hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
-                  , HasTypeReps hashAlgo
-                  ) => HasTypeReps (BallotSIP hashAlgo)
+deriving instance ( Typeable p
+                  , HasTypeReps (SIPHash p)
+                  ) => HasTypeReps (VoteForSIP p)
+
+deriving instance ( Typeable p
+                  , HasTypeReps (Hash p SIPData)
+                  ) => HasTypeReps (SIPHash p)
 
 --------------------------------------------------------------------------------
 -- Sized instances
@@ -360,17 +300,16 @@ deriving instance ( Typeable hashAlgo
 instance Sized ImplementationPayload where
   costsList implementationPayload = [(typeOf implementationPayload, 10)]
 
-instance ( Typeable hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         , HasTypeReps hashAlgo
-         ) => Sized (IdeationPayload hashAlgo) where
+instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload p) where
   costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 --------------------------------------------------------------------------------
 -- ToCBOR instances
 --------------------------------------------------------------------------------
 
-instance (HashAlgorithm hashAlgo) => ToCBOR (SIP hashAlgo) where
+type SIPHasCBORRep t = (Typeable t, ToCBOR (Hash t SIPData))
+
+instance (SIPHasCBORRep p) => ToCBOR (SIP p) where
   toCBOR SIP { sipHash, author, salt, sipPayload }
     =  encodeListLen 4
     <> toCBOR sipHash
@@ -378,7 +317,7 @@ instance (HashAlgorithm hashAlgo) => ToCBOR (SIP hashAlgo) where
     <> toCBOR salt
     <> toCBOR sipPayload
 
-instance (HashAlgorithm hashAlgo) => ToCBOR (SIPHash hashAlgo) where
+instance (SIPHasCBORRep p) =>ToCBOR (SIPHash p) where
   toCBOR (SIPHash sipHash)
     =  encodeListLen 1
     <> toCBOR sipHash
@@ -405,8 +344,3 @@ instance ToCBOR ConcensusImpact where
 
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
-
-deriving instance ( Typeable hashAlgo
-                  , HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo SIPData)
-                  ) => HasTypeReps (SIPHash hashAlgo)

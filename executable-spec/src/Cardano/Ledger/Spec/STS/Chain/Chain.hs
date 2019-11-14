@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -15,15 +16,9 @@
 -- ticks.
 module Cardano.Ledger.Spec.STS.Chain.Chain where
 
-import           Data.Bimap (Bimap)
-import           Data.Map (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Set as Set (Set)
-import qualified Data.Set as Set
+import           Data.Typeable (Typeable)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
-
-import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
@@ -34,9 +29,21 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
-import qualified Ledger.Core as Core
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
+import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
+                     size)
+import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
+import           Cardano.Ledger.Spec.State.Ballot (Ballot)
+import           Cardano.Ledger.Spec.State.Participants (Participants)
+import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
+import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
+import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
+import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -45,104 +52,102 @@ import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
-import           Cardano.Ledger.Spec.STS.Sized (Size, Sized, costsList, size)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
 
-data CHAIN hashAlgo
+data CHAIN p
 
 
-data Env hashAlgo
+data Env p
   = Env
     { k :: !BlockCount
-    , maximumBlockSize :: !Size
+    , maximumBlockSize :: !(Size p)
       -- ^ Maximum block size. The interpretation of this value depends on the
       -- instance of 'Sized'.
       --
     , initialSlot :: !Slot
-    , participants :: !(Bimap Core.VKey Core.SKey)
+    , participants :: !(Participants p)
     , r_a :: !Float
       -- ^ Adversary stake ratio
-    , stakeDist :: !(Map Core.VKey Data.Stake)
+    , stakeDist :: !(StakeDistribution p)
     , prvNoQuorum :: !Word8
       -- ^ How many times a revoting is allowed due to a no quorum result
     , prvNoMajority :: !Word8
-      -- How many times a revoting is allowed due to a no majority result
+      -- ^ How many times a revoting is allowed due to a no majority result
     }
-    deriving (Eq, Show)
+
+deriving instance (Show (Size p)) => Show (Env p)
+deriving instance (Eq (Size p)) => Eq (Env p)
 
 
-data St hashAlgo
+data St p
   = St
     { currentSlot :: !Slot
-    , subsips :: !(Map (Data.Commit hashAlgo) (Data.SIP hashAlgo))
-    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , wssips :: !(Map (Data.Commit hashAlgo) Slot)
-    , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-    , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-    , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-    , apprvsips :: !(Set (Data.SIPHash hashAlgo))
-    , implementationSt :: !(State (IMPLEMENTATION hashAlgo))
+    , subsips :: !(SubmittedSIPs p)
+    , asips :: !(ActiveSIPs p)
+    , wssips :: !(WhenSubmittedSIPs p)
+    , wrsips :: !(WhenRevealedSIPs p)
+    , sipdb :: !(RevealedSIPs p)
+    , ballots :: !(Ballot p)
+    , vresips :: !(SIPsVoteResults p)
+    , apprvsips :: !(ApprovedSIPs p)
+    , implementationSt :: !(State (IMPLEMENTATION p))
     , utxoSt :: !(State UTXO)
     }
     deriving (Eq, Show)
 
 
-data Block hashAlgo
+data Block p
   = Block
-    { header :: Signal (HEADER hashAlgo)
-    , body :: Signal (BODY hashAlgo)
+    { header :: Signal (HEADER p)
+    , body :: Signal (BODY p)
     }
     deriving (Eq, Show, Generic)
 
-deriving instance ( HasTypeReps hashAlgo
-                  , HasTypeReps (Hash hashAlgo Data.SIPData)
-                  , HashAlgorithm hashAlgo
-                  , HasTypeReps (Data.Commit hashAlgo)
-                  ) => HasTypeReps (Block hashAlgo)
+deriving instance ( Typeable p
+                  , HasTypeReps (Signal (HEADER p))
+                  , HasTypeReps (Signal (BODY p))
+                  ) => HasTypeReps (Block p)
 
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         ) => Sized (Block hashAlgo) where
-  costsList _ = costsList (undefined :: Signal (TRANSACTION hashAlgo))
+instance ( Typeable p
+         , Sized (Signal (TRANSACTION p))
+         ) => Sized (Block p) where
+  costsList _ = costsList (undefined :: Signal (TRANSACTION p))
 
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         ) => STS (CHAIN hashAlgo) where
+instance ( Hashable p
+         , Sizeable p
+         , HasSize p (Block p)
+         , Show (Size p)
+         , STS (HEADER p)
+         , STS (BODY p)
+         ) => STS (CHAIN p) where
 
-  type Environment (CHAIN hashAlgo) = Env hashAlgo
+  type Environment (CHAIN p) = Env p
 
-  type State (CHAIN hashAlgo) = St hashAlgo
+  type State (CHAIN p) = St p
 
-  type Signal (CHAIN hashAlgo) = Block hashAlgo
+  type Signal (CHAIN p) = Block p
 
-  data PredicateFailure (CHAIN hashAlgo)
-    = MaximumBlockSizeExceeded Size (Threshold Size)
-    | ChainFailureBody (PredicateFailure (BODY hashAlgo))
-    | ChainFailureHeader (PredicateFailure (HEADER hashAlgo))
-    deriving (Eq, Show)
-
+  data PredicateFailure (CHAIN p)
+    = MaximumBlockSizeExceeded (Size p) (Threshold (Size p))
+    | ChainFailureBody (PredicateFailure (BODY p))
+    | ChainFailureHeader (PredicateFailure (HEADER p))
 
   initialRules = [ do
     IRC Env { initialSlot } <- judgmentContext
     pure St { currentSlot = initialSlot
-            , subsips = Map.empty
-            , asips = Map.empty
-            , wssips = Map.empty
-            , wrsips = Map.empty
-            , sipdb = Map.empty
-            , ballots = Map.empty
-            , vresips = Map.empty
-            , apprvsips = Set.empty
+            , subsips = mempty
+            , asips = mempty
+            , wssips = mempty
+            , wrsips = mempty
+            , sipdb = mempty
+            , ballots = mempty
+            , vresips = mempty
+            , apprvsips = mempty
             , implementationSt = Implementation.St ()
             , utxoSt = UTxO.St ()
             }
@@ -182,7 +187,7 @@ instance ( HashAlgorithm hashAlgo
         , Header.asips = asips'
         , Header.vresips = vresips'
         , Header.apprvsips = apprvsips'
-        } <- trans @(HEADER hashAlgo)
+        } <- trans @(HEADER p)
                $ TRC ( Header.Env { Header.k = k
                                   , Header.sipdb = sipdb
                                   , Header.ballots = ballots
@@ -209,7 +214,7 @@ instance ( HashAlgorithm hashAlgo
         , Transaction.ballots = ballots'
         , Transaction.implementationSt = implementationSt'
         , Transaction.utxoSt = utxoSt'
-        } <- trans @(BODY hashAlgo)
+        } <- trans @(BODY p)
                $ TRC ( Transaction.Env
                           { Transaction.k = k
                           , Transaction.currentSlot = currentSlot'
@@ -244,29 +249,33 @@ instance ( HashAlgorithm hashAlgo
     ]
 
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         ) => Embed (BODY hashAlgo) (CHAIN hashAlgo) where
+deriving instance ( Show (Size p)
+                  , Show (PredicateFailure (HEADER p))
+                  , Show (PredicateFailure (BODY p))
+                  ) => Show (PredicateFailure (CHAIN p))
+deriving instance ( Eq (Size p)
+                  , Eq (PredicateFailure (HEADER p))
+                  , Eq (PredicateFailure (BODY p))
+                  ) => Eq (PredicateFailure (CHAIN p))
+
+
+instance ( STS (BODY p), STS (CHAIN p)
+         ) => Embed (BODY p) (CHAIN p) where
   wrapFailed = ChainFailureBody
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         , HasTypeReps (Data.Commit hashAlgo)
-         ) => Embed (HEADER hashAlgo) (CHAIN hashAlgo) where
+instance ( STS (HEADER p), STS (CHAIN p) ) => Embed (HEADER p) (CHAIN p) where
   wrapFailed = ChainFailureHeader
 
 --------------------------------------------------------------------------------
 -- HasTrace instance
 --------------------------------------------------------------------------------
 
-instance ( HasTypeReps hashAlgo
-         , HashAlgorithm hashAlgo
-         , HasTypeReps (Data.Commit hashAlgo)
-         , HasTypeReps (Hash hashAlgo Data.SIPData)
-         ) => STS.Gen.HasTrace (CHAIN hashAlgo) () where
+instance ( Sizeable p
+         , STS (CHAIN p)
+         -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
+         , STS.Gen.HasTrace (TRANSACTION p) ()
+         , HasSize p (Transaction.Tx p)
+         ) => STS.Gen.HasTrace (CHAIN p) () where
 
   envGen _ = do
     someK <- Gen.QC.k

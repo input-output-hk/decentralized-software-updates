@@ -13,14 +13,10 @@
 
 module Cardano.Ledger.Spec.STS.Chain.Header where
 
-import           Data.Map.Strict (Map)
-import           Data.Set as Set (Set)
 import           Data.Typeable (typeOf)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
-
-import           Cardano.Crypto.Hash (Hash, HashAlgorithm)
 
 import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      STS, Signal, State, TRC (TRC), initialRules,
@@ -28,25 +24,30 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot (Slot))
-import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
+import           Cardano.Ledger.Spec.State.Ballot (Ballot)
+import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
+import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Cardano.Ledger.Spec.STS.Update.Data (SIPData)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Hupdate (HUPDATE)
 import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 
 
 -- | The Block HEADER STS
-data HEADER hashAlgo
+data HEADER p
 
-data Env hashAlgo
+data Env p
   = Env { k :: !BlockCount
-        , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-        , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-       , r_a :: !Float
+        , sipdb :: !(RevealedSIPs p)
+        , ballots :: !(Ballot p)
+        , r_a :: !Float
          -- ^ adversary stake ratio
-        , stakeDist :: !(Map Core.VKey Data.Stake)
+        , stakeDist :: !(StakeDistribution p)
         , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
         , prvNoMajority :: !Word8
@@ -54,12 +55,12 @@ data Env hashAlgo
         }
         deriving (Eq, Show)
 
-data St hashAlgo
+data St p
  = St { currentSlot :: !Slot
-      , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+      , wrsips :: !(WhenRevealedSIPs p)
+      , asips :: !(ActiveSIPs p)
+      , vresips :: !(SIPsVoteResults p)
+      , apprvsips :: !(ApprovedSIPs p)
       }
       deriving (Eq, Show, Generic)
 
@@ -67,26 +68,23 @@ data BHeader
   = BHeader { slot :: !Slot }
    deriving (Eq, Show, Generic)
 
-
 deriving instance HasTypeReps BHeader
 
 instance Sized BHeader where
   costsList bh = [(typeOf bh, 100)]
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         ) => STS (HEADER hashAlgo) where
+instance ( Hashable p
+         ) => STS (HEADER p) where
 
-  type Environment (HEADER hashAlgo) = Env hashAlgo
+  type Environment (HEADER p) = Env p
 
-  type State (HEADER hashAlgo) = St hashAlgo
+  type State (HEADER p) = St p
 
-  type Signal (HEADER hashAlgo) = BHeader
+  type Signal (HEADER p) = BHeader
 
-  data PredicateFailure (HEADER hashAlgo)
+  data PredicateFailure (HEADER p)
     = BlockSlotNotIncreasing Slot Slot
-    | HeaderFailure (PredicateFailure (HUPDATE hashAlgo))
+    | HeaderFailure (PredicateFailure (HUPDATE p))
     deriving (Eq, Show)
 
 
@@ -112,7 +110,7 @@ instance ( HashAlgorithm hashAlgo
                  , Hupdate.asips = asips'
                  , Hupdate.vresips = vresips'
                  , Hupdate.apprvsips = apprvsips'
-                 } <- trans @(HUPDATE hashAlgo)
+                 } <- trans @(HUPDATE p)
                       $ TRC ( Hupdate.Env { Hupdate.k = k
                                           , Hupdate.sipdb = sipdb
                                           , Hupdate.ballots = ballots
@@ -137,11 +135,8 @@ instance ( HashAlgorithm hashAlgo
                 }
     ]
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         , HasTypeReps (Hash hashAlgo SIPData)
-         )
-  => Embed (HUPDATE hashAlgo) (HEADER hashAlgo)
+instance ( STS (HUPDATE p), STS (HEADER p)
+         ) => Embed (HUPDATE p) (HEADER p)
     where
       wrapFailed = HeaderFailure
 

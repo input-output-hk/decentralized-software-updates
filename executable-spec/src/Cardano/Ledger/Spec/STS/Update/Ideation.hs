@@ -1,11 +1,13 @@
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -13,19 +15,12 @@
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
-import           Data.Bimap (Bimap)
-import qualified Data.Bimap as Bimap
-import qualified Data.Map.Strict as Map
-import           Data.Map.Strict (Map, (!), (!?))
-import           Data.Maybe (fromMaybe)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import qualified Data.Set as Set
 import           Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
-
-import           Cardano.Crypto.Hash (HashAlgorithm, hash)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
@@ -37,86 +32,77 @@ import qualified Ledger.Core as Core
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
+import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
+import           Cardano.Ledger.Spec.Classes.Indexed ((!))
+import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
+import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
+import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
+import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
+import           Cardano.Ledger.Spec.State.Participants (Participants)
+import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
-                     SIPData (SIPData), Commit)
+                     SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
 
 -- | Ideation phase of system updates
-data IDEATION hashAlgo
+data IDEATION p
 
 -- Environmnet of the Ideation phase
-data Env hashAlgo
+data Env p
   = Env
     { k :: !BlockCount
       -- ^ Chain stability parameter.
     , currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
-    , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      -- ^ Active SIP's. The slot in the range (of the map) determines when the
-      -- voting period will end.
-    , participants :: !(Bimap Core.VKey Core.SKey)
-      -- ^ The set of stakeholders (i.e., participants), identified by their signing
-      -- and verifying keys.
-      --
-      -- There is a one-to-one correspondence between the signing and verifying keys, hence
-      -- the use of 'Bimap'
-      --
+    , asips :: !(ActiveSIPs p)
+    , participants :: !(Participants p)
     }
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | Ideation phase state
 --
-data St hashAlgo
+data St p
   = St
-    { subsips :: !(Map (Commit hashAlgo) (SIP hashAlgo))
-      -- ^ These are the SIPs that we need to generate for the testing to
-      -- take place. From these both the commited SIP's as well as the revealed SIPs
-      -- will be created. This state is not part of the update protocol, it is used
-      -- only for SIP generation purposes.
-    , wssips :: !(Map (Commit hashAlgo) Slot)
+    { subsips :: !(SubmittedSIPs p)
+    , wssips :: !(WhenSubmittedSIPs p)
       -- ^ When a SIP commitment was submitted
-
-    , wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-      -- ^ When a SIP was revealed
-
-    , sipdb :: !(Map (Data.SIPHash hashAlgo) (SIP hashAlgo))
-      -- ^ Local SIP state. Includes all revealed SIPs from the
-      -- beginning of time
-
-    , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
-      -- ^ Stores the valid ballots for each SIP and for each voter
-      --
+    , wrsips :: !(WhenRevealedSIPs p)
+    , sipdb :: !(RevealedSIPs p)
+    , ballots :: !(Ballot p)
     }
   deriving (Eq, Show, Generic)
-  deriving Semigroup via GenericSemigroup (St hashAlgo)
-  deriving Monoid via GenericMonoid (St hashAlgo)
+  deriving Semigroup via GenericSemigroup (St p)
+  deriving Monoid via GenericMonoid (St p)
 
+instance ( Hashable p
+         , HasHash p SIPData
+         , HasHash p (SIP p)
+         , HasHash p (Int, Core.VKey, Hash p(SIP p))
+         ) => STS (IDEATION p) where
 
-instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
+  type Environment (IDEATION p) = Env p
 
-  type Environment (IDEATION hashAlgo) = Env hashAlgo
+  type State (IDEATION p) = St p
 
-  type State (IDEATION hashAlgo) = St hashAlgo
-
-  type Signal (IDEATION hashAlgo) = IdeationPayload hashAlgo
+  type Signal (IDEATION p) = IdeationPayload p
 
   -- | IDEATION phase failures
-  data PredicateFailure (IDEATION hashAlgo)
-    = SIPAlreadySubmitted (Data.SIP hashAlgo)
-   -- | SIPSubmittedAlreadyRevealed (Data.SIP hashAlgo)
-    | NoSIPToReveal (Data.SIP hashAlgo)
-    | SIPAlreadyRevealed (Data.SIP hashAlgo)
+  data PredicateFailure (IDEATION p)
+    = SIPAlreadySubmitted (Data.SIP p)
+   -- | SIPSubmittedAlreadyRevealed (Data.SIP p)
+    | NoSIPToReveal (Data.SIP p)
+    | SIPAlreadyRevealed (Data.SIP p)
     | InvalidAuthor Core.VKey
-    | NoStableAndCommittedSIP (Data.SIP hashAlgo) (Map (Commit hashAlgo) Slot)
+    | NoStableAndCommittedSIP (Data.SIP p) (WhenSubmittedSIPs p)
     | InvalidVoter Core.VKey
-    | VoteNotForActiveSIP (Data.SIPHash hashAlgo)
-    | VotingPeriodEnded (Data.SIPHash hashAlgo) Slot
+    | VoteNotForActiveSIP (Data.SIPHash p)
+    | VotingPeriodEnded (Data.SIPHash p) Slot
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
@@ -163,36 +149,34 @@ instance HashAlgorithm hashAlgo => STS (IDEATION hashAlgo) where
                   , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
                   }
 
-        Vote ballot -> do
+        Vote voteForSIP -> do
             -- voter must be a stakeholder
-            Data.voter ballot ∈ dom participants ?!
-              InvalidVoter (Data.voter ballot)
+            Data.voter voteForSIP ∈ dom participants ?!
+              InvalidVoter (Data.voter voteForSIP)
 
             -- SIP must be an active SIP, i.e. it must belong to the set of
             -- stable revealed SIPs
-            Data.votedsipHash ballot ∈ dom asips ?!
-              VoteNotForActiveSIP (Data.votedsipHash ballot)
+            Data.votedsipHash voteForSIP ∈ dom asips ?!
+              VoteNotForActiveSIP (Data.votedsipHash voteForSIP)
 
             -- The end of the voting period for this SIP must not have been
             -- reached yet.
-            currentSlot <= asips ! Data.votedsipHash ballot ?!
-              VotingPeriodEnded (Data.votedsipHash ballot) currentSlot
+            currentSlot <= asips ! Data.votedsipHash voteForSIP ?!
+              VotingPeriodEnded (Data.votedsipHash voteForSIP) currentSlot
 
-            let
-              hsip = Data.votedsipHash ballot
-              hsipBallots = fromMaybe Map.empty $ ballots !? hsip
-              hsipBallots' = hsipBallots ⨃ [(Data.voter ballot, Data.confidence ballot)]
-
-            -- Note that if the voter has voted again, then replace his old vote
-            -- with the new one.
-            pure $ st { ballots = ballots ⨃ [(hsip, hsipBallots')] }
+            pure $ st { ballots = updateBallot ballots voteForSIP }
     ]
 
 instance
-  HashAlgorithm hashAlgo
-  => STS.Gen.HasTrace (IDEATION hashAlgo) () where
+  -- Note that this has the same constraints as the IDEATION STS since we use
+  -- 'Data.calcCommit', which requires these constraints.
+  ( Hashable p
+  , HasHash p SIPData
+  , HasHash p (SIP p)
+  , HasHash p (Int, Core.VKey, Hash p(SIP p))
+  ) => STS.Gen.HasTrace (IDEATION p) a where
 
-  envGen :: () -> QC.Gen (Env hashAlgo)
+  envGen :: a -> QC.Gen (Env p)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -200,7 +184,7 @@ instance
     someParticipants <- Gen.participants
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
-                  , asips = Map.empty
+                  , asips = mempty
                   , participants = someParticipants
                   }
     pure env
@@ -262,7 +246,7 @@ instance
                         str <- QC.vectorOf n QC.arbitraryUnicodeChar
                         pure $! T.pack str
 
-            mkSubmission :: SIP hashAlgo -> IdeationPayload hashAlgo
+            mkSubmission :: SIP p -> IdeationPayload p
             mkSubmission sip = Submit sipCommit sip
               where
                 sipCommit =
@@ -271,7 +255,7 @@ instance
                     commit = Data.calcCommit sip
                     sipCommitSignature = Core.sign skey commit
                       where
-                        skey = participants Bimap.! Data.author sip
+                        skey = participants ! Data.author sip
 
       revelationGen subsipsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a

@@ -1,41 +1,45 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Ledger.Spec.STS.Update.Tallysip where
 
-import           Data.Map.Strict (Map, (!))
-import qualified Data.Map.Strict as Map
-import           Data.Set as Set (Set)
-import qualified Data.Set as Set
-import           GHC.Generics (Generic)
-import           Data.AbstractSize (HasTypeReps)
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
 
+import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext,
-                     trans, transitionRules, wrapFailed, (?!))
-import           Ledger.Core (Slot, addSlot, (⨃), (∈), (∉), dom)
-import qualified Ledger.Core as Core
-import           Cardano.Crypto.Hash (HashAlgorithm)
+                     initialRules, judgmentContext, trans, transitionRules,
+                     wrapFailed, (?!))
+import           Ledger.Core (Slot, addSlot, dom, (∈), (⨃))
 
+import           Cardano.Ledger.Spec.Classes.Indexed ((!))
+import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, registerApproval, isSIPApproved)
+import           Cardano.Ledger.Spec.State.Ballot (Ballot, ballotFor, addVotes)
+import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs, votingPeriodEnd)
+import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults, getRevotingCounters)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution, totalStake)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 -- | STS for tallying the votes of a single SIP
-data TALLYSIP hashAlgo
+data TALLYSIP p
 
-data Env hashAlgo
+data Env p
  = Env { currentSlot :: !Slot
-       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , sipdb :: !(RevealedSIPs p)
+       , ballots :: !(Ballot p)
        , r_a :: !Float
          -- ^ adversary stake ratio
-       , stakeDist :: !(Map Core.VKey Data.Stake)
+       , stakeDist :: !(StakeDistribution p)
        , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
        , prvNoMajority :: !Word8
@@ -43,40 +47,38 @@ data Env hashAlgo
        }
        deriving (Eq, Show)
 
-data St hashAlgo
-  = St { vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
+data St p
+  = St { vresips :: !(SIPsVoteResults p)
          -- ^ Records the current voting result for each SIP
-       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
+       , asips :: !(ActiveSIPs p)
       -- ^ Active SIP's. The slot in the range (of the map) determines when the
       -- voting period will end.
-       , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+       , apprvsips :: !(ApprovedSIPs p)
          -- ^ Set of approved SIPs
        }
        deriving (Eq, Show, Generic)
 
 
-instance STS (TALLYSIP hashAlgo) where
+instance (Hashable p) => STS (TALLYSIP p) where
 
-  type Environment (TALLYSIP hashAlgo) = (Env hashAlgo)
+  type Environment (TALLYSIP p) = (Env p)
 
-  type State (TALLYSIP hashAlgo) = (St hashAlgo)
+  type State (TALLYSIP p) = (St p)
 
-  type Signal (TALLYSIP hashAlgo) = (Data.SIPHash hashAlgo)
+  type Signal (TALLYSIP p) = (Data.SIPHash p)
 
-  data PredicateFailure (TALLYSIP hashAlgo)
+  data PredicateFailure (TALLYSIP p)
     =
-      TallySIPFailure (Data.SIPHash hashAlgo)
-    | InvalidSIPHash (Data.SIPHash hashAlgo)
-    | SIPAlreadyApproved (Data.SIPHash hashAlgo)
-
-    deriving (Eq, Show)
+      TallySIPFailure (Data.SIPHash p)
+    | InvalidSIPHash (Data.SIPHash p)
+    | SIPAlreadyApproved (Data.SIPHash p)
 
   initialRules = [
       do
         IRC Env { } <- judgmentContext
-        pure $! St { vresips = Map.empty
-                   , asips = Map.empty
-                   , apprvsips = Set.empty
+        pure $! St { vresips = mempty
+                   , asips = mempty
+                   , apprvsips = mempty
                    }
       ]
 
@@ -99,69 +101,29 @@ instance STS (TALLYSIP hashAlgo) where
 
       sipHash ∈ dom sipdb ?! InvalidSIPHash sipHash
 
-      sipHash ∉ apprvsips ?! SIPAlreadyApproved sipHash
+      not (isSIPApproved sipHash apprvsips) ?! SIPAlreadyApproved sipHash
 
       -- do the tally
       let
-        -- get revoting counters for this SIP
-        (rvNoQ, rvNoM) = case Map.lookup sipHash vresips of
-                           Nothing -> (0,0)
-                           Just vr -> ( Data.rvNoQuorum vr
-                                      , Data.rvNoMajority vr
-                                      )
+        (rvNoQ, rvNoM) = getRevotingCounters sipHash vresips
 
         -- count the votes for the specific SIP and store result
         vresips' =
-          let ballotsOfSIP = case Map.lookup sipHash ballots of
-                               Nothing -> (Map.empty :: Map Core.VKey Data.Confidence)
-                               Just b  -> b
-
-              vResult =
-                if ballotsOfSIP == (Map.empty :: Map Core.VKey Data.Confidence)
-                  then
-                    Data.VotingResult 0 0 0 rvNoQ rvNoM
-                  else
-                    Map.foldrWithKey'
-                      (\vkey conf Data.VotingResult { Data.stakeInFavor
-                                                    , Data.stakeAgainst
-                                                    , Data.stakeAbstain
-                                                    }
-                          -> let stake = stakeDist!vkey
-                             in case conf of
-                                 Data.For -> Data.VotingResult
-                                   (stakeInFavor + stake)
-                                   stakeAgainst
-                                   stakeAbstain
-                                   rvNoQ
-                                   rvNoM
-                                 Data.Against -> Data.VotingResult
-                                   stakeInFavor
-                                   (stakeAgainst + stake)
-                                   stakeAbstain
-                                   rvNoQ
-                                   rvNoM
-                                 Data.Abstain -> Data.VotingResult
-                                   stakeInFavor
-                                   stakeAgainst
-                                   (stakeAbstain + stake)
-                                   rvNoQ
-                                   rvNoM
-                      )
-                      (Data.VotingResult 0 0 0 rvNoQ rvNoM)
-                      ballotsOfSIP
+          let ballotsOfSIP = ballotFor sipHash ballots
+              vResult = addVotes stakeDist (Data.VotingResult 0 0 0 rvNoQ rvNoM) ballotsOfSIP
           in vresips ⨃ [(sipHash, vResult)]
 
-        -- update state and
-        -- in the case of revoting, update both state and voting result
+        -- update state and in case of revoting, update both state and voting
+        -- results
         (apprvsips', asips', vResult') =
-          case Data.tallyOutcome
+          case tallyOutcome
                  (vresips'!sipHash)
                  stakeDist
                  prvNoQuorum
                  prvNoMajority
                  r_a of
             Data.Approved   ->
-              ( Set.insert sipHash apprvsips
+              ( registerApproval sipHash apprvsips
               , asips
               , (vresips'!sipHash)
               )
@@ -173,7 +135,7 @@ instance STS (TALLYSIP hashAlgo) where
             Data.NoQuorum   ->
               ( apprvsips
               , asips ⨃ [( sipHash
-                         , currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb)
+                         , currentSlot `addSlot` (votingPeriodEnd sipHash sipdb)
                          )
                         ]
               , Data.VotingResult 0 0 0 (rvNoQ + 1)  rvNoM
@@ -181,7 +143,7 @@ instance STS (TALLYSIP hashAlgo) where
             Data.NoMajority ->
               ( apprvsips
               , asips ⨃ [( sipHash,
-                           currentSlot `addSlot` (Data.votPeriodEnd sipHash sipdb)
+                           currentSlot `addSlot` (votingPeriodEnd sipHash sipdb)
                          )
                         ]
               , Data.VotingResult 0 0 0 rvNoQ  (rvNoM + 1)
@@ -192,8 +154,7 @@ instance STS (TALLYSIP hashAlgo) where
               , (vresips'!sipHash)
               )
 
-        vresips'' = Map.insert sipHash vResult' vresips' -- this overwrites
-                                                         -- existing pair
+        vresips'' = vresips' ⨃ [(sipHash, vResult')]
       pure $ St { vresips = vresips''
                 , apprvsips = apprvsips'
                 , asips = asips'
@@ -201,25 +162,67 @@ instance STS (TALLYSIP hashAlgo) where
 
     ]
 
+-- | Return the outcome of the tally based on a  `VotingResult` and
+-- a stake distribution.
+tallyOutcome
+  :: Data.VotingResult
+  -> StakeDistribution p
+  -> Word8  -- ^ max number of revoting for No Quorum
+  -> Word8  -- ^ max number of revoting for No Majority
+  -> Float  -- ^ adversary stake ratio
+  -> Data.TallyOutcome
+tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
+  if Data.stakePercentRound (Data.stakeInFavor vres) (totalStake stakeDistribution)
+     > vThreshold r_a
+    then
+      Data.Approved
+    else
+      if Data.stakePercentRound (Data.stakeAgainst vres) (totalStake stakeDistribution)
+         > vThreshold r_a
+        then
+          Data.Rejected
+        else
+          if Data.stakePercentRound (Data.stakeAbstain vres) (totalStake stakeDistribution)
+             > vThreshold r_a
+             && Data.rvNoQuorum vres <= pNoQ
+            then
+              Data.NoQuorum
+            else
+              if Data.stakePercentRound (Data.stakeInFavor vres) (totalStake stakeDistribution)
+                 <= vThreshold r_a
+                 &&
+                 Data.stakePercentRound (Data.stakeAgainst vres) (totalStake stakeDistribution)
+                 <= vThreshold r_a
+                 &&
+                 Data.stakePercentRound (Data.stakeAbstain vres) (totalStake stakeDistribution)
+                 <= vThreshold r_a
+                 && Data.rvNoMajority vres <= pNoM
+                then
+                  Data.NoMajority
+                else
+                  Data.Expired
+
+
+deriving instance Eq (Data.SIPHash p) => Eq (PredicateFailure (TALLYSIP p))
+deriving instance Show (Data.SIPHash p) => Show (PredicateFailure (TALLYSIP p))
+
 -- | STS for tallying the votes of a
 -- bunch of SIPs
-data TALLYSIPS hashAlgo
+data TALLYSIPS p
 
-type ToTally hashAlgo =  [Signal (TALLYSIP hashAlgo)]
+type ToTally p =  [Signal (TALLYSIP p)]
 
-instance ( HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         ) => STS (TALLYSIPS hashAlgo) where
+instance ( Hashable p
+         ) => STS (TALLYSIPS p) where
 
-  type Environment (TALLYSIPS hashAlgo) = Environment (TALLYSIP hashAlgo)
+  type Environment (TALLYSIPS p) = Environment (TALLYSIP p)
 
-  type State (TALLYSIPS hashAlgo) = State (TALLYSIP hashAlgo)
+  type State (TALLYSIPS p) = State (TALLYSIP p)
 
-  type Signal (TALLYSIPS hashAlgo) = ToTally hashAlgo
+  type Signal (TALLYSIPS p) = ToTally p
 
-  data PredicateFailure (TALLYSIPS hashAlgo)
-    =
-     TallySIPsFailure (PredicateFailure (TALLYSIP hashAlgo))
+  data PredicateFailure (TALLYSIPS p)
+    = TallySIPsFailure (PredicateFailure (TALLYSIP p))
     deriving (Eq, Show)
 
   initialRules = []
@@ -234,15 +237,10 @@ instance ( HashAlgorithm hashAlgo
         [] -> pure $! st
         (sh:siphashes) ->
           do
-            st' <- trans @(TALLYSIP hashAlgo) $ TRC (env, st, sh)
-            trans @(TALLYSIPS hashAlgo) $ TRC (env, st', siphashes)
+            st' <- trans @(TALLYSIP p) $ TRC (env, st, sh)
+            trans @(TALLYSIPS p) $ TRC (env, st', siphashes)
     ]
 
-
-instance (HashAlgorithm hashAlgo
-         , HasTypeReps hashAlgo
-         ) => Embed (TALLYSIP hashAlgo) (TALLYSIPS hashAlgo) where
+instance ( STS (TALLYSIP p), STS (TALLYSIPS p)
+         ) => Embed (TALLYSIP p) (TALLYSIPS p) where
     wrapFailed = TallySIPsFailure
-
-
-

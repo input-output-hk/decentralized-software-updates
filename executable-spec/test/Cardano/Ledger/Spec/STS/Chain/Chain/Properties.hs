@@ -1,52 +1,58 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE NamedFieldPuns #-}
-
 
 module Cardano.Ledger.Spec.STS.Chain.Chain.Properties where
 
+import           Data.Foldable (toList)
 import           Data.Function ((&))
-import           Data.Word (Word64)
-import           Data.List (foldl', any, sortBy, sum)
-import qualified Test.QuickCheck as QC
+import           Data.List (any, foldl', sortBy, sum)
+import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
-import           Cardano.Crypto.Hash.Short (ShortHash)
+import           Data.Word (Word64, Word8)
+import qualified Test.QuickCheck as QC
 
 import qualified Control.State.Transition.Trace as Trace
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
-import           Ledger.Core (dom, BlockCount, unBlockCount, unSlotCount)
+import           Ledger.Core (BlockCount, dom, range, size, unBlockCount,
+                     unSlotCount)
 
+import           Cardano.Ledger.Spec.State.SIPsVoteResults
+                     (SIPsVoteResults (SIPsVoteResults))
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
+                     stakeDistPct)
+import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 
+import           Cardano.Ledger.Mock (Mock)
 
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated
   = QC.withMaxSuccess 1000
-  $ STS.Gen.onlyValidSignalsAreGenerated @(CHAIN ShortHash) @() 25 ()
+  $ STS.Gen.onlyValidSignalsAreGenerated @(CHAIN Mock) @() 25 ()
 
 qc_traceLengthsAreClassified :: QC.Property
 qc_traceLengthsAreClassified
   = QC.withMaxSuccess 100
-  $ STS.Gen.traceLengthsAreClassified @(CHAIN ShortHash) 100 10 ()
+  $ STS.Gen.traceLengthsAreClassified @(CHAIN Mock) 100 10 ()
 
 qc_revealsAreClassified :: QC.Property
 qc_revealsAreClassified
   = QC.withMaxSuccess 300
-  $ STS.Gen.forAllTrace @(CHAIN ShortHash) @() maxTraceLength ()
+  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
   $ \traceSample ->
       STS.Gen.classifySize "Reveals" traceSample lastStateReveals maxTraceLength step
   where
     (maxTraceLength, step) = (100, 5)
-    lastStateReveals :: Trace.Trace (CHAIN hashAlgo) -> Word64
+    lastStateReveals :: Trace.Trace (CHAIN Mock) -> Word64
     lastStateReveals tr
       = Trace.lastState tr
       & Chain.sipdb
@@ -62,7 +68,7 @@ qc_revealsAreClassified
 relevantCasesAreCovered :: QC.Property
 relevantCasesAreCovered
   = QC.withMaxSuccess 300
-  $ STS.Gen.forAllTrace @(CHAIN ShortHash) @() maxTraceLength ()
+  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
   $ \traceSample ->
         -- traces should be long enough to allow for the stabilization
         -- of events
@@ -247,7 +253,7 @@ getMinTraceLength k =
 
 -- | Returns the percent of Txs with a non-empty update payload in the input Trace
 pctUpdatePayload
-  :: Trace.Trace (CHAIN hashAlgo)
+  :: Trace.Trace (CHAIN Mock)
   -> Float
 pctUpdatePayload tr =
   let -- get the total of transactions in tr
@@ -268,7 +274,7 @@ pctUpdatePayload tr =
        then (fromIntegral txupdTot) / (fromIntegral txTot) * 100
        else 0
 
-pctSIPsInUpdPayload :: Trace.Trace(CHAIN hashAlgo) -> Float
+pctSIPsInUpdPayload :: Trace.Trace(CHAIN Mock) -> Float
 pctSIPsInUpdPayload tr =
   if (length $ getUpdPayload tr) /= 0
     then
@@ -279,7 +285,7 @@ pctSIPsInUpdPayload tr =
     else 0
 
 -- | Percent of SIPs with the specified tally outcome
-pctSIPsTallyOutcome :: Trace.Trace(CHAIN hashAlgo) -> Data.TallyOutcome -> Float
+pctSIPsTallyOutcome :: Trace.Trace(CHAIN Mock) -> Data.TallyOutcome -> Float
 pctSIPsTallyOutcome tr outc =
   let lastSt = Trace.lastState tr
       vresips = Chain.vresips lastSt
@@ -291,7 +297,7 @@ pctSIPsTallyOutcome tr outc =
       sipsOutcome =  map (fst)
                      $ filter (\(_, outcome) -> outcome == outc )
                      $ Map.toList
-                     $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
+                     $ tallyOutcomeMap vresips sDist pNoQ pNoM r_a
   in
     if (length $ getSIPsInTraceFromLastState tr) /= 0
       then
@@ -301,45 +307,48 @@ pctSIPsTallyOutcome tr outc =
         * 100
       else 0
 
+
+-- | Return a SIP-hash to TallyOutcome map
+tallyOutcomeMap
+  :: SIPsVoteResults p
+  -> StakeDistribution p
+  -> Word8  -- ^ max number of revoting for No Quorum
+  -> Word8  -- ^ max number of revoting for No Majority
+  -> Float  -- ^ adversary stake ratio
+  -> Map (Data.SIPHash p) Data.TallyOutcome
+tallyOutcomeMap (SIPsVoteResults vresips) sDist pNoQ pNoM r_a =
+  Map.map (\vr -> Tallysip.tallyOutcome vr sDist pNoQ pNoM r_a) vresips
+
+
 -- | Pct of SIPs that entered a revoting due to No Quorum or No Majority
-pctSIPsInRevoting :: Trace.Trace(CHAIN hashAlgo) -> Data.TallyOutcome -> Float
+pctSIPsInRevoting :: Trace.Trace (CHAIN Mock) -> Data.TallyOutcome -> Float
 pctSIPsInRevoting tr outc =
   let lastSt = Trace.lastState tr
       vresips = Chain.vresips lastSt
       sipsRevoting = case outc of
         Data.NoQuorum ->
-          filter ( \(_, (Data.VotingResult {Data.rvNoQuorum})) ->
-                                   if rvNoQuorum > 0
-                                    then True
-                                    else False
-                              )
-                              $ Map.toList vresips
+          Set.filter ((0 < ). Data.rvNoQuorum) $ range vresips
         Data.NoMajority ->
-          filter ( \(_, (Data.VotingResult {Data.rvNoMajority})) ->
-                                   if rvNoMajority > 0
-                                    then True
-                                    else False
-                              )
-                              $ Map.toList vresips
+          Set.filter ((0 < ). Data.rvNoMajority) $ range vresips
         _ -> error $ "Revoting is not allowed with this "++ (show outc) ++ " tally outcome."
 
   in
-    if (length $ Map.toList vresips) /= 0
+    if (size vresips :: Int) /= 0
       then
         (fromIntegral $ length $ sipsRevoting)
         /
-        (fromIntegral $ length $ Map.toList vresips)
+        (fromIntegral $ (size vresips :: Int))
         * 100
       else 0
 
-getSIPsInTraceFromLastState :: Trace.Trace (CHAIN hashAlgo) -> [(Data.SIP hashAlgo)]
-getSIPsInTraceFromLastState tr =
-  let lastSt = Trace.lastState tr
-  in  map (snd)
-      $ Map.toList
-      $ Chain.subsips lastSt
+getSIPsInTraceFromLastState :: Trace.Trace (CHAIN Mock) -> [(Data.SIP Mock)]
+getSIPsInTraceFromLastState tr
+  = Trace.lastState tr
+  & Chain.subsips
+  & range
+  & toList
 
-getSIPsInTraceFromSignals :: Trace.Trace (CHAIN hashAlgo) -> [(Data.SIP hashAlgo)]
+getSIPsInTraceFromSignals :: Trace.Trace (CHAIN Mock) -> [(Data.SIP Mock)]
 getSIPsInTraceFromSignals tr =
   let sips = foldl' (\tot b ->  tot ++ (sipsInABlock b)) [] blocks
       blocks = Trace.traceSignals Trace.NewestFirst tr
@@ -368,7 +377,7 @@ getSIPsInTraceFromSignals tr =
                            $ Body.transactions (Chain.body b)
   in sips
 
-getUpdPayload :: Trace.Trace(CHAIN hashAlgo) -> [(Update.UpdatePayload hashAlgo)]
+getUpdPayload :: Trace.Trace(CHAIN Mock) -> [(Update.UpdatePayload Mock)]
 getUpdPayload tr =
   let upds = foldl' (\tot b ->  tot ++ (updsInABlock b)) [] blocks
       blocks = Trace.traceSignals Trace.NewestFirst tr
@@ -383,25 +392,25 @@ getUpdPayload tr =
   in upds
 
 
-submittedSIPsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
+submittedSIPsExist :: Trace.Trace (CHAIN Mock)  -> Bool
 submittedSIPsExist tr =
   let lastSt = Trace.lastState tr
-  in Chain.subsips lastSt /= Map.empty
+  in Chain.subsips lastSt /= mempty
 
-revealedSIPsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
+revealedSIPsExist :: Trace.Trace (CHAIN Mock)  -> Bool
 revealedSIPsExist tr =
   let lastSt = Trace.lastState tr
-  in Chain.sipdb lastSt /= Map.empty
+  in Chain.sipdb lastSt /= mempty
 
-sipBallotsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
+sipBallotsExist :: Trace.Trace (CHAIN Mock)  -> Bool
 sipBallotsExist tr =
   let lastSt = Trace.lastState tr
-  in Chain.ballots lastSt /= Map.empty
+  in Chain.ballots lastSt /= mempty
 
-voteResultsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
+voteResultsExist :: Trace.Trace (CHAIN Mock)  -> Bool
 voteResultsExist tr =
   let lastSt = Trace.lastState tr
-      vResults = Map.elems $ Chain.vresips lastSt
+      vResults = range $ Chain.vresips lastSt
   in any (\vr -> Data.stakeInFavor vr /=  0
                  && Data.stakeAgainst vr /= 0
                  && Data.stakeAbstain vr /= 0
@@ -411,12 +420,12 @@ voteResultsExist tr =
 -- shows that all phases in the lifecycle of a software update
 -- have been covered
 lifecycleCoverage
-  :: Trace.Trace (CHAIN hashAlgo)
+  :: Trace.Trace (CHAIN Mock)
   -> Bool
 lifecycleCoverage tr =
   let lastSt = Trace.lastState tr
-      asips = Chain.asips lastSt /= Map.empty
-      apprvsips = Chain.apprvsips lastSt /= Set.empty
+      asips = Chain.asips lastSt /= mempty
+      apprvsips = Chain.apprvsips lastSt /= mempty
   in submittedSIPsExist tr
      && revealedSIPsExist tr
      && asips
@@ -427,7 +436,7 @@ lifecycleCoverage tr =
 -- Returns `True` if there is at least one SIP with a voting outcome
 -- as the one in the input parameter in the last state of the trace
 lastStateContainsTallyOutcome
-  :: Trace.Trace (CHAIN hashAlgo)
+  :: Trace.Trace (CHAIN Mock)
   -> Data.TallyOutcome
   -> Bool
 lastStateContainsTallyOutcome tr outc =
@@ -439,16 +448,16 @@ lastStateContainsTallyOutcome tr outc =
       pNoM = Chain.prvNoMajority env
       r_a = Chain.r_a env
   in any (\(_, outcome) -> outcome == outc )
-     $ Map.toList $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
+     $ Map.toList $ tallyOutcomeMap vresips sDist pNoQ pNoM r_a
 
 stakeDistWhoOwns80PctOfStk
-  :: Trace.Trace (CHAIN hashAlgo)
+  :: Trace.Trace (CHAIN Mock)
   -> Float -- ^ desired percent of stakeholders that own 80 pct of stake
   -> Bool
 stakeDistWhoOwns80PctOfStk tr pctOwn =
   let env = Trace._traceEnv tr
       sDist = Chain.stakeDist env
-      sDistPct = Data.stakeDistPct sDist
+      sDistPct = stakeDistPct sDist
       stakePcts =  Map.elems sDistPct
       stakePctsDesc = sortBy (\x y -> compare y x) stakePcts
       pctOwner = take (round $ (fromIntegral $ length stakePcts) * pctOwn) stakePctsDesc

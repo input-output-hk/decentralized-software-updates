@@ -13,39 +13,43 @@
 
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Set as Set (Set)
 import qualified Data.Set as Set
-import           GHC.Generics (Generic)
-import           Data.AbstractSize (HasTypeReps)
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
 
 import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      PredicateFailure, STS, Signal, State, TRC (TRC),
-                     initialRules, judgmentContext, trans, transitionRules, wrapFailed)
-import           Cardano.Crypto.Hash (HashAlgorithm)
+                     initialRules, judgmentContext, trans, transitionRules,
+                     wrapFailed)
 
-import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪), (▷<=))
-import qualified Ledger.Core as Core
+import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪),
+                     (▷<=), (⨃))
 
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
+import           Cardano.Ledger.Spec.State.Ballot (Ballot)
+import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs,
+                     votingPeriodEnd)
+import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
+import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Tallysip (TALLYSIPS)
 import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 
 -- | The Header Update STS
 -- Incorporates "update logic" processing
 -- at the block header level
-data HUPDATE hashAlgo
+data HUPDATE p
 
-data Env hashAlgo
+data Env p
  = Env { k :: !BlockCount
          -- ^ Chain stability parameter.
-       , sipdb :: !(Map (Data.SIPHash hashAlgo) (Data.SIP hashAlgo))
-       , ballots :: !(Map (Data.SIPHash hashAlgo) (Map Core.VKey Data.Confidence))
+       , sipdb :: !(RevealedSIPs p)
+       , ballots :: !(Ballot p)
        , r_a :: !Float
          -- ^ adversary stake ratio
-       , stakeDist :: !(Map Core.VKey Data.Stake)
+       , stakeDist :: !(StakeDistribution p)
        , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
        , prvNoMajority :: !Word8
@@ -53,38 +57,37 @@ data Env hashAlgo
        }
        deriving (Eq, Show)
 
-data St hashAlgo
-  = St { wrsips :: !(Map (Data.SIPHash hashAlgo) Slot)
-       , asips :: !(Map (Data.SIPHash hashAlgo) Slot)
-       , vresips :: !(Map (Data.SIPHash hashAlgo) Data.VotingResult)
-       , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+data St p
+  = St { wrsips :: !(WhenRevealedSIPs p)
+       , asips :: !(ActiveSIPs p)
+       , vresips :: !(SIPsVoteResults p)
+       , apprvsips :: !(ApprovedSIPs p)
          -- ^ Set of approved SIPs
        }
        deriving (Eq, Show, Generic)
 
-instance ( HashAlgorithm hashAlgo
-         , Data.AbstractSize.HasTypeReps hashAlgo
-         ) =>  STS (HUPDATE hashAlgo) where
+instance ( Hashable p
+         ) =>  STS (HUPDATE p) where
 
-  type Environment (HUPDATE hashAlgo) = Env hashAlgo
+  type Environment (HUPDATE p) = Env p
 
-  type State (HUPDATE hashAlgo) = St hashAlgo
+  type State (HUPDATE p) = St p
 
-  type Signal (HUPDATE hashAlgo) = Slot
+  type Signal (HUPDATE p) = Slot
 
-  data PredicateFailure (HUPDATE hashAlgo)
+  data PredicateFailure (HUPDATE p)
     = ErrorOnHUpdate Slot Slot
-    | HupdateFailure (PredicateFailure (TALLYSIPS hashAlgo))
+    | HupdateFailure (PredicateFailure (TALLYSIPS p))
     deriving (Eq, Show)
 
 
   initialRules = [
     do
       IRC Env { } <- judgmentContext
-      pure $! St { wrsips = Map.empty
-                 , asips = Map.empty
-                 , vresips = Map.empty
-                 , apprvsips = Set.empty
+      pure $! St { wrsips = mempty
+                 , asips = mempty
+                 , vresips = mempty
+                 , apprvsips = mempty
                  }
     ]
 
@@ -102,34 +105,28 @@ instance ( HashAlgorithm hashAlgo
           ) <- judgmentContext
 
       let
-          -- Add newly revealed (but stable) SIPs to the active sips. Note that
-          -- we place these new sips as arguments of the left hand side of the
-          -- 'Map.union', since this operation is left biased.
-          asips' = ( Map.mapWithKey  -- update asips slot with voting period end slot
-                       (\sph _ -> slot `addSlot` (Data.votPeriodEnd sph sipdb))
-                       (wrsips ▷<= (slot -. (2 *. k)))
-
-                   )
-                   `Map.union`
-                   asips
+          -- Add newly revealed (but stable) SIPs to the active sips.
+          asips' = asips
+                 ⨃ [ (sipHash, votePeriodEnd)
+                   | sipHash <- Set.toList $ dom (wrsips ▷<= (slot -. (2 *. k)))
+                   , let votePeriodEnd = slot `addSlot` votingPeriodEnd sipHash sipdb
+                   ]
 
           -- exclude old revealed SIPs
           wrsips' = dom asips' ⋪ wrsips
 
           -- Calculate SIPHashes to be tallied
-          toTally = (map fst)
-                      $ Map.toList
-                      $ (asips' ▷<= (slot -. (2 *. k)))
+          toTally = dom (asips' ▷<= (slot -. (2 *. k)))
 
           -- Prune asips, in order to avoid re-tallying of the same SIP
-          asips'' = (Set.fromList toTally) ⋪ asips'
+          asips'' = toTally ⋪ asips'
 
       -- do the tallying and get the voting results (vresips)
       Tallysip.St { Tallysip.vresips = vresips'
                   , Tallysip.asips = asips'''
                   , Tallysip.apprvsips = apprvsips'
                   }
-        <- trans @(TALLYSIPS hashAlgo)
+        <- trans @(TALLYSIPS p)
               $ TRC ( Tallysip.Env { Tallysip.currentSlot = slot
                                    , Tallysip.sipdb = sipdb
                                    , Tallysip.ballots = ballots
@@ -142,7 +139,7 @@ instance ( HashAlgorithm hashAlgo
                                   , Tallysip.asips = asips''
                                   , Tallysip.apprvsips = apprvsips
                                   }
-                    , toTally
+                    , Set.toList toTally
                     )
 
       pure $! St { wrsips = wrsips'
@@ -152,8 +149,7 @@ instance ( HashAlgorithm hashAlgo
                  }
     ]
 
-instance ( HashAlgorithm hashAlgo
-         , Data.AbstractSize.HasTypeReps hashAlgo
-         ) => Embed (TALLYSIPS hashAlgo) (HUPDATE hashAlgo) where
+instance ( STS (TALLYSIPS p)
+         , STS (HUPDATE p)
+         ) => Embed (TALLYSIPS p) (HUPDATE p) where
   wrapFailed = HupdateFailure
-

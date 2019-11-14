@@ -2,13 +2,12 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Spec.STS.Update.Implementation where
-
-import           Data.Set as Set (Set)
 
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
@@ -18,18 +17,19 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
 import           Ledger.Core (Slot)
 
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
-data IMPLEMENTATION hashAlgo
+data IMPLEMENTATION p
 
-data Env hashAlgo =
+data Env p =
   Env { currentSlot :: !Slot
         -- ^ The current slot in the blockchain system
-      , apprvsips :: !(Set (Data.SIPHash hashAlgo))
+      , apprvsips :: !(ApprovedSIPs p)
         -- ^ Set of approved SIPs
       }
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 data St = St ()
   deriving (Eq, Show, Generic)
@@ -37,15 +37,15 @@ data St = St ()
   deriving Monoid via GenericMonoid St
 
 
-instance STS (IMPLEMENTATION hashAlgo) where
+instance STS (IMPLEMENTATION p) where
 
-  type Environment (IMPLEMENTATION hashAlgo) = Env hashAlgo
+  type Environment (IMPLEMENTATION p) = Env p
 
-  type State (IMPLEMENTATION hashAlgo) = St
+  type State (IMPLEMENTATION p) = St
 
-  type Signal (IMPLEMENTATION hashAlgo) = Data.ImplementationPayload
+  type Signal (IMPLEMENTATION p) = Data.ImplementationPayload
 
-  data PredicateFailure (IMPLEMENTATION hashAlgo)
+  data PredicateFailure (IMPLEMENTATION p)
     = ImplementationFailure
     deriving (Eq, Show)
 
