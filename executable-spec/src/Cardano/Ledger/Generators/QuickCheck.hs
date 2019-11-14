@@ -13,18 +13,22 @@ module Cardano.Ledger.Generators.QuickCheck
 where
 
 import           Control.Arrow ((&&&))
-import           Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
-import           Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import           Data.Word (Word8)
 import           System.Random (Random)
 
 import           Test.QuickCheck (Gen)
 import qualified Test.QuickCheck as Gen
 
+import           Ledger.Core (dom)
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.State.Participants
+                     (Participants (Participants))
+import           Cardano.Ledger.Spec.State.StakeDistribution
+                     (StakeDistribution (StakeDistribution))
 import           Cardano.Ledger.Spec.STS.Update.Data (Stake (Stake))
 
 
@@ -40,10 +44,11 @@ k  = Core.BlockCount
 currentSlot :: Gen Core.Slot
 currentSlot = Core.Slot <$>  Gen.choose (0, 10)
 
-participants :: Gen (Bimap Core.VKey Core.SKey)
+participants :: Gen (Participants p)
 participants
   = pure
-  $! Bimap.fromList
+  $! Participants
+  $  Bimap.fromList
   $  fmap (Core.vKey &&& Core.sKey)
   $  fmap Core.keyPair
   $  fmap Core.Owner [0 .. 10]
@@ -83,9 +88,9 @@ prvNoMajority = Gen.choose (3, 7)
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
 
-stakeDist :: Gen (Map Core.VKey Stake)
+stakeDist :: Gen (StakeDistribution p)
 stakeDist = do
-  p <- participants
-  let vkeys = Bimap.keys p
+  someParticipants <- participants
+  let vkeys = Set.toList $ dom someParticipants
   stks <- Gen.vectorOf (length vkeys) (Gen.choose (1, 20))
-  pure $ Map.fromList $ zip vkeys (Stake <$> stks)
+  pure $ StakeDistribution $ Map.fromList $ zip vkeys (Stake <$> stks)

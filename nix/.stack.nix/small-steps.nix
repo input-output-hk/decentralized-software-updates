@@ -47,7 +47,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       copyright = "";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
-      homepage = "https://github.com/input-output-hk/cardano-chain";
+      homepage = "https://github.com/input-output-hk/cardano-legder-specs";
       url = "";
       synopsis = "Small step semantics";
       description = "";
@@ -58,6 +58,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
           (hsPkgs."free" or (buildDepError "free"))
@@ -115,8 +116,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "9f822167500a52aa816e722a71e8810623af69dd";
-      sha256 = "1w2g7g1q6fg3fi0c2nbdgl48kk9y5q0z53nzxr2qwhbychjpiy60";
+      rev = "869092d963a71ac90e2c456da37372cc20207272";
+      sha256 = "0clazlmrlj58m24qkk2kmj2qfh0gq8br7amxci4kmlgvxg659ydm";
       });
     postUnpack = "sourceRoot+=/byron/semantics/executable-spec; echo source root reset to \$sourceRoot";
     }
