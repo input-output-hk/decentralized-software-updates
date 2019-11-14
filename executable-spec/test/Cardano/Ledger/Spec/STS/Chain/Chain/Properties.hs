@@ -230,7 +230,11 @@ sipBallotsExist tr =
 voteResultsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
 voteResultsExist tr =
   let lastSt = Trace.lastState tr
-  in Chain.vresips lastSt /= Map.empty
+      vResults = Map.elems $ Chain.vresips lastSt
+  in any (\vr -> Data.stakeInFavor vr /=  0
+                 && Data.stakeAgainst vr /= 0
+                 && Data.stakeAbstain vr /= 0
+         ) vResults
 
 -- Returns true if the last state of the inpuτ trace
 -- shows that all phased in the liefecycle of a software update
