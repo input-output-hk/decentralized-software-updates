@@ -276,7 +276,7 @@ stakeDistIsSkewed tr =
       sDistPct = Data.stakeDistPct sDist
       pcts =  Map.elems sDistPct
       pctsSortDesc = sortBy (\x y -> compare y x) pcts
-      pct20 = take (round $ (fromIntegral $ length pcts) * 0.20) pctsSortDesc
+      pct20 = take (round $ (fromIntegral $ length pcts) * (0.20 :: Float)) pctsSortDesc
       pct20Stake = foldl' (\tot s -> tot + s) 0 pct20
   in -- 20% of stakeholders hold 80% of stake
     pct20Stake >= 80
@@ -290,7 +290,7 @@ stakeDistIsUniform tr =
       sDistPct = Data.stakeDistPct sDist
       pcts =  Map.elems sDistPct
       pctsSortDesc = sortBy (\x y -> compare y x) pcts
-      pct80 = take (round $ (fromIntegral $ length pcts) * 0.80) pctsSortDesc
+      pct80 = take (round $ (fromIntegral $ length pcts) * (0.80 :: Float)) pctsSortDesc
       pct20Stake = foldl' (\tot s -> tot + s) 0 pct80
   in -- 80% of stakeholders hold 80% of stake
     pct20Stake >= 80
