@@ -8,7 +8,7 @@ module Cardano.Ledger.Spec.STS.Chain.Chain.Properties where
 import           Control.Arrow ((&&&))
 import           Data.Function ((&))
 import           Data.Word (Word64)
-import           Data.List (foldl', any, sortBy)
+import           Data.List (foldl', any, sortBy, sum)
 import qualified Test.QuickCheck as QC
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -86,38 +86,38 @@ relevantCasesAreCovered
 
           -- Lifecycle coverage:
           -- There is at least one proposal in every phase of the lifecycle
-          QC.cover 50
+          QC.cover 80
             (lifecycleCoverage traceSample)
             "The lifecycle of a software update is sufficently covered"
             $
 
           -- X% of traces should: there are SIPs that got approved
           QC.cover 25
-            (outcomeAny Data.Approved traceSample)
+            (traceSample `lastStateContainsOutcome` Data.Approved )
             "There are approved SIPs"
             $
 
           -- X% of traces should: there are SIPs that got rejected
           QC.cover 25
-            (outcomeAny Data.Rejected traceSample)
+            (traceSample `lastStateContainsOutcome` Data.Rejected)
             "There are rejected SIPs"
             $
 
           -- X% of traces should: there are SIPs that got no quorum
           QC.cover 20
-            (outcomeAny Data.NoQuorum traceSample)
+            (traceSample `lastStateContainsOutcome` Data.NoQuorum)
             "There are no-quorum SIPs"
             $
 
           -- X% of traces should: there are SIPs that got no majority
           QC.cover 20
-            (outcomeAny Data.NoMajority traceSample)
+            (traceSample `lastStateContainsOutcome` Data.NoMajority)
             "There are no-majority SIPs"
             $
 
           -- X% of traces should: there are SIPs that got expired
           QC.cover 10
-            (outcomeAny Data.Expired traceSample)
+            (traceSample `lastStateContainsOutcome` Data.Expired)
             "There are expired SIPs"
             $
 
@@ -169,13 +169,13 @@ relevantCasesAreCovered
 
             -- X% of traces should: stake distribution is skewed
           QC.cover 25
-             (stakeDistIsSkewed traceSample)
+             (stakeDistWhoOwns80PctOfStk traceSample 0.20)
              "stake distribution is skewed"
              $
 
           -- X% of traces should: stake distribution is uniform
           QC.cover 25
-             (stakeDistIsUniform traceSample)
+             (stakeDistWhoOwns80PctOfStk traceSample 0.80)
              "stake distribution is uniform"
              $ qc_onlyValidSignalsAreGenerated
   where
@@ -254,9 +254,9 @@ lifecycleCoverage tr =
   in subsips && revsips && asips && ballots && vresips && apprvsips
 
 -- Returns `True` if there is at least one SIP with a voting outcome
--- as the one in the input parameter
-outcomeAny :: Data.TallyOutcome -> Trace.Trace (CHAIN ShortHash) -> Bool
-outcomeAny outc tr =
+-- as the one in the input parameter in the last state of the trace
+lastStateContainsOutcome :: Trace.Trace (CHAIN ShortHash) -> Data.TallyOutcome -> Bool
+lastStateContainsOutcome tr outc =
   let lastSt = Trace.lastState tr
       vresips = Chain.vresips lastSt
       env = Trace._traceEnv tr
@@ -267,30 +267,17 @@ outcomeAny outc tr =
   in any (\(_, outcome) -> outcome == outc )
      $ Map.toList $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
 
-stakeDistIsSkewed
+stakeDistWhoOwns80PctOfStk
   :: Trace.Trace (CHAIN ShortHash)
+  -> Float -- ^ desired percent of stakeholders that own 80 pct of stake
   -> Bool
-stakeDistIsSkewed tr =
+stakeDistWhoOwns80PctOfStk tr pctOwn =
   let env = Trace._traceEnv tr
       sDist = Chain.stakeDist env
       sDistPct = Data.stakeDistPct sDist
-      pcts =  Map.elems sDistPct
-      pctsSortDesc = sortBy (\x y -> compare y x) pcts
-      pct20 = take (round $ (fromIntegral $ length pcts) * (0.20 :: Float)) pctsSortDesc
-      pct20Stake = foldl' (\tot s -> tot + s) 0 pct20
+      stakePcts =  Map.elems sDistPct
+      stakePctsDesc = sortBy (\x y -> compare y x) stakePcts
+      pctOwner = take (round $ (fromIntegral $ length stakePcts) * pctOwn) stakePctsDesc
+      pctOwnerTot = sum pctOwner
   in -- 20% of stakeholders hold 80% of stake
-    pct20Stake >= 80
-
-stakeDistIsUniform
-  :: Trace.Trace (CHAIN ShortHash)
-  -> Bool
-stakeDistIsUniform tr =
-  let env = Trace._traceEnv tr
-      sDist = Chain.stakeDist env
-      sDistPct = Data.stakeDistPct sDist
-      pcts =  Map.elems sDistPct
-      pctsSortDesc = sortBy (\x y -> compare y x) pcts
-      pct80 = take (round $ (fromIntegral $ length pcts) * (0.80 :: Float)) pctsSortDesc
-      pct20Stake = foldl' (\tot s -> tot + s) 0 pct80
-  in -- 80% of stakeholders hold 80% of stake
-    pct20Stake >= 80
+    pctOwnerTot >= 80
