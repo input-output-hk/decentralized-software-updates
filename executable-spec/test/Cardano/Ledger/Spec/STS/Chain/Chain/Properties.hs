@@ -177,7 +177,7 @@ relevantCasesAreCovered
           QC.cover 25
              (stakeDistWhoOwns80PctOfStk traceSample 0.80)
              "stake distribution is uniform"
-             $ qc_onlyValidSignalsAreGenerated
+             $ True
   where
     maxTraceLength = 100
 
@@ -238,20 +238,21 @@ voteResultsExist tr =
          ) vResults
 
 -- Returns true if the last state of the inpuτ trace
--- shows that all phased in the liefecycle of a software update
+-- shows that all phases in the lifecycle of a software update
 -- have been covered
 lifecycleCoverage
   :: Trace.Trace (CHAIN ShortHash)
   -> Bool
 lifecycleCoverage tr =
   let lastSt = Trace.lastState tr
-      subsips = Chain.subsips lastSt /= Map.empty
-      revsips = Chain.sipdb lastSt /= Map.empty
       asips = Chain.asips lastSt /= Map.empty
-      ballots = Chain.ballots lastSt /= Map.empty
-      vresips = Chain.vresips lastSt /= Map.empty
       apprvsips = Chain.apprvsips lastSt /= Set.empty
-  in subsips && revsips && asips && ballots && vresips && apprvsips
+  in submittedSIPsExist tr
+     && revealedSIPsExist tr
+     && asips
+     && sipBallotsExist tr
+     && voteResultsExist tr
+     && apprvsips
 
 -- Returns `True` if there is at least one SIP with a voting outcome
 -- as the one in the input parameter in the last state of the trace
