@@ -64,120 +64,119 @@ relevantCasesAreCovered
   = QC.withMaxSuccess 300
   $ STS.Gen.forAllTrace @(CHAIN ShortHash) @() maxTraceLength ()
   $ \traceSample ->
-        QC.checkCoverage $
-          -- traces should be long enough to allow for the stabilization
-          -- of events
-          QC.cover 80
-            ( (fromIntegral $ Trace.traceLength traceSample)
-              >=
-              getMinTraceLength  (Chain.k $ Trace._traceEnv traceSample)
-            )
-            "Trace length is long enough to allow for the stabilization of events"
-            $
+        -- traces should be long enough to allow for the stabilization
+        -- of events
+        QC.cover 80
+          ( (fromIntegral $ Trace.traceLength traceSample)
+            >=
+            getMinTraceLength  (Chain.k $ Trace._traceEnv traceSample)
+          )
+          "Trace length is long enough to allow for the stabilization of events"
+          $
 
-          -- 80% of traces should include a 20% percent of update payload
-          QC.cover 80
-            ( (updatePayloadPct traceSample) >= 15
-            &&
-              (updatePayloadPct traceSample) <= 25
-            )
-            "a reasonable pct of update payload appears in the trace "
-            $
+        -- 80% of traces should include a 20% percent of update payload
+        QC.cover 80
+          ( (updatePayloadPct traceSample) >= 15
+          &&
+            (updatePayloadPct traceSample) <= 25
+          )
+          "a reasonable pct of update payload appears in the trace "
+          $
 
-          -- Lifecycle coverage:
-          -- There is at least one proposal in every phase of the lifecycle
-          QC.cover 80
-            (lifecycleCoverage traceSample)
-            "The lifecycle of a software update is sufficently covered"
-            $
+        -- Lifecycle coverage:
+        -- There is at least one proposal in every phase of the lifecycle
+        QC.cover 80
+          (lifecycleCoverage traceSample)
+          "The lifecycle of a software update is sufficently covered"
+          $
 
-          -- X% of traces should: there are SIPs that got approved
-          QC.cover 25
-            (traceSample `lastStateContainsOutcome` Data.Approved )
-            "There are approved SIPs"
-            $
+        -- X% of traces should: there are SIPs that got approved
+        QC.cover 25
+          (traceSample `lastStateContainsOutcome` Data.Approved )
+          "There are approved SIPs"
+          $
 
-          -- X% of traces should: there are SIPs that got rejected
-          QC.cover 25
-            (traceSample `lastStateContainsOutcome` Data.Rejected)
-            "There are rejected SIPs"
-            $
+        -- X% of traces should: there are SIPs that got rejected
+        QC.cover 25
+          (traceSample `lastStateContainsOutcome` Data.Rejected)
+          "There are rejected SIPs"
+          $
 
-          -- X% of traces should: there are SIPs that got no quorum
-          QC.cover 20
-            (traceSample `lastStateContainsOutcome` Data.NoQuorum)
-            "There are no-quorum SIPs"
-            $
+        -- X% of traces should: there are SIPs that got no quorum
+        QC.cover 20
+          (traceSample `lastStateContainsOutcome` Data.NoQuorum)
+          "There are no-quorum SIPs"
+          $
 
-          -- X% of traces should: there are SIPs that got no majority
-          QC.cover 20
-            (traceSample `lastStateContainsOutcome` Data.NoMajority)
-            "There are no-majority SIPs"
-            $
+        -- X% of traces should: there are SIPs that got no majority
+        QC.cover 20
+          (traceSample `lastStateContainsOutcome` Data.NoMajority)
+          "There are no-majority SIPs"
+          $
 
-          -- X% of traces should: there are SIPs that got expired
-          QC.cover 10
-            (traceSample `lastStateContainsOutcome` Data.Expired)
-            "There are expired SIPs"
-            $
+        -- X% of traces should: there are SIPs that got expired
+        QC.cover 10
+          (traceSample `lastStateContainsOutcome` Data.Expired)
+          "There are expired SIPs"
+          $
 
-          -- X% of traces should: should have submitted SIPs
-          QC.cover 80
-            (submittedSIPsExist traceSample)
-            "Submitted SIPs exist"
-            $
+        -- X% of traces should: should have submitted SIPs
+        QC.cover 80
+          (submittedSIPsExist traceSample)
+          "Submitted SIPs exist"
+          $
 
-          -- X% of traces should: should have revealed SIPs
-          QC.cover 80
-            (revealedSIPsExist traceSample)
-            "Revealed SIPs exist"
-            $
+        -- X% of traces should: should have revealed SIPs
+        QC.cover 80
+          (revealedSIPsExist traceSample)
+          "Revealed SIPs exist"
+          $
 
-          -- X% of traces should: should have ballots for SIPs
-          QC.cover 80
-            (sipBallotsExist traceSample)
-            "Ballots for SIPs exist"
-            $
+        -- X% of traces should: should have ballots for SIPs
+        QC.cover 80
+          (sipBallotsExist traceSample)
+          "Ballots for SIPs exist"
+          $
 
-          -- X% of traces should: should have voting results for SIPs
-          QC.cover 80
-            (voteResultsExist traceSample)
-            "Voting results for SIPs exist"
-            $
+        -- X% of traces should: should have voting results for SIPs
+        QC.cover 80
+          (voteResultsExist traceSample)
+          "Voting results for SIPs exist"
+          $
 
-          -- TODO covers:
-            -- X% of traces should: Submitted SIPs in the trace are unique
+        -- TODO covers:
+          -- X% of traces should: Submitted SIPs in the trace are unique
 
-            -- X% of traces should: Submitted SIPs in the trace are not unique
+          -- X% of traces should: Submitted SIPs in the trace are not unique
 
-            -- X% of traces should: Submitted SIPs correspond only to valid stake holders
+          -- X% of traces should: Submitted SIPs correspond only to valid stake holders
 
-            -- X% of traces should: Submitted SIPs correspond also to invalid stake holders
+          -- X% of traces should: Submitted SIPs correspond also to invalid stake holders
 
-            -- X% of traces should: for every Submitted SIP there is a Reveal
+          -- X% of traces should: for every Submitted SIP there is a Reveal
 
-            -- X% of traces should: there are Submitted SIPs that have not been Revealed yet
+          -- X% of traces should: there are Submitted SIPs that have not been Revealed yet
 
-            -- X% of traces should: there are Revealed SIPs that have not been submitted
+          -- X% of traces should: there are Revealed SIPs that have not been submitted
 
-            -- X% of traces should: Votes correspond only to active SIPs
+          -- X% of traces should: Votes correspond only to active SIPs
 
-            -- X% of traces should: Votes correspond also to non-active SIPs
-            -- (e.g., revealed, not revealed, submitted, not submitted)
+          -- X% of traces should: Votes correspond also to non-active SIPs
+          -- (e.g., revealed, not revealed, submitted, not submitted)
 
-            -- X% of traces should: There are active SIPs with no votes
+          -- X% of traces should: There are active SIPs with no votes
 
-            -- X% of traces should: stake distribution is skewed
-          QC.cover 25
-             (stakeDistWhoOwns80PctOfStk traceSample 0.20)
-             "stake distribution is skewed"
-             $
+          -- X% of traces should: stake distribution is skewed
+        QC.cover 25
+           (stakeDistWhoOwns80PctOfStk traceSample 0.20)
+           "stake distribution is skewed"
+           $
 
-          -- X% of traces should: stake distribution is uniform
-          QC.cover 25
-             (stakeDistWhoOwns80PctOfStk traceSample 0.80)
-             "stake distribution is uniform"
-             $ True
+        -- X% of traces should: stake distribution is uniform
+        QC.cover 25
+           (stakeDistWhoOwns80PctOfStk traceSample 0.80)
+           "stake distribution is uniform"
+           $ True
   where
     maxTraceLength = 100
 

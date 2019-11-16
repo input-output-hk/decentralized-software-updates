@@ -7,7 +7,7 @@ where
 
 import           Test.Tasty (TestTree, defaultMain, localOption, testGroup)
 import           Test.Tasty.Ingredients.ConsoleReporter (UseColor (Auto))
-import           Test.Tasty.QuickCheck (testProperty, expectFailure)
+import           Test.Tasty.QuickCheck (testProperty)
 
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain.Properties as Chain
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Properties as Ideation
@@ -39,6 +39,6 @@ main = defaultMain tests
           Chain.qc_revealsAreClassified
       , testProperty
           "Appropriate Traces are covered"
-          (expectFailure $ Chain.relevantCasesAreCovered)
+          (Chain.relevantCasesAreCovered)
       ]
     ]
