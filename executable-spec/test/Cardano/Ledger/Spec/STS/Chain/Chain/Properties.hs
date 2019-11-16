@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 
 module Cardano.Ledger.Spec.STS.Chain.Chain.Properties where
 
-import           Control.Arrow ((&&&))
 import           Data.Function ((&))
 import           Data.Word (Word64)
 import           Data.List (foldl', any, sortBy, sum)
@@ -18,13 +18,14 @@ import           Cardano.Crypto.Hash.Short (ShortHash)
 import qualified Control.State.Transition.Trace as Trace
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
-import           Ledger.Core (dom, (∪), BlockCount, unBlockCount, unSlotCount)
+import           Ledger.Core (dom, BlockCount, unBlockCount, unSlotCount)
 
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
+import qualified Cardano.Ledger.Spec.STS.Update as Update
 
 
 qc_onlyValidSignalsAreGenerated :: QC.Property
@@ -45,11 +46,10 @@ qc_revealsAreClassified
       STS.Gen.classifySize "Reveals" traceSample lastStateReveals maxTraceLength step
   where
     (maxTraceLength, step) = (100, 5)
-    lastStateReveals :: Trace.Trace (CHAIN ShortHash) -> Word64
+    lastStateReveals :: Trace.Trace (CHAIN hashAlgo) -> Word64
     lastStateReveals tr
       = Trace.lastState tr
-      & Chain.wrsips &&& Chain.asips
-      & uncurry (∪)
+      & Chain.sipdb
       & dom
       & length
       & fromIntegral
@@ -76,9 +76,9 @@ relevantCasesAreCovered
 
         -- 80% of traces should include a 20% percent of update payload
         QC.cover 80
-          ( (updatePayloadPct traceSample) >= 15
+          ( (pctUpdatePayload traceSample) >= 15
           &&
-            (updatePayloadPct traceSample) <= 25
+            (pctUpdatePayload traceSample) <= 25
           )
           "a reasonable pct of update payload appears in the trace "
           $
@@ -92,31 +92,31 @@ relevantCasesAreCovered
 
         -- X% of traces should: there are SIPs that got approved
         QC.cover 25
-          (traceSample `lastStateContainsOutcome` Data.Approved )
+          (traceSample `lastStateContainsTallyOutcome` Data.Approved )
           "There are approved SIPs"
           $
 
         -- X% of traces should: there are SIPs that got rejected
         QC.cover 25
-          (traceSample `lastStateContainsOutcome` Data.Rejected)
+          (traceSample `lastStateContainsTallyOutcome` Data.Rejected)
           "There are rejected SIPs"
           $
 
         -- X% of traces should: there are SIPs that got no quorum
         QC.cover 20
-          (traceSample `lastStateContainsOutcome` Data.NoQuorum)
+          (traceSample `lastStateContainsTallyOutcome` Data.NoQuorum)
           "There are no-quorum SIPs"
           $
 
         -- X% of traces should: there are SIPs that got no majority
         QC.cover 20
-          (traceSample `lastStateContainsOutcome` Data.NoMajority)
+          (traceSample `lastStateContainsTallyOutcome` Data.NoMajority)
           "There are no-majority SIPs"
           $
 
         -- X% of traces should: there are SIPs that got expired
         QC.cover 10
-          (traceSample `lastStateContainsOutcome` Data.Expired)
+          (traceSample `lastStateContainsTallyOutcome` Data.Expired)
           "There are expired SIPs"
           $
 
@@ -176,6 +176,60 @@ relevantCasesAreCovered
         QC.cover 25
            (stakeDistWhoOwns80PctOfStk traceSample 0.80)
            "stake distribution is uniform"
+           $
+        QC.cover 100
+          ( (length $ getSIPsInTraceFromSignals traceSample)
+            ==
+            (length $ getSIPsInTraceFromLastState traceSample)
+          )
+          "SIPs in signal equal SIPs in state"
+           $
+        QC.tabulate "Pct of Txs with Update Payload" [( show @Int
+                                                       $ round @Float
+                                                       $ pctUpdatePayload traceSample
+                                                      ) ++ "%"
+                                                     ]
+           $
+        QC.tabulate "Pct of SIP submissions in Update Payload"
+                                                     [( show @Int
+                                                       $ round @Float
+                                                       $ pctSIPsInUpdPayload traceSample
+                                                      ) ++ "%"
+                                                     ]
+           $
+        QC.tabulate "Pct of SIP per Tally Outcome"
+                                          [ ( show @Int
+                                             $ round @Float
+                                             $ pctSIPsTallyOutcome traceSample Data.Approved
+                                            ) ++ "% Approved"
+                                          , ( show @Int
+                                              $ round @Float
+                                              $ pctSIPsTallyOutcome traceSample Data.Rejected
+                                            ) ++ "% Rejected"
+                                          , ( show @Int
+                                              $ round @Float
+                                              $ pctSIPsTallyOutcome traceSample Data.NoQuorum
+                                            ) ++ "% NoQuorum"
+                                          , ( show @Int
+                                              $ round @Float
+                                              $ pctSIPsTallyOutcome traceSample Data.NoMajority
+                                            ) ++ "% NoMajority"
+                                          , ( show @Int
+                                              $ round @Float
+                                              $ pctSIPsTallyOutcome traceSample Data.Expired
+                                            ) ++ "% Expired"
+                                          ]
+           $
+        QC.tabulate "Pct of SIPs in revoting"
+                                          [ ( show @Int
+                                              $ round @Float
+                                              $ pctSIPsInRevoting traceSample Data.NoQuorum
+                                            ) ++ "% due to No Quorum"
+                                          , ( show @Int
+                                              $ round @Float
+                                              $ pctSIPsInRevoting traceSample Data.NoMajority
+                                            ) ++ "% due to No Majority"
+                                          ]
            $ True
   where
     maxTraceLength = 100
@@ -192,13 +246,13 @@ getMinTraceLength k =
   in 2*kval + 2*kval + minVotingDuration + 2*kval
 
 -- | Returns the percent of Txs with a non-empty update payload in the input Trace
-updatePayloadPct
-  :: Trace.Trace (CHAIN ShortHash)
+pctUpdatePayload
+  :: Trace.Trace (CHAIN hashAlgo)
   -> Float
-updatePayloadPct tr =
+pctUpdatePayload tr =
   let -- get the total of transactions in tr
       txTot = foldl' (\tot b -> tot + txsInAblock b) 0 blocks
-      blocks = (Trace.traceSignals Trace.NewestFirst tr)
+      blocks = Trace.traceSignals Trace.NewestFirst tr
       txsInAblock = \b -> length $ Body.transactions (Chain.body b)
       -- get the total of Txs with a non-empty update payload
       txupdTot = foldl' (\tot b -> tot + updtxsInAblock b) 0 blocks
@@ -212,22 +266,126 @@ updatePayloadPct tr =
 
   in (fromIntegral txupdTot) / (fromIntegral txTot) * 100
 
-submittedSIPsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+pctSIPsInUpdPayload :: Trace.Trace(CHAIN hashAlgo) -> Float
+pctSIPsInUpdPayload tr =
+   (fromIntegral $ length $ getSIPsInTraceFromLastState tr)
+    /
+    (fromIntegral $ length $ getUpdPayload tr)
+    * 100
+
+-- | Percent of SIPs with the specified tally outcome
+pctSIPsTallyOutcome :: Trace.Trace(CHAIN hashAlgo) -> Data.TallyOutcome -> Float
+pctSIPsTallyOutcome tr outc =
+  let lastSt = Trace.lastState tr
+      vresips = Chain.vresips lastSt
+      env = Trace._traceEnv tr
+      sDist = Chain.stakeDist env
+      pNoQ = Chain.prvNoQuorum env
+      pNoM = Chain.prvNoMajority env
+      r_a = Chain.r_a env
+      sipsOutcome =  map (fst)
+                     $ filter (\(_, outcome) -> outcome == outc )
+                     $ Map.toList
+                     $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
+  in  (fromIntegral $ length $ sipsOutcome)
+      /
+      (fromIntegral $ length $ getSIPsInTraceFromLastState tr)
+      * 100
+
+-- | Pct of SIPs that entered a revoting due to No Quorum or No Majority
+pctSIPsInRevoting :: Trace.Trace(CHAIN hashAlgo) -> Data.TallyOutcome -> Float
+pctSIPsInRevoting tr outc =
+  let lastSt = Trace.lastState tr
+      vresips = Chain.vresips lastSt
+      sipsRevoting = case outc of
+        Data.NoQuorum ->
+          filter ( \(_, (Data.VotingResult {Data.rvNoQuorum})) ->
+                                   if rvNoQuorum > 0
+                                    then True
+                                    else False
+                              )
+                              $ Map.toList vresips
+        Data.NoMajority ->
+          filter ( \(_, (Data.VotingResult {Data.rvNoMajority})) ->
+                                   if rvNoMajority > 0
+                                    then True
+                                    else False
+                              )
+                              $ Map.toList vresips
+        _ -> error $ "Revoting is not allowed with this "++ (show outc) ++ " tally outcome."
+
+  in (fromIntegral $ length $ sipsRevoting)
+     /
+     (fromIntegral $ length $ Map.toList vresips)
+     * 100
+
+getSIPsInTraceFromLastState :: Trace.Trace (CHAIN hashAlgo) -> [(Data.SIP hashAlgo)]
+getSIPsInTraceFromLastState tr =
+  let lastSt = Trace.lastState tr
+  in  map (snd)
+      $ Map.toList
+      $ Chain.subsips lastSt
+
+getSIPsInTraceFromSignals :: Trace.Trace (CHAIN hashAlgo) -> [(Data.SIP hashAlgo)]
+getSIPsInTraceFromSignals tr =
+  let sips = foldl' (\tot b ->  tot ++ (sipsInABlock b)) [] blocks
+      blocks = Trace.traceSignals Trace.NewestFirst tr
+      sipsInABlock = \b -> map (\updPld -> case updPld of
+                                             Update.Ideation (Data.Submit _ sip)
+                                               -> sip
+                                             _ -> error $
+                                                   "getSIPsInTraceFromSignals:" ++
+                                                   " Oh God! This error" ++
+                                                   " cannot possibly happen!"
+
+                               )
+                           $ filter ( -- get sips only from upd payload
+                                      \updPld -> case updPld of
+                                        Update.Ideation
+                                          (Data.Submit _ _) -> True
+                                        _ -> False
+                                    )
+                           $ concat
+                           $ map (Transaction.update)
+                             -- Txs with a non-empty update payload
+                           $ filter (\txb -> not . null
+                                              $ Transaction.update txb
+                                    )
+                           $ map (Transaction.body)
+                           $ Body.transactions (Chain.body b)
+  in sips
+
+getUpdPayload :: Trace.Trace(CHAIN hashAlgo) -> [(Update.UpdatePayload hashAlgo)]
+getUpdPayload tr =
+  let upds = foldl' (\tot b ->  tot ++ (updsInABlock b)) [] blocks
+      blocks = Trace.traceSignals Trace.NewestFirst tr
+      updsInABlock = \b -> concat
+                           $ map (Transaction.update)
+                             -- Txs with a non-empty update payload
+                           $ filter (\txb -> not . null
+                                              $ Transaction.update txb
+                                    )
+                           $ map (Transaction.body)
+                           $ Body.transactions (Chain.body b)
+  in upds
+
+
+submittedSIPsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
 submittedSIPsExist tr =
   let lastSt = Trace.lastState tr
   in Chain.subsips lastSt /= Map.empty
 
-revealedSIPsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+revealedSIPsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
 revealedSIPsExist tr =
   let lastSt = Trace.lastState tr
   in Chain.sipdb lastSt /= Map.empty
 
-sipBallotsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+sipBallotsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
 sipBallotsExist tr =
   let lastSt = Trace.lastState tr
   in Chain.ballots lastSt /= Map.empty
 
-voteResultsExist :: Trace.Trace (CHAIN ShortHash)  -> Bool
+voteResultsExist :: Trace.Trace (CHAIN hashAlgo)  -> Bool
 voteResultsExist tr =
   let lastSt = Trace.lastState tr
       vResults = Map.elems $ Chain.vresips lastSt
@@ -240,7 +398,7 @@ voteResultsExist tr =
 -- shows that all phases in the lifecycle of a software update
 -- have been covered
 lifecycleCoverage
-  :: Trace.Trace (CHAIN ShortHash)
+  :: Trace.Trace (CHAIN hashAlgo)
   -> Bool
 lifecycleCoverage tr =
   let lastSt = Trace.lastState tr
@@ -255,8 +413,11 @@ lifecycleCoverage tr =
 
 -- Returns `True` if there is at least one SIP with a voting outcome
 -- as the one in the input parameter in the last state of the trace
-lastStateContainsOutcome :: Trace.Trace (CHAIN ShortHash) -> Data.TallyOutcome -> Bool
-lastStateContainsOutcome tr outc =
+lastStateContainsTallyOutcome
+  :: Trace.Trace (CHAIN hashAlgo)
+  -> Data.TallyOutcome
+  -> Bool
+lastStateContainsTallyOutcome tr outc =
   let lastSt = Trace.lastState tr
       vresips = Chain.vresips lastSt
       env = Trace._traceEnv tr
@@ -268,7 +429,7 @@ lastStateContainsOutcome tr outc =
      $ Map.toList $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
 
 stakeDistWhoOwns80PctOfStk
-  :: Trace.Trace (CHAIN ShortHash)
+  :: Trace.Trace (CHAIN hashAlgo)
   -> Float -- ^ desired percent of stakeholders that own 80 pct of stake
   -> Bool
 stakeDistWhoOwns80PctOfStk tr pctOwn =

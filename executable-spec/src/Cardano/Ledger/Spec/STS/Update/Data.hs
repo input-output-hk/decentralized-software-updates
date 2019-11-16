@@ -91,7 +91,7 @@ data VotingResult =
 data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
   deriving (Eq, Ord, Show)
 
--- | Return a SIP hash -> Tally Outcome map
+-- | Return a SIP-hash to TallyOutcome map
 tallyOutcomeMap
   :: Map (SIPHash hashAlgo) VotingResult -- ^ Voting Results
   -> Map Core.VKey Stake
