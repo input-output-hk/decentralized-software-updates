@@ -264,14 +264,19 @@ pctUpdatePayload tr =
                                $ map (Transaction.body)
                                $ Body.transactions (Chain.body b)
 
-  in (fromIntegral txupdTot) / (fromIntegral txTot) * 100
+  in if txTot > 0
+       then (fromIntegral txupdTot) / (fromIntegral txTot) * 100
+       else 0
 
 pctSIPsInUpdPayload :: Trace.Trace(CHAIN hashAlgo) -> Float
 pctSIPsInUpdPayload tr =
-   (fromIntegral $ length $ getSIPsInTraceFromLastState tr)
-    /
-    (fromIntegral $ length $ getUpdPayload tr)
-    * 100
+  if (length $ getUpdPayload tr) /= 0
+    then
+      (fromIntegral $ length $ getSIPsInTraceFromLastState tr)
+      /
+      (fromIntegral $ length $ getUpdPayload tr)
+      * 100
+    else 0
 
 -- | Percent of SIPs with the specified tally outcome
 pctSIPsTallyOutcome :: Trace.Trace(CHAIN hashAlgo) -> Data.TallyOutcome -> Float
@@ -287,10 +292,14 @@ pctSIPsTallyOutcome tr outc =
                      $ filter (\(_, outcome) -> outcome == outc )
                      $ Map.toList
                      $ Data.tallyOutcomeMap vresips sDist pNoQ pNoM r_a
-  in  (fromIntegral $ length $ sipsOutcome)
-      /
-      (fromIntegral $ length $ getSIPsInTraceFromLastState tr)
-      * 100
+  in
+    if (length $ getSIPsInTraceFromLastState tr) /= 0
+      then
+        (fromIntegral $ length $ sipsOutcome)
+        /
+        (fromIntegral $ length $ getSIPsInTraceFromLastState tr)
+        * 100
+      else 0
 
 -- | Pct of SIPs that entered a revoting due to No Quorum or No Majority
 pctSIPsInRevoting :: Trace.Trace(CHAIN hashAlgo) -> Data.TallyOutcome -> Float
@@ -314,10 +323,14 @@ pctSIPsInRevoting tr outc =
                               $ Map.toList vresips
         _ -> error $ "Revoting is not allowed with this "++ (show outc) ++ " tally outcome."
 
-  in (fromIntegral $ length $ sipsRevoting)
-     /
-     (fromIntegral $ length $ Map.toList vresips)
-     * 100
+  in
+    if (length $ Map.toList vresips) /= 0
+      then
+        (fromIntegral $ length $ sipsRevoting)
+        /
+        (fromIntegral $ length $ Map.toList vresips)
+        * 100
+      else 0
 
 getSIPsInTraceFromLastState :: Trace.Trace (CHAIN hashAlgo) -> [(Data.SIP hashAlgo)]
 getSIPsInTraceFromLastState tr =
@@ -335,8 +348,8 @@ getSIPsInTraceFromSignals tr =
                                                -> sip
                                              _ -> error $
                                                    "getSIPsInTraceFromSignals:" ++
-                                                   " Oh God! This error" ++
-                                                   " cannot possibly happen!"
+                                                   " The execution path cannot " ++
+                                                   " reach this point!"
 
                                )
                            $ filter ( -- get sips only from upd payload
