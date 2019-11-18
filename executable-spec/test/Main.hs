@@ -37,5 +37,8 @@ main = defaultMain tests
       , testProperty
           "Trace reveals are classified"
           Chain.qc_revealsAreClassified
+      , testProperty
+          "Appropriate Traces are covered"
+          (Chain.relevantCasesAreCovered)
       ]
     ]

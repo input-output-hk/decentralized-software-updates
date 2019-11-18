@@ -91,6 +91,17 @@ data VotingResult =
 data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
   deriving (Eq, Ord, Show)
 
+-- | Return a SIP-hash to TallyOutcome map
+tallyOutcomeMap
+  :: Map (SIPHash hashAlgo) VotingResult -- ^ Voting Results
+  -> Map Core.VKey Stake
+  -> Word8  -- ^ max number of revoting for No Quorum
+  -> Word8  -- ^ max number of revoting for No Majority
+  -> Float  -- ^ adversary stake ratio
+  -> Map (SIPHash hashAlgo) TallyOutcome
+tallyOutcomeMap vresips sDist pNoQ pNoM r_a =
+  Map.map (\vr -> tallyOutcome vr sDist pNoQ pNoM r_a) vresips
+
 -- | Return the outcome of the tally based on a  `VotingResult` and
 -- a stake distribution.
 tallyOutcome
@@ -148,6 +159,14 @@ newtype Stake = Stake { getStake :: Word64 }
 totalStake :: (Map Core.VKey Stake) -> Stake
 totalStake m =
   Map.foldr' (\stk tot -> tot + stk) (Stake 0) m
+
+-- | Returns a map showing the percent ([0,100])
+-- of stake ownership of each stakeholder
+stakeDistPct
+  :: Map Core.VKey Stake -- ^ stake distribution
+  -> Map Core.VKey Word8
+stakeDistPct sd =
+  Map.map (\st -> stakePercentRound st $ totalStake sd) sd
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
