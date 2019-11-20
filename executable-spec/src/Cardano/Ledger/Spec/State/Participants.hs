@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- See Cardano.Ledger.Spec.State.ActiveSIPs
@@ -8,10 +9,13 @@
 
 module Cardano.Ledger.Spec.State.Participants where
 
-import           Data.Bimap (Bimap)
+import           Data.Map.Strict (Map)
 
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     SKey, VKey)
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
 
@@ -21,8 +25,8 @@ import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 -- There is a one-to-one correspondence between the signing and verifying keys.
 --
 newtype Participants p =
-  -- We use of 'Bimap' to ensure the one to one correspondence between signing
-  -- and verifying keys.
-  Participants (Bimap Core.VKey Core.SKey)
-  deriving stock (Eq, Ord, Show)
-  deriving newtype (Core.Relation, Indexed)
+  Participants (Map (Hash p (VKey p)) (SKey p))
+
+deriving instance (Hashable p, HasSigningScheme p) => Show (Participants p)
+deriving instance (Hashable p) => Core.Relation (Participants p)
+deriving instance (Hashable p) => Indexed (Participants p)

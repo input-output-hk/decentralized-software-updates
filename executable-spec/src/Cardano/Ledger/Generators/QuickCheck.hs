@@ -13,7 +13,6 @@ module Cardano.Ledger.Generators.QuickCheck
 where
 
 import           Control.Arrow ((&&&))
-import qualified Data.Bimap as Bimap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import           Data.Word (Word8)
@@ -22,15 +21,21 @@ import           System.Random (Random)
 import           Test.QuickCheck (Gen)
 import qualified Test.QuickCheck as Gen
 
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN,
+                     SignKeyDSIGN (SignKeyMockDSIGN),
+                     VerKeyDSIGN (VerKeyMockDSIGN))
+
 import           Ledger.Core (dom)
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.Classes.Hashable (hash)
 import           Cardano.Ledger.Spec.State.Participants
                      (Participants (Participants))
 import           Cardano.Ledger.Spec.State.StakeDistribution
                      (StakeDistribution (StakeDistribution))
 import           Cardano.Ledger.Spec.STS.Update.Data (Stake (Stake))
 
+import           Cardano.Ledger.Test.Mock (Mock)
 
 k :: Gen Core.BlockCount
 -- Here we choose a small maximum value of k, since otherwise we need very long
@@ -44,14 +49,13 @@ k  = Core.BlockCount
 currentSlot :: Gen Core.Slot
 currentSlot = Core.Slot <$>  Gen.choose (0, 10)
 
-participants :: Gen (Participants p)
+participants :: Gen (Participants Mock)
 participants
   = pure
   $! Participants
-  $  Bimap.fromList
-  $  fmap (Core.vKey &&& Core.sKey)
-  $  fmap Core.keyPair
-  $  fmap Core.Owner [0 .. 10]
+  $  Map.fromList
+  $  fmap (hash . VerKeyMockDSIGN &&& SignKeyMockDSIGN)
+  $  [0 .. 10]
 
 -- | Given a 'Bounded' type, generate a value that is either near the lower
 -- bound, or near the middle of the range, or near the upper bound. The

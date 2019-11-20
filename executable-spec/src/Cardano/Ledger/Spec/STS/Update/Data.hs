@@ -31,6 +31,8 @@ import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     Signature)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 
@@ -42,7 +44,7 @@ data IdeationPayload p
   = Submit (SIPCommit p) (SIP p)
   | Reveal (SIP p)
   | Vote (VoteForSIP p)
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 isSubmit :: IdeationPayload p -> Bool
 isSubmit (Submit {}) = True
@@ -235,12 +237,15 @@ data SIPCommit p =
     { commit :: !(Commit p)
       -- ^ A salted commitment (a hash) to the SIP id, the public key and the
       -- `hash` `SIP` (H(salt||pk||H(SIP)))
-    , _author :: !Core.VKey
+    ,  _author :: !Core.VKey
       -- ^ Who submitted the proposal.
-    , upSig :: !(Core.Sig (Commit p))
+    , upSig :: !(Signature p (Commit p))
       -- ^ A signature on commit by the author public key
     }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p) => Eq (SIPCommit p)
+deriving instance (Hashable p, HasSigningScheme p) => Show (SIPCommit p)
 
 -- | Calculate a `Commit` from a `SIP`
 calcCommit
@@ -265,6 +270,7 @@ instance HasTypeReps URL where
 deriving instance ( Typeable p
                   , HasTypeReps p
                   , HasTypeReps (SIPHash p)
+                  , HasTypeReps (SIPCommit p)
                   ) => HasTypeReps (IdeationPayload p)
 
 deriving instance ( Typeable p
@@ -282,6 +288,7 @@ instance Typeable p => HasTypeReps (Hash p (Commit p)) where
 
 deriving instance ( Typeable p
                   , HasTypeReps p
+                  , HasTypeReps (Signature p (Commit p))
                   ) => HasTypeReps (SIPCommit p)
 
 

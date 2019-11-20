@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- See Cardano.Ledger.Spec.State.ActiveSIPs
@@ -15,12 +16,20 @@ import           Data.Word (Word8)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     VKey)
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
 
-newtype StakeDistribution p = StakeDistribution (Map Core.VKey Data.Stake)
-  deriving stock (Eq, Ord, Show)
-  deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)
+newtype StakeDistribution p = StakeDistribution (Map (Hash p (VKey p)) Data.Stake)
+
+deriving instance (Hashable p, HasSigningScheme p) => Show (StakeDistribution p)
+deriving instance (Hashable p, HasSigningScheme p) => Core.Relation (StakeDistribution p)
+deriving instance (Hashable p) => Indexed (StakeDistribution p)
+deriving instance (Hashable p) => Semigroup (StakeDistribution p)
+deriving instance (Hashable p) => Monoid (StakeDistribution p)
+
 
 -- | Returns the total stake from a stake distribution.
 totalStake :: StakeDistribution p -> Data.Stake
@@ -31,6 +40,6 @@ totalStake (StakeDistribution stakeMap) =
 -- stakeholder.
 stakeDistPct
   :: StakeDistribution p
-  -> Map Core.VKey Word8
+  -> Map (Hash p (VKey p)) Word8
 stakeDistPct stakeDistribution@(StakeDistribution stakeMap) =
   Map.map (\st -> Data.stakePercentRound st $ totalStake stakeDistribution) stakeMap

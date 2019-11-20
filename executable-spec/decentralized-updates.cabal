@@ -43,6 +43,7 @@ library
                      , Cardano.Ledger.Spec.STS.Update.Ideation
                      , Cardano.Ledger.Spec.STS.Update.Implementation
                      , Cardano.Ledger.Spec.STS.Update.Definitions
+                     , Cardano.Ledger.Test.Mock
   build-depends:       base >=4.11 && <5
                      , bimap >= 0.4.0
                      , containers
@@ -66,8 +67,7 @@ test-suite ledger-rules-test
   hs-source-dirs:      test
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
-  other-modules:       Cardano.Ledger.Mock
-                     , Cardano.Ledger.Spec.STS.Chain.Chain.Properties
+  other-modules:       Cardano.Ledger.Spec.STS.Chain.Chain.Properties
                      , Cardano.Ledger.Spec.STS.Update.Ideation.Properties
   default-language:    Haskell2010
   build-depends:       base

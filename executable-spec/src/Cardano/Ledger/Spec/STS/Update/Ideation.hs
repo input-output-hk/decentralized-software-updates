@@ -33,6 +33,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!))
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
@@ -253,7 +254,7 @@ instance
                   Data.SIPCommit commit (Data.author sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
-                    sipCommitSignature = Core.sign skey commit
+                    sipCommitSignature = sign skey commit
                       where
                         skey = participants ! Data.author sip
 

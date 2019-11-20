@@ -10,7 +10,12 @@ import Data.Kind (Type)
 import GHC.Exts (Constraint)
 
 
-class HasSigningScheme s where
+class ( forall a . Eq (Signature s a)
+      , forall a . Show (Signature s a)
+      , Show (VKey s)
+      , Show (SKey s)
+      ) => HasSigningScheme s where
+
 
   data Signature s :: * -> Type
 
@@ -18,8 +23,8 @@ class HasSigningScheme s where
 
   type SKey s :: Type
 
-  type Signable s :: * -> Constraint
+  type Signable s :: Type -> Constraint
 
-  sign :: Signable s a => SKey s -> a -> Signature s a
+  sign :: Signable s a => a -> SKey s -> Signature s a
 
-  verify :: Signable s a => VKey s -> Signature s a -> a -> Bool
+  verify :: Signable s a => VKey s -> a -> Signature s a -> Bool
