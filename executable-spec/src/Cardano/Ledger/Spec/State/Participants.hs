@@ -9,24 +9,31 @@
 
 module Cardano.Ledger.Spec.State.Participants where
 
-import           Data.Map.Strict (Map)
+import           GHC.Exts (IsList, toList)
 
-import qualified Ledger.Core as Core
-
-import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
+import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
+                     hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      SKey, VKey)
-import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
-
 
 -- | The set of stakeholders (i.e., participants), identified by their signing
 -- and verifying keys.
 --
--- There is a one-to-one correspondence between the signing and verifying keys.
+-- There should be a one-to-one correspondence between the signing and verifying
+-- keys.
+--
+-- TODO: introduce a smart constructor to check uniqueness of signing and
+-- verification keys.
 --
 newtype Participants p =
-  Participants (Map (Hash p (VKey p)) (SKey p))
+  Participants [(VKey p, SKey p)]
+  deriving newtype (IsList)
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (Participants p)
-deriving instance (Hashable p) => Core.Relation (Participants p)
-deriving instance (Hashable p) => Indexed (Participants p)
+
+vkeyHashes
+  :: ( Hashable p
+     , HasHash p (VKey p)
+     )
+  => Participants p -> [Hash p (VKey p)]
+vkeyHashes = fmap (hash . fst) . toList

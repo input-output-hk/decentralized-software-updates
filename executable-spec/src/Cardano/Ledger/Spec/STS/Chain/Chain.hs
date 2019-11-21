@@ -32,6 +32,7 @@ import           Ledger.Core (BlockCount, Slot)
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
                      size)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
@@ -56,6 +57,7 @@ import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
+import           Cardano.Ledger.Test.Mock (Mock)
 
 data CHAIN p
 
@@ -78,9 +80,10 @@ data Env p
       -- ^ How many times a revoting is allowed due to a no majority result
     }
 
-deriving instance (Show (Size p)) => Show (Env p)
-deriving instance (Eq (Size p)) => Eq (Env p)
-
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (Size p)
+                  ) => Show (Env p)
 
 data St p
   = St
@@ -96,15 +99,14 @@ data St p
     , implementationSt :: !(State (IMPLEMENTATION p))
     , utxoSt :: !(State UTXO)
     }
-    deriving (Eq, Show)
-
+    deriving (Show)
 
 data Block p
   = Block
     { header :: Signal (HEADER p)
     , body :: Signal (BODY p)
     }
-    deriving (Eq, Show, Generic)
+    deriving (Show, Generic)
 
 deriving instance ( Typeable p
                   , HasTypeReps (Signal (HEADER p))
@@ -270,12 +272,12 @@ instance ( STS (HEADER p), STS (CHAIN p) ) => Embed (HEADER p) (CHAIN p) where
 -- HasTrace instance
 --------------------------------------------------------------------------------
 
-instance ( Sizeable p
-         , STS (CHAIN p)
-         -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
-         , STS.Gen.HasTrace (TRANSACTION p) ()
-         , HasSize p (Transaction.Tx p)
-         ) => STS.Gen.HasTrace (CHAIN p) () where
+instance ( -- Sizeable p
+         -- , STS (CHAIN p)
+         -- -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
+         -- , STS.Gen.HasTrace (TRANSACTION p) ()
+         -- , HasSize p (Transaction.Tx p)
+         ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do
     someK <- Gen.QC.k

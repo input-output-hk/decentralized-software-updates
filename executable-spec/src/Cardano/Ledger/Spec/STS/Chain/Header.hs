@@ -53,7 +53,7 @@ data Env p
         , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
         }
-        deriving (Eq, Show)
+        deriving (Show, Generic)
 
 data St p
  = St { currentSlot :: !Slot
@@ -62,7 +62,7 @@ data St p
       , vresips :: !(SIPsVoteResults p)
       , apprvsips :: !(ApprovedSIPs p)
       }
-      deriving (Eq, Show, Generic)
+      deriving (Show, Generic)
 
 data BHeader
   = BHeader { slot :: !Slot }

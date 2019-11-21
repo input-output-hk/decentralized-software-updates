@@ -20,5 +20,5 @@ import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 -- created. This state is not part of the update protocol, it is used only for
 -- SIP generation purposes.
 newtype SubmittedSIPs p = SubmittedSIPs (Map (Data.Commit p) (Data.SIP p))
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

@@ -8,7 +8,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 
-import           Cardano.Ledger.Mock (Mock)
+import           Cardano.Ledger.Test.Mock (Mock)
 
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated

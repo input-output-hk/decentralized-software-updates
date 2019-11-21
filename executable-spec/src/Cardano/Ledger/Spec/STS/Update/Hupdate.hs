@@ -55,7 +55,7 @@ data Env p
        , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
        }
-       deriving (Eq, Show)
+       deriving (Show)
 
 data St p
   = St { wrsips :: !(WhenRevealedSIPs p)
@@ -64,7 +64,7 @@ data St p
        , apprvsips :: !(ApprovedSIPs p)
          -- ^ Set of approved SIPs
        }
-       deriving (Eq, Show, Generic)
+       deriving (Show, Generic)
 
 instance ( Hashable p
          ) =>  STS (HUPDATE p) where

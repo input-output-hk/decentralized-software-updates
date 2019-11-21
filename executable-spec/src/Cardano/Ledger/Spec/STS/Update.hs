@@ -29,6 +29,7 @@ import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot, BlockCount)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot)
@@ -60,7 +61,7 @@ data Env p
     , participants :: !(Participants p)
     , apprvsips :: !(ApprovedSIPs p)
     }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
 
 
 data St p
@@ -72,7 +73,7 @@ data St p
     , ballots :: !(Ballot p)
     , implementationSt :: State (IMPLEMENTATION p)
     }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)
   deriving Monoid via GenericMonoid (St p)
 
@@ -80,7 +81,7 @@ data St p
 data UpdatePayload p
   = Ideation (Data.IdeationPayload p)
   | Implementation Data.ImplementationPayload
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
 
 deriving instance ( Typeable p
                   , HasTypeReps (Data.IdeationPayload p)
@@ -94,6 +95,7 @@ instance ( Typeable p
     ++ costsList (undefined :: Data.ImplementationPayload)
 
 instance ( Hashable p
+         , HasSigningScheme p
          , STS (IDEATION p)
          ) => STS (UPDATE p) where
 
@@ -181,6 +183,7 @@ instance (STS (UPDATE p)) => Embed (IMPLEMENTATION p) (UPDATE p) where
 data UPDATES p
 
 instance ( Hashable p
+         , HasSigningScheme p
          , STS (UPDATE p)
          ) => STS (UPDATES p) where
 

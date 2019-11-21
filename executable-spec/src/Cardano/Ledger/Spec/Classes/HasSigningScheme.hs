@@ -12,6 +12,7 @@ import GHC.Exts (Constraint)
 
 class ( forall a . Eq (Signature s a)
       , forall a . Show (Signature s a)
+      , Eq (VKey s) -- TODO: check whether it is ok to demand this from verifying keys.
       , Show (VKey s)
       , Show (SKey s)
       ) => HasSigningScheme s where

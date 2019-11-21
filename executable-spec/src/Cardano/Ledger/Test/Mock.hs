@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLists #-}
@@ -53,8 +54,9 @@ instance HasTypeReps Mock where
 
 instance HasSigningScheme Mock where
 
-  data Signature Mock a = MockSignature (SignedDSIGN MockDSIGN a)
+  newtype Signature Mock a = MockSignature (SignedDSIGN MockDSIGN a)
     deriving (Eq, Show)
+    deriving newtype (HasTypeReps)
 
   type VKey Mock = Crypto.Mock.VerKeyDSIGN MockDSIGN
 

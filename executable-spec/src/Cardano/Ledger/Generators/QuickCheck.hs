@@ -12,25 +12,23 @@ module Cardano.Ledger.Generators.QuickCheck
   )
 where
 
+import           GHC.Exts (fromList)
+
 import           Control.Arrow ((&&&))
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import           Data.Word (Word8)
 import           System.Random (Random)
 
 import           Test.QuickCheck (Gen)
 import qualified Test.QuickCheck as Gen
 
-import           Cardano.Crypto.DSIGN.Mock (MockDSIGN,
-                     SignKeyDSIGN (SignKeyMockDSIGN),
+import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
                      VerKeyDSIGN (VerKeyMockDSIGN))
 
-import           Ledger.Core (dom)
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.Classes.Hashable (hash)
 import           Cardano.Ledger.Spec.State.Participants
-                     (Participants (Participants))
+                     (Participants (Participants), vkeyHashes)
 import           Cardano.Ledger.Spec.State.StakeDistribution
                      (StakeDistribution (StakeDistribution))
 import           Cardano.Ledger.Spec.STS.Update.Data (Stake (Stake))
@@ -53,8 +51,8 @@ participants :: Gen (Participants Mock)
 participants
   = pure
   $! Participants
-  $  Map.fromList
-  $  fmap (hash . VerKeyMockDSIGN &&& SignKeyMockDSIGN)
+  $  fromList
+  $  fmap (VerKeyMockDSIGN &&& SignKeyMockDSIGN)
   $  [0 .. 10]
 
 -- | Given a 'Bounded' type, generate a value that is either near the lower
@@ -92,9 +90,9 @@ prvNoMajority = Gen.choose (3, 7)
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
 
-stakeDist :: Gen (StakeDistribution p)
+stakeDist :: Gen (StakeDistribution Mock)
 stakeDist = do
   someParticipants <- participants
-  let vkeys = Set.toList $ dom someParticipants
-  stks <- Gen.vectorOf (length vkeys) (Gen.choose (1, 20))
-  pure $ StakeDistribution $ Map.fromList $ zip vkeys (Stake <$> stks)
+  let hashes = vkeyHashes someParticipants
+  stks <- Gen.vectorOf (length hashes) (Gen.choose (1, 20))
+  pure $ StakeDistribution $ Map.fromList $ zip hashes (Stake <$> stks)

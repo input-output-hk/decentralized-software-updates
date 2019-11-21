@@ -19,21 +19,20 @@ import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import qualified Data.Set as Set
 import           Data.Text as T
+import           GHC.Exts (toList)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Ledger.Core (Slot, BlockCount)
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁))
-import qualified Ledger.Core as Core
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), Slot, BlockCount)
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!))
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
@@ -46,6 +45,8 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+
+import Cardano.Ledger.Test.Mock (Mock)
 
 --------------------------------------------------------------------------------
 -- Updates ideation phase
@@ -64,7 +65,7 @@ data Env p
     , asips :: !(ActiveSIPs p)
     , participants :: !(Participants p)
     }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Show, Generic)
 
 -- | Ideation phase state
 --
@@ -72,19 +73,20 @@ data St p
   = St
     { subsips :: !(SubmittedSIPs p)
     , wssips :: !(WhenSubmittedSIPs p)
-      -- ^ When a SIP commitment was submitted
     , wrsips :: !(WhenRevealedSIPs p)
     , sipdb :: !(RevealedSIPs p)
     , ballots :: !(Ballot p)
     }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)
   deriving Monoid via GenericMonoid (St p)
 
 instance ( Hashable p
+         , HasSigningScheme p
          , HasHash p SIPData
          , HasHash p (SIP p)
-         , HasHash p (Int, Core.VKey, Hash p(SIP p))
+         , HasHash p (Int, VKey p, Hash p (SIP p))
+         , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SIP'.
          ) => STS (IDEATION p) where
 
   type Environment (IDEATION p) = Env p
@@ -99,9 +101,9 @@ instance ( Hashable p
    -- | SIPSubmittedAlreadyRevealed (Data.SIP p)
     | NoSIPToReveal (Data.SIP p)
     | SIPAlreadyRevealed (Data.SIP p)
-    | InvalidAuthor Core.VKey
+    | InvalidAuthor (VKey p)
     | NoStableAndCommittedSIP (Data.SIP p) (WhenSubmittedSIPs p)
-    | InvalidVoter Core.VKey
+    | InvalidVoter (VKey p)
     | VoteNotForActiveSIP (Data.SIPHash p)
     | VotingPeriodEnded (Data.SIPHash p) Slot
     deriving (Eq, Show)
@@ -113,7 +115,6 @@ instance ( Hashable p
       TRC ( Env { k
                 , currentSlot
                 , asips
-                , participants
                 }
           , st@St { subsips
                   , wssips
@@ -125,7 +126,10 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          Data._author sipc ∈ dom participants ?! InvalidAuthor (Data.author sip)
+          -- TODO: we should use the stake distribution instead: the
+          -- participants is a generator only variable, and should probably be
+          -- part of the generator environment.
+          -- hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
           Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
           pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
@@ -133,7 +137,8 @@ instance ( Hashable p
                      }
 
         Reveal sip -> do
-          Data.author sip ∈ dom participants ?! InvalidAuthor (Data.author sip)
+          -- TODO: use the stake distribution.
+          -- hash (Data.author sip) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
           (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
 
           sip ∉ range sipdb ?! SIPAlreadyRevealed sip
@@ -152,8 +157,9 @@ instance ( Hashable p
 
         Vote voteForSIP -> do
             -- voter must be a stakeholder
-            Data.voter voteForSIP ∈ dom participants ?!
-              InvalidVoter (Data.voter voteForSIP)
+            -- TODO: use the stake distribution.
+            -- hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
+            --   InvalidVoter (Data.voter voteForSIP)
 
             -- SIP must be an active SIP, i.e. it must belong to the set of
             -- stable revealed SIPs
@@ -171,13 +177,13 @@ instance ( Hashable p
 instance
   -- Note that this has the same constraints as the IDEATION STS since we use
   -- 'Data.calcCommit', which requires these constraints.
-  ( Hashable p
-  , HasHash p SIPData
-  , HasHash p (SIP p)
-  , HasHash p (Int, Core.VKey, Hash p(SIP p))
-  ) => STS.Gen.HasTrace (IDEATION p) a where
+  ( -- Hashable p
+  -- , HasHash p SIPData
+  -- , HasHash p (SIP p)
+  -- , HasHash p (Int, Core.VKey, Hash p (SIP p))
+  ) => STS.Gen.HasTrace (IDEATION Mock) a where
 
-  envGen :: a -> QC.Gen (Env p)
+  envGen :: a -> QC.Gen (Env Mock)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -208,16 +214,16 @@ instance
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
         -- WARNING: suchThat can be very inefficient if this condition fails often.
-        sip <- sipGen `QC.suchThat` (`Set.notMember` range subsips)
-        pure $! mkSubmission sip
+        (sip, skeyAuthor) <- sipGen `QC.suchThat` ((`Set.notMember` range subsips) . fst)
+        pure $! mkSubmission skeyAuthor sip
           where
             sipGen = do
-              owner <- QC.elements $ Set.toList $ dom participants
+              (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
               sipMData <- sipMetadataGen
               sipData <- sipDataGen sipMData
               let sipHash = Data.SIPHash $ hash sipData
               salt <- Gen.bounded 2
-              pure $! SIP sipHash owner salt sipData
+              pure $! (SIP sipHash vkeyAuthor salt sipData, skeyAuthor)
                 where
                   sipMetadataGen
                     = Data.SIPMetadata
@@ -247,16 +253,14 @@ instance
                         str <- QC.vectorOf n QC.arbitraryUnicodeChar
                         pure $! T.pack str
 
-            mkSubmission :: SIP p -> IdeationPayload p
-            mkSubmission sip = Submit sipCommit sip
+            mkSubmission :: SKey Mock -> SIP Mock -> IdeationPayload Mock
+            mkSubmission skey sip = Submit sipCommit sip
               where
                 sipCommit =
                   Data.SIPCommit commit (Data.author sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
-                    sipCommitSignature = sign skey commit
-                      where
-                        skey = participants ! Data.author sip
+                    sipCommitSignature = sign commit skey
 
       revelationGen subsipsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
