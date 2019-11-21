@@ -184,7 +184,7 @@ tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
         else
           if Data.stakePercentRound (Data.stakeAbstain vres) (totalStake stakeDistribution)
              > vThreshold r_a
-             && Data.rvNoQuorum vres <= pNoQ
+             && Data.rvNoQuorum vres < pNoQ
             then
               Data.NoQuorum
             else
@@ -196,7 +196,7 @@ tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
                  &&
                  Data.stakePercentRound (Data.stakeAbstain vres) (totalStake stakeDistribution)
                  <= vThreshold r_a
-                 && Data.rvNoMajority vres <= pNoM
+                 && Data.rvNoMajority vres < pNoM
                 then
                   Data.NoMajority
                 else

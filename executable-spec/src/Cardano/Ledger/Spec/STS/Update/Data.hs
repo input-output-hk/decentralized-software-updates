@@ -128,9 +128,9 @@ data VPStatus = VPOpen | VPClosed
 vpDurationToSlotCnt :: VPDuration -> SlotCount
 vpDurationToSlotCnt  d =
   case d of
-    VPMin -> SlotCount 20
-    VPMedium -> SlotCount 50
-    VPLarge -> SlotCount 100
+    VPMin -> SlotCount 5
+    VPMedium -> SlotCount 20
+    VPLarge -> SlotCount 60
 
 -- | Protocol version
 --

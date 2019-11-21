@@ -12,6 +12,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -208,18 +209,25 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
 
   sigGen
     _traceGenEnv
-    Env{ k, currentSlot, participants }
+    Env{ k, currentSlot, asips, participants }
     St{ wssips, wrsips, subsips } =
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
           -- There are no stable commits, so we can only generate a submission.
           submissionGen
         xs ->
-          -- We use a 50/50 submission to revelation ratio. This can be changed
-          -- if necessary.
-          QC.frequency [ (1, submissionGen)
-                       , (1, revelationGen xs)
-                       ]
+          if Set.empty == dom (asips ▷>= currentSlot)
+            then
+              -- We use a 50/50 submission to revelation ratio. This can be changed
+              -- if necessary.
+              QC.frequency [ (1, submissionGen)
+                           , (1, revelationGen xs)
+                           ]
+            else
+              QC.frequency [ (1, submissionGen)
+                           , (1, revelationGen xs)
+                           , (5000, voteGen asips participants currentSlot)
+                           ]
     where
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
@@ -279,6 +287,26 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
         if Data.sipHash sip ∉ dom wrsips
           then pure $! Reveal sip
           else submissionGen
+
+      voteGen
+        :: ActiveSIPs p
+        -> Participants p
+        -> Core.Slot
+        -> QC.Gen (IdeationPayload p)
+      voteGen actsips partnts currSlot =
+        do
+          voter <- QC.elements $ Set.toList $ dom partnts
+          confidence <- QC.frequency [ (60, pure $ Data.For)
+                                     , (20, pure $ Data.Against)
+                                     , (20, pure $ Data.Abstain)
+                                     ]
+
+          --QC.elements [Data.For, Data.Against, Data.Abstain]
+          -- choose among active sips whose voting period is still open
+          sipHash <- QC.elements $ Set.toList $ dom (actsips ▷>= currSlot)
+          let voterSig = Core.sign skey  (sipHash,confidence,voter)
+              skey = partnts ! voter
+          pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
 
 
   -- It doesn't seem plausible that the @IdeationPayload@ can be shrunk in a

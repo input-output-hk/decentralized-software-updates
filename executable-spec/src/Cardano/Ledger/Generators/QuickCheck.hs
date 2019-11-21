@@ -40,9 +40,10 @@ k :: Gen Core.BlockCount
 -- traces to get stable signals. However, we want to test with very high values
 -- of @k@.
 k  = Core.BlockCount
-  <$> Gen.frequency [ (99, Gen.choose (1, 10))
-                    , (1, pure maxBound)
-                    ]
+   <$> Gen.elements [1,2]
+   -- <$> Gen.frequency [ (99, Gen.choose (1, 10))
+   --                  , (1, pure maxBound)
+   --                  ]
 
 currentSlot :: Gen Core.Slot
 currentSlot = Core.Slot <$>  Gen.choose (0, 10)
@@ -82,7 +83,7 @@ boundedWith aMinBound aMaxBound maxDifference =
   where mid = aMinBound + (aMaxBound - aMinBound) `div` 2
 
 prvNoQuorum :: Gen Word8
-prvNoQuorum = Gen.choose (3, 7)
+prvNoQuorum =  Gen.choose (3, 7)
 
 prvNoMajority :: Gen Word8
 prvNoMajority = Gen.choose (3, 7)
