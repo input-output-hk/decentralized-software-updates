@@ -60,7 +60,7 @@ data (VoteForSIP p) =
                -- ^ The ballot outcome
              , voter :: !(VKey p)
                -- ^ The voter
-             , voterSig :: !(Signature p ( SIPHash p, Confidence, VKey p))
+             , voterSig :: !(Signature p (SIPHash p, Confidence, VKey p))
              }
   deriving (Generic)
 
@@ -68,7 +68,7 @@ deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSIP p)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+  deriving (Eq, Ord, Show, Enum, Generic, HasTypeReps)
 
 -- | Records the voting result for a specific software update (SIP/UP)
 data VotingResult =
@@ -368,3 +368,6 @@ instance ToCBOR ConcensusImpact where
 
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
+
+instance ToCBOR Confidence where
+  toCBOR = encodeInt . fromEnum

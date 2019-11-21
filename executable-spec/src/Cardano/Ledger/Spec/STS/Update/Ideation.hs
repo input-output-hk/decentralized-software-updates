@@ -32,7 +32,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!))
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
@@ -82,11 +82,13 @@ data St p
   deriving Monoid via GenericMonoid (St p)
 
 instance ( Hashable p
-         , HasSigningScheme p
          , HasHash p SIPData
          , HasHash p (SIP p)
          , HasHash p (Int, VKey p, Hash p (SIP p))
          , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SIP'.
+         , HasSigningScheme p
+         , Signable p (Data.Commit p)
+         , Signable p (Data.SIPHash p, Data.Confidence, VKey p)
          ) => STS (IDEATION p) where
 
   type Environment (IDEATION p) = Env p
@@ -106,6 +108,8 @@ instance ( Hashable p
     | InvalidVoter (VKey p)
     | VoteNotForActiveSIP (Data.SIPHash p)
     | VotingPeriodEnded (Data.SIPHash p) Slot
+    | CommitSignatureDoesNotVerify
+    | VoteSignatureDoesNotVerify
     deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
@@ -131,6 +135,9 @@ instance ( Hashable p
           -- part of the generator environment.
           -- hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
           Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
+
+          verify (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) ?!
+            CommitSignatureDoesNotVerify
 
           pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
                      , subsips = subsips ⨃ [(Data.commit sipc, sip)]
@@ -161,6 +168,16 @@ instance ( Hashable p
             -- hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
             --   InvalidVoter (Data.voter voteForSIP)
 
+            verify
+              (Data.voter voteForSIP)
+              ( Data.votedsipHash voteForSIP
+              , Data.confidence voteForSIP
+              , Data.voter voteForSIP
+              )
+              (Data.voterSig voteForSIP)
+              ?!
+              VoteSignatureDoesNotVerify
+
             -- SIP must be an active SIP, i.e. it must belong to the set of
             -- stable revealed SIPs
             Data.votedsipHash voteForSIP ∈ dom asips ?!
@@ -174,14 +191,7 @@ instance ( Hashable p
             pure $ st { ballots = updateBallot ballots voteForSIP }
     ]
 
-instance
-  -- Note that this has the same constraints as the IDEATION STS since we use
-  -- 'Data.calcCommit', which requires these constraints.
-  ( -- Hashable p
-  -- , HasHash p SIPData
-  -- , HasHash p (SIP p)
-  -- , HasHash p (Int, Core.VKey, Hash p (SIP p))
-  ) => STS.Gen.HasTrace (IDEATION Mock) a where
+instance STS.Gen.HasTrace (IDEATION Mock) a where
 
   envGen :: a -> QC.Gen (Env Mock)
   envGen _traceGenEnv
