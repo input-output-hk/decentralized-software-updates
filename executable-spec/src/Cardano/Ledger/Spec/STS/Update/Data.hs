@@ -27,10 +27,11 @@ import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
 import           Ledger.Core (SlotCount (SlotCount))
-import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     Signature, VKey)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 
@@ -42,7 +43,7 @@ data IdeationPayload p
   = Submit (SIPCommit p) (SIP p)
   | Reveal (SIP p)
   | Vote (VoteForSIP p)
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Show, Generic)
 
 isSubmit :: IdeationPayload p -> Bool
 isSubmit (Submit {}) = True
@@ -54,22 +55,20 @@ isReveal _ = False
 
 data (VoteForSIP p) =
   VoteForSIP { votedsipHash :: !(SIPHash p)
-              -- ^ SIP id that this ballot is for
-            , confidence :: !Confidence
-              -- ^ The ballot outcome
-            , voter :: !Core.VKey
-              -- ^ The voter
-            , voterSig :: !(Core.Sig ( SIPHash p
-                                     , Confidence
-                                     , Core.VKey
-                                     )
-                           )
-            }
-  deriving (Eq, Ord, Show, Generic)
+               -- ^ SIP id that this ballot is for
+             , confidence :: !Confidence
+               -- ^ The ballot outcome
+             , voter :: !(VKey p)
+               -- ^ The voter
+             , voterSig :: !(Signature p (SIPHash p, Confidence, VKey p))
+             }
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSIP p)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+  deriving (Eq, Ord, Show, Enum, Generic, HasTypeReps)
 
 -- | Records the voting result for a specific software update (SIP/UP)
 data VotingResult =
@@ -208,26 +207,41 @@ data SIP p =
     { sipHash :: SIPHash p
       -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
       -- unique id
-    , author :: !Core.VKey
+    , author :: !(VKey p)
       -- ^ Who submitted the proposal.
     , salt :: !Int
       -- ^ The salt used during the commit phase
     , sipPayload :: !SIPData
       -- ^ The actual contents of the SIP.
     }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Generic)
+
+deriving instance (HasSigningScheme p, Show (SIPHash p)) => Show (SIP p)
+deriving instance (HasSigningScheme p, Eq (SIPHash p)) => Eq (SIP p)
+
+instance ( Hashable p
+         , HasHash p (VKey p)
+         , HasSigningScheme p
+         ) => Ord (SIP p) where
+  sip0 <= sip1
+    = (sipHash sip0, hash @p (author sip0), salt sip0, sipPayload sip0)
+      <=
+      (sipHash sip1, hash @p (author sip1), salt sip1, sipPayload sip1)
 
 -- | A commitment data type.
 -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
 newtype Commit p =
   Commit
-    { getCommit :: Hash p (Int, Core.VKey, Hash p (SIP p))
+    { getCommit :: Hash p (Int, VKey p, Hash p (SIP p))
     }
   deriving stock (Generic)
 
 deriving instance Hashable p => Eq (Commit p)
 deriving instance Hashable p => Ord (Commit p)
 deriving instance Hashable p => Show (Commit p)
+deriving newtype instance ( Typeable p
+                          , ToCBOR (Hash p (Int, VKey p, Hash p (SIP p)))
+                          ) => (ToCBOR (Commit p))
 
 -- | The System improvement proposal at the commit phase
 data SIPCommit p =
@@ -235,18 +249,20 @@ data SIPCommit p =
     { commit :: !(Commit p)
       -- ^ A salted commitment (a hash) to the SIP id, the public key and the
       -- `hash` `SIP` (H(salt||pk||H(SIP)))
-    , _author :: !Core.VKey
+    ,  _author :: !(VKey p)
       -- ^ Who submitted the proposal.
-    , upSig :: !(Core.Sig (Commit p))
+    , upSig :: !(Signature p (Commit p))
       -- ^ A signature on commit by the author public key
     }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p) => Show (SIPCommit p)
 
 -- | Calculate a `Commit` from a `SIP`
 calcCommit
   :: ( Hashable p
      , HasHash p (SIP p)
-     , HasHash p (Int, Core.VKey, Hash p (SIP p))
+     , HasHash p (Int, VKey p, Hash p (SIP p))
      ) => SIP p -> Commit p
 calcCommit sip@SIP { salt, author } =
   Commit $ hash (salt, author, hash sip)
@@ -264,11 +280,15 @@ instance HasTypeReps URL where
 
 deriving instance ( Typeable p
                   , HasTypeReps p
+                  , HasTypeReps (SIP p)
                   , HasTypeReps (SIPHash p)
+                  , HasTypeReps (SIPCommit p)
+                  , HasTypeReps (VoteForSIP p)
                   ) => HasTypeReps (IdeationPayload p)
 
 deriving instance ( Typeable p
                   , HasTypeReps (SIPHash p)
+                  , HasTypeReps (VKey p)
                   ) => HasTypeReps (SIP p)
 
 -- | A commit is basically wrapping the hash of some salt, owner verification
@@ -282,11 +302,15 @@ instance Typeable p => HasTypeReps (Hash p (Commit p)) where
 
 deriving instance ( Typeable p
                   , HasTypeReps p
+                  , HasTypeReps (Signature p (Commit p))
+                  , HasTypeReps (VKey p)
                   ) => HasTypeReps (SIPCommit p)
 
 
 deriving instance ( Typeable p
                   , HasTypeReps (SIPHash p)
+                  , HasTypeReps (VKey p)
+                  , HasTypeReps (Signature p (SIPHash p, Confidence, VKey p))
                   ) => HasTypeReps (VoteForSIP p)
 
 deriving instance ( Typeable p
@@ -307,9 +331,9 @@ instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload
 -- ToCBOR instances
 --------------------------------------------------------------------------------
 
-type SIPHasCBORRep t = (Typeable t, ToCBOR (Hash t SIPData))
+type SIPHasCBORRep p = (Typeable p, ToCBOR (Hash p SIPData))
 
-instance (SIPHasCBORRep p) => ToCBOR (SIP p) where
+instance (SIPHasCBORRep p, ToCBOR (VKey p)) => ToCBOR (SIP p) where
   toCBOR SIP { sipHash, author, salt, sipPayload }
     =  encodeListLen 4
     <> toCBOR sipHash
@@ -344,3 +368,6 @@ instance ToCBOR ConcensusImpact where
 
 instance ToCBOR ProtVer where
   toCBOR (ProtVer version) = encodeListLen 1 <> toCBOR version
+
+instance ToCBOR Confidence where
+  toCBOR = encodeInt . fromEnum

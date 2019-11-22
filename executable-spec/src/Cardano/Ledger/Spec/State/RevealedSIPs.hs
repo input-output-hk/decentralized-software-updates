@@ -18,7 +18,7 @@ import           Cardano.Ledger.Spec.Classes.Indexed (Indexed, (!))
 
 -- | SIP registered in the system.
 newtype RevealedSIPs p = RevealedSIPs (Map (Data.SIPHash p) (Data.SIP p))
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)
 
 -- | Return in how many slots the voting period of the specific @SIP@ will end.

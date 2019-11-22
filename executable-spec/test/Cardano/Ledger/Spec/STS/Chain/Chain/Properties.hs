@@ -32,7 +32,7 @@ import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 
-import           Cardano.Ledger.Mock (Mock)
+import           Cardano.Ledger.Test.Mock (Mock)
 
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated

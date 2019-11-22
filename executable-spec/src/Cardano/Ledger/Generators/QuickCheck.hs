@@ -12,25 +12,28 @@ module Cardano.Ledger.Generators.QuickCheck
   )
 where
 
+import           GHC.Exts (fromList)
+
 import           Control.Arrow ((&&&))
-import qualified Data.Bimap as Bimap
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import           Data.Word (Word8)
 import           System.Random (Random)
 
 import           Test.QuickCheck (Gen)
 import qualified Test.QuickCheck as Gen
 
-import           Ledger.Core (dom)
+import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
+                     VerKeyDSIGN (VerKeyMockDSIGN))
+
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.State.Participants
-                     (Participants (Participants))
+                     (Participants (Participants), vkeyHashes)
 import           Cardano.Ledger.Spec.State.StakeDistribution
                      (StakeDistribution (StakeDistribution))
 import           Cardano.Ledger.Spec.STS.Update.Data (Stake (Stake))
 
+import           Cardano.Ledger.Test.Mock (Mock)
 
 k :: Gen Core.BlockCount
 -- Here we choose a small maximum value of k, since otherwise we need very long
@@ -44,14 +47,13 @@ k  = Core.BlockCount
 currentSlot :: Gen Core.Slot
 currentSlot = Core.Slot <$>  Gen.choose (0, 10)
 
-participants :: Gen (Participants p)
+participants :: Gen (Participants Mock)
 participants
   = pure
   $! Participants
-  $  Bimap.fromList
-  $  fmap (Core.vKey &&& Core.sKey)
-  $  fmap Core.keyPair
-  $  fmap Core.Owner [0 .. 10]
+  $  fromList
+  $  fmap (VerKeyMockDSIGN &&& SignKeyMockDSIGN)
+  $  [0 .. 10]
 
 -- | Given a 'Bounded' type, generate a value that is either near the lower
 -- bound, or near the middle of the range, or near the upper bound. The
@@ -88,9 +90,8 @@ prvNoMajority = Gen.choose (3, 7)
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
 
-stakeDist :: Gen (StakeDistribution p)
-stakeDist = do
-  someParticipants <- participants
-  let vkeys = Set.toList $ dom someParticipants
-  stks <- Gen.vectorOf (length vkeys) (Gen.choose (1, 20))
-  pure $ StakeDistribution $ Map.fromList $ zip vkeys (Stake <$> stks)
+stakeDist :: Participants Mock -> Gen (StakeDistribution Mock)
+stakeDist someParticipants = do
+  let hashes = vkeyHashes someParticipants
+  stks <- Gen.vectorOf (length hashes) (Gen.choose (1, 20))
+  pure $ StakeDistribution $ Map.fromList $ zip hashes (Stake <$> stks)

@@ -30,8 +30,9 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
 
-import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
                      size)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
@@ -56,6 +57,7 @@ import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
+import           Cardano.Ledger.Test.Mock (Mock)
 
 data CHAIN p
 
@@ -78,9 +80,10 @@ data Env p
       -- ^ How many times a revoting is allowed due to a no majority result
     }
 
-deriving instance (Show (Size p)) => Show (Env p)
-deriving instance (Eq (Size p)) => Eq (Env p)
-
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (Size p)
+                  ) => Show (Env p)
 
 data St p
   = St
@@ -96,15 +99,14 @@ data St p
     , implementationSt :: !(State (IMPLEMENTATION p))
     , utxoSt :: !(State UTXO)
     }
-    deriving (Eq, Show)
-
+    deriving (Show)
 
 data Block p
   = Block
     { header :: Signal (HEADER p)
     , body :: Signal (BODY p)
     }
-    deriving (Eq, Show, Generic)
+    deriving (Show, Generic)
 
 deriving instance ( Typeable p
                   , HasTypeReps (Signal (HEADER p))
@@ -220,6 +222,7 @@ instance ( Hashable p
                           , Transaction.currentSlot = currentSlot'
                           , Transaction.asips = asips'
                           , Transaction.participants = participants
+                          , Transaction.stakeDist = stakeDist
                           , Transaction.apprvsips = apprvsips'
                           , Transaction.utxoEnv = UTxO.Env
                           }
@@ -270,23 +273,23 @@ instance ( STS (HEADER p), STS (CHAIN p) ) => Embed (HEADER p) (CHAIN p) where
 -- HasTrace instance
 --------------------------------------------------------------------------------
 
-instance ( Sizeable p
-         , STS (CHAIN p)
-         -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
-         , STS.Gen.HasTrace (TRANSACTION p) ()
-         , HasSize p (Transaction.Tx p)
-         ) => STS.Gen.HasTrace (CHAIN p) () where
+instance ( -- Sizeable p
+         -- , STS (CHAIN p)
+         -- -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
+         -- , STS.Gen.HasTrace (TRANSACTION p) ()
+         -- , HasSize p (Transaction.Tx p)
+         ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do
-    someK <- Gen.QC.k
-    someCurrentSlot <- Gen.QC.currentSlot
+    someK <- Gen.k
+    someCurrentSlot <- Gen.currentSlot
     -- For now we generate a constant set of keys. The set of participants could
     -- be an environment of the generator.
-    someParticipants <- Gen.QC.participants
-    someRa <- Gen.QC.rA
-    someStakeDist <- Gen.QC.stakeDist
-    somePrvNoQuorum <- Gen.QC.prvNoQuorum
-    somePrvNoMajority <- Gen.QC.prvNoMajority
+    someParticipants <- Gen.participants
+    someRa <- Gen.rA
+    someStakeDist <- Gen.stakeDist someParticipants
+    somePrvNoQuorum <- Gen.prvNoQuorum
+    somePrvNoMajority <- Gen.prvNoMajority
     let env = Env { k = someK
                   -- For now we fix the maximum block size to an abstract size of 100
                   , maximumBlockSize = 100
@@ -304,6 +307,7 @@ instance ( Sizeable p
     Env { k
         , maximumBlockSize
         , participants
+        , stakeDist
         }
     St { currentSlot
        , subsips
@@ -325,6 +329,7 @@ instance ( Sizeable p
           , Transaction.currentSlot = Header.slot someHeader
           , Transaction.asips = asips
           , Transaction.participants = participants
+          , Transaction.stakeDist = stakeDist
           , Transaction.utxoEnv = UTxO.Env
           , Transaction.apprvsips = apprvsips
           }

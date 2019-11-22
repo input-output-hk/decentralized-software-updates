@@ -30,6 +30,7 @@ import           Ledger.Core (Slot, BlockCount)
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot)
@@ -37,6 +38,7 @@ import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
@@ -53,10 +55,11 @@ data Env p =
       , currentSlot :: !Slot
       , asips :: !(ActiveSIPs p)
       , participants :: !(Participants p)
+      , stakeDist :: !(StakeDistribution p)
       , apprvsips :: !(ApprovedSIPs p)
       , utxoEnv :: !(Environment UTXO)
       }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
 
 -- | State of the TRANSACTION STS
 data St p =
@@ -68,7 +71,7 @@ data St p =
      , implementationSt :: State (IMPLEMENTATION p)
      , utxoSt :: State UTXO
      }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)
   deriving Monoid via GenericMonoid (St p)
 
@@ -78,7 +81,7 @@ data Tx p
   { body :: TxBody p
   , witnesses :: ![Witness]
   }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
 
 deriving instance ( Typeable p
                   , HasTypeReps (TxBody p)
@@ -91,7 +94,7 @@ data TxBody p
   , fees :: !Coin
   , update :: ![UpdatePayload p]
     -- ^ Update payload
-  } deriving (Eq, Show, Generic)
+  } deriving (Show, Generic)
 
 deriving instance ( Typeable p
                   , HasTypeReps (UpdatePayload p)
@@ -111,7 +114,10 @@ instance ( Typeable p
 
 data TRANSACTION p
 
-instance (Hashable p, STS (UPDATES p)) => STS (TRANSACTION p) where
+instance ( Hashable p
+         , HasSigningScheme p
+         , STS (UPDATES p)
+         ) => STS (TRANSACTION p) where
 
   type Environment (TRANSACTION p) = Env p
 
@@ -131,6 +137,7 @@ instance (Hashable p, STS (UPDATES p)) => STS (TRANSACTION p) where
                 , currentSlot
                 , asips
                 , participants
+                , stakeDist
                 , apprvsips
                 , utxoEnv
                 }
@@ -162,7 +169,8 @@ instance (Hashable p, STS (UPDATES p)) => STS (TRANSACTION p) where
           TRC ( Update.Env { Update.k = k
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
-                           , Update.participants =  participants
+                           , Update.participants = participants
+                           , Update.stakeDist = stakeDist
                            , Update.apprvsips = apprvsips
                            }
               , Update.St { Update.subsips = subsips
@@ -206,6 +214,7 @@ instance ( STS (TRANSACTION p)
          , currentSlot
          , asips
          , participants
+         , stakeDist
          , apprvsips
          }
     )
@@ -230,6 +239,7 @@ instance ( STS (TRANSACTION p)
                              , Update.currentSlot = currentSlot
                              , Update.asips = asips
                              , Update.participants = participants
+                             , Update.stakeDist = stakeDist
                              , Update.apprvsips = apprvsips
                              }
                   Update.St { Update.subsips = subsips

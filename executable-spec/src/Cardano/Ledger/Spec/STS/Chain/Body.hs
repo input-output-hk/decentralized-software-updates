@@ -27,6 +27,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
                      size)
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
@@ -40,9 +41,10 @@ data BBody p
  = BBody
    { transactions :: ![Signal (TRANSACTION p)]
    }
-   deriving (Eq, Show, Generic)
+   deriving (Show, Generic)
 
 instance ( Hashable p
+         , HasSigningScheme p
          , STS (TRANSACTION p)
          ) => STS (BODY p) where
 

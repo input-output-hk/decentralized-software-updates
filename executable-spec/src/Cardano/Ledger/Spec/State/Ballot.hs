@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- See Cardano.Ledger.Spec.State.ActiveSIPs
@@ -18,28 +19,45 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Ledger.Core ((⨃))
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
+                     hash)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     VKey)
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed, (!))
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 
 -- | Register of votes for each SIP and voter.
 newtype Ballot p = Ballot (Map (Data.SIPHash p) (SIPBallot p))
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)
 
 -- | Ballot associated to a given SIP.
-newtype SIPBallot p = SIPBallot (Map Core.VKey Data.Confidence)
-  deriving stock (Eq, Ord, Show)
-  deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)
+newtype SIPBallot p = SIPBallot (Map (Hash p (VKey p)) Data.Confidence)
 
-ballotFor :: Hashable p => Data.SIPHash p -> Ballot p -> SIPBallot p
+deriving instance Hashable p => Show (SIPBallot p)
+deriving instance Hashable p => Eq (SIPBallot p)
+deriving instance Hashable p => Core.Relation (SIPBallot p)
+deriving instance Hashable p => Semigroup (SIPBallot p)
+deriving instance Hashable p => Monoid (SIPBallot p)
+deriving instance Hashable p => Indexed (SIPBallot p)
+
+ballotFor
+  :: ( Hashable p
+
+     )
+  => Data.SIPHash p -> Ballot p -> SIPBallot p
 ballotFor sipHash (Ballot ballotMap) =
   case Map.lookup sipHash ballotMap of
     Nothing -> mempty
     Just ballotForSip -> ballotForSip
 
 -- | Given a set of votes for an SIP, compute the voting result.
-addVotes :: StakeDistribution p -> Data.VotingResult -> SIPBallot p -> Data.VotingResult
+addVotes
+  :: (Hashable p)
+  => StakeDistribution p
+  -> Data.VotingResult
+  -> SIPBallot p
+  -> Data.VotingResult
 addVotes stakeDistribution votingResult (SIPBallot ballot) =
   Map.foldrWithKey'
   (\vkey confidence votingResult'
@@ -52,13 +70,18 @@ addVotes stakeDistribution votingResult (SIPBallot ballot) =
 --
 -- Note that if a voter already cast a vote (according to the given ballot),
 -- then the old vote is replaced with the new one.
-updateBallot :: Hashable p => Ballot p -> Data.VoteForSIP p -> Ballot p
+updateBallot
+  :: ( HasSigningScheme p
+     , Hashable p
+     , HasHash p (VKey p)
+     )
+  => Ballot p -> Data.VoteForSIP p -> Ballot p
 updateBallot
   (Ballot ballot)
   Data.VoteForSIP { votedsipHash, voter, confidence }
   = Ballot
   $ Map.insertWith
-      (\_newMap oldMap -> oldMap ⨃ [(voter, confidence)])
+      (\_newMap oldMap -> oldMap ⨃ [(hash voter, confidence)])
       votedsipHash
       mempty
       ballot
