@@ -37,6 +37,7 @@ import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
@@ -59,6 +60,7 @@ data Env p
     , currentSlot :: !Slot
     , asips :: !(ActiveSIPs p)
     , participants :: !(Participants p)
+    , stakeDist :: !(StakeDistribution p)
     , apprvsips :: !(ApprovedSIPs p)
     }
   deriving (Show, Generic)
@@ -119,6 +121,7 @@ instance ( Hashable p
                 , asips
                 , participants
                 , apprvsips
+                , stakeDist
                 }
           , st@St { subsips
                   , wssips
@@ -144,6 +147,7 @@ instance ( Hashable p
                                      , Ideation.currentSlot = currentSlot
                                      , Ideation.asips = asips
                                      , Ideation.participants = participants
+                                     , Ideation.stakeDist = stakeDist
                                      }
                       , Ideation.St { Ideation.subsips = subsips
                                     , Ideation.wssips = wssips
@@ -245,12 +249,13 @@ instance ( Hashable p
           , currentSlot = Ideation.currentSlot env
           , asips = Ideation.asips env
           , participants = Ideation.participants env
+          , stakeDist = Ideation.stakeDist env
           , apprvsips = mempty
           }
 
   sigGen
     ()
-    Env { k, currentSlot, asips, participants }
+    Env { k, currentSlot, asips, participants, stakeDist }
     St { subsips, wssips, wrsips, sipdb, ballots }
     = do
     ideationPayload <-
@@ -261,6 +266,7 @@ instance ( Hashable p
                      , Ideation.currentSlot = currentSlot
                      , Ideation.asips = asips
                      , Ideation.participants = participants
+                     , Ideation.stakeDist = stakeDist
                      }
         Ideation.St { Ideation.subsips = subsips
                     , Ideation.wssips = wssips

@@ -90,9 +90,8 @@ prvNoMajority = Gen.choose (3, 7)
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
 
-stakeDist :: Gen (StakeDistribution Mock)
-stakeDist = do
-  someParticipants <- participants
+stakeDist :: Participants Mock -> Gen (StakeDistribution Mock)
+stakeDist someParticipants = do
   let hashes = vkeyHashes someParticipants
   stks <- Gen.vectorOf (length hashes) (Gen.choose (1, 20))
   pure $ StakeDistribution $ Map.fromList $ zip hashes (Stake <$> stks)

@@ -40,6 +40,7 @@ import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
@@ -64,6 +65,7 @@ data Env p
       -- ^ The current slot in the blockchain system
     , asips :: !(ActiveSIPs p)
     , participants :: !(Participants p)
+    , stakeDist :: !(StakeDistribution p)
     }
   deriving (Show, Generic)
 
@@ -119,6 +121,7 @@ instance ( Hashable p
       TRC ( Env { k
                 , currentSlot
                 , asips
+                , stakeDist
                 }
           , st@St { subsips
                   , wssips
@@ -130,10 +133,7 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          -- TODO: we should use the stake distribution instead: the
-          -- participants is a generator only variable, and should probably be
-          -- part of the generator environment.
-          -- hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
+          hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
           Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
           verify (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) ?!
@@ -144,8 +144,7 @@ instance ( Hashable p
                      }
 
         Reveal sip -> do
-          -- TODO: use the stake distribution.
-          -- hash (Data.author sip) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
+          hash (Data.author sip) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
           (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
 
           sip ∉ range sipdb ?! SIPAlreadyRevealed sip
@@ -164,9 +163,8 @@ instance ( Hashable p
 
         Vote voteForSIP -> do
             -- voter must be a stakeholder
-            -- TODO: use the stake distribution.
-            -- hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
-            --   InvalidVoter (Data.voter voteForSIP)
+            hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
+              InvalidVoter (Data.voter voteForSIP)
 
             verify
               (Data.voter voteForSIP)
@@ -199,10 +197,12 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
     someK <- Gen.k
     someCurrentSlot <- Gen.currentSlot
     someParticipants <- Gen.participants
+    someStakeDist <- Gen.stakeDist someParticipants
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
                   , asips = mempty
                   , participants = someParticipants
+                  , stakeDist = someStakeDist
                   }
     pure env
 

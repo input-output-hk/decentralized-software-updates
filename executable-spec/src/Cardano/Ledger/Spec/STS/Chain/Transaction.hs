@@ -38,6 +38,7 @@ import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
@@ -54,6 +55,7 @@ data Env p =
       , currentSlot :: !Slot
       , asips :: !(ActiveSIPs p)
       , participants :: !(Participants p)
+      , stakeDist :: !(StakeDistribution p)
       , apprvsips :: !(ApprovedSIPs p)
       , utxoEnv :: !(Environment UTXO)
       }
@@ -135,6 +137,7 @@ instance ( Hashable p
                 , currentSlot
                 , asips
                 , participants
+                , stakeDist
                 , apprvsips
                 , utxoEnv
                 }
@@ -166,7 +169,8 @@ instance ( Hashable p
           TRC ( Update.Env { Update.k = k
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
-                           , Update.participants =  participants
+                           , Update.participants = participants
+                           , Update.stakeDist = stakeDist
                            , Update.apprvsips = apprvsips
                            }
               , Update.St { Update.subsips = subsips
@@ -210,6 +214,7 @@ instance ( STS (TRANSACTION p)
          , currentSlot
          , asips
          , participants
+         , stakeDist
          , apprvsips
          }
     )
@@ -234,6 +239,7 @@ instance ( STS (TRANSACTION p)
                              , Update.currentSlot = currentSlot
                              , Update.asips = asips
                              , Update.participants = participants
+                             , Update.stakeDist = stakeDist
                              , Update.apprvsips = apprvsips
                              }
                   Update.St { Update.subsips = subsips

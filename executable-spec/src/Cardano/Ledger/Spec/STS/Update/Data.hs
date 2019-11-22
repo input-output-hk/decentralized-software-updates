@@ -222,7 +222,7 @@ deriving instance (HasSigningScheme p, Eq (SIPHash p)) => Eq (SIP p)
 instance ( Hashable p
          , HasHash p (VKey p)
          , HasSigningScheme p
-         ) => Ord (SIP p) where -- TODO: check that this instance is ok to use.
+         ) => Ord (SIP p) where
   sip0 <= sip1
     = (sipHash sip0, hash @p (author sip0), salt sip0, sipPayload sip0)
       <=

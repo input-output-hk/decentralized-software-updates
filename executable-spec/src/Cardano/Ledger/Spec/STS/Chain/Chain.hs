@@ -30,7 +30,7 @@ import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
 
-import qualified Cardano.Ledger.Generators.QuickCheck as Gen.QC
+import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
@@ -222,6 +222,7 @@ instance ( Hashable p
                           , Transaction.currentSlot = currentSlot'
                           , Transaction.asips = asips'
                           , Transaction.participants = participants
+                          , Transaction.stakeDist = stakeDist
                           , Transaction.apprvsips = apprvsips'
                           , Transaction.utxoEnv = UTxO.Env
                           }
@@ -280,15 +281,15 @@ instance ( -- Sizeable p
          ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do
-    someK <- Gen.QC.k
-    someCurrentSlot <- Gen.QC.currentSlot
+    someK <- Gen.k
+    someCurrentSlot <- Gen.currentSlot
     -- For now we generate a constant set of keys. The set of participants could
     -- be an environment of the generator.
-    someParticipants <- Gen.QC.participants
-    someRa <- Gen.QC.rA
-    someStakeDist <- Gen.QC.stakeDist
-    somePrvNoQuorum <- Gen.QC.prvNoQuorum
-    somePrvNoMajority <- Gen.QC.prvNoMajority
+    someParticipants <- Gen.participants
+    someRa <- Gen.rA
+    someStakeDist <- Gen.stakeDist someParticipants
+    somePrvNoQuorum <- Gen.prvNoQuorum
+    somePrvNoMajority <- Gen.prvNoMajority
     let env = Env { k = someK
                   -- For now we fix the maximum block size to an abstract size of 100
                   , maximumBlockSize = 100
@@ -306,6 +307,7 @@ instance ( -- Sizeable p
     Env { k
         , maximumBlockSize
         , participants
+        , stakeDist
         }
     St { currentSlot
        , subsips
@@ -327,6 +329,7 @@ instance ( -- Sizeable p
           , Transaction.currentSlot = Header.slot someHeader
           , Transaction.asips = asips
           , Transaction.participants = participants
+          , Transaction.stakeDist = stakeDist
           , Transaction.utxoEnv = UTxO.Env
           , Transaction.apprvsips = apprvsips
           }
