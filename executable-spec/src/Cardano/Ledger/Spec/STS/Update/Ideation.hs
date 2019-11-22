@@ -226,7 +226,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
             else
               QC.frequency [ (1, submissionGen)
                            , (1, revelationGen xs)
-                           , (5000, voteGen asips participants currentSlot)
+                           , (998, voteGen asips participants currentSlot)
                            ]
     where
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))

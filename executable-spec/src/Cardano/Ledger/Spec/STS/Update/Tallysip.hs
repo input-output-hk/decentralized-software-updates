@@ -200,7 +200,9 @@ tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
                 then
                   Data.NoMajority
                 else
-                  Data.Expired
+                  if Data.rvNoQuorum vres >= pNoQ || Data.rvNoMajority vres >= pNoM
+                    then Data.Expired
+                    else error "Tallysip.tallyOutcome: Reached a problemativ tally outcome."
 
 
 deriving instance Eq (Data.SIPHash p) => Eq (PredicateFailure (TALLYSIP p))

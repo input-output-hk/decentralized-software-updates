@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Ledger.Generators.QuickCheck
   ( bounded
@@ -83,10 +84,10 @@ boundedWith aMinBound aMaxBound maxDifference =
   where mid = aMinBound + (aMaxBound - aMinBound) `div` 2
 
 prvNoQuorum :: Gen Word8
-prvNoQuorum =  Gen.choose (3, 7)
+prvNoQuorum =  Gen.choose (1, 3)
 
 prvNoMajority :: Gen Word8
-prvNoMajority = Gen.choose (3, 7)
+prvNoMajority = Gen.choose (1, 3)
 
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
@@ -94,5 +95,17 @@ rA = Gen.choose (0, 0.5)
 stakeDist :: Participants Mock -> Gen (StakeDistribution Mock)
 stakeDist someParticipants = do
   let hashes = vkeyHashes someParticipants
-  stks <- Gen.vectorOf (length hashes) (Gen.choose (1, 20))
+  stks <- Gen.oneof [ stakeDistUniform (length hashes)
+                    , stakeDistSkewed (length hashes)
+                    ]
   pure $ StakeDistribution $ Map.fromList $ zip hashes (Stake <$> stks)
+  where
+    stakeDistUniform :: Int -> Gen (StakeDistribution p)
+    stakeDistUniform n = Gen.vectorOf n (Gen.choose (1, 20))
+
+    stakeDistSkewed :: n -> Gen (StakeDistribution p)
+    stakeDistSkewed n = do
+      stksBig <- Gen.vectorOf (round (fromIntegral n) * 0.20) (Gen.choose (1000, 2000))
+      stksSmall <- Gen.vectorOf (n - length stksBig) (Gen.choose (1, 20))
+      let stks = stksBig ++ stksSmall
+      pure stks

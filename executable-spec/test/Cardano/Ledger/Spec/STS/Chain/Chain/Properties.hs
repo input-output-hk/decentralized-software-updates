@@ -91,6 +91,12 @@ relevantCasesAreCovered
           )
           "a reasonable pct of update payload appears in the trace "
           $
+        -- QC.tabulate "Pct of Txs with Update Payload" [( show @Int
+        --                                                $ round @Float
+        --                                                $ pctUpdatePayload traceSample
+        --                                               ) ++ "%"
+        --                                              ]
+        --  $
 
         -- X% of traces should: should have submitted SIPs
         QC.cover 80
@@ -131,13 +137,13 @@ relevantCasesAreCovered
           $
 
         -- X% of traces should: there are SIPs that got rejected
-        QC.cover 2
+        QC.cover 1
           (traceSample `lastStateContainsTallyOutcome` Data.Rejected)
           "There are rejected SIPs"
           $
 
         -- X% of traces should: there are SIPs that got no quorum
-        QC.cover 2
+        QC.cover 0.5
           (traceSample `lastStateContainsTallyOutcome` Data.NoQuorum)
           "There are no-quorum SIPs"
           $
@@ -163,55 +169,46 @@ relevantCasesAreCovered
         QC.cover 10
           (traceSample `lastStateContainsTallyOutcome` Data.Expired)
           "There are expired SIPs"
-          $ True
+          $
 
+          -- X% of traces should: There are no active SIPs with no votes
+        QC.cover 99
+          ( let SIPsVoteResults (vresmap) = Chain.vresips
+                                            $ Trace.lastState traceSample
+            in not $ any(\vr ->
+                     Data.stakeInFavor vr == 0
+                     &&
+                     Data.stakeAgainst vr == 0
+                     &&
+                     Data.stakeAbstain vr == 0
+                     &&
+                     Data.rvNoQuorum vr == 0
+                     &&
+                     Data.rvNoMajority vr == 0
+                  ) $ map (snd) $ Map.toList vresmap
+          )
+          "There are no active SIPs with no votes"
+          $
+          -- X% of traces should: stake distribution is skewed
+        QC.cover 25
+          (stakeDistWhoOwns80PctOfStk traceSample 0.20)
+          "stake distribution is skewed"
+          $
 
-        -- -- TODO covers:
-        --   -- X% of traces should: Submitted SIPs in the trace are unique
-
-        --   -- X% of traces should: Submitted SIPs in the trace are not unique
-
-        --   -- X% of traces should: Submitted SIPs correspond only to valid stake holders
-
-        --   -- X% of traces should: Submitted SIPs correspond also to invalid stake holders
-
-        --   -- X% of traces should: for every Submitted SIP there is a Reveal
-
-        --   -- X% of traces should: there are Submitted SIPs that have not been Revealed yet
-
-        --   -- X% of traces should: there are Revealed SIPs that have not been submitted
-
-        --   -- X% of traces should: Votes correspond only to active SIPs
-
-        --   -- X% of traces should: Votes correspond also to non-active SIPs
-        --   -- (e.g., revealed, not revealed, submitted, not submitted)
-
-        --   -- X% of traces should: There are active SIPs with no votes
-
-        --   -- X% of traces should: stake distribution is skewed
-        -- QC.cover 25
-        --    (stakeDistWhoOwns80PctOfStk traceSample 0.20)
-        --    "stake distribution is skewed"
-        --    $
-
-        -- -- X% of traces should: stake distribution is uniform
-        -- QC.cover 25
-        --    (stakeDistWhoOwns80PctOfStk traceSample 0.80)
-        --    "stake distribution is uniform"
-        --    $
-        -- QC.cover 100
-        --   ( (length $ getSIPsInTraceFromSignals traceSample)
-        --     ==
-        --     (length $ getSIPsInTraceFromLastState traceSample)
-        --   )
-        --   "SIPs in signal equal SIPs in state"
-        --    $
-        -- QC.tabulate "Pct of Txs with Update Payload" [( show @Int
-        --                                                $ round @Float
-        --                                                $ pctUpdatePayload traceSample
-        --                                               ) ++ "%"
-        --                                              ]
-        --    $
+        QC.cover 100
+          ( (length $ getSIPsInTraceFromSignals traceSample)
+            ==
+            (length $ getSIPsInTraceFromLastState traceSample)
+          )
+          "SIPs in signal equal SIPs in state"
+           $
+        QC.cover 80
+          ( (pctSIPsInUpdPayload traceSample) >= 1
+           &&
+            (pctSIPsInUpdPayload traceSample) <= 20
+          )
+          "a reasonable Pct of SIP submissions in Update Payload"
+          $
         -- QC.tabulate "Pct of SIP submissions in Update Payload"
         --                                              [( show @Int
         --                                                $ round @Float
@@ -219,40 +216,55 @@ relevantCasesAreCovered
         --                                               ) ++ "%"
         --                                              ]
         --    $
+        QC.cover 50
+          (pctSIPsTallyOutcome traceSample Data.Approved >= 5)
+          "satisfactory pct of approved SIPs"
+          $
+
+        QC.cover 1
+          (pctSIPsTallyOutcome traceSample Data.Rejected >= 0.01)
+          "satisfactory pct of rejected SIPs"
+          $
+
+        QC.cover 50
+          (pctSIPsTallyOutcome traceSample Data.Expired >= 0.01)
+          "satisfactory pct of expired SIPs"
+          $
+
+        QC.cover 1
+          (pctSIPsInRevoting traceSample Data.NoQuorum >= 1)
+          "satisfactory pct of SIPs in revoting NoQuorum"
+          $
+
+        QC.cover 50
+          (pctSIPsInRevoting traceSample Data.NoMajority >= 1)
+          "satisfactory pct of SIPs in revoting NoMajority"
+          $ True
+
         -- QC.tabulate "Pct of SIP per Tally Outcome"
-        --                                   [ ( show @Int
-        --                                      $ round @Float
-        --                                      $ pctSIPsTallyOutcome traceSample Data.Approved
-        --                                     ) ++ "% Approved"
-        --                                   , ( show @Int
-        --                                       $ round @Float
-        --                                       $ pctSIPsTallyOutcome traceSample Data.Rejected
-        --                                     ) ++ "% Rejected"
-        --                                   , ( show @Int
-        --                                       $ round @Float
-        --                                       $ pctSIPsTallyOutcome traceSample Data.NoQuorum
-        --                                     ) ++ "% NoQuorum"
-        --                                   , ( show @Int
-        --                                       $ round @Float
-        --                                       $ pctSIPsTallyOutcome traceSample Data.NoMajority
-        --                                     ) ++ "% NoMajority"
-        --                                   , ( show @Int
-        --                                       $ round @Float
-        --                                       $ pctSIPsTallyOutcome traceSample Data.Expired
-        --                                     ) ++ "% Expired"
-        --                                   ]
-        --    $
-        -- QC.tabulate "Pct of SIPs in revoting"
-        --                                   [ ( show @Int
-        --                                       $ round @Float
-        --                                       $ pctSIPsInRevoting traceSample Data.NoQuorum
-        --                                     ) ++ "% due to No Quorum"
-        --                                   , ( show @Int
-        --                                       $ round @Float
-        --                                       $ pctSIPsInRevoting traceSample Data.NoMajority
-        --                                     ) ++ "% due to No Majority"
-        --                                   ]
-        --    $ True
+        --                                   [
+                                            -- ( show @Int
+                                            --  $ round @Float
+                                            --  $ pctSIPsTallyOutcome traceSample Data.Approved
+                                            -- ) ++ "% Approved"
+                                          --  ( show @Int
+                                          --     $ round @Float
+                                          --     $ pctSIPsTallyOutcome traceSample Data.Rejected
+                                          --   ) ++ "% Rejected"
+                                          -- , ( show @Int
+                                          --     $ round @Float
+                                          --     $ pctSIPsTallyOutcome traceSample Data.NoQuorum
+                                          --   ) ++ "% NoQuorum"
+                                          -- , ( show @Int
+                                          --     $ round @Float
+                                          --     $ pctSIPsTallyOutcome traceSample Data.NoMajority
+                                          --   ) ++ "% NoMajority"
+                                          -- , ( show @Int
+                                          --     $ round @Float
+                                          --     $ pctSIPsTallyOutcome traceSample Data.Expired
+                                          --   ) ++ "% Expired"
+                                          -- ]
+           -- $
   where
     maxTraceLength = 200
 
@@ -270,7 +282,7 @@ getMinTraceLength k =
 -- | Returns the percent of Txs with a non-empty update payload in the input Trace
 pctUpdatePayload
   :: Trace.Trace (CHAIN Mock)
-  -> Int
+  -> Float
 pctUpdatePayload tr =
   let -- get the total of transactions in tr
       txTot = foldl' (\tot b -> tot + txsInAblock b) 0 blocks
@@ -287,7 +299,7 @@ pctUpdatePayload tr =
                                $ Body.transactions (Chain.body b)
 
   in if txTot > 0
-       then round @Float $ (fromIntegral txupdTot) / (fromIntegral txTot) * 100
+       then (fromIntegral txupdTot) / (fromIntegral txTot) * 100
        else 0
 
 pctSIPsInUpdPayload :: Trace.Trace(CHAIN Mock) -> Float
@@ -325,6 +337,7 @@ pctSIPsTallyOutcome tr outc =
 
 
 -- | Return a SIP-hash to TallyOutcome map
+-- showing the results of the last state
 tallyOutcomeMap
   :: SIPsVoteResults p
   -> StakeDistribution p
