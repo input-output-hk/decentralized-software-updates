@@ -172,7 +172,7 @@ relevantCasesAreCovered
           $
 
           -- X% of traces should: There are no active SIPs with no votes
-        QC.cover 99
+        QC.cover 95
           ( let SIPsVoteResults (vresmap) = Chain.vresips
                                             $ Trace.lastState traceSample
             in not $ any(\vr ->
@@ -189,7 +189,9 @@ relevantCasesAreCovered
           )
           "There are no active SIPs with no votes"
           $
-          -- X% of traces should: stake distribution is skewed
+          -- stake distribution is skewed
+          -- We define as \"skewed\" a distribution where the 20\% of stakeholders
+          -- owns more than 80\% percent of the stake
         QC.cover 25
           (stakeDistWhoOwns80PctOfStk traceSample 0.20)
           "stake distribution is skewed"
@@ -216,7 +218,7 @@ relevantCasesAreCovered
         --                                               ) ++ "%"
         --                                              ]
         --    $
-        QC.cover 50
+        QC.cover 45
           (pctSIPsTallyOutcome traceSample Data.Approved >= 5)
           "satisfactory pct of approved SIPs"
           $
@@ -226,7 +228,7 @@ relevantCasesAreCovered
           "satisfactory pct of rejected SIPs"
           $
 
-        QC.cover 50
+        QC.cover 45
           (pctSIPsTallyOutcome traceSample Data.Expired >= 0.01)
           "satisfactory pct of expired SIPs"
           $
@@ -236,7 +238,7 @@ relevantCasesAreCovered
           "satisfactory pct of SIPs in revoting NoQuorum"
           $
 
-        QC.cover 50
+        QC.cover 45
           (pctSIPsInRevoting traceSample Data.NoMajority >= 1)
           "satisfactory pct of SIPs in revoting NoMajority"
           $ True
@@ -510,7 +512,7 @@ lastStateContainsTallyOutcome tr outc =
 
 stakeDistWhoOwns80PctOfStk
   :: Trace.Trace (CHAIN Mock)
-  -> Float -- ^ desired percent of stakeholders that own 80 pct of stake
+  -> Float -- ^ desired percent of stakeholders that owns 80 pct of stake
   -> Bool
 stakeDistWhoOwns80PctOfStk tr pctOwn =
   let env = Trace._traceEnv tr

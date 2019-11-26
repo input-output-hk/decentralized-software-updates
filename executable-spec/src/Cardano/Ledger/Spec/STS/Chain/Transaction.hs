@@ -229,7 +229,7 @@ instance ( STS (TRANSACTION p)
     = do
     someUpdatePayload <-
       QC.frequency
-        [ (70, pure $! []) -- We don't generate payload in 9/10 of the cases.
+        [ (70, pure $! []) -- We don't generate payload in 7/10 of the cases.
         , (30, do
               someUpdatePayload <-
                 STS.Gen.sigGen

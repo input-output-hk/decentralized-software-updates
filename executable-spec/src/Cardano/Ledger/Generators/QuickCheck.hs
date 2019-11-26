@@ -83,11 +83,15 @@ boundedWith aMinBound aMaxBound maxDifference =
             ]
   where mid = aMinBound + (aMaxBound - aMinBound) `div` 2
 
+-- | Protocol parameter: maximum number of revoting periods
+-- due to a No Quorum result
 prvNoQuorum :: Gen Word8
-prvNoQuorum =  Gen.choose (1, 3)
+prvNoQuorum =  Gen.choose (0, 3)
 
+-- | Protocol parameter: maximum number of revoting periods
+-- due to a No Majority result
 prvNoMajority :: Gen Word8
-prvNoMajority = Gen.choose (1, 3)
+prvNoMajority = Gen.choose (0, 3)
 
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
@@ -103,9 +107,11 @@ stakeDist someParticipants = do
     stakeDistUniform :: Int -> Gen (StakeDistribution p)
     stakeDistUniform n = Gen.vectorOf n (Gen.choose (1, 20))
 
+    -- | We define as "skewed" a distribution where the 20% of stakeholders owns
+    -- more than 80% percent of the stake.
     stakeDistSkewed :: n -> Gen (StakeDistribution p)
     stakeDistSkewed n = do
-      stksBig <- Gen.vectorOf (round (fromIntegral n) * 0.20) (Gen.choose (1000, 2000))
+      stksBig <- Gen.vectorOf (round (fromIntegral n) * 0.20) (Gen.choose (1000, 1000 + 20))
       stksSmall <- Gen.vectorOf (n - length stksBig) (Gen.choose (1, 20))
       let stks = stksBig ++ stksSmall
       pure stks

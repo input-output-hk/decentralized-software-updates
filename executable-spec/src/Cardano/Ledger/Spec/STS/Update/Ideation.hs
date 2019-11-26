@@ -213,8 +213,19 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
     St{ wssips, wrsips, subsips } =
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
-          -- There are no stable commits, so we can only generate a submission.
-          submissionGen
+          -- There are no stable commits
+
+          -- Check if there are active sips whose voting end
+          -- has not been reached yet.
+          if Set.empty == dom (asips ▷>= currentSlot)
+            then
+            --, so we can only generate a submission.
+            submissionGen
+            else
+              -- we can also generate votes
+              QC.frequency [ (10, submissionGen)
+                           , (90, voteGen asips participants currentSlot)
+                           ]
         xs ->
           if Set.empty == dom (asips ▷>= currentSlot)
             then
@@ -224,9 +235,11 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
                            , (1, revelationGen xs)
                            ]
             else
-              QC.frequency [ (1, submissionGen)
-                           , (1, revelationGen xs)
-                           , (998, voteGen asips participants currentSlot)
+              -- votes are much more frequent events than
+              -- the submission or revealing of SIPs
+              QC.frequency [ (5, submissionGen)
+                           , (5, revelationGen xs)
+                           , (90, voteGen asips participants currentSlot)
                            ]
     where
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
@@ -296,6 +309,9 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
       voteGen actsips partnts currSlot =
         do
           voter <- QC.elements $ Set.toList $ dom partnts
+          -- We promote a bit more the positive votes because we want
+          -- to have a good percent of approved SIPs, since only approvals
+          -- take us to the next phase in the lifecycle
           confidence <- QC.frequency [ (60, pure $ Data.For)
                                      , (20, pure $ Data.Against)
                                      , (20, pure $ Data.Abstain)

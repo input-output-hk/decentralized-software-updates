@@ -125,6 +125,8 @@ data VPStatus = VPOpen | VPClosed
 
 -- | Includes logic to translate a voting period duration
 -- to number of slots
+-- TODO: Change VPDuration from bands to actual SlotCounts
+-- without any "translation logic"
 vpDurationToSlotCnt :: VPDuration -> SlotCount
 vpDurationToSlotCnt  d =
   case d of
@@ -171,8 +173,11 @@ data SIPMetadata =
       -- ^ Flag to determine an impact on the underlying consensus protocol
     , impactsParameters :: !([ParamName])
       -- ^ List of protocol parameters impacted
+
     , votPeriodDuration :: !VPDuration
-      -- Voting Period duration for this SIP
+      -- ^ Voting Period duration for this SIP
+      -- TODO: Change VPDuration from bands to actual SlotCounts
+      -- without any "translation logic"
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
