@@ -22,6 +22,7 @@ import qualified Data.Text as T
 import           Data.Typeable (Typeable, typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
+import           System.Random (Random)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
@@ -113,7 +114,7 @@ stakePercentRound st totSt =
 
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }
- deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real)
+ deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random)
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge

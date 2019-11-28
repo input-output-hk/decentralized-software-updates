@@ -27,7 +27,7 @@ import qualified Test.QuickCheck as QC
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), Slot, BlockCount)
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), Slot, BlockCount, (▷>=))
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -224,7 +224,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
             else
               -- we can also generate votes
               QC.frequency [ (10, submissionGen)
-                           , (90, voteGen asips participants currentSlot)
+                           , (90, voteGen asips currentSlot)
                            ]
         xs ->
           if Set.empty == dom (asips ▷>= currentSlot)
@@ -239,7 +239,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
               -- the submission or revealing of SIPs
               QC.frequency [ (5, submissionGen)
                            , (5, revelationGen xs)
-                           , (90, voteGen asips participants currentSlot)
+                           , (90, voteGen asips currentSlot)
                            ]
     where
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
@@ -302,13 +302,12 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
           else submissionGen
 
       voteGen
-        :: ActiveSIPs p
-        -> Participants p
-        -> Core.Slot
-        -> QC.Gen (IdeationPayload p)
-      voteGen actsips partnts currSlot =
+        :: ActiveSIPs Mock
+        -> Slot
+        -> QC.Gen (IdeationPayload Mock)
+      voteGen actsips currSlot =
         do
-          voter <- QC.elements $ Set.toList $ dom partnts
+          (voter, voterSkey) <- QC.elements $ toList participants
           -- We promote a bit more the positive votes because we want
           -- to have a good percent of approved SIPs, since only approvals
           -- take us to the next phase in the lifecycle
@@ -317,11 +316,9 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
                                      , (20, pure $ Data.Abstain)
                                      ]
 
-          --QC.elements [Data.For, Data.Against, Data.Abstain]
-          -- choose among active sips whose voting period is still open
+          -- Choose among active sips whose voting period is still open
           sipHash <- QC.elements $ Set.toList $ dom (actsips ▷>= currSlot)
-          let voterSig = Core.sign skey  (sipHash,confidence,voter)
-              skey = partnts ! voter
+          let voterSig = sign (sipHash, confidence, voter) voterSkey
           pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
 
 

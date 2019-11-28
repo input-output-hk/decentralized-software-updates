@@ -32,7 +32,7 @@ import           Cardano.Ledger.Spec.State.Participants
                      (Participants (Participants), vkeyHashes)
 import           Cardano.Ledger.Spec.State.StakeDistribution
                      (StakeDistribution (StakeDistribution))
-import           Cardano.Ledger.Spec.STS.Update.Data (Stake (Stake))
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import           Cardano.Ledger.Test.Mock (Mock)
 
@@ -102,16 +102,16 @@ stakeDist someParticipants = do
   stks <- Gen.oneof [ stakeDistUniform (length hashes)
                     , stakeDistSkewed (length hashes)
                     ]
-  pure $ StakeDistribution $ Map.fromList $ zip hashes (Stake <$> stks)
+  pure $ StakeDistribution $ Map.fromList $ zip hashes stks
   where
-    stakeDistUniform :: Int -> Gen (StakeDistribution p)
+    stakeDistUniform :: Int -> Gen [Data.Stake]
     stakeDistUniform n = Gen.vectorOf n (Gen.choose (1, 20))
 
     -- | We define as "skewed" a distribution where the 20% of stakeholders owns
     -- more than 80% percent of the stake.
-    stakeDistSkewed :: n -> Gen (StakeDistribution p)
+    stakeDistSkewed :: Int -> Gen [Data.Stake]
     stakeDistSkewed n = do
-      stksBig <- Gen.vectorOf (round (fromIntegral n) * 0.20) (Gen.choose (1000, 1000 + 20))
+      stksBig <- Gen.vectorOf (round $ (fromIntegral n :: Double) * 0.20) (Gen.choose (1000, 1000 + 20))
       stksSmall <- Gen.vectorOf (n - length stksBig) (Gen.choose (1, 20))
       let stks = stksBig ++ stksSmall
       pure stks
