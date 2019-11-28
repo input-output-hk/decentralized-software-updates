@@ -67,12 +67,21 @@ test-suite ledger-rules-test
   hs-source-dirs:      test
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
-  other-modules:       Cardano.Ledger.Spec.STS.Chain.Chain.Properties
+  other-modules:       Cardano.Ledger.Spec.SM.Ideation
+                     , Cardano.Ledger.Spec.SM.Ideation.Full
+                     , Cardano.Ledger.Spec.SM.Vote
+                     , Cardano.Ledger.Spec.STS.Chain.Chain.Properties
                      , Cardano.Ledger.Spec.STS.Update.Ideation.Properties
+                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties
+                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Full.Properties
+                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Vote.Properties
+                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance
   default-language:    Haskell2010
   build-depends:       base
-                     , tasty
+                     , containers
+                     , mtl
                      , QuickCheck
+                     , tasty
                      , tasty-quickcheck
                      -- Cardano specific imports
                      , cardano-crypto-class
@@ -80,7 +89,8 @@ test-suite ledger-rules-test
                      , decentralized-updates
                      , cs-ledger
                      , small-steps
-                     , containers
+                     -- Internal libraries
+                     , datil
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates

@@ -35,7 +35,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
-import           Cardano.Ledger.Spec.Classes.Indexed ((!))
+import           Cardano.Ledger.Spec.Classes.Indexed ((!), withValue)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
@@ -154,6 +154,10 @@ instance ( Hashable p
           -- The Revealed SIP must correspond to a stable Commited SIP.
           -- Restrict the range of wssips to values less or equal than
           -- @currentSlot - 2k@
+          --
+          -- TODO: this won't work if the submission slot is < 2k. For instance
+          -- if a SIP was submitted at slot 0 this condition ensures that it can
+          -- also be revealed at slot 0.
           Data.calcCommit sip
             ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSIP sip wssips
@@ -185,8 +189,10 @@ instance ( Hashable p
 
             -- The end of the voting period for this SIP must not have been
             -- reached yet.
-            currentSlot <= asips ! Data.votedsipHash voteForSIP ?!
-              VotingPeriodEnded (Data.votedsipHash voteForSIP) currentSlot
+            withValue (asips ! Data.votedsipHash voteForSIP) () $
+              \asipSlot ->
+                currentSlot <= asipSlot ?!
+                VotingPeriodEnded (Data.votedsipHash voteForSIP) currentSlot
 
             pure $ st { ballots = updateBallot ballots voteForSIP }
     ]

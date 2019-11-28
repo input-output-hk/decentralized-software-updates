@@ -12,6 +12,7 @@ module Cardano.Ledger.Spec.State.Ballot where
 
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Maybe (fromMaybe)
 
 import           Cardano.Ledger.Spec.STS.Update.Data (confidence, votedsipHash,
                      voter)
@@ -61,10 +62,14 @@ addVotes
 addVotes stakeDistribution votingResult (SIPBallot ballot) =
   Map.foldrWithKey'
   (\vkey confidence votingResult'
-    -> Data.addVote (stakeDistribution ! vkey) confidence votingResult'
+    -> Data.addVote (stake vkey) confidence votingResult'
   )
   votingResult
   ballot
+  where
+    stake vkey = fromMaybe err $ stakeDistribution ! vkey
+      where
+        err = error $ "No stake for key " ++ show vkey
 
 -- | Update the ballot with the given vote.
 --

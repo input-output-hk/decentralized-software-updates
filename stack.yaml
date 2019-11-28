@@ -2,6 +2,7 @@ resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/3c40
 
 packages:
   - executable-spec
+  - datil
 
 extra-deps:
   - git: https://github.com/input-output-hk/cardano-prelude

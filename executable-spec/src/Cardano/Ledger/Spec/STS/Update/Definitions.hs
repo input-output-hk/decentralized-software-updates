@@ -5,4 +5,3 @@ module Cardano.Ledger.Spec.STS.Update.Definitions where
 -- Output the percent of stake threshold (e.g., 75, 50 etc)
 vThreshold :: (RealFrac a, Integral b) => a -> b
 vThreshold r = round $ 50 * (r + 1)
--- type VThreshold = Word8

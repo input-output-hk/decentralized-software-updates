@@ -20,7 +20,7 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      wrapFailed, (?!))
 import           Ledger.Core (Slot, addSlot, dom, (∈), (⨃))
 
-import           Cardano.Ledger.Spec.Classes.Indexed ((!))
+import           Cardano.Ledger.Spec.Classes.Indexed ((!), withValue)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, registerApproval, isSIPApproved)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, ballotFor, addVotes)
@@ -92,10 +92,10 @@ instance (Hashable p) => STS (TALLYSIP p) where
                 , prvNoQuorum
                 , prvNoMajority
                 }
-          , St  { vresips
-                , asips
-                , apprvsips
-                }
+          , st@St { vresips
+                  , asips
+                  , apprvsips
+                  }
           , sipHash
           ) <- judgmentContext
 
@@ -103,7 +103,6 @@ instance (Hashable p) => STS (TALLYSIP p) where
 
       not (isSIPApproved sipHash apprvsips) ?! SIPAlreadyApproved sipHash
 
-      -- do the tally
       let
         (rvNoQ, rvNoM) = getRevotingCounters sipHash vresips
 
@@ -113,52 +112,57 @@ instance (Hashable p) => STS (TALLYSIP p) where
               vResult = addVotes stakeDist (Data.VotingResult 0 0 0 rvNoQ rvNoM) ballotsOfSIP
           in vresips ⨃ [(sipHash, vResult)]
 
-        -- update state and in case of revoting, update both state and voting
-        -- results
-        (apprvsips', asips', vResult') =
-          case tallyOutcome
-                 (vresips'!sipHash)
-                 stakeDist
-                 prvNoQuorum
-                 prvNoMajority
-                 r_a of
-            Data.Approved   ->
-              ( registerApproval sipHash apprvsips
-              , asips
-              , (vresips'!sipHash)
-              )
-            Data.Rejected   ->
-              ( apprvsips
-              , asips
-              , (vresips'!sipHash)
-              )
-            Data.NoQuorum   ->
-              ( apprvsips
-              , asips ⨃ [( sipHash
-                         , currentSlot `addSlot` (votingPeriodEnd sipHash sipdb)
-                         )
-                        ]
-              , Data.VotingResult 0 0 0 (rvNoQ + 1)  rvNoM
-              )
-            Data.NoMajority ->
-              ( apprvsips
-              , asips ⨃ [( sipHash,
-                           currentSlot `addSlot` (votingPeriodEnd sipHash sipdb)
-                         )
-                        ]
-              , Data.VotingResult 0 0 0 rvNoQ  (rvNoM + 1)
-              )
-            Data.Expired   ->
-              ( apprvsips
-              , asips
-              , (vresips'!sipHash)
-              )
+      withValue (vresips'!sipHash) st $
+        \vResult' ->
+          -- do the tally
+          let
+            -- update state and in case of revoting, update both state and voting
+            -- results
+            (apprvsips', asips', vResult'') =
+              case tallyOutcome
+                   vResult'
+                   stakeDist
+                   prvNoQuorum
+                   prvNoMajority
+                   r_a of
+                Data.Approved   ->
+                  ( registerApproval sipHash apprvsips
+                  , asips
+                  , vResult'
+                  )
+                Data.Rejected   ->
+                  ( apprvsips
+                  , asips
+                  , vResult'
+                  )
+                Data.NoQuorum   ->
+                  ( apprvsips
+                  , asips ⨃ [( sipHash
+                             , currentSlot `addSlot` (votingPeriodEnd sipHash sipdb)
+                             )
+                            ]
+                  , Data.VotingResult 0 0 0 (rvNoQ + 1)  rvNoM
+                  )
+                Data.NoMajority ->
+                  ( apprvsips
+                  , asips ⨃ [( sipHash,
+                               currentSlot `addSlot` (votingPeriodEnd sipHash sipdb)
+                             )
+                            ]
+                  , Data.VotingResult 0 0 0 rvNoQ  (rvNoM + 1)
+                  )
+                Data.Expired   ->
+                  ( apprvsips
+                  , asips
+                  , vResult'
+                  )
 
-        vresips'' = vresips' ⨃ [(sipHash, vResult')]
-      pure $ St { vresips = vresips''
-                , apprvsips = apprvsips'
-                , asips = asips'
-                }
+            vresips'' = vresips' ⨃ [(sipHash, vResult'')]
+          in
+          pure $ St { vresips = vresips''
+                    , apprvsips = apprvsips'
+                    , asips = asips'
+                    }
 
     ]
 

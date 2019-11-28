@@ -9,6 +9,7 @@
 module Cardano.Ledger.Spec.State.RevealedSIPs where
 
 import           Data.Map.Strict (Map)
+import           Data.Maybe (fromMaybe)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Ledger.Core as Core
@@ -33,4 +34,7 @@ votingPeriodEnd sipHash sipdb
   = Data.votPeriodDuration
   . Data.metadata
   . Data.sipPayload
-  $ (sipdb ! sipHash)
+  $ sip
+  where
+    sip = fromMaybe err $ sipdb ! sipHash
+    err = error $ "Could not find SIP with the given hash" ++ show sipHash

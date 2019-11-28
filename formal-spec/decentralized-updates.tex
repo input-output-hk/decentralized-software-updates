@@ -1,0 +1,110 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+
+\usepackage{microtype}
+\usepackage{mathpazo} % nice fonts
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{latexsym}
+\usepackage{mathtools}
+\usepackage{stmaryrd}
+\usepackage{extarrows}
+\usepackage{slashed}
+\usepackage[unicode=true,pdftex,pdfa,colorlinks=true]{hyperref}
+\usepackage{xcolor}
+\usepackage[capitalise,noabbrev,nameinlink]{cleveref}
+\usepackage{float}
+\floatstyle{boxed}
+\restylefloat{figure}
+\usepackage{listings} % for code blocks.
+%%
+%% Package `semantic` can be used for writing inference rules.
+%%
+\usepackage{semantic}
+%% Setup for the semantic package
+\setpremisesspace{20pt}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata, decorations.pathreplacing, positioning, arrows.meta, calc, shapes}
+% For drawing simple diagrams involving arrows between LaTeX symbols
+\usepackage{tikz-cd}
+
+\newtheorem{definition}{Definition}
+\newtheorem{property}{Property}
+
+\newcommand{\size}[1]{\ensuremath{\left| #1 \right|}}
+\newcommand{\trans}[2]{\ensuremath{\xlongrightarrow[\textsc{#1}]{#2}}}
+\newcommand{\transtar}[2]{\ensuremath{\xlongrightarrow[\textsc{#1}]{#2}\negthickspace^{*}}}
+
+\newcommand{\autact}[3]{\ensuremath{\scalebox{0.75}{$
+    \begin{array}{l l}
+      & #1\\
+      ; & #2\\
+      ; & #3
+    \end{array}
+$}}}
+
+\newcommand{\nnote}[1]{{\color{blue}\small Nikos: #1}}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Front matter
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\hypersetup{
+  pdftitle={A Formal Specification of the Cardano Ledger (Byron Release)},
+  breaklinks=true,
+  bookmarks=true,
+  colorlinks=false,
+  linkcolor={blue},
+  citecolor={blue},
+  urlcolor={blue},
+  linkbordercolor={white},
+  citebordercolor={white},
+  urlbordercolor={white}
+}
+
+\title{
+  A Formal Specification of an Update Mechanism for Cardano\\
+}
+
+\author{
+  Nikos Karagiannidis\\
+  {\small \texttt{nikos.Karagiannidis@iohk.io}}\\
+  \and
+  Michele Ciampi \\
+  {\small \texttt{micheleciampi1990@gmail.com}}\\
+  \and
+  Damian Nadales \\
+  {\small \texttt{damian.nadales@iohk.io}}\\
+}
+
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% End: Front matter
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\tableofcontents
+\listoffigures
+
+\include{requirements}
+\include{candidateproperties}
+\include{measurements}
+\include{validation-criteria}
+
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{acm}
+\bibliography{references}
+
+\end{document}
