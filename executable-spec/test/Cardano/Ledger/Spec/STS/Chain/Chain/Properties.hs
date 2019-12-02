@@ -70,119 +70,105 @@ relevantCasesAreCovered
   = QC.withMaxSuccess 300
   $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
   $ \traceSample ->
+        (QC..&&.)
+          (STS.Gen.classifyTraceLength maxTraceLength 10 traceSample)
+        $
         -- traces should be long enough to allow for the stabilization
         -- of events
-        QC.cover 80
+        QC.cover 70
           ( (fromIntegral $ Trace.traceLength traceSample)
             >=
             getMinTraceLength  (Chain.k $ Trace._traceEnv traceSample)
           )
           "Trace length is long enough to allow for the stabilization of events"
           $
-
-        -- 80% of traces should include a 20% percent of update payload
-        QC.cover 80
-          ( (pctUpdatePayload traceSample) >= 15
-          &&
-            (pctUpdatePayload traceSample) <= 25
+        -- 50% of traces should include a 20% percent of update payload
+        QC.cover 50
+          ( (pctUpdatePayload traceSample) >= 10
+           &&
+            (pctUpdatePayload traceSample) <= 30
           )
           "a reasonable pct of update payload appears in the trace "
           $
-
+        -- traces should have submitted SIPs
+        QC.cover 80
+          (submittedSIPsExist traceSample)
+          "Submitted SIPs exist"
+          $
+        -- traces should have revealed SIPs
+        QC.cover 80
+          (revealedSIPsExist traceSample)
+          "Revealed SIPs exist"
+          $
+        -- traces should have ballots for SIPs
+        QC.cover 80
+          (sipBallotsExist traceSample)
+          "Ballots for SIPs exist"
+          $
+        -- traces should have voting results for SIPs
+        QC.cover 60
+          (voteResultsExist traceSample)
+          "Voting results for SIPs exist"
+          $
         -- Lifecycle coverage:
         -- There is at least one proposal in every phase of the lifecycle
-        QC.cover 80
+        QC.cover 60
           (lifecycleCoverage traceSample)
           "The lifecycle of a software update is sufficently covered"
           $
-
-        -- X% of traces should: there are SIPs that got approved
-        QC.cover 25
+        -- there are SIPs that got approved
+        QC.cover 50
           (traceSample `lastStateContainsTallyOutcome` Data.Approved )
           "There are approved SIPs"
           $
-
-        -- X% of traces should: there are SIPs that got rejected
-        QC.cover 25
+        -- there are SIPs that got rejected
+        QC.cover 1
           (traceSample `lastStateContainsTallyOutcome` Data.Rejected)
           "There are rejected SIPs"
           $
-
-        -- X% of traces should: there are SIPs that got no quorum
-        QC.cover 20
+        -- there are SIPs that got no quorum
+        QC.cover 0.5
           (traceSample `lastStateContainsTallyOutcome` Data.NoQuorum)
           "There are no-quorum SIPs"
           $
-
-        -- X% of traces should: there are SIPs that got no majority
-        QC.cover 20
+        -- there are SIPs that got no majority
+        QC.cover 10
           (traceSample `lastStateContainsTallyOutcome` Data.NoMajority)
           "There are no-majority SIPs"
           $
 
-        -- X% of traces should: there are SIPs that got expired
+        -- there are SIPs that got expired
         QC.cover 10
           (traceSample `lastStateContainsTallyOutcome` Data.Expired)
           "There are expired SIPs"
           $
 
-        -- X% of traces should: should have submitted SIPs
-        QC.cover 80
-          (submittedSIPsExist traceSample)
-          "Submitted SIPs exist"
+          -- There are no active SIPs with no votes
+        QC.cover 95
+          ( let SIPsVoteResults (vresmap) = Chain.vresips
+                                            $ Trace.lastState traceSample
+            in not $ any(\vr ->
+                     Data.stakeInFavor vr == 0
+                     &&
+                     Data.stakeAgainst vr == 0
+                     &&
+                     Data.stakeAbstain vr == 0
+                     &&
+                     Data.rvNoQuorum vr == 0
+                     &&
+                     Data.rvNoMajority vr == 0
+                  ) $ map (snd) $ Map.toList vresmap
+          )
+          "There are no active SIPs with no votes"
           $
-
-        -- X% of traces should: should have revealed SIPs
-        QC.cover 80
-          (revealedSIPsExist traceSample)
-          "Revealed SIPs exist"
-          $
-
-        -- X% of traces should: should have ballots for SIPs
-        QC.cover 80
-          (sipBallotsExist traceSample)
-          "Ballots for SIPs exist"
-          $
-
-        -- X% of traces should: should have voting results for SIPs
-        QC.cover 80
-          (voteResultsExist traceSample)
-          "Voting results for SIPs exist"
-          $
-
-        -- TODO covers:
-          -- X% of traces should: Submitted SIPs in the trace are unique
-
-          -- X% of traces should: Submitted SIPs in the trace are not unique
-
-          -- X% of traces should: Submitted SIPs correspond only to valid stake holders
-
-          -- X% of traces should: Submitted SIPs correspond also to invalid stake holders
-
-          -- X% of traces should: for every Submitted SIP there is a Reveal
-
-          -- X% of traces should: there are Submitted SIPs that have not been Revealed yet
-
-          -- X% of traces should: there are Revealed SIPs that have not been submitted
-
-          -- X% of traces should: Votes correspond only to active SIPs
-
-          -- X% of traces should: Votes correspond also to non-active SIPs
-          -- (e.g., revealed, not revealed, submitted, not submitted)
-
-          -- X% of traces should: There are active SIPs with no votes
-
-          -- X% of traces should: stake distribution is skewed
+          -- stake distribution is skewed
+          -- We define as \"skewed\" a distribution where the 20\% of stakeholders
+          -- owns more than 80\% percent of the stake
         QC.cover 25
-           (stakeDistWhoOwns80PctOfStk traceSample 0.20)
-           "stake distribution is skewed"
-           $
+          (stakeDistWhoOwns80PctOfStk traceSample 0.20)
+          "stake distribution is skewed"
+          $
 
-        -- X% of traces should: stake distribution is uniform
-        QC.cover 25
-           (stakeDistWhoOwns80PctOfStk traceSample 0.80)
-           "stake distribution is uniform"
-           $
         QC.cover 100
           ( (length $ getSIPsInTraceFromSignals traceSample)
             ==
@@ -190,55 +176,99 @@ relevantCasesAreCovered
           )
           "SIPs in signal equal SIPs in state"
            $
-        QC.tabulate "Pct of Txs with Update Payload" [( show @Int
-                                                       $ round @Float
-                                                       $ pctUpdatePayload traceSample
-                                                      ) ++ "%"
-                                                     ]
-           $
-        QC.tabulate "Pct of SIP submissions in Update Payload"
-                                                     [( show @Int
-                                                       $ round @Float
-                                                       $ pctSIPsInUpdPayload traceSample
-                                                      ) ++ "%"
-                                                     ]
-           $
-        QC.tabulate "Pct of SIP per Tally Outcome"
-                                          [ ( show @Int
-                                             $ round @Float
-                                             $ pctSIPsTallyOutcome traceSample Data.Approved
-                                            ) ++ "% Approved"
-                                          , ( show @Int
-                                              $ round @Float
-                                              $ pctSIPsTallyOutcome traceSample Data.Rejected
-                                            ) ++ "% Rejected"
-                                          , ( show @Int
-                                              $ round @Float
-                                              $ pctSIPsTallyOutcome traceSample Data.NoQuorum
-                                            ) ++ "% NoQuorum"
-                                          , ( show @Int
-                                              $ round @Float
-                                              $ pctSIPsTallyOutcome traceSample Data.NoMajority
-                                            ) ++ "% NoMajority"
-                                          , ( show @Int
-                                              $ round @Float
-                                              $ pctSIPsTallyOutcome traceSample Data.Expired
-                                            ) ++ "% Expired"
-                                          ]
-           $
-        QC.tabulate "Pct of SIPs in revoting"
-                                          [ ( show @Int
-                                              $ round @Float
-                                              $ pctSIPsInRevoting traceSample Data.NoQuorum
-                                            ) ++ "% due to No Quorum"
-                                          , ( show @Int
-                                              $ round @Float
-                                              $ pctSIPsInRevoting traceSample Data.NoMajority
-                                            ) ++ "% due to No Majority"
-                                          ]
-           $ True
+        QC.cover 80
+          ( (pctSIPsInUpdPayload traceSample) >= 1
+           &&
+            (pctSIPsInUpdPayload traceSample) <= 20
+          )
+          "a reasonable Pct of SIP submissions in Update Payload"
+          $
+        QC.cover 45
+          (pctSIPsTallyOutcome traceSample Data.Approved >= 5)
+          "satisfactory pct of approved SIPs"
+          $
+
+        QC.cover 1
+          (pctSIPsTallyOutcome traceSample Data.Rejected >= 0.01)
+          "satisfactory pct of rejected SIPs"
+          $
+
+        QC.cover 45
+          (pctSIPsTallyOutcome traceSample Data.Expired >= 0.01)
+          "satisfactory pct of expired SIPs"
+          $
+
+        QC.cover 1
+          (pctSIPsInRevoting traceSample Data.NoQuorum >= 1)
+          "satisfactory pct of SIPs in revoting NoQuorum"
+          $
+
+        QC.cover 45
+          (pctSIPsInRevoting traceSample Data.NoMajority >= 1)
+          "satisfactory pct of SIPs in revoting NoMajority"
+          $ True
   where
-    maxTraceLength = 100
+    maxTraceLength = 200
+
+extraTestsForTestDebugging :: QC.Property
+extraTestsForTestDebugging
+  = QC.withMaxSuccess 300
+  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
+  $ \traceSample ->
+      QC.collect (pctUpdatePayload traceSample) $
+      QC.tabulate "Pct of Txs with Update Payload" [( show @Int
+                                                     $ round @Float
+                                                     $ pctUpdatePayload traceSample
+                                                    ) ++ "%"
+                                                   ]
+      $
+      QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
+                   in sum $ map(\vr -> Data.stakeInFavor vr) $ map (snd) $ Map.toList vresmap
+                 )
+      $
+      QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
+                   in sum $ map(\vr -> Data.stakeAgainst vr) $ map (snd) $ Map.toList vresmap
+                 )
+      $
+      QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
+                   in sum $ map(\vr -> Data.stakeAbstain vr) $ map (snd) $ Map.toList vresmap
+                 )
+      $
+      QC.tabulate "Pct of SIP submissions in Update Payload"
+                                                   [( show @Int
+                                                     $ round @Float
+                                                     $ pctSIPsInUpdPayload traceSample
+                                                    ) ++ "%"
+                                                   ]
+      $
+      QC.tabulate "Pct of SIP per Tally Outcome"
+                                        [
+                                          ( show @Int
+                                           $ round @Float
+                                           $ pctSIPsTallyOutcome traceSample Data.Approved
+                                          ) ++ "% Approved"
+                                        , ( show @Int
+                                            $ round @Float
+                                            $ pctSIPsTallyOutcome traceSample Data.Rejected
+                                          ) ++ "% Rejected"
+                                        , ( show @Int
+                                            $ round @Float
+                                            $ pctSIPsTallyOutcome traceSample Data.NoQuorum
+                                          ) ++ "% NoQuorum"
+                                        , ( show @Int
+                                            $ round @Float
+                                            $ pctSIPsTallyOutcome traceSample Data.NoMajority
+                                          ) ++ "% NoMajority"
+                                        , ( show @Int
+                                            $ round @Float
+                                            $ pctSIPsTallyOutcome traceSample Data.Expired
+                                          ) ++ "% Expired"
+                                        ]
+      $ True
+  where
+    maxTraceLength = 200
+
+
 
 -- Calculates a minimum required length for a trace
 -- in order to allow for stabilization of events,
@@ -309,6 +339,7 @@ pctSIPsTallyOutcome tr outc =
 
 
 -- | Return a SIP-hash to TallyOutcome map
+-- showing the results of the last state
 tallyOutcomeMap
   :: SIPsVoteResults p
   -> StakeDistribution p
@@ -411,9 +442,18 @@ voteResultsExist :: Trace.Trace (CHAIN Mock)  -> Bool
 voteResultsExist tr =
   let lastSt = Trace.lastState tr
       vResults = range $ Chain.vresips lastSt
-  in any (\vr -> Data.stakeInFavor vr /=  0
-                 && Data.stakeAgainst vr /= 0
-                 && Data.stakeAbstain vr /= 0
+  in any (\vr -> (  Data.stakeInFavor vr >  0
+                 || Data.stakeAgainst vr > 0
+                 || Data.stakeAbstain vr > 0
+                 )
+                 ||
+                 (  Data.stakeInFavor vr == 0
+                 && Data.stakeAgainst vr == 0
+                 && Data.stakeAbstain vr == 0
+                 && (  Data.rvNoQuorum vr > 0
+                    || Data.rvNoMajority vr > 0
+                    )
+                 )
          ) vResults
 
 -- Returns true if the last state of the inpuτ trace
@@ -441,18 +481,41 @@ lastStateContainsTallyOutcome
   -> Bool
 lastStateContainsTallyOutcome tr outc =
   let lastSt = Trace.lastState tr
-      vresips = Chain.vresips lastSt
+      vresips@(SIPsVoteResults (vresmap)) = Chain.vresips lastSt
       env = Trace._traceEnv tr
       sDist = Chain.stakeDist env
       pNoQ = Chain.prvNoQuorum env
       pNoM = Chain.prvNoMajority env
       r_a = Chain.r_a env
-  in any (\(_, outcome) -> outcome == outc )
-     $ Map.toList $ tallyOutcomeMap vresips sDist pNoQ pNoM r_a
+  in if outc /= Data.NoQuorum && outc /= Data.NoMajority
+       then
+         any (\(_, outcome) -> outcome == outc )
+         $ Map.toList $ tallyOutcomeMap vresips sDist pNoQ pNoM r_a
+       else
+        case outc of
+          Data.NoQuorum ->
+            -- NoQuorum existence must be indicated NOT by calculating the outcome
+            -- because due to revoting the abstain stake is constantly zeroed
+            -- but by the existence of a noquorum revoting counter > 0
+            any (\rvnoq -> rvnoq > 0)
+              $ map(Data.rvNoQuorum)
+              $ map (snd)
+              $ Map.toList vresmap
+          Data.NoMajority ->
+           -- NoMajority existence must be indicated NOT by calculating the outcome
+           -- because due to revoting the voting stakes are constantly zeroed
+           -- but by the existence of a nomajority revoting counter > 0
+            any (\rvnom -> rvnom > 0)
+              $ map(Data.rvNoMajority)
+              $ map (snd)
+              $ Map.toList vresmap
+          _ -> error $ "Cardano.Ledger.Spec.STS.Chain.Chain.Properties.hs:"
+                    ++ " lastStateContainsTallyOutcome - "
+                    ++ " Have reaqched an assumed impossible execution path"
 
 stakeDistWhoOwns80PctOfStk
   :: Trace.Trace (CHAIN Mock)
-  -> Float -- ^ desired percent of stakeholders that own 80 pct of stake
+  -> Float -- ^ desired percent of stakeholders that owns 80 pct of stake
   -> Bool
 stakeDistWhoOwns80PctOfStk tr pctOwn =
   let env = Trace._traceEnv tr

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Ledger.Generators.QuickCheck
   ( bounded
@@ -31,7 +32,7 @@ import           Cardano.Ledger.Spec.State.Participants
                      (Participants (Participants), vkeyHashes)
 import           Cardano.Ledger.Spec.State.StakeDistribution
                      (StakeDistribution (StakeDistribution))
-import           Cardano.Ledger.Spec.STS.Update.Data (Stake (Stake))
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import           Cardano.Ledger.Test.Mock (Mock)
 
@@ -40,9 +41,7 @@ k :: Gen Core.BlockCount
 -- traces to get stable signals. However, we want to test with very high values
 -- of @k@.
 k  = Core.BlockCount
-  <$> Gen.frequency [ (99, Gen.choose (1, 10))
-                    , (1, pure maxBound)
-                    ]
+   <$> Gen.elements [1,2]
 
 currentSlot :: Gen Core.Slot
 currentSlot = Core.Slot <$>  Gen.choose (0, 10)
@@ -81,11 +80,15 @@ boundedWith aMinBound aMaxBound maxDifference =
             ]
   where mid = aMinBound + (aMaxBound - aMinBound) `div` 2
 
+-- | Protocol parameter: maximum number of revoting periods
+-- due to a No Quorum result
 prvNoQuorum :: Gen Word8
-prvNoQuorum = Gen.choose (3, 7)
+prvNoQuorum =  Gen.choose (0, 3)
 
+-- | Protocol parameter: maximum number of revoting periods
+-- due to a No Majority result
 prvNoMajority :: Gen Word8
-prvNoMajority = Gen.choose (3, 7)
+prvNoMajority = Gen.choose (0, 3)
 
 rA :: Gen Float
 rA = Gen.choose (0, 0.5)
@@ -93,5 +96,19 @@ rA = Gen.choose (0, 0.5)
 stakeDist :: Participants Mock -> Gen (StakeDistribution Mock)
 stakeDist someParticipants = do
   let hashes = vkeyHashes someParticipants
-  stks <- Gen.vectorOf (length hashes) (Gen.choose (1, 20))
-  pure $ StakeDistribution $ Map.fromList $ zip hashes (Stake <$> stks)
+  stks <- Gen.oneof [ stakeDistUniform (length hashes)
+                    , stakeDistSkewed (length hashes)
+                    ]
+  pure $ StakeDistribution $ Map.fromList $ zip hashes stks
+  where
+    stakeDistUniform :: Int -> Gen [Data.Stake]
+    stakeDistUniform n = Gen.vectorOf n (Gen.choose (1, 20))
+
+    -- | We define as "skewed" a distribution where the 20% of stakeholders owns
+    -- more than 80% percent of the stake.
+    stakeDistSkewed :: Int -> Gen [Data.Stake]
+    stakeDistSkewed n = do
+      stksBig <- Gen.vectorOf (round $ (fromIntegral n :: Double) * 0.20) (Gen.choose (1000, 1000 + 20))
+      stksSmall <- Gen.vectorOf (n - length stksBig) (Gen.choose (1, 20))
+      let stks = stksBig ++ stksSmall
+      pure stks

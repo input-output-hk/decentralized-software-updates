@@ -22,6 +22,7 @@ import qualified Data.Text as T
 import           Data.Typeable (Typeable, typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
+import           System.Random (Random)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
@@ -113,7 +114,7 @@ stakePercentRound st totSt =
 
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }
- deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real)
+ deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random)
 
 -- | Duration of a Voting Period
 data VPDuration = VPMin | VPMedium | VPLarge
@@ -125,12 +126,14 @@ data VPStatus = VPOpen | VPClosed
 
 -- | Includes logic to translate a voting period duration
 -- to number of slots
+-- TODO: Change VPDuration from bands to actual SlotCounts
+-- without any "translation logic"
 vpDurationToSlotCnt :: VPDuration -> SlotCount
 vpDurationToSlotCnt  d =
   case d of
     VPMin -> SlotCount 20
-    VPMedium -> SlotCount 50
-    VPLarge -> SlotCount 100
+    VPMedium -> SlotCount 40
+    VPLarge -> SlotCount 80
 
 -- | Protocol version
 --
@@ -171,8 +174,11 @@ data SIPMetadata =
       -- ^ Flag to determine an impact on the underlying consensus protocol
     , impactsParameters :: !([ParamName])
       -- ^ List of protocol parameters impacted
+
     , votPeriodDuration :: !VPDuration
-      -- Voting Period duration for this SIP
+      -- ^ Voting Period duration for this SIP
+      -- TODO: Change VPDuration from bands to actual SlotCounts
+      -- without any "translation logic"
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 

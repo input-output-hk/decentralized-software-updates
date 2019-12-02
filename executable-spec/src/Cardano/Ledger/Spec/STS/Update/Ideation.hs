@@ -12,6 +12,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Cardano.Ledger.Spec.STS.Update.Ideation where
 
@@ -26,7 +27,7 @@ import qualified Test.QuickCheck as QC
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), Slot, BlockCount)
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), Slot, BlockCount, (▷>=))
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -208,18 +209,38 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
 
   sigGen
     _traceGenEnv
-    Env{ k, currentSlot, participants }
+    Env{ k, currentSlot, asips, participants }
     St{ wssips, wrsips, subsips } =
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
-          -- There are no stable commits, so we can only generate a submission.
-          submissionGen
+          -- There are no stable commits
+
+          -- Check if there are active sips whose voting end
+          -- has not been reached yet.
+          if Set.empty == dom (asips ▷>= currentSlot)
+            then
+            --, so we can only generate a submission.
+            submissionGen
+            else
+              -- we can also generate votes
+              QC.frequency [ (10, submissionGen)
+                           , (90, voteGen asips currentSlot)
+                           ]
         xs ->
-          -- We use a 50/50 submission to revelation ratio. This can be changed
-          -- if necessary.
-          QC.frequency [ (1, submissionGen)
-                       , (1, revelationGen xs)
-                       ]
+          if Set.empty == dom (asips ▷>= currentSlot)
+            then
+              -- We use a 50/50 submission to revelation ratio. This can be changed
+              -- if necessary.
+              QC.frequency [ (1, submissionGen)
+                           , (1, revelationGen xs)
+                           ]
+            else
+              -- votes are much more frequent events than
+              -- the submission or revealing of SIPs
+              QC.frequency [ (5, submissionGen)
+                           , (5, revelationGen xs)
+                           , (90, voteGen asips currentSlot)
+                           ]
     where
       stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
@@ -279,6 +300,26 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
         if Data.sipHash sip ∉ dom wrsips
           then pure $! Reveal sip
           else submissionGen
+
+      voteGen
+        :: ActiveSIPs Mock
+        -> Slot
+        -> QC.Gen (IdeationPayload Mock)
+      voteGen actsips currSlot =
+        do
+          (voter, voterSkey) <- QC.elements $ toList participants
+          -- We promote a bit more the positive votes because we want
+          -- to have a good percent of approved SIPs, since only approvals
+          -- take us to the next phase in the lifecycle
+          confidence <- QC.frequency [ (60, pure $ Data.For)
+                                     , (20, pure $ Data.Against)
+                                     , (20, pure $ Data.Abstain)
+                                     ]
+
+          -- Choose among active sips whose voting period is still open
+          sipHash <- QC.elements $ Set.toList $ dom (actsips ▷>= currSlot)
+          let voterSig = sign (sipHash, confidence, voter) voterSkey
+          pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
 
 
   -- It doesn't seem plausible that the @IdeationPayload@ can be shrunk in a

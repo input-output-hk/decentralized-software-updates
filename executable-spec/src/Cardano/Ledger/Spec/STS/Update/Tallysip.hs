@@ -184,7 +184,7 @@ tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
         else
           if Data.stakePercentRound (Data.stakeAbstain vres) (totalStake stakeDistribution)
              > vThreshold r_a
-             && Data.rvNoQuorum vres <= pNoQ
+             && Data.rvNoQuorum vres < pNoQ -- Not a "<=" so as not to run a revote pNoQ+1 times
             then
               Data.NoQuorum
             else
@@ -196,11 +196,13 @@ tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
                  &&
                  Data.stakePercentRound (Data.stakeAbstain vres) (totalStake stakeDistribution)
                  <= vThreshold r_a
-                 && Data.rvNoMajority vres <= pNoM
+                 && Data.rvNoMajority vres < pNoM -- Not a "<=" so as not to run a revote pNoM+1 times
                 then
                   Data.NoMajority
                 else
-                  Data.Expired
+                  if Data.rvNoQuorum vres >= pNoQ || Data.rvNoMajority vres >= pNoM
+                    then Data.Expired
+                    else error "Tallysip.tallyOutcome: Reached an unpredictable tally outcome."
 
 
 deriving instance Eq (Data.SIPHash p) => Eq (PredicateFailure (TALLYSIP p))
