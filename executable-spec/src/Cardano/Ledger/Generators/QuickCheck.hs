@@ -42,9 +42,6 @@ k :: Gen Core.BlockCount
 -- of @k@.
 k  = Core.BlockCount
    <$> Gen.elements [1,2]
-   -- <$> Gen.frequency [ (99, Gen.choose (1, 10))
-   --                  , (1, pure maxBound)
-   --                  ]
 
 currentSlot :: Gen Core.Slot
 currentSlot = Core.Slot <$>  Gen.choose (0, 10)
