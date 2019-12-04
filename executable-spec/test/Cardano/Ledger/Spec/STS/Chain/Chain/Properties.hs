@@ -18,7 +18,7 @@ import qualified Control.State.Transition.Trace as Trace
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Ledger.Core (BlockCount, dom, range, size, unBlockCount,
-                     unSlotCount)
+                     unSlotCount, SlotCount (SlotCount))
 
 import           Cardano.Ledger.Spec.State.SIPsVoteResults
                      (SIPsVoteResults (SIPsVoteResults))
@@ -278,7 +278,7 @@ extraTestsForTestDebugging
 getMinTraceLength :: BlockCount -> Word64
 getMinTraceLength k =
   let kval = unBlockCount k
-      minVotingDuration = unSlotCount $ Data.vpDurationToSlotCnt Data.VPMin
+      minVotingDuration = unSlotCount $ SlotCount 10
   in 2*kval + 2*kval + minVotingDuration + 2*kval
 
 -- | Returns the percent of Txs with a non-empty update payload in the input Trace

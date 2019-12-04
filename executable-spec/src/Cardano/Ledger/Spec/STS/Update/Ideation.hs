@@ -267,7 +267,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
                                      , Data.SlotSize
                                      , Data.EpochSize
                                      ]
-                    <*> (SlotCount <$> QC.choose (10, 100))
+                    <*> (SlotCount <$> QC.choose (5, 30))
                     where
                       versionFromGen = do
                         protVer <- word64Gen
