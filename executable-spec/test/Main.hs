@@ -23,17 +23,11 @@ main = defaultMain tests
         [ testProperty
             "Only valid traces are generated"
             Ideation.qc_onlyValidSignalsAreGenerated
-        , testProperty
-            "Trace lengths are classified"
-            Ideation.qc_traceLengthsAreClassified
         ]
     , testGroup "Chain properties"
       [ testProperty
           "Only valid traces are generated"
           Chain.qc_onlyValidSignalsAreGenerated
-      , testProperty
-          "Trace lengths are classified"
-          Chain.qc_traceLengthsAreClassified
       , testProperty
           "Trace reveals are classified"
           Chain.qc_revealsAreClassified
