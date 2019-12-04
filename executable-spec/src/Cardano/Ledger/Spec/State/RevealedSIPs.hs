@@ -30,8 +30,7 @@ votingPeriodEnd
   -> RevealedSIPs p
   -> Core.SlotCount
 votingPeriodEnd sipHash sipdb
-  = Data.vpDurationToSlotCnt
-  $ Data.votPeriodDuration
+  = Data.votPeriodDuration
   . Data.metadata
   . Data.sipPayload
   $ (sipdb ! sipHash)

@@ -27,7 +27,8 @@ import qualified Test.QuickCheck as QC
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), Slot, BlockCount, (▷>=))
+import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
+                             , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -266,7 +267,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
                                      , Data.SlotSize
                                      , Data.EpochSize
                                      ]
-                    <*> QC.elements [Data.VPMin, Data.VPMedium, Data.VPLarge]
+                    <*> (SlotCount <$> QC.choose (10, 100))
                     where
                       versionFromGen = do
                         protVer <- word64Gen
