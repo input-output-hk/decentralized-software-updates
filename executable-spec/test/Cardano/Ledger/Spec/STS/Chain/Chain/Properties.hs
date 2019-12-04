@@ -112,7 +112,7 @@ relevantCasesAreCovered
           $
         -- Lifecycle coverage:
         -- There is at least one proposal in every phase of the lifecycle
-        QC.cover 60
+        QC.cover 50
           (lifecycleCoverage traceSample)
           "The lifecycle of a software update is sufficently covered"
           $
@@ -144,7 +144,7 @@ relevantCasesAreCovered
           $
 
           -- There are no active SIPs with no votes
-        QC.cover 95
+        QC.cover 80
           ( let SIPsVoteResults (vresmap) = Chain.vresips
                                             $ Trace.lastState traceSample
             in not $ any(\vr ->
@@ -179,12 +179,12 @@ relevantCasesAreCovered
         QC.cover 80
           ( (pctSIPsInUpdPayload traceSample) >= 1
            &&
-            (pctSIPsInUpdPayload traceSample) <= 20
+            (pctSIPsInUpdPayload traceSample) <= 30
           )
           "a reasonable Pct of SIP submissions in Update Payload"
           $
         QC.cover 45
-          (pctSIPsTallyOutcome traceSample Data.Approved >= 5)
+          (pctSIPsTallyOutcome traceSample Data.Approved >= 2)
           "satisfactory pct of approved SIPs"
           $
 
@@ -208,7 +208,7 @@ relevantCasesAreCovered
           "satisfactory pct of SIPs in revoting NoMajority"
           $ True
   where
-    maxTraceLength = 200
+    maxTraceLength = 100
 
 extraTestsForTestDebugging :: QC.Property
 extraTestsForTestDebugging
@@ -266,7 +266,7 @@ extraTestsForTestDebugging
                                         ]
       $ True
   where
-    maxTraceLength = 200
+    maxTraceLength = 100
 
 
 
