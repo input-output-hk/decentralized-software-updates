@@ -27,7 +27,7 @@ import           System.Random (Random)
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (SlotCount (SlotCount))
+import           Ledger.Core (SlotCount)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
@@ -116,24 +116,9 @@ stakePercentRound st totSt =
 newtype Stake = Stake { getStake :: Word64 }
  deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random)
 
--- | Duration of a Voting Period
-data VPDuration = VPMin | VPMedium | VPLarge
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
-
 -- | Voting Period status values
 data VPStatus = VPOpen | VPClosed
   deriving (Eq, Ord, Show)
-
--- | Includes logic to translate a voting period duration
--- to number of slots
--- TODO: Change VPDuration from bands to actual SlotCounts
--- without any "translation logic"
-vpDurationToSlotCnt :: VPDuration -> SlotCount
-vpDurationToSlotCnt  d =
-  case d of
-    VPMin -> SlotCount 20
-    VPMedium -> SlotCount 40
-    VPLarge -> SlotCount 80
 
 -- | Protocol version
 --
@@ -175,10 +160,8 @@ data SIPMetadata =
     , impactsParameters :: !([ParamName])
       -- ^ List of protocol parameters impacted
 
-    , votPeriodDuration :: !VPDuration
+    , votPeriodDuration :: !SlotCount
       -- ^ Voting Period duration for this SIP
-      -- TODO: Change VPDuration from bands to actual SlotCounts
-      -- without any "translation logic"
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
