@@ -27,7 +27,7 @@ import           System.Random (Random)
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (SlotCount (SlotCount))
+import           Ledger.Core (SlotCount)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
@@ -160,7 +160,7 @@ data SIPMetadata =
     , impactsParameters :: !([ParamName])
       -- ^ List of protocol parameters impacted
 
-    , votPeriodDuration :: !SlotCount -- !VPDuration
+    , votPeriodDuration :: !SlotCount
       -- ^ Voting Period duration for this SIP
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
