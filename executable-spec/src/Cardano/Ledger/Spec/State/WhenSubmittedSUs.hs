@@ -6,7 +6,7 @@
 -- See Cardano.Ledger.Spec.State.ActiveSIPs
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Cardano.Ledger.Spec.State.SubmittedSIPs where
+module Cardano.Ledger.Spec.State.WhenSubmittedSUs where
 
 import           Data.Map.Strict (Map)
 
@@ -15,10 +15,7 @@ import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
--- | These are the SIPs that we need to generate for testing to take place.
--- From these both the commited SIP's as well as the revealed SIPs will be
--- created. This state is not part of the update protocol, it is used only for
--- SIP generation purposes.
-newtype SubmittedSIPs p = SubmittedSIPs (Map (Data.CommitSIP p) (Data.SIP p))
-  deriving stock (Eq, Show)
+-- | Slot in which a SIP was submitted.
+newtype WhenSubmittedSUs p u = WhenSubmittedSUs (Map (Data.CommitSU p u) Core.Slot)
+  deriving stock (Eq, Ord, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

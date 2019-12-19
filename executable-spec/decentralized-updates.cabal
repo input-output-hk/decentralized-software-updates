@@ -20,15 +20,20 @@ library
                      , Cardano.Ledger.Spec.Classes.HasSigningScheme
                      , Cardano.Ledger.Spec.Classes.Sizeable
                      , Cardano.Ledger.Spec.State.ActiveSIPs
+                     , Cardano.Ledger.Spec.State.ActiveSUs
                      , Cardano.Ledger.Spec.State.ApprovedSIPs
                      , Cardano.Ledger.Spec.State.Ballot
                      , Cardano.Ledger.Spec.State.Participants
                      , Cardano.Ledger.Spec.State.RevealedSIPs
+                     , Cardano.Ledger.Spec.State.RevealedSUs
                      , Cardano.Ledger.Spec.State.SIPsVoteResults
                      , Cardano.Ledger.Spec.State.StakeDistribution
                      , Cardano.Ledger.Spec.State.SubmittedSIPs
+                     , Cardano.Ledger.Spec.State.SubmittedSUs
                      , Cardano.Ledger.Spec.State.WhenRevealedSIPs
+                     , Cardano.Ledger.Spec.State.WhenRevealedSUs
                      , Cardano.Ledger.Spec.State.WhenSubmittedSIPs
+                     , Cardano.Ledger.Spec.State.WhenSubmittedSUs
                      , Cardano.Ledger.Spec.STS.Chain.Chain
                      , Cardano.Ledger.Spec.STS.Chain.Header
                      , Cardano.Ledger.Spec.STS.Chain.Body
@@ -41,6 +46,7 @@ library
                      , Cardano.Ledger.Spec.STS.Update.Tallysip
                      , Cardano.Ledger.Spec.STS.Update.Data
                      , Cardano.Ledger.Spec.STS.Update.Ideation
+                     , Cardano.Ledger.Spec.STS.Update.GenApproval
                      , Cardano.Ledger.Spec.STS.Update.Implementation
                      , Cardano.Ledger.Spec.STS.Update.Definitions
                      , Cardano.Ledger.Test.Mock

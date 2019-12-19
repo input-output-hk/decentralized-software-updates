@@ -14,7 +14,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Cardano.Ledger.Spec.STS.Update.Ideation where
+module Cardano.Ledger.Spec.STS.Update.GenApproval where
 
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
@@ -36,14 +36,14 @@ import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!))
-import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
+import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
-import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
-import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
+import           Cardano.Ledger.Spec.State.WhenRevealedSUs (WhenRevealedSUs)
+import           Cardano.Ledger.Spec.State.WhenSubmittedSUs (WhenSubmittedSUs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
-import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
+import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData))
@@ -52,33 +52,38 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import Cardano.Ledger.Test.Mock (Mock)
 
 --------------------------------------------------------------------------------
--- Updates ideation phase
+-- This a generic approval STS to be utilized by both
+-- the Ideation and Approval STSs.
 --------------------------------------------------------------------------------
 
--- | Ideation phase of system updates
-data IDEATION p
+-- | A Generic Approval STS.
+-- Implements a generic apporval STS to be instantiated by the
+-- `Ideation` STS and the `Approval` STS.
+-- It is polymorphic in the hashing/signing algorithm (1st parameter) and in
+-- the type of the software update (`SIP` or `UP`) (2nd parameter)
+data GENAPPROVAL p u
 
--- Environmnet of the Ideation phase
-data Env p
+-- Environmnet of the ApprovalGen phase
+data Env p u
   = Env
     { k :: !BlockCount
       -- ^ Chain stability parameter.
     , currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
-    , asips :: !(ActiveSIPs p)
+    , aSUs :: !(ActiveSUs p u)
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     }
   deriving (Show, Generic)
 
--- | Ideation phase state
+-- | Generic Approval state
 --
-data St p
+data St p u
   = St
-    { subsips :: !(SubmittedSIPs p)
-    , wssips :: !(WhenSubmittedSIPs p)
-    , wrsips :: !(WhenRevealedSIPs p)
-    , sipdb :: !(RevealedSIPs p)
+    { subSUs :: !(SubmittedSUs p u)
+    , wsSUs :: !(WhenSubmittedSUs p u)
+    , wrSUs :: !(WhenRevealedSUs p u)
+    , sudb :: !(RevealedSUs p u)
     , ballots :: !(Ballot p)
     }
   deriving (Show, Generic)
@@ -91,7 +96,7 @@ instance ( Hashable p
          , HasHash p (Int, VKey p, Hash p (SIP p))
          , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SIP'.
          , HasSigningScheme p
-         , Signable p (Data.CommitSIP p)
+         , Signable p (Data.Commit p)
          , Signable p (Data.SIPHash p, Data.Confidence, VKey p)
          ) => STS (IDEATION p) where
 
