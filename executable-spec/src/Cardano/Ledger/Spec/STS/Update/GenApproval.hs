@@ -45,7 +45,7 @@ import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
+                     (SUPayload (RevealSU, SubmitSU, VoteSU), SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -59,18 +59,19 @@ import Cardano.Ledger.Test.Mock (Mock)
 -- | A Generic Approval STS.
 -- Implements a generic apporval STS to be instantiated by the
 -- `Ideation` STS and the `Approval` STS.
--- It is polymorphic in the hashing/signing algorithm (1st parameter) and in
+-- It is polymorphic in the hashing and signing algorithm (1st parameter) and in
 -- the type of the software update (`SIP` or `UP`) (2nd parameter)
-data GENAPPROVAL p u
+-- the contents of the software update (3rd parameter)
+data GENAPPROVAL p u d
 
 -- Environmnet of the ApprovalGen phase
-data Env p u
+data Env p d
   = Env
     { k :: !BlockCount
       -- ^ Chain stability parameter.
     , currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
-    , aSUs :: !(ActiveSUs p u)
+    , aSUs :: !(ActiveSUs p d)
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     }
@@ -78,12 +79,12 @@ data Env p u
 
 -- | Generic Approval state
 --
-data St p u
+data St p u d
   = St
     { subSUs :: !(SubmittedSUs p u)
     , wsSUs :: !(WhenSubmittedSUs p u)
-    , wrSUs :: !(WhenRevealedSUs p u)
-    , sudb :: !(RevealedSUs p u)
+    , wrSUs :: !(WhenRevealedSUs p d)
+    , sudb :: !(RevealedSUs p d)
     , ballots :: !(Ballot p)
     }
   deriving (Show, Generic)
@@ -91,32 +92,32 @@ data St p u
   deriving Monoid via GenericMonoid (St p)
 
 instance ( Hashable p
-         , HasHash p SIPData
-         , HasHash p (SIP p)
-         , HasHash p (Int, VKey p, Hash p (SIP p))
-         , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SIP'.
+         , HasHash p Data.SIPData
+         , HasHash p d
+         , HasHash p (Data.SU p d)
+         , HasHash p (Int, VKey p, Hash p (Data.SU p d))
+         , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SU'.
          , HasSigningScheme p
-         , Signable p (Data.Commit p)
-         , Signable p (Data.SIPHash p, Data.Confidence, VKey p)
-         ) => STS (IDEATION p) where
+         , Signable p (Data.CommitSU p u)
+         , Signable p (Data.SUHash p d, Data.Confidence, VKey p)
+         ) => STS (GENAPPROVAL p u d) where
 
-  type Environment (IDEATION p) = Env p
+  type Environment (GENAPPROVAL p u d) = Env p d
 
-  type State (IDEATION p) = St p
+  type State (GENAPPROVAL p u) = St p u d
 
-  type Signal (IDEATION p) = IdeationPayload p
+  type Signal (GENAPPROVAL p u) = Data.SUPayload p u
 
-  -- | IDEATION phase failures
-  data PredicateFailure (IDEATION p)
-    = SIPAlreadySubmitted (Data.SIP p)
-   -- | SIPSubmittedAlreadyRevealed (Data.SIP p)
-    | NoSIPToReveal (Data.SIP p)
-    | SIPAlreadyRevealed (Data.SIP p)
+  -- | GenApproval phase failures
+  data PredicateFailure (GENAPPROVAL p u)
+    = SUAlreadySubmitted (Data.SU p u)
+    | NoSUToReveal (Data.SU p u)
+    | SUAlreadyRevealed (Data.SU p u)
     | InvalidAuthor (VKey p)
-    | NoStableAndCommittedSIP (Data.SIP p) (WhenSubmittedSIPs p)
+    | NoStableAndCommittedSU (Data.SU p u) (WhenSubmittedSUs p)
     | InvalidVoter (VKey p)
-    | VoteNotForActiveSIP (Data.SIPHash p)
-    | VotingPeriodEnded (Data.SIPHash p) Slot
+    | VoteNotForActiveSU (Data.SUHash p u)
+    | VotingPeriodEnded (Data.SUHash p u) Slot
     | CommitSignatureDoesNotVerify
     | VoteSignatureDoesNotVerify
     deriving (Eq, Show)
@@ -127,45 +128,46 @@ instance ( Hashable p
     do
       TRC ( Env { k
                 , currentSlot
-                , asips
+                , aSUs
                 , stakeDist
                 }
-          , st@St { subsips
-                  , wssips
-                  , wrsips
-                  , sipdb
+          , st@St { subSUs
+                  , wsSUs
+                  , wrSUs
+                  , sudb
                   , ballots
                   }
           , sig
           ) <- judgmentContext
       case sig of
-        Submit sipc sip -> do
-          hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
-          Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
+        SubmitSU sucom su -> do
+          hash (Data.authorSUcom sucom) ∈ dom stakeDist
+            ?! InvalidAuthor (Data.authorSUcom sucom)
+          Data.commitSU sucom ∉ dom subSUs ?! SUAlreadySubmitted su
 
-          verify (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) ?!
+          verify (Data.authorSUcom sucom) (Data.commitSU sucom) (Data.sigSUcom sucom) ?!
             CommitSignatureDoesNotVerify
 
-          pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
-                     , subsips = subsips ⨃ [(Data.commit sipc, sip)]
+          pure $! st { wsSUs = wsSUs ⨃ [(Data.commitSU sucom, currentSlot)]
+                     , subSUs = subSUs ⨃ [(Data.commitSU sucom, su)]
                      }
 
-        Reveal sip -> do
-          hash (Data.author sip) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
+        RevealSU su -> do
+          hash (Data.authorSU su) ∈ dom stakeDist ?! InvalidAuthor (Data.authorSU su)
           (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
 
-          sip ∉ range sipdb ?! SIPAlreadyRevealed sip
+          su ∉ range sudb ?! SUAlreadyRevealed su
 
-          -- The Revealed SIP must correspond to a stable Commited SIP.
-          -- Restrict the range of wssips to values less or equal than
+          -- The Revealed SU must correspond to a stable Commited SU.
+          -- Restrict the range of wsSUs to values less or equal than
           -- @currentSlot - 2k@
           Data.calcCommit sip
-            ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
-            ?! NoStableAndCommittedSIP sip wssips
+            ∈ dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
+            ?! NoStableAndCommittedSU su wsSUs
 
-          pure st { wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips
-                  , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
-                  , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
+          pure st { wsSUs = Set.singleton (Data.calcCommit sip) ⋪ wsSUs
+                  , wrSUs = wrSUs ⨃ [(Data.hashSU su, currentSlot)]
+                  , sudb = sudb ⨃ [(Data.hashSU su, su)]
                   }
 
         Vote voteForSIP -> do

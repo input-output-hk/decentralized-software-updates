@@ -21,6 +21,6 @@ import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
 -- | Active SU's. The slot in the range (of the map) determines when the voting
 --   period will end.
-newtype ActiveSUs p u = ActiveSUs (Map (Data.SUHash p u) Core.Slot)
+newtype ActiveSUs p d = ActiveSUs (Map (Data.SUHash p d) Core.Slot)
   deriving stock (Eq, Ord, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

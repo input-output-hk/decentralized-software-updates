@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
@@ -39,12 +40,40 @@ import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 data ImplementationPayload = ImplementationPayload
   deriving (Eq, Show, Generic, HasTypeReps)
 
+-- | Software Update signals
+-- data SUPayload p u
+--   = PayldIdeation (IdeationPayload p)
+--   | PayldApproval (ApprovalPayload p)
+
+-- | Software Update signals
+-- p: hashing and signing algorithm
+-- u: type of software update
+data SUPayload p u
+  = SubmitSU (SUCommit p u) u
+  | RevealSU u
+  | VoteSU (VoteForSU p u)
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p, Show u
+                  ) => Show (SUPayload p u)
+
 -- | Ideation signals.
 data IdeationPayload p
+-- TODO: type IdeationPayload p = SUPayload p (SIP p)
   = Submit (SIPCommit p) (SIP p)
   | Reveal (SIP p)
   | Vote (VoteForSIP p)
   deriving (Show, Generic)
+
+-- | Approval signals.
+type ApprovalPayload p = SUPayload p (UP p)
+
+-- | Approval signals.
+-- data ApprovalPayload p
+--   = SubmitUP (UPCommit p) (UP p)
+--   | RevealUP (UP p)
+--   | VoteUP (VoteForUP p)
+--   deriving (Show, Generic)
 
 isSubmit :: IdeationPayload p -> Bool
 isSubmit (Submit {}) = True
@@ -54,18 +83,47 @@ isReveal :: IdeationPayload p -> Bool
 isReveal (Reveal {}) = True
 isReveal _ = False
 
-data (VoteForSIP p) =
-  VoteForSIP { votedsipHash :: !(SIPHash p)
-               -- ^ SIP id that this ballot is for
-             , confidence :: !Confidence
+data (VoteForSU p u) =
+  VoteForSU { votedSUHash :: !(SUHash p u)
+               -- ^ `SIP` id that this ballot is for
+             , confidenceSU :: !Confidence
                -- ^ The ballot outcome
-             , voter :: !(VKey p)
+             , voterSU :: !(VKey p)
                -- ^ The voter
-             , voterSig :: !(Signature p (SIPHash p, Confidence, VKey p))
+             , voterSigSU :: !(Signature p (SUHash p u, Confidence, VKey p))
+             }
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSU p u)
+
+data (VoteForSIP p) =
+-- TODO: type VoteForSIP p = VoteForSU p (SIP p)
+  VoteForSIP { votedsipHash :: !(SIPHash p)
+               -- ^ `SIP` id that this ballot is for
+             , confidenceSIP :: !Confidence
+               -- ^ The ballot outcome
+             , voterSIP :: !(VKey p)
+               -- ^ The voter
+             , voterSigSIP :: !(Signature p (SIPHash p, Confidence, VKey p))
              }
   deriving (Generic)
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSIP p)
+
+type VoteForUP p = VoteForSU p (UP p)
+
+-- data (VoteForUP p) =
+--   VoteForUP { votedupHash :: !(UPHash p)
+--                -- ^ `UP` id that this ballot is for
+--              , confidenceUP :: !Confidence
+--                -- ^ The ballot outcome
+--              , voterUP :: !(VKey p)
+--                -- ^ The voter
+--              , voterSigUP :: !(Signature p (UPHash p, Confidence, VKey p))
+--              }
+--   deriving (Generic)
+
+-- deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForUP p)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
@@ -163,12 +221,14 @@ data SIPMetadata =
     , votPeriodDuration :: !SlotCount
       -- ^ Voting Period duration for this SIP
     }
-  deriving (Eq, Generic, Ord, Show, HasTypeReps)
+  deriving (Eq, Generic, Ord, Show, HasTypeReps, Typeable)
 
 -- | Metadata structure for `UP`
-data UPMetadata =
+data UPMetadata p =
   UPMetadata
-    { versionFromUP :: !(ProtVer, ApVer)
+    { sipReference :: !(SIPHash p)
+       -- ^ The `SIP` that this `UP` implements (or part of)
+    , versionFromUP :: !(ProtVer, ApVer)
       -- ^ The version the this SIP has been based on
     , versionToUP :: !(ProtVer, ApVer)
       -- ^ the version after the SIP takes effect
@@ -180,10 +240,26 @@ data UPMetadata =
     , votPeriodDurationUP :: !SlotCount
       -- ^ Voting Period duration for this SIP
     }
+  deriving (Eq, Generic, Ord, Show)
+
+deriving instance (Typeable p) => Typeable (UPMetadata p)
+
+-- | Content of a SU
+-- m : metadata
+data SUData m =
+  SUData
+    { urlSU :: !URL
+      -- ^ URL pointing at the server where the SU is stored
+    , metadataSU :: !m
+      -- ^ `SU` Metadata (only core metadata, the rest are on the server pointed
+      -- by the url)
+    }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
+
 
 -- | Contents of a SIP
 data SIPData =
+-- TODO: type SIPData = SUData SIPMetadata
   SIPData
     {  url :: !URL
       -- ^ URL pointing at the server where the SIP is stored
@@ -193,16 +269,17 @@ data SIPData =
     }
   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
--- Contents of a UP
-data UPData =
-  UPData
-    {  urlUP :: !URL
-      -- ^ URL pointing at the server where the SIP is stored
-    , metadataUP :: !UPMetadata
-      -- ^ SIP Metadata (only core metadata, the rest are on the server pointed
-      -- by the url)
-    }
-  deriving (Eq, Generic, Ord, Show, HasTypeReps)
+-- | Contents of a UP
+type UPData p = SUData (UPMetadata p)
+-- data UPData =
+--   UPData
+--     {  urlUP :: !URL
+--       -- ^ URL pointing at the server where the SIP is stored
+--     , metadataUP :: !UPMetadata
+--       -- ^ SIP Metadata (only core metadata, the rest are on the server pointed
+--       -- by the url)
+--     }
+--   deriving (Eq, Generic, Ord, Show, HasTypeReps)
 
 
 newtype URL = URL { getText :: Text }
@@ -211,36 +288,42 @@ newtype URL = URL { getText :: Text }
 
 -- | Hash of the SU contents also plays the role of a SU
 -- unique id
-data SUHash p u = SIPh (SIPHash p) | UPh (UPHash p)
+-- p: hashing and signing algorithm
+-- d: su data (i.e., contents of the SU)
+data SUHash p d = SUHash (Hash p d)
   deriving (Generic)
+-- data SUHash p u = SIPh (SIPHash p) | UPh (UPHash p)
+--   deriving (Generic)
 
 deriving instance ( Hashable p
-                  ) => Eq (SUHash p u)
+                  ) => Eq (SUHash p d)
 
 deriving instance ( Hashable p
-                  ) => Ord (SUHash p u)
+                  ) => Ord (SUHash p d)
 
 deriving instance ( Hashable p
-                  ) => Show (SUHash p u)
+                  ) => Show (SUHash p d)
 
 -- | Hash of the SIP contents (`SIPData`) also plays the role of a SIP
 -- unique id
 data SIPHash p = SIPHash (Hash p SIPData)
+-- TODO type SIPHash p = SUHash p SIPData
   deriving (Generic)
 
 -- | Hash of the UP contents (`UPData`) also plays the role of a UP
 -- unique id
-data UPHash p = UPHash (Hash p UPData)
-  deriving (Generic)
+type UPHash p = SUHash p (UPData p)
+-- data UPHash p = UPHash (Hash p UPData)
+--   deriving (Generic)
 
-deriving instance ( Eq (Hash p UPData)
-                  ) => Eq (UPHash p)
+-- deriving instance ( Eq (Hash p (UPData p))
+--                   ) => Eq (UPHash p)
 
-deriving instance ( Ord (Hash p UPData)
-                  ) => Ord (UPHash p)
+-- deriving instance ( Ord (Hash p (UPData p))
+--                   ) => Ord (UPHash p)
 
-deriving instance ( Show (Hash p UPData)
-                  ) => Show (UPHash p)
+-- deriving instance ( Show (Hash p (UPData p))
+--                   ) => Show (UPHash p)
 
 deriving instance Hashable p => Eq (SIPHash p)
 deriving instance Hashable p => Ord (SIPHash p)
@@ -249,19 +332,45 @@ deriving instance Hashable p => Show (SIPHash p)
 -- | A Software Update
 -- The 1st parameter specified the hashing ans signing algorithms
 -- the 2nd specified the type of the SU (`SIP`, `UP`)
-data SU p u = SUsip (SIP p) | SUup (UP p)
- deriving (Generic)
+-- data SU p u = SUsip (SIP p) | SUup (UP p)
+--  deriving (Generic)
+
+-- deriving instance ( Hashable p
+--                   , HasSigningScheme p
+--                   ) => Eq (SU p d)
+
+-- | A Software Update
+-- p: hashing and signing algorithm used
+-- d: SU data (i.e., the actual contents)
+data SU p d =
+  SU
+    { hashSU :: SUHash p d
+      -- ^ Hash of the SU contents (`SUData`) also plays the role of a SU
+      -- unique id
+    , authorSU :: !(VKey p)
+      -- ^ Who submitted the proposal.
+    , saltSU :: !Int
+      -- ^ The salt used during the commit phase
+    , payloadSU :: !d
+      -- ^ The actual contents of the SU.
+    }
+  deriving (Generic)
 
 deriving instance ( Hashable p
-                  , HasSigningScheme p
-                  ) => Eq (SU p u)
+                  , Hashable d
+                  , Eq (VKey p)
+                  , Eq d
+                  ) => Eq (SU p d)
 
 deriving instance ( Hashable p
-                  , HasSigningScheme p
-                  ) => Show (SU p u)
+                  , Hashable d
+                  , Show (VKey p)
+                  , Show d
+                  ) => Show (SU p d)
 
--- | System improvement proposal
+-- | System Improvement Proposal (SIP)
 data SIP p =
+-- TODO: type SIP p = SU p SIPData
   SIP
     { sipHash :: SIPHash p
       -- ^ Hash of the SIP contents (`SIPData`) also plays the role of a SIP
@@ -275,30 +384,33 @@ data SIP p =
     }
   deriving (Generic)
 
--- | Update Proposal
-data UP p =
-  UP
-    { upHash :: UPHash p
-      -- ^ Hash of the UP contents (`UPData`) also plays the role of a UP
-      -- unique id
-    , upauthor :: !(VKey p)
-      -- ^ Who submitted the proposal.
-    , sipReference :: SIPHash p
-      -- ^ The `SIP` that this `UP` implements (or part of)
-    , upsalt :: !Int
-      -- ^ The salt used during the commit phase
-    , upPayload :: !UPData
-      -- ^ The actual contents of the UP.
-    }
-  deriving (Generic)
+-- | Update Proposal (UP)
+type UP p = SU p (UPData p)
 
-deriving instance ( Hashable p
-                  , Eq (VKey p)
-                  ) => Eq (UP p)
+-- -- | Update Proposal
+-- data UP p =
+--   UP
+--     { upHash :: UPHash p
+--       -- ^ Hash of the UP contents (`UPData`) also plays the role of a UP
+--       -- unique id
+--     , upauthor :: !(VKey p)
+--       -- ^ Who submitted the proposal.
+--     , sipReference :: !(SIPHash p)
+--       -- ^ The `SIP` that this `UP` implements (or part of)
+--     , upsalt :: !Int
+--       -- ^ The salt used during the commit phase
+--     , upPayload :: !UPData
+--       -- ^ The actual contents of the UP.
+--     }
+--   deriving (Generic)
 
-deriving instance ( Hashable p
-                  , Show (VKey p)
-                  ) => Show (UP p)
+-- deriving instance ( Hashable p
+--                   , Eq (VKey p)
+--                   ) => Eq (UP p)
+
+-- deriving instance ( Hashable p
+--                   , Show (VKey p)
+--                   ) => Show (UP p)
 
 deriving instance (HasSigningScheme p, Show (SIPHash p)) => Show (SIP p)
 deriving instance (HasSigningScheme p, Eq (SIPHash p)) => Eq (SIP p)
@@ -313,28 +425,42 @@ instance ( Hashable p
       (sipHash sip1, hash @p (author sip1), salt sip1, sipPayload sip1)
 
 -- | A Commitment for a Software Update
-data CommitSU p u = ComSIP (CommitSIP p) | ComUP (CommitUP p)
+-- It is the `hash` $ (salt, sip_owner_pk,`hash` `SU`)
+-- p: the hashing and signing algorithm
+-- u: the type of the software update (`SIP` or `UP`)
+newtype CommitSU p u =
+  CommitSU
+    { getCommitSU :: Hash p (Int, VKey p, Hash p u)
+    }
+  deriving stock (Generic)
+-- data CommitSU p u = ComSIP (CommitSIP p) | ComUP (CommitUP p)
 
 deriving instance (Hashable p) => Eq (CommitSU p u)
 deriving instance Hashable p => Ord (CommitSU p u)
 deriving instance (Hashable p) => Show (CommitSU p u)
+deriving newtype instance ( Typeable p
+                          , Typeable u
+                          , ToCBOR (Hash p (Int, VKey p, Hash p u))
+                          ) => (ToCBOR (CommitSU p u))
 
 
 -- | A commitment data type for SIPs.
 -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
 newtype CommitSIP p =
+-- TODO: type CommitSIP p = CommitSU p (SIP p)
   CommitSIP
     { getCommit :: Hash p (Int, VKey p, Hash p (SIP p))
     }
   deriving stock (Generic)
 
 -- | A commitment data type for UPs.
+type CommitUP p = CommitSU p (UP p)
 -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
-newtype CommitUP p =
-  CommitUP
-    { getCommitUP :: Hash p (Int, VKey p, Hash p (UP p))
-    }
-  deriving stock (Generic)
+-- newtype CommitUP p =
+--   CommitUP
+--     { getCommitUP :: Hash p (Int, VKey p, Hash p (UP p))
+--     }
+--   deriving stock (Generic)
 
 deriving instance Hashable p => Eq (CommitSIP p)
 deriving instance Hashable p => Ord (CommitSIP p)
@@ -343,28 +469,61 @@ deriving newtype instance ( Typeable p
                           , ToCBOR (Hash p (Int, VKey p, Hash p (SIP p)))
                           ) => (ToCBOR (CommitSIP p))
 
+-- deriving instance Hashable p => Eq (CommitUP p)
+-- deriving instance Hashable p => Ord (CommitUP p)
+-- deriving instance Hashable p => Show (CommitUP p)
+-- deriving newtype instance ( Typeable p
+--                           , ToCBOR (Hash p (Int, VKey p, Hash p (UP p)))
+--                           ) => (ToCBOR (CommitUP p))
 
-deriving instance Hashable p => Eq (CommitUP p)
-deriving instance Hashable p => Ord (CommitUP p)
-deriving instance Hashable p => Show (CommitUP p)
-deriving newtype instance ( Typeable p
-                          , ToCBOR (Hash p (Int, VKey p, Hash p (UP p)))
-                          ) => (ToCBOR (CommitUP p))
+-- | The Software Update (`SU`) at the commit phase
+-- p: the hashing and signing algorithm
+-- u: the type of the software update (`SIP` or `UP`)
+data SUCommit p u =
+  SUCommit
+    { commitSU :: !(CommitSU p u)
+      -- ^ A salted commitment (a hash) to the SU id, the public key and the
+      -- `hash` `SU` (H(salt||pk||H(SU)))
+    , authorSUcom :: !(VKey p)
+      -- ^ Who submitted the proposal.
+    , sigSUcom :: !(Signature p (CommitSU p u))
+      -- ^ A signature on commit by the author public key
+    }
+  deriving (Generic)
 
--- | The System improvement proposal at the commit phase
+deriving instance (Hashable p, HasSigningScheme p) => Show (SUCommit p u)
+
+-- | The System Improvement Proposal (`SIP`) at the commit phase
 data SIPCommit p =
+-- TODO: type SIPCommit p = SUCommit p (SIP p)
   SIPCommit
-    { commit :: !(CommitSIP p)
+    { commitSIP :: !(CommitSIP p)
       -- ^ A salted commitment (a hash) to the SIP id, the public key and the
       -- `hash` `SIP` (H(salt||pk||H(SIP)))
-    ,  _author :: !(VKey p)
+    , authorSIP :: !(VKey p)
       -- ^ Who submitted the proposal.
-    , upSig :: !(Signature p (CommitSIP p))
+    , sigSIP :: !(Signature p (CommitSIP p))
       -- ^ A signature on commit by the author public key
     }
   deriving (Generic)
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (SIPCommit p)
+
+-- | The Update Proposal at the commit phase
+type UPCommit p = SUCommit p (UP p)
+-- data UPCommit p =
+--   UPCommit
+--     { commitUP :: !(CommitUP p)
+--       -- ^ A salted commitment (a hash) to the UP id, the public key and the
+--       -- `hash` `UP` (H(salt||pk||H(UP)))
+--     , authorUP :: !(VKey p)
+--       -- ^ Who submitted the proposal.
+--     , sigUP :: !(Signature p (CommitUP p))
+--       -- ^ A signature on commit by the author public key
+--     }
+--   deriving (Generic)
+
+-- deriving instance (Hashable p, HasSigningScheme p) => Show (UPCommit p)
 
 -- | Calculate a `Commit` from a `SIP`
 calcCommit
@@ -395,18 +554,63 @@ deriving instance ( Typeable p
                   ) => HasTypeReps (IdeationPayload p)
 
 deriving instance ( Typeable p
+                  , Typeable u
+                  , HasTypeReps p
+                  , HasTypeReps u
+                  , HasTypeReps (SU p u)
+                  , HasTypeReps (SUHash p u)
+                  , HasTypeReps (SUCommit p u)
+                  , HasTypeReps (VoteForSU p u)
+                  ) => HasTypeReps (SUPayload p u)
+
+-- deriving instance ( Typeable p
+--                   , HasTypeReps p
+--                   , HasTypeReps (UP p)
+--                   , HasTypeReps (UPHash p)
+--                   , HasTypeReps (UPCommit p)
+--                   , HasTypeReps (VoteForUP p)
+--                   ) => HasTypeReps (ApprovalPayload p)
+
+deriving instance ( Typeable p
+                  , Typeable d
+                  , HasTypeReps (SUHash p d)
+                  , HasTypeReps (VKey p)
+                  , HasTypeReps d
+                  ) => HasTypeReps (SU p d)
+
+deriving instance ( Typeable p
                   , HasTypeReps (SIPHash p)
                   , HasTypeReps (VKey p)
                   ) => HasTypeReps (SIP p)
 
+-- deriving instance ( Typeable p
+--                   , HasTypeReps (Hash p SIPData)
+--                   , HasTypeReps (UPHash p)
+--                   , HasTypeReps (VKey p)
+--                   ) => HasTypeReps (UP p)
+
 -- | A commit is basically wrapping the hash of some salt, owner verification
--- key, and SIP. The size of the hash is determined by the type of hash
+-- key, and SU. The size of the hash is determined by the type of hash
 -- algorithm
+instance HasTypeReps p => HasTypeReps (CommitSU p u) where
+  typeReps _ = typeReps (undefined :: p)
+
 instance HasTypeReps p => HasTypeReps (CommitSIP p) where
   typeReps _ = typeReps (undefined :: p)
 
+-- instance HasTypeReps p => HasTypeReps (CommitUP p) where
+--   typeReps _ = typeReps (undefined :: p)
+
+instance ( Typeable p
+         , Typeable u
+         ) => HasTypeReps (Hash p (CommitSU p u)) where
+  typeReps commitHash = Seq.singleton (typeOf commitHash)
+
 instance Typeable p => HasTypeReps (Hash p (CommitSIP p)) where
   typeReps commitHash = Seq.singleton (typeOf commitHash)
+
+-- instance Typeable p => HasTypeReps (Hash p (CommitUP p)) where
+--   typeReps commitHash = Seq.singleton (typeOf commitHash)
 
 deriving instance ( Typeable p
                   , HasTypeReps p
@@ -414,6 +618,19 @@ deriving instance ( Typeable p
                   , HasTypeReps (VKey p)
                   ) => HasTypeReps (SIPCommit p)
 
+deriving instance ( Typeable p
+                  , Typeable u
+                  , HasTypeReps p
+                  , HasTypeReps u
+                  , HasTypeReps (Signature p (CommitSU p u))
+                  , HasTypeReps (VKey p)
+                  ) => HasTypeReps (SUCommit p u)
+
+-- deriving instance ( Typeable p
+--                   , HasTypeReps p
+--                   , HasTypeReps (Signature p (CommitUP p))
+--                   , HasTypeReps (VKey p)
+--                   ) => HasTypeReps (UPCommit p)
 
 deriving instance ( Typeable p
                   , HasTypeReps (SIPHash p)
@@ -422,8 +639,35 @@ deriving instance ( Typeable p
                   ) => HasTypeReps (VoteForSIP p)
 
 deriving instance ( Typeable p
+                  , Typeable u
+                  , HasTypeReps (SUHash p u)
+                  , HasTypeReps (VKey p)
+                  , HasTypeReps (Signature p (SUHash p u, Confidence, VKey p))
+                  ) => HasTypeReps (VoteForSU p u)
+
+-- deriving instance ( Typeable p
+--                   , HasTypeReps (UPHash p)
+--                   , HasTypeReps (VKey p)
+--                   , HasTypeReps (Signature p (SIPHash p, Confidence, VKey p))
+--                   , HasTypeReps (Signature p (UPHash p, Confidence, VKey p))
+--                   ) => HasTypeReps (VoteForUP p)
+
+deriving instance ( Typeable p
+                  , Typeable d
+                  , HasTypeReps (Hash p d)
+                  ) => HasTypeReps (SUHash p d)
+
+deriving instance ( Typeable p
                   , HasTypeReps (Hash p SIPData)
                   ) => HasTypeReps (SIPHash p)
+
+-- deriving instance ( Typeable p
+--                   , HasTypeReps (Hash p UPData)
+--                   ) => HasTypeReps (UPHash p)
+
+deriving instance ( Typeable p
+                  , HasTypeReps (Hash p SIPData)
+                  ) => HasTypeReps (UPMetadata p)
 
 --------------------------------------------------------------------------------
 -- Sized instances
@@ -432,27 +676,81 @@ deriving instance ( Typeable p
 instance Sized ImplementationPayload where
   costsList implementationPayload = [(typeOf implementationPayload, 10)]
 
+instance ( Typeable p
+         , Typeable u
+         , HasTypeReps p
+         , HasTypeReps u
+         , HasTypeReps (VKey p)
+         , HasTypeReps (SUPayload p u)
+         ) => Sized (SUPayload p u) where
+  costsList suPayload = [(typeOf suPayload, 10)]
+
 instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload p) where
   costsList ideationPayload = [(typeOf ideationPayload, 10)]
+
+-- instance (Typeable p, HasTypeReps (ApprovalPayload p)) => Sized (ApprovalPayload p) where
+--   costsList approvalPayload = [(typeOf approvalPayload, 10)]
 
 --------------------------------------------------------------------------------
 -- ToCBOR instances
 --------------------------------------------------------------------------------
 
+type SUHasCBORRep p d = (Typeable p, ToCBOR (Hash p d))
+
 type SIPHasCBORRep p = (Typeable p, ToCBOR (Hash p SIPData))
 
+-- type UPHasCBORRep p = (Typeable p, ToCBOR (Hash p UPData))
+
+instance ( Typeable d
+         , ToCBOR d
+         , SUHasCBORRep p d
+         , ToCBOR (VKey p)
+         ) => ToCBOR (SU p d) where
+  toCBOR SU { hashSU, authorSU, saltSU , payloadSU }
+    =  encodeListLen 4
+    <> toCBOR hashSU
+    <> toCBOR authorSU
+    <> toCBOR saltSU
+    <> toCBOR payloadSU
+
 instance (SIPHasCBORRep p, ToCBOR (VKey p)) => ToCBOR (SIP p) where
-  toCBOR SIP { sipHash, author, salt, sipPayload }
+  toCBOR SIP { sipHash, author, salt , sipPayload }
     =  encodeListLen 4
     <> toCBOR sipHash
     <> toCBOR author
     <> toCBOR salt
     <> toCBOR sipPayload
 
+-- instance (UPHasCBORRep p, ToCBOR (VKey p), ToCBOR (Hash p SIPData)
+--          ) => ToCBOR (UP p) where
+--   toCBOR UP { upHash, upauthor, sipReference, upsalt, upPayload }
+--     =  encodeListLen 4
+--     <> toCBOR upHash
+--     <> toCBOR upauthor
+--     <> toCBOR sipReference
+--     <> toCBOR upsalt
+--     <> toCBOR upPayload
+
+instance (Typeable d, SUHasCBORRep p d) =>ToCBOR (SUHash p d) where
+  toCBOR (SUHash suHash)
+    =  encodeListLen 1
+    <> toCBOR suHash
+
 instance (SIPHasCBORRep p) =>ToCBOR (SIPHash p) where
   toCBOR (SIPHash sipHash)
     =  encodeListLen 1
     <> toCBOR sipHash
+
+-- instance (UPHasCBORRep p) =>ToCBOR (UPHash p) where
+--   toCBOR (UPHash upHash)
+--     =  encodeListLen 1
+--     <> toCBOR upHash
+
+instance (Typeable m, ToCBOR m) => ToCBOR (SUData m) where
+  toCBOR SUData { urlSU, metadataSU }
+    =  encodeListLen 2
+    <> toCBOR urlSU
+    <> toCBOR metadataSU
 
 instance ToCBOR SIPData where
   toCBOR SIPData { url, metadata }
@@ -460,13 +758,32 @@ instance ToCBOR SIPData where
     <> toCBOR url
     <> toCBOR metadata
 
+-- instance ToCBOR UPData where
+--   toCBOR UPData { urlUP, metadataUP }
+--     =  encodeListLen 2
+--     <> toCBOR urlUP
+--     <> toCBOR metadataUP
+
 instance ToCBOR SIPMetadata where
-  toCBOR SIPMetadata { versionFrom, versionTo, impactsConsensus, impactsParameters }
+  toCBOR SIPMetadata { versionFrom, versionTo
+                     , impactsConsensus, impactsParameters }
     =  encodeListLen 4
     <> toCBOR versionFrom
     <> toCBOR versionTo
     <> toCBOR impactsConsensus
     <> toCBOR impactsParameters
+
+instance ( Typeable p
+         , ToCBOR (Hash p SIPData)
+         ) => ToCBOR (UPMetadata p) where
+  toCBOR UPMetadata { sipReference, versionFromUP, versionToUP
+                    , impactsConsensusUP, impactsParametersUP }
+    =  encodeListLen 5
+    <> toCBOR sipReference
+    <> toCBOR versionFromUP
+    <> toCBOR versionToUP
+    <> toCBOR impactsConsensusUP
+    <> toCBOR impactsParametersUP
 
 instance ToCBOR ParamName where
   toCBOR = encodeInt . fromEnum

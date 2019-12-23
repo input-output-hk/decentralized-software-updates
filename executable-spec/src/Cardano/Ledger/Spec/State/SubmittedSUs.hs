@@ -19,6 +19,6 @@ import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 -- From these both the commited SU's as well as the revealed SUs will be
 -- created. This state is not part of the update protocol, it is used only for
 -- SU generation purposes.
-newtype SubmittedSUs p u = SubmittedSUs (Map (Data.CommitSU p u) (Data.SU p u))
+newtype SubmittedSUs p u = SubmittedSUs (Map (Data.CommitSU p u) u)
   deriving stock (Eq, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

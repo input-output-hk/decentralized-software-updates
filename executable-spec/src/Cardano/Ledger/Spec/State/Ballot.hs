@@ -13,8 +13,8 @@ module Cardano.Ledger.Spec.State.Ballot where
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-import           Cardano.Ledger.Spec.STS.Update.Data (confidence, votedsipHash,
-                     voter)
+import           Cardano.Ledger.Spec.STS.Update.Data (confidenceSIP, votedsipHash,
+                     voterSIP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Ledger.Core ((⨃))
 import qualified Ledger.Core as Core
@@ -78,10 +78,10 @@ updateBallot
   => Ballot p -> Data.VoteForSIP p -> Ballot p
 updateBallot
   (Ballot ballot)
-  Data.VoteForSIP { votedsipHash, voter, confidence }
+  Data.VoteForSIP { votedsipHash, voterSIP, confidenceSIP }
   = Ballot
   $ Map.insertWith
-      (\_newMap oldMap -> oldMap ⨃ [(hash voter, confidence)])
+      (\_newMap oldMap -> oldMap ⨃ [(hash voterSIP, confidenceSIP)])
       votedsipHash
       mempty
       ballot

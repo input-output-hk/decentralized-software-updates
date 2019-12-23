@@ -135,14 +135,14 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
-          Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
+          hash (Data.authorSIP sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
+          Data.commitSIP sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
-          verify (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) ?!
+          verify (Data.authorSIP sipc) (Data.commitSIP sipc) (Data.sigSIP sipc) ?!
             CommitSignatureDoesNotVerify
 
-          pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
-                     , subsips = subsips ⨃ [(Data.commit sipc, sip)]
+          pure $! st { wssips = wssips ⨃ [(Data.commitSIP sipc, currentSlot)]
+                     , subsips = subsips ⨃ [(Data.commitSIP sipc, sip)]
                      }
 
         Reveal sip -> do
@@ -165,16 +165,16 @@ instance ( Hashable p
 
         Vote voteForSIP -> do
             -- voter must be a stakeholder
-            hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
-              InvalidVoter (Data.voter voteForSIP)
+            hash (Data.voterSIP voteForSIP) ∈ dom stakeDist ?!
+              InvalidVoter (Data.voterSIP voteForSIP)
 
             verify
-              (Data.voter voteForSIP)
+              (Data.voterSIP voteForSIP)
               ( Data.votedsipHash voteForSIP
-              , Data.confidence voteForSIP
-              , Data.voter voteForSIP
+              , Data.confidenceSIP voteForSIP
+              , Data.voterSIP voteForSIP
               )
-              (Data.voterSig voteForSIP)
+              (Data.voterSigSIP voteForSIP)
               ?!
               VoteSignatureDoesNotVerify
 
