@@ -10,18 +10,18 @@ in question can be thought of as interactive Turing machines (ITM) that have com
 input and output tapes. An instance of an ITM running a certain program will be referred to as
 an interactive Turing machine instance or ITI. The spawning of new ITI's by an existing ITI as
 well as the interaction between them is at the discretion of a control program which is also an ITM
-and is denoted by $C$. The pair $(\env, C)$ is called a system of ITM's, cf.~\cite{DBLP:conf/focs/Canetti01}. 
+and is denoted by $C$. The pair $(\env, C)$ is called a system of ITM's, cf.~\cite{DBLP:conf/focs/Canetti01}.
 Specifically, the execution driven by $\env$ is defined with respect to a protocol $\Pi$, an adversary $\adv$
-(also an ITM) and a set of parties $P_1,\dots,P_n$; these are hardcoded in the control program $C$. 
+(also an ITM) and a set of parties $P_1,\dots,P_n$; these are hardcoded in the control program $C$.
 Initially, the environment $\env$ is restricted by $C$ to spawn the adversary $\adv$. Each time the
 adversary is activated, it may send one or more messages of the form $(\corrupt, P_i)$ to $C$. The control
 program $C$ will register party $P_i$ as corrupted, only provided that the environment has previously
 given an input of the form $(\corrupt, P_i)$ to $\adv$ and that the number of corrupted parties is less or
-equal $\tcorrupt$, a bound that is also hardcoded in $C$. 
+equal $\tcorrupt$, a bound that is also hardcoded in $C$.
 
 We divide time into discrete units called \emph{time slots}. Players are equipped with (roughly)
 synchronized clocks that indicate the current slot: we assume that any clock drift is subsumed in the slot
-length. 
+length.
 %Each slot $\slr$ is indexed by an integer $r\in\{1,2,\dots\}$.
 
 
@@ -36,10 +36,10 @@ length.
 \subsubsection{Ledger Consensus.}
 Ledger consensus (a.k.a. ``Nakamoto consensus'') is the problem where a set of servers
 (or nodes) operate continuously accepting inputs
-that are called transactions and incorporate them in a public data 
-structure called the {\em ledger}. 
+that are called transactions and incorporate them in a public data
+structure called the {\em ledger}.
 A ledger (denoted in calligraphic-face, e.g. $\ledger$) is a mechanism for maintaining a sequence of transactions, often
-stored in the form of a blockchain (cf. Appendix \ref{se:bcabstraction}). In this paper, we denote with $\ledger$ 
+stored in the form of a blockchain (cf. Appendix \ref{se:bcabstraction}). In this paper, we denote with $\ledger$
 the algorithms used to maintain the sequence, and with $\state$ all the views of the
 participants of the state of these algorithms when being executed. For example, the (existing) ledger Bitcoin
 consists of the set of all transactions that ever took place in the Bitcoin network, the current UTXO set, as
@@ -50,9 +50,9 @@ every fixed chain $\mathcal{C}$ defines a concrete ledger state by applying the 
 description of $\ledger$. In this work, we assume that the ledger state is obtained from the blockchain by dropping the last $k$ blocks
 and serializing the transactions in the remaining blocks. We refer to $k$ as the \emph{common-prefix parameter}.
 We denote by $\state^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
-and by ${\check \state}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
+and by ${\check \state}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet.
 %ledger states (or, more generally, any sequences), we denote by the prefix relation.
-% and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. 
+% and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet.
 
 
 For two ledger states (or, more generally, any sequences), we denote by $\preceq$ the prefix relation.
@@ -65,14 +65,14 @@ Recall the definition of secure ledger protocol given in~\cite{sok}.
 \ignore{
 \begin{itemize}
 \item {\em Consistency:} This property mandates that if a client queries
-an honest node's ledger at round $t_1$  
-and receives the response $\mc{L}_1$, 
+an honest node's ledger at round $t_1$
+and receives the response $\mc{L}_1$,
 then a client querying an honest node's ledger at round $t_2\geq t_1 $
- receives a response $\mc{L}_2$ that satisfies $\mc{L}_1 \preceq \mc{L}_2$, 
-where $\preceq$ denotes the standard prefix operation. 
+ receives a response $\mc{L}_2$ that satisfies $\mc{L}_1 \preceq \mc{L}_2$,
+where $\preceq$ denotes the standard prefix operation.
 
 \item {\em Liveness:} If a transaction $tx$ is given as input to all honest
-nodes continuously for a certain number of rounds denoted by $u$, 
+nodes continuously for a certain number of rounds denoted by $u$,
 and a client queries any honest node's ledger
 after these $u$ rounds, then the node responds with a value
 $\mc{L}$ that includes $tx$.
@@ -98,7 +98,7 @@ In this work we also explicitly rely on the property of \emph{Chain Growth (CG)}
 
 \begin{myitemize}
   \item[] {\bf Chain Growth (CG); with parameters $\cg\in (0,1]$ and $s\in\mathbb{N}$}. Consider the chain $\mathcal{C}$
-  adopted by an honest party at the onset of a slot and any portion of $\mathcal{C}$ spanning $s$ prior slots; then the number of 
+  adopted by an honest party at the onset of a slot and any portion of $\mathcal{C}$ spanning $s$ prior slots; then the number of
   blocks appearing in this portion of the chain is at least $\tau s$.
  \end{myitemize}
 
@@ -107,7 +107,7 @@ In this work we also explicitly rely on the property of \emph{Chain Growth (CG)}
 We consider a setting where a set of parties run a protocol maintaining a ledger $\ledger_1$. Following~\cite{sidechain} we denote by $\asmp_1$
 the assumptions for $\ledger_1$.
  That is, if the assumption $\asmp_1$ holds, then ledger $\ledger_1$ is secure under the Definition~\ref{de:ledger}.
-Formally, $\asmp_i$ for a ledger $\ledger_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that can assume value $1$, 
+Formally, $\asmp_i$ for a ledger $\ledger_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that can assume value $1$,
 if the assumption is satisfied, and $0$ otherwise.
 For example, $\asmp_i$ may denote that
 there has never been a majority of hashing power (or stake in a particular
@@ -117,11 +117,11 @@ asset
 particular entity (in case of a centralized ledger) was not corrupted; and so
 on.
 Without loss of generality, we say that the assumption $\asmp_1$ for the ledger $\ledger_1$ holds if and only if the number of corrupted parties (the parties
-that received the input $(\corrupt, \cdot)$) is below the threshold $\tcorrupt_1$ (where $\tcorrupt_1$ is part of the control function as described in the beginning 
+that received the input $(\corrupt, \cdot)$) is below the threshold $\tcorrupt_1$ (where $\tcorrupt_1$ is part of the control function as described in the beginning
 of this section).
 
 
-%Without loss of generality we assume that $\asmp_i$ are monotone in the sense that once violated, they cannot become true again. Formally, 
+%Without loss of generality we assume that $\asmp_i$ are monotone in the sense that once violated, they cannot become true again. Formally,
 %$\asmp_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that satisfy $\neg \asmp_i[t] \rightarrow \neg \asmp_i[t+1]$ for all $t$.
 %There is an a priori unlimited number of (types of) assets, each asset representing e.g. a different cryptocurrency. We allow specific rules of behavior for each asset (called %validity languages), and each asset behaves according to these rules on each of the ledgers where it is present.
 
@@ -130,10 +130,10 @@ of this section).
 
 
 \subsection{Defining Secure Activations}
-In this section, we provide the definition of secure activations. Our definition is generic in the sense that can be applied to a large class of ledgers 
+In this section, we provide the definition of secure activations. Our definition is generic in the sense that can be applied to a large class of ledgers
 (e.g., PoS, PoW and so on).
 Let $\ledger_1$ be the ledger that the parties are running with assumption $\asmp_1$. We now consider a new ledger $\ledger_2$ with assumption $\asmp_2$.
-We say that the assumption $\asmp_2$ for the ledger $\ledger_2$ holds if and only if the number of corrupted parties 
+We say that the assumption $\asmp_2$ for the ledger $\ledger_2$ holds if and only if the number of corrupted parties
 that received the command $(\activate, \cdot)$ and the command $(\corrupt,\cdot)$
  is below the threshold $\tcorrupt_2$ (where $\tcorrupt_2$ is part of the control function as described previously).
  We say that $\asmp_1=\asmp_2$ if and only if $\tcorrupt_1=\tcorrupt_2$.
@@ -143,21 +143,21 @@ $\ledger_2$ represents an updated version of $\ledger_1$ (i.e., an improved prot
 In the scenario that we are considering in this paper, each party that is running $\ledger_1$ could receive the input $(\activate, \ledger_2)$. A party
 that receives this command starts the \emph{activation process}
 in order to run $\ledger_2$ (and maybe stop running $\ledger_1$).
-%The receipt of the input $(\activate,P_i)$ from the environment 
+%The receipt of the input $(\activate,P_i)$ from the environment
 %corresponds to the moment in which the $j$-th block appears in $\state_1^{P_i}$.\footnote{We recall that the $j$-th block is used as a synchronization flag by the parties
-%and that the generation of this block triggers the activation protocol.} 
-Let $t_{P_i}$ denote the time in which 
+%and that the generation of this block triggers the activation protocol.}
+Let $t_{P_i}$ denote the time in which
 a party $P_i$ receives the activation command and let $\activep$ be the set of parties that received this command. Without loss of generality, let $P_1$ be the first party to receive the update command (note that $t_{P_1}\leq t_{P_i}$ for all $P_i\in\activep$).
 %We note that if a set of parties $\parties$ is such that the assumption $\asmp_2$ holds (e.g. if enough honest parties are willing to maintain $\ledger_2$), then $\ledger_2$ is
 %secure.
 
-%Let $t$ be the time at which one of the parties that is running $\ledger_1$ is activated. 
-Informally, a secure activation process guarantees that if the set of honest parties that are willing to run $\ledger_2$ 
+%Let $t$ be the time at which one of the parties that is running $\ledger_1$ is activated.
+Informally, a secure activation process guarantees that if the set of honest parties that are willing to run $\ledger_2$
 is such that $\asmp_2[t]=1$ for some $t\geq t_{P_1}+\Delta_1$, then
 the state of $\ledger_2$ at time $t_{P_1}+\Delta_1+\Delta_2$ corresponds to the state of $\ledger_1$ at time $t_{P_i}$ with $P_i\in\activep$.
 The parameter $\Delta_1$ defines a \emph{synchronization} parameter to ensure that enough honest parties that have received $(\activate,\cdot)$ (i.e., the number of honest parties is such that $\asmp_2$ holds). $\Delta_2$ instead represents the time required for the update process to be completed.
 
- 
+
 %\nnote{I think (I might be wrong) that, as it is right now, it is confusing what are the two time points that: a) $L_2$ becomes secure and b) $L_2$ includes the state of $L_1$. From the above text, the reader understands that these time points are $t'$ (where $t' > t_{P_1}$) and $t' + \Delta_1$ respectively. Is this what we want to say? This does not comply (I think) with the time points mentioned in Definition 2 below.}
 
 %\nnote{Why dont we just say that: $L_2$ will become secure at time point $t_{P_1} + \Delta_1$  and will include $L_1$ at time point $t_{P_1} + \Delta_1 + \Delta_2$?}
@@ -174,10 +174,12 @@ The above implies that $\state_2$  extends $\state_1$ and that $\ledger_2$ is se
 In a nutshell, a secure update process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
 We now give a more formal definition.
 
+{\bf Change the two parameters below so that the first one is a percentage signifying the number of parties that have done the upgrade and the second is the delay $\Delta$ it takes to upgrade.}
+
 \begin{definition}[Activation Process]\label{de:act}
  We say that an activation process with activation parameters $(\Delta_1,\Delta_2)$ (where $\Delta_1,\Delta_2\in\mathbb{N}$) is secure if the following condition is satisfied:
 If $\asmp_2[t]=1$ for all $t\geq t_{P_1}+\Delta_1$ %with $\Delta_1,\Delta_2\in\mathbb{N}$
-and $\asmp_1[t']=1$ for all $t' \leq t_{P_1}+\Delta_1+\Delta_2$, then the state of $\ledger_2$ at some time $T\in [t_{P_1}+\Delta_1, t_{P_1}+\Delta_1+\Delta_2]$ is such that $\state^\star=\state_2$ where $  \state_1^{P_i}[t_{P_i}] \preceq \state^\star$ for some $P_i\in\activep$.  
+and $\asmp_1[t']=1$ for all $t' \leq t_{P_1}+\Delta_1+\Delta_2$, then the state of $\ledger_2$ at some time $T\in [t_{P_1}+\Delta_1, t_{P_1}+\Delta_1+\Delta_2]$ is such that $\state^\star=\state_2$ where $  \state_1^{P_i}[t_{P_i}] \preceq \state^\star$ for some $P_i\in\activep$.
 \end{definition}
 
 We note that this definition says nothing on the security of $\ledger_1$ after the time slot $t_{P_1}+\Delta_1+\Delta_2$. Indeed, the Definition~\ref{de:act} implies that if
