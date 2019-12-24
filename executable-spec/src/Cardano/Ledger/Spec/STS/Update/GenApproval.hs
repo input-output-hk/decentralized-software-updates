@@ -48,7 +48,8 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      (SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-
+import           Cardano.Ledger.Spec.Classes.IsSUCommit (SUCommit)
+import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash, IsVote)
 import Cardano.Ledger.Test.Mock (Mock)
 
 --------------------------------------------------------------------------------
@@ -57,72 +58,30 @@ import Cardano.Ledger.Test.Mock (Mock)
 --------------------------------------------------------------------------------
 
 -- | Software Update signals
--- data SUPayload p u
---   = PayldIdeation (IdeationPayload p)
---   | PayldApproval (ApprovalPayload p)
-
--- | Software Update signals
 -- p: hashing and signing algorithm
 -- u: type of software update
-data SUPayload p u
-  = SubmitSU (SUCommit p u) u
-  | RevealSU u
-  | VoteSU u
+data SUPayload u p
+  = SubmitSU (SUCommit u p) (SU u p)
+  | RevealSU (SU u p)
+  | VoteSU (IsVote u p)
   deriving (Generic)
 
 deriving instance (Hashable p, HasSigningScheme p, Show u
                   ) => Show (SUPayload p u)
 
--- | Ideation signals.
-data IdeationPayload p
--- TODO: type IdeationPayload p = SUPayload p (SIP p)
-  = Submit (SIPCommit p) (SIP p)
-  | Reveal (SIP p)
-  | Vote (VoteForSIP p)
-  deriving (Show, Generic)
-
--- | Approval signals.
-type ApprovalPayload p = SUPayload p (UP p)
-
--- | Approval signals.
--- data ApprovalPayload p
---   = SubmitUP (UPCommit p) (UP p)
---   | RevealUP (UP p)
---   | VoteUP (VoteForUP p)
---   deriving (Show, Generic)
-
-deriving instance ( Typeable p
-                  , HasTypeReps p
-                  , HasTypeReps (SIP p)
-                  , HasTypeReps (SIPHash p)
-                  , HasTypeReps (SIPCommit p)
-                  , HasTypeReps (VoteForSIP p)
-                  ) => HasTypeReps (IdeationPayload p)
-
 deriving instance ( Typeable p
                   , Typeable u
                   , HasTypeReps p
                   , HasTypeReps u
---                  , HasTypeReps (SU p u)
---                  , HasTypeReps (SUHash p u)
-                  , HasTypeReps (SUCommit p u)
---                  , HasTypeReps (VoteForSU p u)
-                  ) => HasTypeReps (SUPayload p u)
-
--- deriving instance ( Typeable p
---                   , HasTypeReps p
---                   , HasTypeReps (UP p)
---                   , HasTypeReps (UPHash p)
---                   , HasTypeReps (UPCommit p)
---                   , HasTypeReps (VoteForUP p)
---                   ) => HasTypeReps (ApprovalPayload p)
+                  , HasTypeReps (SU u p)
+                  , HasTypeReps (SUHash u p)
+                  , HasTypeReps (SUCommit u p)
+                  , HasTypeReps (IsVote u p)
+                  ) => HasTypeReps (SUPayload u p)
 
 --------------------------------------------------------------------------------
 -- Sized instances
 --------------------------------------------------------------------------------
-
-instance Sized ImplementationPayload where
-  costsList implementationPayload = [(typeOf implementationPayload, 10)]
 
 instance ( Typeable p
          , Typeable u
@@ -133,28 +92,12 @@ instance ( Typeable p
          ) => Sized (SUPayload p u) where
   costsList suPayload = [(typeOf suPayload, 10)]
 
-instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload p) where
-  costsList ideationPayload = [(typeOf ideationPayload, 10)]
-
--- instance (Typeable p, HasTypeReps (ApprovalPayload p)) => Sized (ApprovalPayload p) where
---   costsList approvalPayload = [(typeOf approvalPayload, 10)]
-
-
-isSubmit :: IdeationPayload p -> Bool
-isSubmit (Submit {}) = True
-isSubmit _ = False
-
-isReveal :: IdeationPayload p -> Bool
-isReveal (Reveal {}) = True
-isReveal _ = False
-
 -- | A Generic Approval STS.
 -- Implements a generic apporval STS to be instantiated by the
 -- `Ideation` STS and the `Approval` STS.
--- It is polymorphic in the hashing and signing algorithm (1st parameter) and in
--- the type of the software update (`SIP` or `UP`) (2nd parameter)
--- the contents of the software update (3rd parameter)
-data GENAPPROVAL p u d
+-- It is polymorphic in the hashing and signing algorithm (parameter @p@) and in
+-- the type of the software update (`SIP` or `UP`) (parameter @u@)
+data GENAPPROVAL u p
 
 -- Environmnet of the ApprovalGen phase
 data Env p d

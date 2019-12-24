@@ -24,6 +24,9 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 data ImplementationPayload = ImplementationPayload
   deriving (Eq, Show, Generic, HasTypeReps)
 
+instance Sized ImplementationPayload where
+  costsList implementationPayload = [(typeOf implementationPayload, 10)]
+
 data IMPLEMENTATION p
 
 data Env p =

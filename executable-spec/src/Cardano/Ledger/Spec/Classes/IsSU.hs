@@ -23,7 +23,6 @@ class (Hashable p) => IsSU u p | u -> p  where
   authorSU :: u -> VKey p
   saltSU :: u -> Int
 
-
 instance (Hashable p) => IsSU (Data.SIP p) p where
   type SU (Data.SIP p) p = Data.SIP p
 
