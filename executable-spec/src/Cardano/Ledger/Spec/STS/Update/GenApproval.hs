@@ -45,7 +45,7 @@ import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (SUPayload (RevealSU, SubmitSU, VoteSU), SIP (SIP),
+                     (SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -55,6 +55,98 @@ import Cardano.Ledger.Test.Mock (Mock)
 -- This a generic approval STS to be utilized by both
 -- the Ideation and Approval STSs.
 --------------------------------------------------------------------------------
+
+-- | Software Update signals
+-- data SUPayload p u
+--   = PayldIdeation (IdeationPayload p)
+--   | PayldApproval (ApprovalPayload p)
+
+-- | Software Update signals
+-- p: hashing and signing algorithm
+-- u: type of software update
+data SUPayload p u
+  = SubmitSU (SUCommit p u) u
+  | RevealSU u
+  | VoteSU u
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p, Show u
+                  ) => Show (SUPayload p u)
+
+-- | Ideation signals.
+data IdeationPayload p
+-- TODO: type IdeationPayload p = SUPayload p (SIP p)
+  = Submit (SIPCommit p) (SIP p)
+  | Reveal (SIP p)
+  | Vote (VoteForSIP p)
+  deriving (Show, Generic)
+
+-- | Approval signals.
+type ApprovalPayload p = SUPayload p (UP p)
+
+-- | Approval signals.
+-- data ApprovalPayload p
+--   = SubmitUP (UPCommit p) (UP p)
+--   | RevealUP (UP p)
+--   | VoteUP (VoteForUP p)
+--   deriving (Show, Generic)
+
+deriving instance ( Typeable p
+                  , HasTypeReps p
+                  , HasTypeReps (SIP p)
+                  , HasTypeReps (SIPHash p)
+                  , HasTypeReps (SIPCommit p)
+                  , HasTypeReps (VoteForSIP p)
+                  ) => HasTypeReps (IdeationPayload p)
+
+deriving instance ( Typeable p
+                  , Typeable u
+                  , HasTypeReps p
+                  , HasTypeReps u
+--                  , HasTypeReps (SU p u)
+--                  , HasTypeReps (SUHash p u)
+                  , HasTypeReps (SUCommit p u)
+--                  , HasTypeReps (VoteForSU p u)
+                  ) => HasTypeReps (SUPayload p u)
+
+-- deriving instance ( Typeable p
+--                   , HasTypeReps p
+--                   , HasTypeReps (UP p)
+--                   , HasTypeReps (UPHash p)
+--                   , HasTypeReps (UPCommit p)
+--                   , HasTypeReps (VoteForUP p)
+--                   ) => HasTypeReps (ApprovalPayload p)
+
+--------------------------------------------------------------------------------
+-- Sized instances
+--------------------------------------------------------------------------------
+
+instance Sized ImplementationPayload where
+  costsList implementationPayload = [(typeOf implementationPayload, 10)]
+
+instance ( Typeable p
+         , Typeable u
+         , HasTypeReps p
+         , HasTypeReps u
+         , HasTypeReps (VKey p)
+         , HasTypeReps (SUPayload p u)
+         ) => Sized (SUPayload p u) where
+  costsList suPayload = [(typeOf suPayload, 10)]
+
+instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload p) where
+  costsList ideationPayload = [(typeOf ideationPayload, 10)]
+
+-- instance (Typeable p, HasTypeReps (ApprovalPayload p)) => Sized (ApprovalPayload p) where
+--   costsList approvalPayload = [(typeOf approvalPayload, 10)]
+
+
+isSubmit :: IdeationPayload p -> Bool
+isSubmit (Submit {}) = True
+isSubmit _ = False
+
+isReveal :: IdeationPayload p -> Bool
+isReveal (Reveal {}) = True
+isReveal _ = False
 
 -- | A Generic Approval STS.
 -- Implements a generic apporval STS to be instantiated by the

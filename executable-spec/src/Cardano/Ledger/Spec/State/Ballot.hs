@@ -13,7 +13,7 @@ module Cardano.Ledger.Spec.State.Ballot where
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-import           Cardano.Ledger.Spec.STS.Update.Data (confidenceSIP, votedsipHash,
+import           Cardano.Ledger.Spec.STS.Update.Data (confidenceSIP, votedSIPHash,
                      voterSIP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Ledger.Core ((⨃))

@@ -16,6 +16,6 @@ import qualified Ledger.Core as Core
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
 -- | Slot in which a SIP was revealed.
-newtype WhenRevealedSUs p u = WhenRevealedSUs (Map (Data.SUHash p u) Core.Slot)
+newtype WhenRevealedSUs p d = WhenRevealedSUs (Map (Data.SUHash p d) Core.Slot)
   deriving stock (Eq, Ord, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

@@ -32,5 +32,5 @@ votingPeriodEnd
 votingPeriodEnd sipHash sipdb
   = Data.votPeriodDuration
   . Data.metadata
-  . Data.sipPayload
+  . Data.payloadSIP
   $ (sipdb ! sipHash)

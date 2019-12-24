@@ -21,6 +21,9 @@ import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 
+data ImplementationPayload = ImplementationPayload
+  deriving (Eq, Show, Generic, HasTypeReps)
+
 data IMPLEMENTATION p
 
 data Env p =

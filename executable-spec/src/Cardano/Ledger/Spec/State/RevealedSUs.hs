@@ -33,7 +33,7 @@ deriving instance (Hashable p, Hashable d, Show d, Show (VKey p)) => Show (Revea
 -- The result is based on the voting period duration recorded in the @SU@ metadata
 -- ('Data.SIPMetadata', 'Data.UPMetadata').
 votingPeriodEnd
-  :: (Hashable p)
+  :: (Hashable p, HasVotingPeriod d)
   => forall p d.
      Data.SUHash p d
   -> RevealedSUs p d

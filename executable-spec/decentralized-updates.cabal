@@ -19,6 +19,8 @@ library
                      , Cardano.Ledger.Spec.Classes.Hashable
                      , Cardano.Ledger.Spec.Classes.HasSigningScheme
                      , Cardano.Ledger.Spec.Classes.Sizeable
+                     , Cardano.Ledger.Spec.Classes.IsSU
+                     , Cardano.Ledger.Spec.Classes.IsSUCommit
                      , Cardano.Ledger.Spec.State.ActiveSIPs
                      , Cardano.Ledger.Spec.State.ActiveSUs
                      , Cardano.Ledger.Spec.State.ApprovedSIPs

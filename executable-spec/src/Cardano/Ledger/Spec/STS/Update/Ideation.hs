@@ -45,7 +45,7 @@ import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
+                     (SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -54,6 +54,34 @@ import Cardano.Ledger.Test.Mock (Mock)
 --------------------------------------------------------------------------------
 -- Updates ideation phase
 --------------------------------------------------------------------------------
+
+-- | Ideation signals.
+data IdeationPayload p
+  = Submit (SIPCommit p) (SIP p)
+  | Reveal (SIP p)
+  | Vote (VoteForSIP p)
+  deriving (Show, Generic)
+
+deriving instance ( Typeable p
+                  , HasTypeReps p
+                  , HasTypeReps (SIP p)
+                  , HasTypeReps (SIPHash p)
+                  , HasTypeReps (SIPCommit p)
+                  , HasTypeReps (VoteForSIP p)
+                  ) => HasTypeReps (IdeationPayload p)
+
+
+instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload p) where
+  costsList ideationPayload = [(typeOf ideationPayload, 10)]
+
+isSubmit :: IdeationPayload p -> Bool
+isSubmit (Submit {}) = True
+isSubmit _ = False
+
+isReveal :: IdeationPayload p -> Bool
+isReveal (Reveal {}) = True
+isReveal _ = False
+
 
 -- | Ideation phase of system updates
 data IDEATION p
