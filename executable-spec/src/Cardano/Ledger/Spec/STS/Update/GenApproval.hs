@@ -100,13 +100,13 @@ instance ( Typeable p
 data GENAPPROVAL u p
 
 -- Environmnet of the ApprovalGen phase
-data Env p d
+data Env u p
   = Env
     { k :: !BlockCount
       -- ^ Chain stability parameter.
     , currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
-    , aSUs :: !(ActiveSUs p d)
+    , aSUs :: !(ActiveSUs u p)
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     }
@@ -114,13 +114,13 @@ data Env p d
 
 -- | Generic Approval state
 --
-data St p u d
+data St u p
   = St
     { subSUs :: !(SubmittedSUs p u)
     , wsSUs :: !(WhenSubmittedSUs p u)
     , wrSUs :: !(WhenRevealedSUs p d)
-    , sudb :: !(RevealedSUs p d)
-    , ballots :: !(Ballot p)
+    , sudb :: !(RevealedSUs u p)
+    , ballots :: !(BallotSUs p)
     }
   deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)

@@ -6,19 +6,22 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Cardano.Ledger.Spec.STS.Update.Implementation where
 
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
+import           Data.AbstractSize (HasTypeReps)
+import           Data.Typeable (typeOf)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, initialRules, transitionRules)
 import           Ledger.Core (Slot)
 
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 
 data ImplementationPayload = ImplementationPayload
@@ -49,7 +52,7 @@ instance STS (IMPLEMENTATION p) where
 
   type State (IMPLEMENTATION p) = St
 
-  type Signal (IMPLEMENTATION p) = Data.ImplementationPayload
+  type Signal (IMPLEMENTATION p) = ImplementationPayload
 
   data PredicateFailure (IMPLEMENTATION p)
     = ImplementationFailure

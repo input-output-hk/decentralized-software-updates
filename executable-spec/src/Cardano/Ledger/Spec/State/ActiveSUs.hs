@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- The Core.Relation instance requires an 'Ord' constraint on the domain and
 -- range of the relation. Both 'Data.SIPHash' and 'Core.Slot' have 'Ord'
@@ -19,10 +20,15 @@ import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 -- | Active SU's. The slot in the range (of the map) determines when the voting
 --   period will end.
-newtype ActiveSUs u = ActiveSUs (Map (IsSU.SUHasHash u) Core.Slot)
-  deriving stock (Eq, Ord, Show)
-  deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)
+newtype ActiveSUs u p = ActiveSUs (Map (IsSU.SUHash u p) Core.Slot)
+  deriving newtype (Core.Relation)
+
+deriving instance (Eq (IsSU.SUHash u p)) => Eq (ActiveSUs u p)
+deriving instance (Ord (IsSU.SUHash u p)) => Ord (ActiveSUs u p)
+deriving instance (Show (IsSU.SUHash u p)) => Show (ActiveSUs u p)
+deriving instance (Ord (IsSU.SUHash u p)) => Semigroup (ActiveSUs u p)
+deriving instance (Ord (IsSU.SUHash u p)) => Monoid (ActiveSUs u p)
+deriving instance (Ord (IsSU.SUHash u p)) => Indexed (ActiveSUs u p)
