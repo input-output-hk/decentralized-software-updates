@@ -26,6 +26,7 @@ library
                      , Cardano.Ledger.Spec.State.ActiveSUs
                      , Cardano.Ledger.Spec.State.ApprovedSIPs
                      , Cardano.Ledger.Spec.State.Ballot
+                     , Cardano.Ledger.Spec.State.BallotSUs
                      , Cardano.Ledger.Spec.State.Participants
                      , Cardano.Ledger.Spec.State.RevealedSIPs
                      , Cardano.Ledger.Spec.State.RevealedSUs

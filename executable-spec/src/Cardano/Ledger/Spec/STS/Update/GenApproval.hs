@@ -116,11 +116,11 @@ data Env u p
 --
 data St u p
   = St
-    { subSUs :: !(SubmittedSUs p u)
+    { subSUs :: !(SubmittedSUs u p)
     , wsSUs :: !(WhenSubmittedSUs p u)
     , wrSUs :: !(WhenRevealedSUs p d)
     , sudb :: !(RevealedSUs u p)
-    , ballots :: !(BallotSUs p)
+    , ballots :: !(BallotSUs u p)
     }
   deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)
