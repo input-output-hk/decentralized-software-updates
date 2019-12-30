@@ -1,11 +1,13 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
--- {-# LANGUAGE ScopedTypeVariables #-}
 
 -- See Cardano.Ledger.Spec.State.ActiveSIPs
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
@@ -23,12 +25,10 @@ import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      VKey)
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed, (!))
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-import           Cardano.Ledger.Spec.STS.Update.Data (confidenceSIP, votedSIPHash,
-                     voterSIP)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
 import qualified Cardano.Ledger.Spec.Classes.IsVoteForSU as IsVote
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 -- | Register of votes for each SU and voter.
 newtype BallotSUs u p = BallotSUs (Map (IsSU.SUHash u p) (SUBallot p))
@@ -87,9 +87,12 @@ addVotes stakeDistribution votingResult (SUBallot ballot) =
 -- Note that if a voter already cast a vote (according to the given ballot),
 -- then the old vote is replaced with the new one.
 updateBallot
-  :: ( HasSigningScheme p
+  :: forall u p
+   . ( HasSigningScheme p
      , Hashable p
      , HasHash p (VKey p)
+     , IsVote.IsVoteForSU u p
+     , Ord (IsSU.SUHash u p)
      )
   => BallotSUs u p -> IsVote.IsVote u p -> BallotSUs u p
 updateBallot
@@ -97,7 +100,7 @@ updateBallot
   isvote
   = BallotSUs
   $ Map.insertWith
-      (\_newMap oldMap -> oldMap ⨃ [(hash (IsVote.voterSU isvote) , (IsVote.confidenceSU isvote))])
-      (IsVote.votedSUHash isvote)
+      (\_newMap oldMap -> oldMap ⨃ [(hash (IsVote.voterSU @u @p isvote), (IsVote.confidenceSU @u @p isvote))])
+      (IsVote.votedSUHash @u @p isvote)
       mempty
       ballot

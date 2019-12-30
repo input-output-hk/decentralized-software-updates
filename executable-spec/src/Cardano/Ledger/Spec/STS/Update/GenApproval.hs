@@ -23,12 +23,15 @@ import           Data.Text as T
 import           GHC.Exts (toList)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
+import           Data.Typeable (Typeable, typeOf)
+import           Data.AbstractSize (HasTypeReps, typeReps)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
                              , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
+import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -48,7 +51,7 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      (SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import           Cardano.Ledger.Spec.Classes.IsSUCommit (SUCommit)
+import           Cardano.Ledger.Spec.Classes.IsSUCommit (SUCommit, authorSUcom)
 import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash, IsVote)
 import Cardano.Ledger.Test.Mock (Mock)
 
@@ -117,8 +120,8 @@ data Env u p
 data St u p
   = St
     { subSUs :: !(SubmittedSUs u p)
-    , wsSUs :: !(WhenSubmittedSUs p u)
-    , wrSUs :: !(WhenRevealedSUs p d)
+    , wsSUs :: !(WhenSubmittedSUs u p)
+    , wrSUs :: !(WhenRevealedSUs u p)
     , sudb :: !(RevealedSUs u p)
     , ballots :: !(BallotSUs u p)
     }
@@ -176,8 +179,8 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         SubmitSU sucom su -> do
-          hash (Data.authorSUcom sucom) ∈ dom stakeDist
-            ?! InvalidAuthor (Data.authorSUcom sucom)
+          hash (authorSUcom sucom) ∈ dom stakeDist
+            ?! InvalidAuthor (authorSUcom sucom)
           Data.commitSU sucom ∉ dom subSUs ?! SUAlreadySubmitted su
 
           verify (Data.authorSUcom sucom) (Data.commitSU sucom) (Data.sigSUcom sucom) ?!

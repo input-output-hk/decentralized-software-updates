@@ -15,7 +15,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 
 -- | A software update commitment
-class (Hashable p) => IsSUCommit u p | u -> p where
+class (Hashable p) => IsSUCommit u p where
   type SUCommit u p :: Type
 
   authorSUcom :: u -> VKey p
@@ -32,7 +32,7 @@ instance (Hashable p) => IsSUCommit (Data.UPCommit p) p where
   authorSUcom = Data.authorUPcom
 
 -- | The (hash) id of a software update commitment
-class (Hashable p, IsSUCommit u p) => SUCommitHasHash u p | u -> p where
+class (Hashable p, IsSUCommit u p) => SUCommitHasHash u p where
   type CommitSU u p :: Type
 
   hashSUCommit :: u -> CommitSU u p

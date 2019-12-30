@@ -78,10 +78,10 @@ updateBallot
   => Ballot p -> Data.VoteForSIP p -> Ballot p
 updateBallot
   (Ballot ballot)
-  Data.VoteForSIP { votedsipHash, voterSIP, confidenceSIP }
+  Data.VoteForSIP { votedSIPHash, voterSIP, confidenceSIP }
   = Ballot
   $ Map.insertWith
       (\_newMap oldMap -> oldMap ⨃ [(hash voterSIP, confidenceSIP)])
-      votedsipHash
+      votedSIPHash
       mempty
       ballot

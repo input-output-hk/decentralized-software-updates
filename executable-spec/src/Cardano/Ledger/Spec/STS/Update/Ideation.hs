@@ -23,12 +23,15 @@ import           Data.Text as T
 import           GHC.Exts (toList)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
+import           Data.Typeable (Typeable, typeOf)
+import           Data.AbstractSize (HasTypeReps, typeReps)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
                              , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
+import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -45,9 +48,10 @@ import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (SIP (SIP),
+                     (SIP (SIP), SIPCommit, VoteForSIP, SIPHash,
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 import Cardano.Ledger.Test.Mock (Mock)
 
@@ -163,10 +167,10 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          hash (Data.authorSIP sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
+          hash (Data.authorSIPcom sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.authorSIP sip)
           Data.commitSIP sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
-          verify (Data.authorSIP sipc) (Data.commitSIP sipc) (Data.sigSIP sipc) ?!
+          verify (Data.authorSIPcom sipc) (Data.commitSIP sipc) (Data.sigSIP sipc) ?!
             CommitSignatureDoesNotVerify
 
           pure $! st { wssips = wssips ⨃ [(Data.commitSIP sipc, currentSlot)]
@@ -174,7 +178,7 @@ instance ( Hashable p
                      }
 
         Reveal sip -> do
-          hash (Data.author sip) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
+          hash (Data.authorSIP sip) ∈ dom stakeDist ?! InvalidAuthor (Data.authorSIP sip)
           (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
 
           sip ∉ range sipdb ?! SIPAlreadyRevealed sip
@@ -187,8 +191,8 @@ instance ( Hashable p
             ?! NoStableAndCommittedSIP sip wssips
 
           pure st { wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips
-                  , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
-                  , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
+                  , wrsips = wrsips ⨃ [(Data.hashSIP sip, currentSlot)]
+                  , sipdb = sipdb ⨃ [(Data.hashSIP sip, sip)]
                   }
 
         Vote voteForSIP -> do
@@ -198,7 +202,7 @@ instance ( Hashable p
 
             verify
               (Data.voterSIP voteForSIP)
-              ( Data.votedsipHash voteForSIP
+              ( Data.votedSIPHash voteForSIP
               , Data.confidenceSIP voteForSIP
               , Data.voterSIP voteForSIP
               )
@@ -208,18 +212,18 @@ instance ( Hashable p
 
             -- SIP must be an active SIP, i.e. it must belong to the set of
             -- stable revealed SIPs
-            Data.votedsipHash voteForSIP ∈ dom asips ?!
-              VoteNotForActiveSIP (Data.votedsipHash voteForSIP)
+            Data.votedSIPHash voteForSIP ∈ dom asips ?!
+              VoteNotForActiveSIP (Data.votedSIPHash voteForSIP)
 
             -- The end of the voting period for this SIP must not have been
             -- reached yet.
-            currentSlot <= asips ! Data.votedsipHash voteForSIP ?!
-              VotingPeriodEnded (Data.votedsipHash voteForSIP) currentSlot
+            currentSlot <= asips ! Data.votedSIPHash voteForSIP ?!
+              VotingPeriodEnded (Data.votedSIPHash voteForSIP) currentSlot
 
             pure $ st { ballots = updateBallot ballots voteForSIP }
     ]
 
-instance STS.Gen.HasTrace (IDEATION Mock) a where
+instance (ToCBOR SlotCount) => STS.Gen.HasTrace (IDEATION Mock) a where
 
   envGen :: a -> QC.Gen (Env Mock)
   envGen _traceGenEnv
@@ -317,7 +321,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
             mkSubmission skey sip = Submit sipCommit sip
               where
                 sipCommit =
-                  Data.SIPCommit commit (Data.author sip) sipCommitSignature
+                  Data.SIPCommit commit (Data.authorSIP sip) sipCommitSignature
                   where
                     commit = Data.calcCommit sip
                     sipCommitSignature = sign commit skey
@@ -326,7 +330,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
         -- revelation that satisfies the given predicate!
         sip <- QC.elements subsipsList
-        if Data.sipHash sip ∉ dom wrsips
+        if Data.hashSIP sip ∉ dom wrsips
           then pure $! Reveal sip
           else submissionGen
 

@@ -23,7 +23,7 @@ import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!))
 
 -- | A vote for a software update
-class (Hashable p, IsSU u p, SUHasHash u p) => IsVoteForSU u p | u -> p where
+class (Hashable p, IsSU u p, SUHasHash u p) => IsVoteForSU u p  where
   type IsVote u p :: Type
   votedSUHash :: (IsVote u p) -> (SUHash u p)
   confidenceSU :: (IsVote u p) -> Data.Confidence

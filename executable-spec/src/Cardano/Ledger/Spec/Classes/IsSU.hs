@@ -18,7 +18,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 
 -- | Typeclass to define a Software Update
-class (Hashable p) => IsSU u p | u -> p  where
+class (Hashable p) => IsSU u p where
   type SU u p :: Type
 
   authorSU :: u -> VKey p
@@ -37,7 +37,7 @@ instance (Hashable p) => IsSU (Data.UP p) p where
   saltSU = Data.saltUP
 
 -- | The contents of a software update
-class (Hashable p, IsSU u p) => SUHasData u p | u -> p where
+class (Hashable p, IsSU u p) => SUHasData u p where
   type SUData u p :: Type
   dataSU :: u -> (SUData u p)
 
@@ -50,7 +50,7 @@ instance (Hashable p) => SUHasData (Data.UP p) p where
   dataSU = Data.payloadUP
 
 -- | The metadata of a software update
-class (Hashable p, IsSU u p) => SUHasMetadata u p | u -> p where
+class (Hashable p, IsSU u p) => SUHasMetadata u p where
   type SUMetadata u p :: Type
   metadataSU :: SUData u p -> SUMetadata u p
   votPeriodDuration :: SUMetadata u p -> SlotCount
@@ -66,7 +66,7 @@ instance (Hashable p) => SUHasMetadata (Data.UP p) p where
   votPeriodDuration = Data.votPeriodDurationUP
 
 -- | The (hash) id of a software update
-class (Hashable p, IsSU u p) => SUHasHash u p | u -> p where
+class (Hashable p, IsSU u p) => SUHasHash u p where
   type SUHash u p :: Type
   hashSU :: u -> SUHash u p
 
