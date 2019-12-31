@@ -400,14 +400,15 @@ newtype CommitSIP p =
     }
   deriving stock (Generic)
 
+-- type CommitUP p = CommitSU p (UP p)
+
 -- | A commitment data type for UPs.
-type CommitUP p = CommitSU p (UP p)
 -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
--- newtype CommitUP p =
---   CommitUP
---     { getCommitUP :: Hash p (Int, VKey p, Hash p (UP p))
---     }
---   deriving stock (Generic)
+newtype CommitUP p =
+  CommitUP
+    { getCommitUP :: Hash p (Int, VKey p, Hash p (UP p))
+    }
+  deriving stock (Generic)
 
 deriving instance Hashable p => Eq (CommitSIP p)
 deriving instance Hashable p => Ord (CommitSIP p)
@@ -416,12 +417,12 @@ deriving newtype instance ( Typeable p
                           , ToCBOR (Hash p (Int, VKey p, Hash p (SIP p)))
                           ) => (ToCBOR (CommitSIP p))
 
--- deriving instance Hashable p => Eq (CommitUP p)
--- deriving instance Hashable p => Ord (CommitUP p)
--- deriving instance Hashable p => Show (CommitUP p)
--- deriving newtype instance ( Typeable p
---                           , ToCBOR (Hash p (Int, VKey p, Hash p (UP p)))
---                           ) => (ToCBOR (CommitUP p))
+deriving instance Hashable p => Eq (CommitUP p)
+deriving instance Hashable p => Ord (CommitUP p)
+deriving instance Hashable p => Show (CommitUP p)
+deriving newtype instance ( Typeable p
+                          , ToCBOR (Hash p (Int, VKey p, Hash p (UP p)))
+                          ) => (ToCBOR (CommitUP p))
 
 -- | The Software Update (`SU`) at the commit phase
 -- p: the hashing and signing algorithm
@@ -480,6 +481,16 @@ calcCommit
      ) => SIP p -> CommitSIP p
 calcCommit sip@SIP { saltSIP, authorSIP } =
   CommitSIP $ hash (saltSIP, authorSIP, hash sip)
+
+
+-- | Calculate a `Commit` from a `UP`
+calcCommitUP
+  :: ( Hashable p
+     , HasHash p (UP p)
+     , HasHash p (Int, VKey p, Hash p (UP p))
+     ) => UP p -> CommitUP p
+calcCommitUP up@UP { saltUP, authorUP } =
+  CommitUP $ hash (saltUP, authorUP, hash up)
 
 --------------------------------------------------------------------------------
 -- HasTypeReps instances

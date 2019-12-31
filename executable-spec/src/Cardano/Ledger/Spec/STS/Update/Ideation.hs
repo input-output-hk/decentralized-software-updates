@@ -24,14 +24,14 @@ import           GHC.Exts (toList)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 import           Data.Typeable (Typeable, typeOf)
-import           Data.AbstractSize (HasTypeReps, typeReps)
+import           Data.AbstractSize (HasTypeReps)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
                              , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
-import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
+import           Cardano.Binary (ToCBOR)
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 

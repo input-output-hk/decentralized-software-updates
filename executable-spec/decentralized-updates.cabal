@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Cardano.Ledger.Generators.QuickCheck
                      , Cardano.Ledger.Spec.Classes.Indexed
+                     , Cardano.Ledger.Spec.Classes.Indexed2
                      , Cardano.Ledger.Spec.Classes.Hashable
                      , Cardano.Ledger.Spec.Classes.HasSigningScheme
                      , Cardano.Ledger.Spec.Classes.Sizeable

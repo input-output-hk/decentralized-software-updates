@@ -38,7 +38,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
-import           Cardano.Ledger.Spec.Classes.Indexed ((!))
+import           Cardano.Ledger.Spec.Classes.Indexed2 ((!))
 import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSUs (WhenRevealedSUs)
@@ -51,9 +51,17 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      (SIP (SIP),
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import           Cardano.Ledger.Spec.Classes.IsSUCommit (SUCommit, authorSUcom)
-import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash)
+import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
+                                                        , authorSUcom
+                                                        , hashSUCommit
+                                                        , sigSUcom
+                                                        , calcCommitSU
+                                                        )
+import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
+import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash, authorSU, hashSU)
+import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
 import           Cardano.Ledger.Spec.Classes.IsVoteForSU (IsVote)
+import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import Cardano.Ledger.Test.Mock (Mock)
 
@@ -132,32 +140,32 @@ data St u p
   deriving Monoid via GenericMonoid (St p)
 
 instance ( Hashable p
-         , HasHash p Data.SIPData
-         , HasHash p d
-         , HasHash p (Data.SU p d)
-         , HasHash p (Int, VKey p, Hash p (Data.SU p d))
+         , HasHash p (IsSU.SUData u p)
+         , HasHash p u
+         , HasHash p (IsSU.SU u p)
+         , HasHash p (Int, VKey p, Hash p (IsSU.SU u p))
          , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SU'.
          , HasSigningScheme p
-         , Signable p (Data.CommitSU p u)
-         , Signable p (Data.SUHash p d, Data.Confidence, VKey p)
+         , Signable p (IsSUCommit.CommitSU u p)
+         , Signable p (IsSU.SUHash u p, Data.Confidence, VKey p)
          ) => STS (GENAPPROVAL p u d) where
 
-  type Environment (GENAPPROVAL p u d) = Env p d
+  type Environment (GENAPPROVAL u p) = Env u p
 
-  type State (GENAPPROVAL p u) = St p u d
+  type State (GENAPPROVAL u p) = St u p
 
-  type Signal (GENAPPROVAL p u) = Data.SUPayload p u
+  type Signal (GENAPPROVAL u p) = SUPayload u p
 
   -- | GenApproval phase failures
-  data PredicateFailure (GENAPPROVAL p u)
-    = SUAlreadySubmitted (Data.SU p u)
-    | NoSUToReveal (Data.SU p u)
-    | SUAlreadyRevealed (Data.SU p u)
+  data PredicateFailure (GENAPPROVAL u p)
+    = SUAlreadySubmitted (IsSU.SU u p)
+    | NoSUToReveal (IsSU.SU u p)
+    | SUAlreadyRevealed (IsSU.SU u p)
     | InvalidAuthor (VKey p)
-    | NoStableAndCommittedSU (Data.SU p u) (WhenSubmittedSUs p)
+    | NoStableAndCommittedSU (IsSU.SU u p) (WhenSubmittedSUs u p)
     | InvalidVoter (VKey p)
-    | VoteNotForActiveSU (Data.SUHash p u)
-    | VotingPeriodEnded (Data.SUHash p u) Slot
+    | VoteNotForActiveSU (IsSU.SUHash u p)
+    | VotingPeriodEnded (IsSU.SUHash u p) Slot
     | CommitSignatureDoesNotVerify
     | VoteSignatureDoesNotVerify
     deriving (Eq, Show)
@@ -183,31 +191,31 @@ instance ( Hashable p
         SubmitSU sucom su -> do
           hash (authorSUcom sucom) ∈ dom stakeDist
             ?! InvalidAuthor (authorSUcom sucom)
-          Data.commitSU sucom ∉ dom subSUs ?! SUAlreadySubmitted su
+          hashSUCommit sucom ∉ dom subSUs ?! SUAlreadySubmitted su
 
-          verify (Data.authorSUcom sucom) (Data.commitSU sucom) (Data.sigSUcom sucom) ?!
+          verify (authorSUcom sucom) (hashSUCommit sucom) (sigSUcom sucom) ?!
             CommitSignatureDoesNotVerify
 
-          pure $! st { wsSUs = wsSUs ⨃ [(Data.commitSU sucom, currentSlot)]
-                     , subSUs = subSUs ⨃ [(Data.commitSU sucom, su)]
+          pure $! st { wsSUs = wsSUs ⨃ [(hashSUCommit sucom, currentSlot)]
+                     , subSUs = subSUs ⨃ [(hashSUCommit sucom, su)]
                      }
 
         RevealSU su -> do
-          hash (Data.authorSU su) ∈ dom stakeDist ?! InvalidAuthor (Data.authorSU su)
-          (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
+          hash (authorSU su) ∈ dom stakeDist ?! InvalidAuthor (authorSU su)
+          (calcCommitSU su) ∈ dom subsips ?! NoSIPToReveal sip
 
           su ∉ range sudb ?! SUAlreadyRevealed su
 
           -- The Revealed SU must correspond to a stable Commited SU.
           -- Restrict the range of wsSUs to values less or equal than
           -- @currentSlot - 2k@
-          Data.calcCommit sip
+          calcCommitSU su
             ∈ dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSU su wsSUs
 
           pure st { wsSUs = Set.singleton (Data.calcCommit sip) ⋪ wsSUs
-                  , wrSUs = wrSUs ⨃ [(Data.hashSU su, currentSlot)]
-                  , sudb = sudb ⨃ [(Data.hashSU su, su)]
+                  , wrSUs = wrSUs ⨃ [(hashSU su, currentSlot)]
+                  , sudb = sudb ⨃ [(hashSU su, su)]
                   }
 
         Vote voteForSIP -> do

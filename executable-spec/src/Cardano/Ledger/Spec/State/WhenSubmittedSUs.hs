@@ -11,7 +11,6 @@ module Cardano.Ledger.Spec.State.WhenSubmittedSUs where
 
 import           Data.Map.Strict (Map)
 
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)

@@ -21,8 +21,8 @@ import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 class (Hashable p) => IsSU u p where
   type SU u p :: Type
 
-  authorSU :: u -> VKey p
-  saltSU :: u -> Int
+  authorSU :: SU u p -> VKey p
+  saltSU :: SU u p -> Int
 
 instance (Hashable p) => IsSU (Data.SIP p) p where
   type SU (Data.SIP p) p = Data.SIP p
@@ -39,7 +39,7 @@ instance (Hashable p) => IsSU (Data.UP p) p where
 -- | The contents of a software update
 class (Hashable p, IsSU u p) => SUHasData u p where
   type SUData u p :: Type
-  dataSU :: u -> (SUData u p)
+  dataSU :: SU u p -> (SUData u p)
 
 instance (Hashable p) => SUHasData (Data.SIP p) p where
   type SUData (Data.SIP p) p = Data.SIPData
@@ -68,7 +68,7 @@ instance (Hashable p) => SUHasMetadata (Data.UP p) p where
 -- | The (hash) id of a software update
 class (Hashable p, IsSU u p) => SUHasHash u p where
   type SUHash u p :: Type
-  hashSU :: u -> SUHash u p
+  hashSU :: SU u p -> SUHash u p
 
 instance (Hashable p) => SUHasHash (Data.SIP p) p where
   type SUHash (Data.SIP p) p = Data.SIPHash p
