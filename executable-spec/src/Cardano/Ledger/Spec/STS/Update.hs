@@ -40,7 +40,6 @@ import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
@@ -81,20 +80,20 @@ data St p
 
 
 data UpdatePayload p
-  = Ideation (Data.IdeationPayload p)
-  | Implementation Data.ImplementationPayload
+  = Ideation (Ideation.IdeationPayload p)
+  | Implementation Implementation.ImplementationPayload
   deriving (Show, Generic)
 
 deriving instance ( Typeable p
-                  , HasTypeReps (Data.IdeationPayload p)
+                  , HasTypeReps (Ideation.IdeationPayload p)
                   ) => HasTypeReps (UpdatePayload p)
 
 instance ( Typeable p
-         , HasTypeReps (Data.IdeationPayload p)
+         , HasTypeReps (Ideation.IdeationPayload p)
          ) => Sized (UpdatePayload p) where
   costsList _
-    =  costsList (undefined :: Data.IdeationPayload p)
-    ++ costsList (undefined :: Data.ImplementationPayload)
+    =  costsList (undefined :: Ideation.IdeationPayload p)
+    ++ costsList (undefined :: Implementation.ImplementationPayload)
 
 instance ( Hashable p
          , HasSigningScheme p

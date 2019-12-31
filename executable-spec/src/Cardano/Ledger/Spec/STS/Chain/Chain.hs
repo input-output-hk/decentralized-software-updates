@@ -278,6 +278,7 @@ instance ( -- Sizeable p
          -- -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
          -- , STS.Gen.HasTrace (TRANSACTION p) ()
          -- , HasSize p (Transaction.Tx p)
+           ToCBOR SlotCount
          ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do

@@ -52,7 +52,9 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.IsSUCommit (SUCommit, authorSUcom)
-import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash, IsVote)
+import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash)
+import           Cardano.Ledger.Spec.Classes.IsVoteForSU (IsVote)
+import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import Cardano.Ledger.Test.Mock (Mock)
 
 --------------------------------------------------------------------------------
