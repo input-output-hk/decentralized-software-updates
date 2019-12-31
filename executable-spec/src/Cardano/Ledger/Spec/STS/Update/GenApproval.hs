@@ -40,7 +40,7 @@ import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, 
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
 import           Cardano.Ledger.Spec.Classes.Indexed2 ((!))
 import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
+import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs, updateBallot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSUs (WhenRevealedSUs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSUs (WhenSubmittedSUs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
@@ -60,7 +60,12 @@ import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
 import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
 import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash, authorSU, hashSU)
 import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
-import           Cardano.Ledger.Spec.Classes.IsVoteForSU (IsVote)
+import           Cardano.Ledger.Spec.Classes.IsVoteForSU ( IsVote
+                                                         , votedSUHash
+                                                         , confidenceSU
+                                                         , voterSU
+                                                         , voterSigSU
+                                                         )
 import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import Cardano.Ledger.Test.Mock (Mock)
@@ -218,35 +223,35 @@ instance ( Hashable p
                   , sudb = sudb ⨃ [(hashSU su, su)]
                   }
 
-        Vote voteForSIP -> do
+        VoteSU vote -> do
             -- voter must be a stakeholder
-            hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
-              InvalidVoter (Data.voter voteForSIP)
+            hash (voterSU vote) ∈ dom stakeDist ?!
+              InvalidVoter (voterSU vote)
 
             verify
-              (Data.voter voteForSIP)
-              ( Data.votedsipHash voteForSIP
-              , Data.confidence voteForSIP
-              , Data.voter voteForSIP
+              (voterSU vote)
+              ( votedSUHash vote
+              , confidenceSU vote
+              , voterSU vote
               )
-              (Data.voterSig voteForSIP)
+              (voterSigSU vote)
               ?!
               VoteSignatureDoesNotVerify
 
-            -- SIP must be an active SIP, i.e. it must belong to the set of
-            -- stable revealed SIPs
-            Data.votedsipHash voteForSIP ∈ dom asips ?!
-              VoteNotForActiveSIP (Data.votedsipHash voteForSIP)
+            -- SU must be an active SU, i.e. it must belong to the set of
+            -- stable revealed SUs
+            votedSUHash vote ∈ dom aSUs ?!
+              VoteNotForActiveSIP (votedSUHash vote)
 
-            -- The end of the voting period for this SIP must not have been
+            -- The end of the voting period for this SU must not have been
             -- reached yet.
-            currentSlot <= asips ! Data.votedsipHash voteForSIP ?!
-              VotingPeriodEnded (Data.votedsipHash voteForSIP) currentSlot
+            currentSlot <= aSUps ! votedSUHash vote ?!
+              VotingPeriodEnded (votedSUHash vote) currentSlot
 
-            pure $ st { ballots = updateBallot ballots voteForSIP }
+            pure $ st { ballots = updateBallot ballots vote }
     ]
 
-instance STS.Gen.HasTrace (IDEATION Mock) a where
+instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
   envGen :: a -> QC.Gen (Env Mock)
   envGen _traceGenEnv
@@ -257,7 +262,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
     someStakeDist <- Gen.stakeDist someParticipants
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
-                  , asips = mempty
+                  , aSUs = mempty
                   , participants = someParticipants
                   , stakeDist = someStakeDist
                   }
@@ -265,25 +270,25 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
 
   sigGen
     _traceGenEnv
-    Env{ k, currentSlot, asips, participants }
-    St{ wssips, wrsips, subsips } =
-      case Set.toList $ range $ stableCommits ◁ subsips of
+    Env{ k, currentSlot, aSUs, participants }
+    St{ wsSUs, wrSUs, subSUs } =
+      case Set.toList $ range $ stableCommits ◁ subSUs of
         [] ->
           -- There are no stable commits
 
-          -- Check if there are active sips whose voting end
+          -- Check if there are active su whose voting end
           -- has not been reached yet.
-          if Set.empty == dom (asips ▷>= currentSlot)
+          if Set.empty == dom (aSUps ▷>= currentSlot)
             then
             --, so we can only generate a submission.
             submissionGen
             else
               -- we can also generate votes
               QC.frequency [ (10, submissionGen)
-                           , (90, voteGen asips currentSlot)
+                           , (90, voteGen aSUps currentSlot)
                            ]
         xs ->
-          if Set.empty == dom (asips ▷>= currentSlot)
+          if Set.empty == dom (aSUps ▷>= currentSlot)
             then
               -- We use a 50/50 submission to revelation ratio. This can be changed
               -- if necessary.
@@ -295,66 +300,28 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
               -- the submission or revealing of SIPs
               QC.frequency [ (5, submissionGen)
                            , (5, revelationGen xs)
-                           , (90, voteGen asips currentSlot)
+                           , (90, voteGen aSUps currentSlot)
                            ]
     where
-      stableCommits = dom (wssips ▷<= (currentSlot -. (2 *. k)))
+      stableCommits = dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
         -- WARNING: suchThat can be very inefficient if this condition fails often.
-        (sip, skeyAuthor) <- sipGen `QC.suchThat` ((`Set.notMember` range subsips) . fst)
-        pure $! mkSubmission skeyAuthor sip
+        (su, skeyAuthor) <- suGen `QC.suchThat` ((`Set.notMember` range subSUs) . fst)
+        pure $! mkSubmission skeyAuthor su
           where
-            sipGen = do
-              (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
-              sipMData <- sipMetadataGen
-              sipData <- sipDataGen sipMData
-              let sipHash = Data.SIPHash $ hash sipData
-              salt <- Gen.bounded 2
-              pure $! (SIP sipHash vkeyAuthor salt sipData, skeyAuthor)
-                where
-                  sipMetadataGen
-                    = Data.SIPMetadata
-                    <$> versionFromGen
-                    <*> versionToGen
-                    <*> QC.elements [Data.Impact, Data.NoImpact]
-                    <*> QC.sublistOf [ Data.BlockSizeMax
-                                     , Data.TxSizeMax
-                                     , Data.SlotSize
-                                     , Data.EpochSize
-                                     ]
-                    <*> (SlotCount <$> QC.choose (5, 30))
-                    where
-                      versionFromGen = do
-                        protVer <- word64Gen
-                        apVer <- word64Gen
-                        pure $! (Data.ProtVer protVer, Data.ApVer apVer)
+            mkSubmission :: SKey Mock -> SU u Mock -> SUPayload u Mock
+            mkSubmission skey su = SubmitSU ( suCommitGen
+                                              (calcCommit su)
+                                              (authorSU su)
+                                              (sign (calcCommit su) skey)
+                                            ) su
 
-                      versionToGen = versionFromGen
-
-                      word64Gen = Gen.bounded 5
-
-                  sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
-                    where
-                      urlText = do
-                        n <- QC.choose (0, 20)
-                        str <- QC.vectorOf n QC.arbitraryUnicodeChar
-                        pure $! T.pack str
-
-            mkSubmission :: SKey Mock -> SIP Mock -> IdeationPayload Mock
-            mkSubmission skey sip = Submit sipCommit sip
-              where
-                sipCommit =
-                  Data.SIPCommit commit (Data.author sip) sipCommitSignature
-                  where
-                    commit = Data.calcCommit sip
-                    sipCommitSignature = sign commit skey
-
-      revelationGen subsipsList = do
+      revelationGen subSUsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
         -- revelation that satisfies the given predicate!
-        sip <- QC.elements subsipsList
-        if Data.sipHash sip ∉ dom wrsips
-          then pure $! Reveal sip
+        su <- QC.elements subSUsList
+        if hashSU su ∉ dom wrSUs
+          then pure $! RevealSU su
           else submissionGen
 
       voteGen
@@ -387,3 +354,65 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
   shrinkSignal (Submit _sipc _sip) = []
   shrinkSignal (Reveal _sip) = []
   shrinkSignal (Vote _ballot) = []
+
+
+class (Hashable p, IsSU u p) => SUGen u p where
+  suGen :: Gen (SU u p)
+
+instance SUGen (Data.SIP p) p where
+  suGen = sipGen
+
+instance SUGen (Data.UP p) p where
+  suGen = upGen
+
+-- | Generate a `data.SIP`
+sipGen :: Gen (Data.SIP p)
+sipGen = do
+  (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
+  sipMData <- sipMetadataGen
+  sipData <- sipDataGen sipMData
+  let sipHash = Data.SIPHash $ hash sipData
+  salt <- Gen.bounded 2
+  pure $! (SIP sipHash vkeyAuthor salt sipData, skeyAuthor)
+    where
+      sipMetadataGen
+        = Data.SIPMetadata
+        <$> versionFromGen
+        <*> versionToGen
+        <*> QC.elements [Data.Impact, Data.NoImpact]
+        <*> QC.sublistOf [ Data.BlockSizeMax
+                         , Data.TxSizeMax
+                         , Data.SlotSize
+                         , Data.EpochSize
+                         ]
+        <*> (SlotCount <$> QC.choose (5, 30))
+        where
+          versionFromGen = do
+            protVer <- word64Gen
+            apVer <- word64Gen
+            pure $! (Data.ProtVer protVer, Data.ApVer apVer)
+
+          versionToGen = versionFromGen
+
+          word64Gen = Gen.bounded 5
+
+      sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
+        where
+          urlText = do
+            n <- QC.choose (0, 20)
+            str <- QC.vectorOf n QC.arbitraryUnicodeChar
+            pure $! T.pack str
+
+-- Generate a `data.UP`
+upGen :: Gen (Data.UP p)
+upGen  = undefined
+
+class (Hashable p, IsSUCommit u p, IsSU su p) => SUCommitGen u p su where
+  suCommitGen :: SU u p -> VKey p -> (Signature p (CommitSU u p)) -> Gen (SUCommit u p)
+
+instance SUCommitGen (Data.SIPCommit p) p (Data.SIP p) where
+  suCommitGen commit author signature = pure $ Data.SIPCommit commit author signature
+
+instance SUCommitGen (Data.UPCommit p) p (Data.UP p) where
+  suCommitGen commit author signature = pure $ Data.UPCommit commit author signature
+
