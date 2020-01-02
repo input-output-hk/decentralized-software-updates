@@ -13,6 +13,9 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Cardano.Ledger.Spec.STS.Update.GenApproval where
 
@@ -37,7 +40,14 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme ( Signature
+                                                              , sign
+                                                              , SKey
+                                                              , VKey
+                                                              , HasSigningScheme
+                                                              , verify
+                                                              , Signable
+                                                              )
 import           Cardano.Ledger.Spec.Classes.Indexed2 ((!))
 import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
 import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs, updateBallot)
@@ -52,15 +62,18 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      SIPData (SIPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
+                                                        , CommitSU
+                                                        , IsSUCommit
                                                         , authorSUcom
                                                         , hashSUCommit
                                                         , sigSUcom
                                                         , calcCommitSU
                                                         )
 import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
-import           Cardano.Ledger.Spec.Classes.IsSU (SU, SUHash, authorSU, hashSU)
+import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SU, SUHash, authorSU, hashSU)
 import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
 import           Cardano.Ledger.Spec.Classes.IsVoteForSU ( IsVote
+                                                         , IsVoteForSU
                                                          , votedSUHash
                                                          , confidenceSU
                                                          , voterSU
@@ -84,7 +97,12 @@ data SUPayload u p
   | VoteSU (IsVote u p)
   deriving (Generic)
 
-deriving instance (Hashable p, HasSigningScheme p, Show u
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show u
+                  , Show (SUCommit p u)
+                  , Show (SU p u)
+                  , Show (IsVote p u)
                   ) => Show (SUPayload p u)
 
 deriving instance ( Typeable p
@@ -128,7 +146,10 @@ data Env u p
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     }
-  deriving (Show, Generic)
+  deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p, Show (SUHash u p)) => Show (Env u p)
+
 
 -- | Generic Approval state
 --
@@ -140,9 +161,13 @@ data St u p
     , sudb :: !(RevealedSUs u p)
     , ballots :: !(BallotSUs u p)
     }
-  deriving (Show, Generic)
-  deriving Semigroup via GenericSemigroup (St p)
-  deriving Monoid via GenericMonoid (St p)
+  deriving (Generic)
+ -- deriving Semigroup via GenericSemigroup (St u p)
+ -- deriving Monoid via GenericMonoid (St u p)
+
+deriving instance (Hashable p, Show (CommitSU u p), Show (SU u p), Show (SUHash u p)) => Show (St u p)
+deriving instance (Hashable p, Ord (CommitSU u p)) => Semigroup (St u p)
+deriving instance (Hashable p, Ord (CommitSU u p)) => Monoid (St u p)
 
 instance ( Hashable p
          , HasHash p (IsSU.SUData u p)
@@ -153,7 +178,7 @@ instance ( Hashable p
          , HasSigningScheme p
          , Signable p (IsSUCommit.CommitSU u p)
          , Signable p (IsSU.SUHash u p, Data.Confidence, VKey p)
-         ) => STS (GENAPPROVAL p u d) where
+         ) => STS (GENAPPROVAL u p) where
 
   type Environment (GENAPPROVAL u p) = Env u p
 
@@ -173,7 +198,7 @@ instance ( Hashable p
     | VotingPeriodEnded (IsSU.SUHash u p) Slot
     | CommitSignatureDoesNotVerify
     | VoteSignatureDoesNotVerify
-    deriving (Eq, Show)
+  -- deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
 
@@ -194,8 +219,8 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         SubmitSU sucom su -> do
-          hash (authorSUcom sucom) ∈ dom stakeDist
-            ?! InvalidAuthor (authorSUcom sucom)
+          hash (authorSUcom @p $ sucom @p) ∈ dom stakeDist
+            ?! InvalidAuthor (authorSUcom @p $ sucom @p)
           hashSUCommit sucom ∉ dom subSUs ?! SUAlreadySubmitted su
 
           verify (authorSUcom sucom) (hashSUCommit sucom) (sigSUcom sucom) ?!
@@ -207,7 +232,7 @@ instance ( Hashable p
 
         RevealSU su -> do
           hash (authorSU su) ∈ dom stakeDist ?! InvalidAuthor (authorSU su)
-          (calcCommitSU su) ∈ dom subsips ?! NoSIPToReveal sip
+          (calcCommitSU su) ∈ dom subSUs ?! NoSUToReveal su
 
           su ∉ range sudb ?! SUAlreadyRevealed su
 
@@ -218,7 +243,7 @@ instance ( Hashable p
             ∈ dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSU su wsSUs
 
-          pure st { wsSUs = Set.singleton (Data.calcCommit sip) ⋪ wsSUs
+          pure st { wsSUs = Set.singleton (calcCommitSU su) ⋪ wsSUs
                   , wrSUs = wrSUs ⨃ [(hashSU su, currentSlot)]
                   , sudb = sudb ⨃ [(hashSU su, su)]
                   }
@@ -241,19 +266,33 @@ instance ( Hashable p
             -- SU must be an active SU, i.e. it must belong to the set of
             -- stable revealed SUs
             votedSUHash vote ∈ dom aSUs ?!
-              VoteNotForActiveSIP (votedSUHash vote)
+              VoteNotForActiveSU (votedSUHash vote)
 
             -- The end of the voting period for this SU must not have been
             -- reached yet.
-            currentSlot <= aSUps ! votedSUHash vote ?!
+            currentSlot <= aSUs ! votedSUHash vote ?!
               VotingPeriodEnded (votedSUHash vote) currentSlot
 
             pure $ st { ballots = updateBallot ballots vote }
     ]
 
-instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
-  envGen :: a -> QC.Gen (Env Mock)
+deriving instance ( Eq (SU u p)
+                  , Eq (VKey p)
+                  , Eq (CommitSU u p)
+                  , Eq (SUHash u p)
+                  ) => Eq (PredicateFailure (GENAPPROVAL u p))
+deriving instance ( Show (SU u p)
+                  , Show (VKey p)
+                  , Show (CommitSU u p)
+                  , Show (SUHash u p)
+                  ) => Show (PredicateFailure (GENAPPROVAL u p))
+
+
+instance ( ToCBOR (IsSU.SUData u Mock)
+         ) => STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
+
+  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -278,17 +317,17 @@ instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
           -- Check if there are active su whose voting end
           -- has not been reached yet.
-          if Set.empty == dom (aSUps ▷>= currentSlot)
+          if Set.empty == dom (aSUs ▷>= currentSlot)
             then
             --, so we can only generate a submission.
             submissionGen
             else
               -- we can also generate votes
               QC.frequency [ (10, submissionGen)
-                           , (90, voteGen aSUps currentSlot)
+                           , (90, voteGen aSUs currentSlot)
                            ]
         xs ->
-          if Set.empty == dom (aSUps ▷>= currentSlot)
+          if Set.empty == dom (aSUs ▷>= currentSlot)
             then
               -- We use a 50/50 submission to revelation ratio. This can be changed
               -- if necessary.
@@ -300,7 +339,7 @@ instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
               -- the submission or revealing of SIPs
               QC.frequency [ (5, submissionGen)
                            , (5, revelationGen xs)
-                           , (90, voteGen aSUps currentSlot)
+                           , (90, voteGen aSUs currentSlot)
                            ]
     where
       stableCommits = dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
@@ -311,9 +350,9 @@ instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
           where
             mkSubmission :: SKey Mock -> SU u Mock -> SUPayload u Mock
             mkSubmission skey su = SubmitSU ( suCommitGen
-                                              (calcCommit su)
+                                              (calcCommitSU su)
                                               (authorSU su)
-                                              (sign (calcCommit su) skey)
+                                              (sign (calcCommitSU su) skey)
                                             ) su
 
       revelationGen subSUsList = do
@@ -325,10 +364,10 @@ instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
           else submissionGen
 
       voteGen
-        :: ActiveSIPs Mock
+        :: ActiveSUs u Mock
         -> Slot
-        -> QC.Gen (IdeationPayload Mock)
-      voteGen actsips currSlot =
+        -> QC.Gen (SUPayload u Mock)
+      voteGen actSUs currSlot =
         do
           (voter, voterSkey) <- QC.elements $ toList participants
           -- We promote a bit more the positive votes because we want
@@ -339,10 +378,11 @@ instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
                                      , (20, pure $ Data.Abstain)
                                      ]
 
-          -- Choose among active sips whose voting period is still open
-          sipHash <- QC.elements $ Set.toList $ dom (actsips ▷>= currSlot)
-          let voterSig = sign (sipHash, confidence, voter) voterSkey
-          pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
+          -- Choose among active SUs whose voting period is still open
+          suHash <- QC.elements $ Set.toList $ dom (actSUs ▷>= currSlot)
+          let voterSig = sign (suHash, confidence, voter) voterSkey
+          pure $ VoteSU $ suVoteGen suHash confidence voter voterSig
+        --  pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
 
 
   -- It doesn't seem plausible that the @IdeationPayload@ can be shrunk in a
@@ -351,29 +391,29 @@ instance STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
   --
   -- With this trace generation framework it might not be possible to get good
   -- shrinks for these signals.
-  shrinkSignal (Submit _sipc _sip) = []
-  shrinkSignal (Reveal _sip) = []
-  shrinkSignal (Vote _ballot) = []
+  shrinkSignal (SubmitSU _suc _su) = []
+  shrinkSignal (RevealSU _su) = []
+  shrinkSignal (VoteSU _ballot) = []
 
 
 class (Hashable p, IsSU u p) => SUGen u p where
-  suGen :: Gen (SU u p)
+  suGen :: QC.Gen (SU u p, SKey p)
 
-instance SUGen (Data.SIP p) p where
+instance (Hashable p) => SUGen (Data.SIP p) p where
   suGen = sipGen
 
-instance SUGen (Data.UP p) p where
+instance (Hashable p) => SUGen (Data.UP p) p where
   suGen = upGen
 
 -- | Generate a `data.SIP`
-sipGen :: Gen (Data.SIP p)
+sipGen :: (Hashable p) => QC.Gen (Data.SIP p, SKey p)
 sipGen = do
   (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
   sipMData <- sipMetadataGen
   sipData <- sipDataGen sipMData
   let sipHash = Data.SIPHash $ hash sipData
   salt <- Gen.bounded 2
-  pure $! (SIP sipHash vkeyAuthor salt sipData, skeyAuthor)
+  pure $! (Data.SIP sipHash vkeyAuthor salt sipData, skeyAuthor)
     where
       sipMetadataGen
         = Data.SIPMetadata
@@ -404,15 +444,29 @@ sipGen = do
             pure $! T.pack str
 
 -- Generate a `data.UP`
-upGen :: Gen (Data.UP p)
+upGen :: (Hashable p) => QC.Gen (Data.UP p, SKey p)
 upGen  = undefined
 
 class (Hashable p, IsSUCommit u p, IsSU su p) => SUCommitGen u p su where
-  suCommitGen :: SU u p -> VKey p -> (Signature p (CommitSU u p)) -> Gen (SUCommit u p)
+  suCommitGen :: CommitSU u p -> VKey p -> (Signature p (CommitSU u p)) -> SUCommit u p
 
-instance SUCommitGen (Data.SIPCommit p) p (Data.SIP p) where
-  suCommitGen commit author signature = pure $ Data.SIPCommit commit author signature
+instance (Hashable p) => SUCommitGen (Data.SIPCommit p) p (Data.SIP p) where
+  suCommitGen commit author signature = Data.SIPCommit commit author signature
 
-instance SUCommitGen (Data.UPCommit p) p (Data.UP p) where
-  suCommitGen commit author signature = pure $ Data.UPCommit commit author signature
+instance (Hashable p) => SUCommitGen (Data.UPCommit p) p (Data.UP p) where
+  suCommitGen commit author signature = Data.UPCommit commit author signature
 
+
+class (Hashable p, IsVoteForSU u p, IsSU u p) => SUVoteGen u p where
+  suVoteGen
+    :: SUHash u p
+    -> Data.Confidence
+    -> VKey p
+    -> Signature p (SUHash u p, Data.Confidence, VKey p)
+    -> IsVote u p
+
+instance (Hashable p) => SUVoteGen (Data.SIP p) p where
+  suVoteGen sipHash confidence voter voterSig = Data.VoteForSIP sipHash confidence voter voterSig
+
+instance (Hashable p) => SUVoteGen (Data.UP p) p where
+  suVoteGen upHash confidence voter voterSig = Data.VoteForUP upHash confidence voter voterSig
