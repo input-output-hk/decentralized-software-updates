@@ -15,7 +15,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTs #-}
+-- {-# LANGUAGE RankNTypes #-}
 
 module Cardano.Ledger.Spec.STS.Update.GenApproval where
 
@@ -48,7 +49,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme ( Signature
                                                               , verify
                                                               , Signable
                                                               )
-import           Cardano.Ledger.Spec.Classes.Indexed2 ((!))
+import           Cardano.Ledger.Spec.Classes.Indexed2 ((!), withValue, Indexed, Value, Key)
 import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
 import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs, updateBallot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSUs (WhenRevealedSUs)
@@ -64,13 +65,22 @@ import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
                                                         , CommitSU
                                                         , IsSUCommit
+                                                        , SUCommitHasHash
                                                         , authorSUcom
                                                         , hashSUCommit
                                                         , sigSUcom
                                                         , calcCommitSU
                                                         )
 import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
-import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SU, SUHash, authorSU, hashSU)
+import           Cardano.Ledger.Spec.Classes.IsSU ( IsSU
+                                                  , SU
+                                                  , SUHash
+                                                  , SUHasData
+                                                  , SUHasMetadata
+                                                  , SUHasHash
+                                                  , authorSU
+                                                  , hashSU
+                                                  )
 import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
 import           Cardano.Ledger.Spec.Classes.IsVoteForSU ( IsVote
                                                          , IsVoteForSU
@@ -178,6 +188,28 @@ instance ( Hashable p
          , HasSigningScheme p
          , Signable p (IsSUCommit.CommitSU u p)
          , Signable p (IsSU.SUHash u p, Data.Confidence, VKey p)
+         , Eq (SU u p)
+         , Show (SU u p)
+         , Ord (SU u p)
+         , Eq (CommitSU u p)
+         , Show (CommitSU u p)
+         , Eq (SUHash u p)
+         , Show (SUHash u p)
+         , Ord (SUHash u p)
+         , Ord (CommitSU u p)
+         -- , Indexed u
+         , Indexed (ActiveSUs u p)
+        -- , IsSU u p
+        -- , IsSU su p
+         --, SUHasData u p
+         --, SUHasMetadata u p
+         , SUHasHash u p
+         , IsSUCommit u p
+         , SUCommitHasHash u p su
+         , IsVoteForSU u p
+         , Value (ActiveSUs u p) ~ Slot
+         , Key (ActiveSUs u p) ~ SUHash u p
+         , SU su p ~ SU u p
          ) => STS (GENAPPROVAL u p) where
 
   type Environment (GENAPPROVAL u p) = Env u p
@@ -219,61 +251,63 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         SubmitSU sucom su -> do
-          hash (authorSUcom @p $ sucom @p) ∈ dom stakeDist
-            ?! InvalidAuthor (authorSUcom @p $ sucom @p)
-          hashSUCommit sucom ∉ dom subSUs ?! SUAlreadySubmitted su
+          hash (authorSUcom @u @p sucom) ∈ dom stakeDist
+            ?! InvalidAuthor (authorSUcom @u @p sucom)
+          hashSUCommit @u @p @su sucom ∉ dom subSUs ?! SUAlreadySubmitted su
 
-          verify (authorSUcom sucom) (hashSUCommit sucom) (sigSUcom sucom) ?!
+          verify (authorSUcom @u @p sucom) (hashSUCommit @u @p @su sucom) (sigSUcom @u @p @su sucom) ?!
             CommitSignatureDoesNotVerify
 
-          pure $! st { wsSUs = wsSUs ⨃ [(hashSUCommit sucom, currentSlot)]
-                     , subSUs = subSUs ⨃ [(hashSUCommit sucom, su)]
+          pure $! st { wsSUs = wsSUs ⨃ [(hashSUCommit @u @p @su sucom, currentSlot)]
+                     , subSUs = subSUs ⨃ [(hashSUCommit @u @p @su sucom, su)]
                      }
 
         RevealSU su -> do
-          hash (authorSU su) ∈ dom stakeDist ?! InvalidAuthor (authorSU su)
-          (calcCommitSU su) ∈ dom subSUs ?! NoSUToReveal su
+          hash (authorSU @u @p su) ∈ dom stakeDist ?! InvalidAuthor (authorSU @u @p su)
+          (calcCommitSU @u @p @su su) ∈ dom subSUs ?! NoSUToReveal su
 
           su ∉ range sudb ?! SUAlreadyRevealed su
 
           -- The Revealed SU must correspond to a stable Commited SU.
           -- Restrict the range of wsSUs to values less or equal than
           -- @currentSlot - 2k@
-          calcCommitSU su
+          calcCommitSU @u @p @su su
             ∈ dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSU su wsSUs
 
-          pure st { wsSUs = Set.singleton (calcCommitSU su) ⋪ wsSUs
-                  , wrSUs = wrSUs ⨃ [(hashSU su, currentSlot)]
-                  , sudb = sudb ⨃ [(hashSU su, su)]
+          pure st { wsSUs = Set.singleton (calcCommitSU @u @p @su su) ⋪ wsSUs
+                  , wrSUs = wrSUs ⨃ [(hashSU @u @p su, currentSlot)]
+                  , sudb = sudb ⨃ [(hashSU @u @p su, su)]
                   }
 
         VoteSU vote -> do
             -- voter must be a stakeholder
-            hash (voterSU vote) ∈ dom stakeDist ?!
-              InvalidVoter (voterSU vote)
+            hash (voterSU @u @p vote) ∈ dom stakeDist ?!
+              InvalidVoter (voterSU @u @p vote)
 
             verify
-              (voterSU vote)
-              ( votedSUHash vote
-              , confidenceSU vote
-              , voterSU vote
+              (voterSU @u @p vote)
+              ( votedSUHash @u @p vote
+              , confidenceSU @u @p vote
+              , voterSU @u @p vote
               )
-              (voterSigSU vote)
+              (voterSigSU @u @p vote)
               ?!
               VoteSignatureDoesNotVerify
 
             -- SU must be an active SU, i.e. it must belong to the set of
             -- stable revealed SUs
-            votedSUHash vote ∈ dom aSUs ?!
-              VoteNotForActiveSU (votedSUHash vote)
+            votedSUHash @u @p vote ∈ dom aSUs ?!
+              VoteNotForActiveSU (votedSUHash @u @p vote)
 
             -- The end of the voting period for this SU must not have been
             -- reached yet.
-            currentSlot <= aSUs ! votedSUHash vote ?!
-              VotingPeriodEnded (votedSUHash vote) currentSlot
+            withValue ((!) aSUs (votedSUHash @u @p vote)) () $
+              \asuSlot ->
+                currentSlot <= asuSlot ?!
+                  VotingPeriodEnded (votedSUHash @u @p vote) currentSlot
 
-            pure $ st { ballots = updateBallot ballots vote }
+            pure $ st { ballots = updateBallot @u @p ballots vote }
     ]
 
 
@@ -289,10 +323,18 @@ deriving instance ( Show (SU u p)
                   ) => Show (PredicateFailure (GENAPPROVAL u p))
 
 
-instance ( ToCBOR (IsSU.SUData u Mock)
+instance ( --ToCBOR (IsSU.SUData u Mock)
+           IsSU u Mock
+       --  , IsSU su Mock
+         , Ord (SUHash u Mock)
+         , SUGen u Mock
+         , SUCommitGen u Mock
+         , SUVoteGen u Mock
+         , Key (ActiveSUs u Mock) ~ SUHash u Mock
+         , Value (ActiveSUs u Mock) ~ Slot
          ) => STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
-  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
+ -- envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -349,10 +391,10 @@ instance ( ToCBOR (IsSU.SUData u Mock)
         pure $! mkSubmission skeyAuthor su
           where
             mkSubmission :: SKey Mock -> SU u Mock -> SUPayload u Mock
-            mkSubmission skey su = SubmitSU ( suCommitGen
-                                              (calcCommitSU su)
-                                              (authorSU su)
-                                              (sign (calcCommitSU su) skey)
+            mkSubmission skey su = SubmitSU ( suCommitGen @u @Mock
+                                              (calcCommitSU  su)
+                                              (authorSU  su)
+                                              (sign  (calcCommitSU  su) skey)
                                             ) su
 
       revelationGen subSUsList = do
@@ -434,7 +476,6 @@ sipGen = do
 
           versionToGen = versionFromGen
 
-          word64Gen = Gen.bounded 5
 
       sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
         where
@@ -447,13 +488,13 @@ sipGen = do
 upGen :: (Hashable p) => QC.Gen (Data.UP p, SKey p)
 upGen  = undefined
 
-class (Hashable p, IsSUCommit u p, IsSU su p) => SUCommitGen u p su where
+class (Hashable p, IsSUCommit u p) => SUCommitGen u p where
   suCommitGen :: CommitSU u p -> VKey p -> (Signature p (CommitSU u p)) -> SUCommit u p
 
-instance (Hashable p) => SUCommitGen (Data.SIPCommit p) p (Data.SIP p) where
+instance (Hashable p) => SUCommitGen (Data.SIPCommit p) p  where
   suCommitGen commit author signature = Data.SIPCommit commit author signature
 
-instance (Hashable p) => SUCommitGen (Data.UPCommit p) p (Data.UP p) where
+instance (Hashable p) => SUCommitGen (Data.UPCommit p) p  where
   suCommitGen commit author signature = Data.UPCommit commit author signature
 
 
