@@ -60,6 +60,7 @@ import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, getApprovedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (SIP (SIP),
                      SIPData (SIPData), UPData (UPData))
@@ -155,6 +156,8 @@ data Env u p
     , currentSlot :: !Slot
       -- ^ The current slot in the blockchain system
     , aSUs :: !(ActiveSUs u p)
+    , apprvsips :: !(ApprovedSIPs p)
+      -- ^ Set of approved SIPs.
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     }
@@ -325,30 +328,29 @@ deriving instance ( Show (SU u p)
                   ) => Show (PredicateFailure (GENAPPROVAL u p))
 
 
-instance ( -- ToCBOR (IsSU.SUData u Mock)
-           SUGen u Mock
-         , SUCommitGen u Mock
+instance forall u uc a.
+         ( IsSU u Mock
+         --, IsSU su Mock
+         , IsSUCommit uc Mock
+         , SUGen u Mock
+         , SUCommitGen uc Mock
          , SUVoteGen u Mock
          , SUHasHash u Mock
-         , IsSUCommit u Mock
-         , IsSU u Mock
-         , SUGen su Mock
-         , SUCommitGen su Mock
-         , SUVoteGen su Mock
-         , SUHasHash su Mock
-         , IsSUCommit su Mock
-         , IsSU su Mock
-         , SUCommitHasHash u Mock su
+         , SUCommitHasHash uc Mock u
          , IsVoteForSU u Mock
-         , IsVoteForSU su Mock
-         , Ord (SUHash u Mock)
          , Indexed (ActiveSUs u Mock)
          , Key (ActiveSUs u Mock) ~ SUHash u Mock
          , Value (ActiveSUs u Mock) ~ Slot
-         , SU su Mock ~ SU u Mock
+         , SUCommit uc Mock ~ SUCommit u Mock
+         --, IsSU u Mock ~ IsSU su Mock
+         , Ord (SU u Mock)
+         , Ord (SUHash u Mock)
+         , Ord (CommitSU u Mock)
+         , ToCBOR (CommitSU uc Mock)
+         , ToCBOR (SUHash u Mock)
          ) => STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
-  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
+--  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -358,6 +360,7 @@ instance ( -- ToCBOR (IsSU.SUData u Mock)
     let env = Env { k = someK
                   , currentSlot = someCurrentSlot
                   , aSUs = mempty
+                  , apprvsips = mempty
                   , participants = someParticipants
                   , stakeDist = someStakeDist
                   }
@@ -365,7 +368,7 @@ instance ( -- ToCBOR (IsSU.SUData u Mock)
 
   sigGen
     _traceGenEnv
-    Env{ k, currentSlot, aSUs, participants }
+    Env{ k, currentSlot, aSUs, apprvsips, participants }
     St{ wsSUs, wrSUs, subSUs } =
       case Set.toList $ range $ stableCommits ◁ subSUs of
         [] ->
@@ -401,14 +404,14 @@ instance ( -- ToCBOR (IsSU.SUData u Mock)
       stableCommits = dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
         -- WARNING: suchThat can be very inefficient if this condition fails often.
-        (su, skeyAuthor) <- (suGen @u @Mock participants)`QC.suchThat` ((`Set.notMember` range subSUs) . fst)
+        (su, skeyAuthor) <- (suGen @u @Mock participants apprvsips)`QC.suchThat` ((`Set.notMember` range subSUs) . fst)
         pure $! mkSubmission skeyAuthor su
           where
             mkSubmission :: SKey Mock -> SU u Mock -> SUPayload u Mock
-            mkSubmission skey su = SubmitSU ( suCommitGen @u @Mock
-                                              (calcCommitSU @u @Mock @su su)
+            mkSubmission skey su = SubmitSU ( suCommitGen @uc @Mock
+                                              (calcCommitSU @uc @Mock @u su)
                                               (authorSU @u @Mock su)
-                                              (sign  (calcCommitSU @u @Mock @su su) skey)
+                                              (sign  (calcCommitSU @uc @Mock @u su) skey)
                                             ) su
 
       revelationGen subSUsList = do
@@ -453,7 +456,7 @@ instance ( -- ToCBOR (IsSU.SUData u Mock)
 
 
 class (Hashable p, IsSU u p) => SUGen u p where
-  suGen :: Participants p -> QC.Gen (SU u p, SKey p)
+  suGen :: Participants p -> ApprovedSIPs p -> QC.Gen (SU u p, SKey p)
 
 instance (Hashable p, HasHash p SIPData) => SUGen (Data.SIP p) p where
   suGen = sipGen
@@ -465,8 +468,9 @@ instance (Hashable p, HasHash p (UPData p)) => SUGen (Data.UP p) p where
 sipGen
   :: (Hashable p, HasHash p SIPData)
   => Participants p
+  -> ApprovedSIPs p
   -> QC.Gen (Data.SIP p, SKey p)
-sipGen participants = do
+sipGen participants _apprvsips = do
   (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
   sipMData <- sipMetadataGen
   sipData <- sipDataGen sipMData
@@ -507,8 +511,28 @@ sipGen participants = do
 upGen
   :: (Hashable p, HasHash p (UPData p))
   => Participants p
+  -> ApprovedSIPs p
   -> QC.Gen (Data.UP p, SKey p)
-upGen  = undefined
+upGen participants apprvsips = do
+  (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
+  upMData <- upMetadataGen
+  upData <- upDataGen upMData
+  let upHash = Data.UPHash $ hash upData
+  salt <- Gen.bounded 2
+  pure $! (Data.UP upHash vkeyAuthor salt upData, skeyAuthor)
+    where
+      upMetadataGen
+        = Data.UPMetadata
+        <$> QC.elements (Set.toList $ getApprovedSIPs apprvsips)
+        <*> (SlotCount <$> QC.choose (5, 30))
+
+      upDataGen upMData = UPData <$> (Data.URL <$> urlText) <*> (pure upMData)
+        where
+          urlText = do
+            n <- QC.choose (0, 20)
+            str <- QC.vectorOf n QC.arbitraryUnicodeChar
+            pure $! T.pack str
+
 
 class (Hashable p, IsSUCommit u p) => SUCommitGen u p where
   suCommitGen :: CommitSU u p -> VKey p -> (Signature p (CommitSU u p)) -> SUCommit u p

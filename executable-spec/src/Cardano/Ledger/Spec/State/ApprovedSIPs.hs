@@ -24,3 +24,6 @@ registerApproval sipHash (ApprovedSIPs sipHashes) =
 isSIPApproved
   :: Hashable p => Data.SIPHash p -> ApprovedSIPs p -> Bool
 isSIPApproved sipHash (ApprovedSIPs sipHashes) = Set.member sipHash sipHashes
+
+getApprovedSIPs :: ApprovedSIPs p -> Set (Data.SIPHash p)
+getApprovedSIPs (ApprovedSIPs sips) = sips
