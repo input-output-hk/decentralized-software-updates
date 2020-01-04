@@ -18,6 +18,8 @@
 {-# LANGUAGE GADTs #-}
 -- {-# LANGUAGE RankNTypes #-}
 
+{-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
+
 module Cardano.Ledger.Spec.STS.Update.GenApproval where
 
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
@@ -60,7 +62,7 @@ import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (SIP (SIP),
-                     SIPData (SIPData))
+                     SIPData (SIPData), UPData (UPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
                                                         , CommitSU
@@ -323,18 +325,30 @@ deriving instance ( Show (SU u p)
                   ) => Show (PredicateFailure (GENAPPROVAL u p))
 
 
-instance ( --ToCBOR (IsSU.SUData u Mock)
-           IsSU u Mock
-       --  , IsSU su Mock
-         , Ord (SUHash u Mock)
-         , SUGen u Mock
+instance ( -- ToCBOR (IsSU.SUData u Mock)
+           SUGen u Mock
          , SUCommitGen u Mock
          , SUVoteGen u Mock
+         , SUHasHash u Mock
+         , IsSUCommit u Mock
+         , IsSU u Mock
+         , SUGen su Mock
+         , SUCommitGen su Mock
+         , SUVoteGen su Mock
+         , SUHasHash su Mock
+         , IsSUCommit su Mock
+         , IsSU su Mock
+         , SUCommitHasHash u Mock su
+         , IsVoteForSU u Mock
+         , IsVoteForSU su Mock
+         , Ord (SUHash u Mock)
+         , Indexed (ActiveSUs u Mock)
          , Key (ActiveSUs u Mock) ~ SUHash u Mock
          , Value (ActiveSUs u Mock) ~ Slot
+         , SU su Mock ~ SU u Mock
          ) => STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
- -- envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
+  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
   envGen _traceGenEnv
     = do
     someK <- Gen.k
@@ -357,7 +371,7 @@ instance ( --ToCBOR (IsSU.SUData u Mock)
         [] ->
           -- There are no stable commits
 
-          -- Check if there are active su whose voting end
+          -- Check if there are active SUs whose voting end
           -- has not been reached yet.
           if Set.empty == dom (aSUs ▷>= currentSlot)
             then
@@ -378,7 +392,7 @@ instance ( --ToCBOR (IsSU.SUData u Mock)
                            ]
             else
               -- votes are much more frequent events than
-              -- the submission or revealing of SIPs
+              -- the submission or revealing of SUs
               QC.frequency [ (5, submissionGen)
                            , (5, revelationGen xs)
                            , (90, voteGen aSUs currentSlot)
@@ -387,21 +401,21 @@ instance ( --ToCBOR (IsSU.SUData u Mock)
       stableCommits = dom (wsSUs ▷<= (currentSlot -. (2 *. k)))
       submissionGen = do
         -- WARNING: suchThat can be very inefficient if this condition fails often.
-        (su, skeyAuthor) <- suGen `QC.suchThat` ((`Set.notMember` range subSUs) . fst)
+        (su, skeyAuthor) <- (suGen @u @Mock participants)`QC.suchThat` ((`Set.notMember` range subSUs) . fst)
         pure $! mkSubmission skeyAuthor su
           where
             mkSubmission :: SKey Mock -> SU u Mock -> SUPayload u Mock
             mkSubmission skey su = SubmitSU ( suCommitGen @u @Mock
-                                              (calcCommitSU  su)
-                                              (authorSU  su)
-                                              (sign  (calcCommitSU  su) skey)
+                                              (calcCommitSU @u @Mock @su su)
+                                              (authorSU @u @Mock su)
+                                              (sign  (calcCommitSU @u @Mock @su su) skey)
                                             ) su
 
       revelationGen subSUsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
         -- revelation that satisfies the given predicate!
         su <- QC.elements subSUsList
-        if hashSU su ∉ dom wrSUs
+        if hashSU @u @Mock su ∉ dom wrSUs
           then pure $! RevealSU su
           else submissionGen
 
@@ -423,7 +437,7 @@ instance ( --ToCBOR (IsSU.SUData u Mock)
           -- Choose among active SUs whose voting period is still open
           suHash <- QC.elements $ Set.toList $ dom (actSUs ▷>= currSlot)
           let voterSig = sign (suHash, confidence, voter) voterSkey
-          pure $ VoteSU $ suVoteGen suHash confidence voter voterSig
+          pure $ VoteSU $ suVoteGen @u @Mock suHash confidence voter voterSig
         --  pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
 
 
@@ -439,17 +453,20 @@ instance ( --ToCBOR (IsSU.SUData u Mock)
 
 
 class (Hashable p, IsSU u p) => SUGen u p where
-  suGen :: QC.Gen (SU u p, SKey p)
+  suGen :: Participants p -> QC.Gen (SU u p, SKey p)
 
-instance (Hashable p) => SUGen (Data.SIP p) p where
+instance (Hashable p, HasHash p SIPData) => SUGen (Data.SIP p) p where
   suGen = sipGen
 
-instance (Hashable p) => SUGen (Data.UP p) p where
+instance (Hashable p, HasHash p (UPData p)) => SUGen (Data.UP p) p where
   suGen = upGen
 
 -- | Generate a `data.SIP`
-sipGen :: (Hashable p) => QC.Gen (Data.SIP p, SKey p)
-sipGen = do
+sipGen
+  :: (Hashable p, HasHash p SIPData)
+  => Participants p
+  -> QC.Gen (Data.SIP p, SKey p)
+sipGen participants = do
   (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
   sipMData <- sipMetadataGen
   sipData <- sipDataGen sipMData
@@ -476,6 +493,8 @@ sipGen = do
 
           versionToGen = versionFromGen
 
+          word64Gen = Gen.bounded 5
+
 
       sipDataGen sipMData = SIPData <$> (Data.URL <$> urlText) <*> (pure sipMData)
         where
@@ -485,7 +504,10 @@ sipGen = do
             pure $! T.pack str
 
 -- Generate a `data.UP`
-upGen :: (Hashable p) => QC.Gen (Data.UP p, SKey p)
+upGen
+  :: (Hashable p, HasHash p (UPData p))
+  => Participants p
+  -> QC.Gen (Data.UP p, SKey p)
 upGen  = undefined
 
 class (Hashable p, IsSUCommit u p) => SUCommitGen u p where
