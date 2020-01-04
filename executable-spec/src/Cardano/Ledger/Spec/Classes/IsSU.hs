@@ -16,6 +16,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme
                     (VKey)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, isSIPApproved)
 
 -- | Typeclass to define a Software Update
 class (Hashable p) => IsSU u p where
@@ -69,12 +70,17 @@ instance (Hashable p) => SUHasMetadata (Data.UP p) p where
 class (Hashable p, IsSU u p) => SUHasHash u p where
   type SUHash u p :: Type
   hashSU :: SU u p -> SUHash u p
+  isSUApproved :: SUMetadata u p -> ApprovedSIPs p -> Bool
 
 instance (Hashable p) => SUHasHash (Data.SIP p) p where
   type SUHash (Data.SIP p) p = Data.SIPHash p
   hashSU = Data.hashSIP
+  isSUApproved _ _ = True
+    -- This check is not relevant to the Ideation phase
 
 instance (Hashable p) => SUHasHash (Data.UP p) p where
   type SUHash (Data.UP p) p = Data.UPHash p
   hashSU = Data.hashUP
-
+  isSUApproved mdata approvesips =
+    let siphash = Data.sipReference mdata
+    in isSIPApproved siphash approvesips

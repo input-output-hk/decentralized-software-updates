@@ -83,6 +83,9 @@ import           Cardano.Ledger.Spec.Classes.IsSU ( IsSU
                                                   , SUHasHash
                                                   , authorSU
                                                   , hashSU
+                                                  , dataSU
+                                                  , metadataSU
+                                                  , isSUApproved
                                                   )
 import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
 import           Cardano.Ledger.Spec.Classes.IsVoteForSU ( IsVote
@@ -212,6 +215,8 @@ instance ( Hashable p
          , IsSUCommit u p
          , SUCommitHasHash u p su
          , IsVoteForSU u p
+         , SUHasMetadata u p
+         , SUHasData u p
          , Value (ActiveSUs u p) ~ Slot
          , Key (ActiveSUs u p) ~ SUHash u p
          , SU su p ~ SU u p
@@ -235,6 +240,7 @@ instance ( Hashable p
     | VotingPeriodEnded (IsSU.SUHash u p) Slot
     | CommitSignatureDoesNotVerify
     | VoteSignatureDoesNotVerify
+    | SIPNotApproved (IsSU.SU u p)
   -- deriving (Eq, Show)
 
   initialRules = [ pure $! mempty ]
@@ -244,6 +250,7 @@ instance ( Hashable p
       TRC ( Env { k
                 , currentSlot
                 , aSUs
+                , apprvsips
                 , stakeDist
                 }
           , st@St { subSUs
@@ -262,6 +269,12 @@ instance ( Hashable p
 
           verify (authorSUcom @u @p sucom) (hashSUCommit @u @p @su sucom) (sigSUcom @u @p @su sucom) ?!
             CommitSignatureDoesNotVerify
+
+          -- Check if the referenced SIP in the metadata of the submitted su
+          -- corresponds to an approved SIP.
+          -- This check is only relevant for the Approval STS and thus
+          -- for the Ideation STS, this check will always be successfull
+          (isSUApproved @u @p ((metadataSU @u @p) . (dataSU @u @p) $ su) apprvsips) ?! SIPNotApproved su
 
           pure $! st { wsSUs = wsSUs ⨃ [(hashSUCommit @u @p @su sucom, currentSlot)]
                      , subSUs = subSUs ⨃ [(hashSUCommit @u @p @su sucom, su)]
