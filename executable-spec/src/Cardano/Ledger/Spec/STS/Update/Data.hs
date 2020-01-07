@@ -28,7 +28,7 @@ import           System.Random (Random)
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
 
 import           Data.AbstractSize (HasTypeReps, typeReps)
-import           Ledger.Core (SlotCount)
+import           Ledger.Core (SlotCount, SlotCount (SlotCount))
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
@@ -704,6 +704,9 @@ instance ( Typeable p
     =  encodeListLen 2
     <> toCBOR sipReference
     <> toCBOR votPeriodDurationUP
+
+instance ToCBOR SlotCount where
+  toCBOR (SlotCount sc) =  encodeListLen 1 <> toCBOR sc
 
 instance ToCBOR ParamName where
   toCBOR = encodeInt . fromEnum

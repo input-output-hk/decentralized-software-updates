@@ -22,22 +22,20 @@
 
 module Cardano.Ledger.Spec.STS.Update.GenApproval where
 
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
 import qualified Data.Set as Set
 import           Data.Text as T
 import           GHC.Exts (toList)
 import           GHC.Generics (Generic)
 import qualified Test.QuickCheck as QC
 import           Data.Typeable (Typeable, typeOf)
-import           Data.AbstractSize (HasTypeReps, typeReps)
+import           Data.AbstractSize (HasTypeReps)
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
                              , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
-import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
+import           Cardano.Binary (ToCBOR)
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -62,8 +60,7 @@ import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, getApprovedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (SIP (SIP),
-                     SIPData (SIPData), UPData (UPData))
+                     (SIPData (SIPData), UPData (UPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
                                                         , CommitSU
@@ -77,6 +74,8 @@ import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
 import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
 import           Cardano.Ledger.Spec.Classes.IsSU ( IsSU
                                                   , SU
+                                                  , SU(SUSIP)
+                                                  , SU(SUUP)
                                                   , SUHash
                                                   , SUHasData
                                                   , SUHasMetadata
@@ -95,7 +94,6 @@ import           Cardano.Ledger.Spec.Classes.IsVoteForSU ( IsVote
                                                          , voterSU
                                                          , voterSigSU
                                                          )
-import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import Cardano.Ledger.Test.Mock (Mock)
 
@@ -343,8 +341,6 @@ deriving instance ( Show (SU u p)
 
 instance forall u uc a.
          ( IsSU u Mock
-         --, IsSU su Mock
-         , IsSUCommit uc Mock
          , SUGen u Mock
          , SUCommitGen uc Mock
          , SUVoteGen u Mock
@@ -361,6 +357,16 @@ instance forall u uc a.
          , Ord (CommitSU u Mock)
          , ToCBOR (CommitSU uc Mock)
          , ToCBOR (SUHash u Mock)
+         , ToCBOR (IsSU.SUData u Mock)
+         , ToCBOR u
+         , ToCBOR (CommitSU u Mock)
+         , ToCBOR (SU u Mock)
+         , Show (CommitSU u Mock)
+         , Show (SUHash u Mock)
+         , Show (SU u Mock)
+         , SUCommitHasHash u Mock u
+         , SUHasMetadata u Mock
+         , SUHasData u Mock
          ) => STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
 --  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
@@ -472,10 +478,14 @@ class (Hashable p, IsSU u p) => SUGen u p where
   suGen :: Participants p -> ApprovedSIPs p -> QC.Gen (SU u p, SKey p)
 
 instance (Hashable p, HasHash p SIPData) => SUGen (Data.SIP p) p where
-  suGen = sipGen
+  suGen part apprvsips = do
+    (sip, skey) <- sipGen part apprvsips
+    pure $ (SUSIP sip, skey)
 
 instance (Hashable p, HasHash p (UPData p)) => SUGen (Data.UP p) p where
-  suGen = upGen
+  suGen part apprvsips = do
+    (up, skey) <- upGen part apprvsips
+    pure $ (SUUP up, skey)
 
 -- | Generate a `data.SIP`
 sipGen

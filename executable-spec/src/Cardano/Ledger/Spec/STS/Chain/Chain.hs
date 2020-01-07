@@ -28,7 +28,8 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (BlockCount, Slot)
+import           Ledger.Core (BlockCount, Slot, SlotCount)
+import           Cardano.Binary (ToCBOR)
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)

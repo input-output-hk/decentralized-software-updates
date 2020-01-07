@@ -18,7 +18,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
-import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SUHasHash, SUHash)
+import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SUHasHash, SUHash, SU(SUSIP), SU(SUUP))
 import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!))
 
@@ -40,7 +40,9 @@ instance (Hashable p) => IsVoteForSU (Data.SIP p) p where
   confidenceSU = Data.confidenceSIP
   voterSU = Data.voterSIP
   voterSigSU = Data.voterSigSIP
-  votingPeriodEnd suHash sudb = Data.votPeriodDuration . Data.metadata . Data.payloadSIP $ sudb!suHash
+  votingPeriodEnd suHash sudb =
+    let SUSIP sip = sudb!suHash
+    in Data.votPeriodDuration . Data.metadata . Data.payloadSIP $ sip
 
 instance (Hashable p) => IsVoteForSU (Data.UP p) p where
   type IsVote (Data.UP p) p = Data.VoteForUP p
@@ -48,4 +50,6 @@ instance (Hashable p) => IsVoteForSU (Data.UP p) p where
   confidenceSU = Data.confidenceUP
   voterSU = Data.voterUP
   voterSigSU = Data.voterSigUP
-  votingPeriodEnd suHash sudb = Data.votPeriodDurationUP . Data.metadataUP . Data.payloadUP $ sudb!suHash
+  votingPeriodEnd suHash sudb =
+    let SUUP up = sudb!suHash
+    in Data.votPeriodDurationUP . Data.metadataUP . Data.payloadUP $ up

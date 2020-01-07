@@ -15,27 +15,28 @@ import           Ledger.Core (SlotCount)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme
                     (VKey)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Data (SIP, UP)
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, isSIPApproved)
 
 -- | Typeclass to define a Software Update
 class (Hashable p) => IsSU u p where
-  type SU u p :: Type
+  data SU u p :: Type
 
   authorSU :: SU u p -> VKey p
   saltSU :: SU u p -> Int
 
-instance (Hashable p) => IsSU (Data.SIP p) p where
-  type SU (Data.SIP p) p = Data.SIP p
+instance (Hashable p) => IsSU (SIP p) p where
+  newtype SU (SIP p) p = SUSIP (SIP p)
 
-  authorSU = Data.authorSIP
-  saltSU = Data.saltSIP
+  authorSU (SUSIP sip) = Data.authorSIP sip
+  saltSU (SUSIP sip) = Data.saltSIP sip
 
-instance (Hashable p) => IsSU (Data.UP p) p where
-  type SU (Data.UP p) p = Data.UP p
+instance (Hashable p) => IsSU (UP p) p where
+  newtype SU (UP p) p = SUUP (UP p)
 
-  authorSU = Data.authorUP
-  saltSU = Data.saltUP
+  authorSU (SUUP up) = Data.authorUP up
+  saltSU (SUUP up) = Data.saltUP up
 
 -- | The contents of a software update
 class (Hashable p, IsSU u p) => SUHasData u p where
@@ -44,11 +45,11 @@ class (Hashable p, IsSU u p) => SUHasData u p where
 
 instance (Hashable p) => SUHasData (Data.SIP p) p where
   type SUData (Data.SIP p) p = Data.SIPData
-  dataSU = Data.payloadSIP
+  dataSU (SUSIP sip) = Data.payloadSIP sip
 
 instance (Hashable p) => SUHasData (Data.UP p) p where
   type SUData (Data.UP p) p = Data.UPData p
-  dataSU = Data.payloadUP
+  dataSU (SUUP up) = Data.payloadUP up
 
 -- | The metadata of a software update
 class (Hashable p, IsSU u p) => SUHasMetadata u p where
@@ -74,13 +75,13 @@ class (Hashable p, IsSU u p) => SUHasHash u p where
 
 instance (Hashable p) => SUHasHash (Data.SIP p) p where
   type SUHash (Data.SIP p) p = Data.SIPHash p
-  hashSU = Data.hashSIP
+  hashSU (SUSIP sip) = Data.hashSIP sip
   isSUApproved _ _ = True
     -- This check is not relevant to the Ideation phase
 
 instance (Hashable p) => SUHasHash (Data.UP p) p where
   type SUHash (Data.UP p) p = Data.UPHash p
-  hashSU = Data.hashUP
+  hashSU (SUUP up) = Data.hashUP up
   isSUApproved mdata approvesips =
     let siphash = Data.sipReference mdata
     in isSIPApproved siphash approvesips

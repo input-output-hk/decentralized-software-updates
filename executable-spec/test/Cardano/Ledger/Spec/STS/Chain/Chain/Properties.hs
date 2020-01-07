@@ -31,6 +31,7 @@ import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 
 import           Cardano.Ledger.Test.Mock (Mock)
 
@@ -384,7 +385,7 @@ getSIPsInTraceFromSignals tr =
   let sips = foldl' (\tot b ->  tot ++ (sipsInABlock b)) [] blocks
       blocks = Trace.traceSignals Trace.NewestFirst tr
       sipsInABlock = \b -> map (\updPld -> case updPld of
-                                             Update.Ideation (Data.Submit _ sip)
+                                             Update.Ideation (Ideation.Submit _ sip)
                                                -> sip
                                              _ -> error $
                                                    "getSIPsInTraceFromSignals:" ++
@@ -395,7 +396,7 @@ getSIPsInTraceFromSignals tr =
                            $ filter ( -- get sips only from upd payload
                                       \updPld -> case updPld of
                                         Update.Ideation
-                                          (Data.Submit _ _) -> True
+                                          (Ideation.Submit _ _) -> True
                                         _ -> False
                                     )
                            $ concat

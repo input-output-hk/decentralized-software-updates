@@ -15,7 +15,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, HasHash, Hash)
 
-import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SU)
+import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SU, SU(SUSIP), SU(SUUP))
 
 -- | A software update commitment
 class (Hashable p) => IsSUCommit u p where
@@ -50,7 +50,7 @@ instance ( Hashable p
 
   hashSUCommit = Data.commitSIP
   sigSUcom = Data.sigSIP
-  calcCommitSU = Data.calcCommit
+  calcCommitSU (SUSIP sip) = Data.calcCommit sip
 
 instance ( Hashable p
          , HasHash p (Data.UP p)
@@ -60,4 +60,4 @@ instance ( Hashable p
 
   hashSUCommit = Data.commitUP
   sigSUcom = Data.sigUP
-  calcCommitSU = Data.calcCommitUP
+  calcCommitSU (SUUP up) = Data.calcCommitUP up
