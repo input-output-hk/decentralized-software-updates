@@ -182,8 +182,16 @@ data St u p
  -- deriving Monoid via GenericMonoid (St u p)
 
 deriving instance (Hashable p, Show (CommitSU u p), Show (SU u p), Show (SUHash u p)) => Show (St u p)
-deriving instance (Hashable p, Ord (CommitSU u p)) => Semigroup (St u p)
-deriving instance (Hashable p, Ord (CommitSU u p)) => Monoid (St u p)
+-- deriving instance (Hashable p, Ord (CommitSU u p)) => Semigroup (St u p)
+-- deriving instance (Hashable p, Ord (CommitSU u p), Ord (SUHash u p)) => Monoid (St u p)
+
+instance (Hashable p, Ord (CommitSU u p), Ord (SUHash u p)) => Semigroup (St u p) where
+  (<>) St{subSUs = s1, wsSUs = ws1, wrSUs = wr1, sudb = sd1, ballots = b1 }
+       St{subSUs = s2, wsSUs = ws2, wrSUs = wr2, sudb = sd2, ballots = b2 }
+     = St{subSUs = s1 <> s2, wsSUs = ws1 <> ws2, wrSUs = wr1 <> wr2, sudb = sd1 <> sd2, ballots = b1 <> b2 }
+
+instance (Hashable p, Ord (CommitSU u p), Ord (SUHash u p)) => Monoid (St u p) where
+  mempty = St{subSUs = mempty, wsSUs = mempty, wrSUs = mempty, sudb = mempty, ballots = mempty}
 
 instance ( Hashable p
          , HasHash p (IsSU.SUData u p)
