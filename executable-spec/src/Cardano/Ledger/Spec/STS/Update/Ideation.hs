@@ -31,7 +31,6 @@ import           Control.State.Transition (Environment, PredicateFailure, STS,
                      transitionRules, (?!))
 import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
                              , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
-import           Cardano.Binary (ToCBOR)
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -223,7 +222,7 @@ instance ( Hashable p
             pure $ st { ballots = updateBallot ballots voteForSIP }
     ]
 
-instance (ToCBOR SlotCount) => STS.Gen.HasTrace (IDEATION Mock) a where
+instance STS.Gen.HasTrace (IDEATION Mock) a where
 
   envGen :: a -> QC.Gen (Env Mock)
   envGen _traceGenEnv

@@ -629,7 +629,6 @@ type UPHasCBORRep p = (Typeable p, ToCBOR (Hash p (UPData p)))
 
 instance ( SIPHasCBORRep p
          , ToCBOR (VKey p)
-         , ToCBOR SlotCount
          ) => ToCBOR (SIP p) where
   toCBOR SIP { hashSIP, authorSIP, saltSIP , payloadSIP }
     =  encodeListLen 4
@@ -641,7 +640,6 @@ instance ( SIPHasCBORRep p
 instance ( UPHasCBORRep p
          , ToCBOR (VKey p)
          , ToCBOR (Hash p SIPData)
-         , ToCBOR SlotCount
          ) => ToCBOR (UP p) where
   toCBOR UP { hashUP, authorUP, saltUP, payloadUP }
     =  encodeListLen 4
@@ -671,7 +669,7 @@ instance (UPHasCBORRep p) =>ToCBOR (UPHash p) where
 --     <> toCBOR urlSU
 --     <> toCBOR metadataSU
 
-instance (ToCBOR SlotCount) => ToCBOR SIPData where
+instance ToCBOR SIPData where
   toCBOR SIPData { url, metadata }
     =  encodeListLen 2
     <> toCBOR url
@@ -679,14 +677,13 @@ instance (ToCBOR SlotCount) => ToCBOR SIPData where
 
 instance ( Typeable p
          , ToCBOR (Hash p SIPData)
-         , ToCBOR SlotCount
          ) => ToCBOR (UPData p) where
   toCBOR UPData { urlUP, metadataUP }
     =  encodeListLen 2
     <> toCBOR urlUP
     <> toCBOR metadataUP
 
-instance (ToCBOR SlotCount) => ToCBOR SIPMetadata where
+instance ToCBOR SIPMetadata where
   toCBOR SIPMetadata { versionFrom, versionTo
                      , impactsConsensus, impactsParameters, votPeriodDuration }
     =  encodeListLen 5
@@ -698,7 +695,6 @@ instance (ToCBOR SlotCount) => ToCBOR SIPMetadata where
 
 instance ( Typeable p
          , ToCBOR (Hash p SIPData)
-         , ToCBOR SlotCount
          ) => ToCBOR (UPMetadata p) where
   toCBOR UPMetadata { sipReference, votPeriodDurationUP }
     =  encodeListLen 2

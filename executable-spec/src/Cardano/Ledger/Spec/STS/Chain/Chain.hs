@@ -28,8 +28,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (BlockCount, Slot, SlotCount)
-import           Cardano.Binary (ToCBOR)
+import           Ledger.Core (BlockCount, Slot)
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
@@ -279,7 +278,7 @@ instance ( -- Sizeable p
          -- -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
          -- , STS.Gen.HasTrace (TRANSACTION p) ()
          -- , HasSize p (Transaction.Tx p)
-           ToCBOR SlotCount
+         --  ToCBOR SlotCount
          ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do

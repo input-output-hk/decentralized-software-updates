@@ -340,33 +340,46 @@ deriving instance ( Show (SU u p)
 
 
 instance forall u uc a.
-         ( IsSU u Mock
-         , SUGen u Mock
-         , SUCommitGen uc Mock
-         , SUVoteGen u Mock
-         , SUHasHash u Mock
-         , SUCommitHasHash uc Mock u
-         , IsVoteForSU u Mock
-         , Indexed (ActiveSUs u Mock)
-         , Key (ActiveSUs u Mock) ~ SUHash u Mock
-         , Value (ActiveSUs u Mock) ~ Slot
-         , SUCommit uc Mock ~ SUCommit u Mock
-         --, IsSU u Mock ~ IsSU su Mock
-         , Ord (SU u Mock)
+         ( STS (GENAPPROVAL u Mock)
          , Ord (SUHash u Mock)
          , Ord (CommitSU u Mock)
+         , Ord (SU u Mock)
+         , SUGen u Mock
+         , SUCommitGen uc Mock
+         , SUCommitHasHash uc Mock u
+         , SUCommit uc Mock ~ SUCommit u Mock
+         , IsSU u Mock
          , ToCBOR (CommitSU uc Mock)
          , ToCBOR (SUHash u Mock)
-         , ToCBOR (IsSU.SUData u Mock)
-         , ToCBOR u
-         , ToCBOR (CommitSU u Mock)
-         , ToCBOR (SU u Mock)
-         , Show (CommitSU u Mock)
-         , Show (SUHash u Mock)
-         , Show (SU u Mock)
-         , SUCommitHasHash u Mock u
-         , SUHasMetadata u Mock
-         , SUHasData u Mock
+         , SUHasHash u Mock
+         , SUVoteGen u Mock
+         --   IsSU u Mock
+         -- , SUGen u Mock
+         -- , SUCommitGen uc Mock
+         -- , SUVoteGen u Mock
+         -- , SUHasHash u Mock
+         -- , SUCommitHasHash uc Mock u
+         -- , IsVoteForSU u Mock
+         -- , Indexed (ActiveSUs u Mock)
+         -- , Key (ActiveSUs u Mock) ~ SUHash u Mock
+         -- , Value (ActiveSUs u Mock) ~ Slot
+         -- , SUCommit uc Mock ~ SUCommit u Mock
+         -- --, IsSU u Mock ~ IsSU su Mock
+         -- , Ord (SU u Mock)
+         -- , Ord (SUHash u Mock)
+         -- , Ord (CommitSU u Mock)
+         -- , ToCBOR (CommitSU uc Mock)
+         -- , ToCBOR (SUHash u Mock)
+         -- , ToCBOR (IsSU.SUData u Mock)
+         -- , ToCBOR u
+         -- , ToCBOR (CommitSU u Mock)
+         -- , ToCBOR (SU u Mock)
+         -- , Show (CommitSU u Mock)
+         -- , Show (SUHash u Mock)
+         -- , Show (SU u Mock)
+         -- , SUCommitHasHash u Mock u
+         -- , SUHasMetadata u Mock
+         -- , SUHasData u Mock
          ) => STS.Gen.HasTrace (GENAPPROVAL u Mock) a where
 
 --  envGen :: (Ord (SUHash u Mock)) => a -> QC.Gen (Env u Mock)
