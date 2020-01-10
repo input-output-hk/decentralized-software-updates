@@ -62,10 +62,19 @@ deriving instance ( Hashable p
 deriving instance ( Hashable p
                   , HasSigningScheme p
                   , Eq (GENAPPROVAL (UP p) p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Eq (IsSUCommit.CommitSU (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Eq (Data.UPHash p)
                   ) => Eq (PredicateFailure (BODY p))
+
 deriving instance ( Hashable p
                   , HasSigningScheme p
                   , Show (GENAPPROVAL (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
                   ) => Show (PredicateFailure (BODY p))
 
 instance ( Hashable p
@@ -73,6 +82,13 @@ instance ( Hashable p
          , STS (TRANSACTION p)
          , Eq (GENAPPROVAL (UP p) p)
          , Show (GENAPPROVAL (UP p) p)
+         , Show (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSU.SU (UP p) p)
+         , Eq (Data.UPHash p)
+         , Show (IsSU.SU (UP p) p)
+         , Show (Data.UPHash p)
+
          ) => STS (BODY p) where
 
   type Environment (BODY p) = Environment (TRANSACTION p)

@@ -8,7 +8,10 @@
 
 module Cardano.Ledger.Spec.Classes.IsSUCommit where
 
-import Data.Kind (Type)
+import           Data.Kind (Type)
+import           Data.AbstractSize (HasTypeReps, typeReps)
+
+import           Cardano.Binary (ToCBOR (toCBOR))
 
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme
                     (Signature, VKey)
@@ -61,3 +64,12 @@ instance ( Hashable p
   hashSUCommit (SUUPCommit upcomm) = Data.commitUP upcomm
   sigSUcom (SUUPCommit upcomm) = Data.sigUP upcomm
   calcCommitSU (SUUP up) = Data.calcCommitUP up
+
+instance HasTypeReps p => HasTypeReps (SUCommit u p) where
+  typeReps _ = typeReps (undefined :: p)
+
+instance ToCBOR (CommitSU (Data.UP p) p) where
+  toCBOR (Data.CommitUP commitup)
+    =  encodeListLen 1
+    <> toCBOR commitup
+

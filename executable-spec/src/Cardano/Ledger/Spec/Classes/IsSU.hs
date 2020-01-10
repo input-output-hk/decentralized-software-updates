@@ -8,7 +8,8 @@
 
 module Cardano.Ledger.Spec.Classes.IsSU where
 
-import Data.Kind (Type)
+import           Data.AbstractSize (HasTypeReps, typeReps)
+import           Data.Kind (Type)
 
 import           Ledger.Core (SlotCount)
 
@@ -85,3 +86,6 @@ instance (Hashable p) => SUHasHash (Data.UP p) p where
   isSUApproved mdata approvesips =
     let siphash = Data.sipReference mdata
     in isSIPApproved siphash approvesips
+
+instance HasTypeReps p => HasTypeReps (SU u p) where
+  typeReps _ = typeReps (undefined :: p)

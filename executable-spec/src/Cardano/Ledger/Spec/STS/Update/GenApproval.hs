@@ -151,6 +151,7 @@ instance ( Typeable p
 -- the type of the software update (`SIP` or `UP`) (parameter @u@)
 data GENAPPROVAL u p
 
+
 -- Environmnet of the ApprovalGen phase
 data Env u p
   = Env

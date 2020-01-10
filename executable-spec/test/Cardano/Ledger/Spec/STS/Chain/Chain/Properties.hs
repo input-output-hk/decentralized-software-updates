@@ -211,63 +211,63 @@ relevantCasesAreCovered
   where
     maxTraceLength = 100
 
-extraTestsForTestDebugging :: QC.Property
-extraTestsForTestDebugging
-  = QC.withMaxSuccess 300
-  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
-  $ \traceSample ->
-      QC.collect (pctUpdatePayload traceSample) $
-      QC.tabulate "Pct of Txs with Update Payload" [( show @Int
-                                                     $ round @Float
-                                                     $ pctUpdatePayload traceSample
-                                                    ) ++ "%"
-                                                   ]
-      $
-      QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
-                   in sum $ map(\vr -> Data.stakeInFavor vr) $ map (snd) $ Map.toList vresmap
-                 )
-      $
-      QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
-                   in sum $ map(\vr -> Data.stakeAgainst vr) $ map (snd) $ Map.toList vresmap
-                 )
-      $
-      QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
-                   in sum $ map(\vr -> Data.stakeAbstain vr) $ map (snd) $ Map.toList vresmap
-                 )
-      $
-      QC.tabulate "Pct of SIP submissions in Update Payload"
-                                                   [( show @Int
-                                                     $ round @Float
-                                                     $ pctSIPsInUpdPayload traceSample
-                                                    ) ++ "%"
-                                                   ]
-      $
-      QC.tabulate "Pct of SIP per Tally Outcome"
-                                        [
-                                          ( show @Int
-                                           $ round @Float
-                                           $ pctSIPsTallyOutcome traceSample Data.Approved
-                                          ) ++ "% Approved"
-                                        , ( show @Int
-                                            $ round @Float
-                                            $ pctSIPsTallyOutcome traceSample Data.Rejected
-                                          ) ++ "% Rejected"
-                                        , ( show @Int
-                                            $ round @Float
-                                            $ pctSIPsTallyOutcome traceSample Data.NoQuorum
-                                          ) ++ "% NoQuorum"
-                                        , ( show @Int
-                                            $ round @Float
-                                            $ pctSIPsTallyOutcome traceSample Data.NoMajority
-                                          ) ++ "% NoMajority"
-                                        , ( show @Int
-                                            $ round @Float
-                                            $ pctSIPsTallyOutcome traceSample Data.Expired
-                                          ) ++ "% Expired"
-                                        ]
-      $ True
-  where
-    maxTraceLength = 100
+-- extraTestsForTestDebugging :: QC.Property
+-- extraTestsForTestDebugging
+--   = QC.withMaxSuccess 300
+--   $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
+--   $ \traceSample ->
+--       QC.collect (pctUpdatePayload traceSample) $
+--       QC.tabulate "Pct of Txs with Update Payload" [( show @Int
+--                                                      $ round @Float
+--                                                      $ pctUpdatePayload traceSample
+--                                                     ) ++ "%"
+--                                                    ]
+--       $
+--       QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
+--                    in sum $ map(\vr -> Data.stakeInFavor vr) $ map (snd) $ Map.toList vresmap
+--                  )
+--       $
+--       QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
+--                    in sum $ map(\vr -> Data.stakeAgainst vr) $ map (snd) $ Map.toList vresmap
+--                  )
+--       $
+--       QC.collect ( let SIPsVoteResults (vresmap) = Chain.vresips $ Trace.lastState traceSample
+--                    in sum $ map(\vr -> Data.stakeAbstain vr) $ map (snd) $ Map.toList vresmap
+--                  )
+--       $
+--       QC.tabulate "Pct of SIP submissions in Update Payload"
+--                                                    [( show @Int
+--                                                      $ round @Float
+--                                                      $ pctSIPsInUpdPayload traceSample
+--                                                     ) ++ "%"
+--                                                    ]
+--       $
+--       QC.tabulate "Pct of SIP per Tally Outcome"
+--                                         [
+--                                           ( show @Int
+--                                            $ round @Float
+--                                            $ pctSIPsTallyOutcome traceSample Data.Approved
+--                                           ) ++ "% Approved"
+--                                         , ( show @Int
+--                                             $ round @Float
+--                                             $ pctSIPsTallyOutcome traceSample Data.Rejected
+--                                           ) ++ "% Rejected"
+--                                         , ( show @Int
+--                                             $ round @Float
+--                                             $ pctSIPsTallyOutcome traceSample Data.NoQuorum
+--                                           ) ++ "% NoQuorum"
+--                                         , ( show @Int
+--                                             $ round @Float
+--                                             $ pctSIPsTallyOutcome traceSample Data.NoMajority
+--                                           ) ++ "% NoMajority"
+--                                         , ( show @Int
+--                                             $ round @Float
+--                                             $ pctSIPsTallyOutcome traceSample Data.Expired
+--                                           ) ++ "% Expired"
+--                                         ]
+--       $ True
+--   where
+--     maxTraceLength = 100
 
 
 

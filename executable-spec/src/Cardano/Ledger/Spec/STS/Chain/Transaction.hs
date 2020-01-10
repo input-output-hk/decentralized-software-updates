@@ -186,10 +186,19 @@ instance ( Typeable p
 deriving instance ( Hashable p
                   , HasSigningScheme p
                   , Eq (GENAPPROVAL (UP p) p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Eq (IsSUCommit.CommitSU (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Eq (Data.UPHash p)
                   ) => Eq (PredicateFailure (TRANSACTION p))
+
 deriving instance ( Hashable p
                   , HasSigningScheme p
                   , Show (GENAPPROVAL (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
                   ) => Show (PredicateFailure (TRANSACTION p))
 
 data TRANSACTION p
@@ -199,6 +208,12 @@ instance ( Hashable p
          , STS (UPDATES p)
          , Eq (GENAPPROVAL (UP p) p)
          , Show (GENAPPROVAL (UP p) p)
+         , Show (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSU.SU (UP p) p)
+         , Eq (Data.UPHash p)
+         , Show (IsSU.SU (UP p) p)
+         , Show (Data.UPHash p)
          ) => STS (TRANSACTION p) where
 
   type Environment (TRANSACTION p) = Env p

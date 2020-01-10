@@ -366,6 +366,9 @@ instance ( -- Sizeable p
          , IsSUCommit.SUCommitHasHash
                           (UP Mock) Mock (UP Mock)
          , ToCBOR (IsSUCommit.CommitSU (UP Mock) Mock)
+         , Show (IsSUCommit.CommitSU (UP Mock) Mock)
+         , Show (IsSU.SU (UP Mock) Mock)
+         , Show (Data.UPHash Mock)
          ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do

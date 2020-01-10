@@ -192,10 +192,19 @@ instance ( Typeable p
 deriving instance ( Eq (GENAPPROVAL (UP p) p)
                   , HasSigningScheme p
                   , Hashable p
+                  , Eq (IsSUCommit.CommitSU (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Eq (Data.UPHash p)
                   ) => Eq (PredicateFailure (UPDATE p))
 
-deriving instance ( Hashable p, Show (GENAPPROVAL (UP p) p), HasSigningScheme p
-                ) => Show (PredicateFailure (UPDATE p))
+deriving instance ( Hashable p
+                  , Show (GENAPPROVAL (UP p) p)
+                  , HasSigningScheme p
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (PredicateFailure (UPDATE p))
 
 instance ( Hashable p
          , HasSigningScheme p
@@ -203,6 +212,12 @@ instance ( Hashable p
          , Eq (GENAPPROVAL (UP p) p)
          , Show (GENAPPROVAL (UP p) p)
          , Embed (GENAPPROVAL (UP p) p) (UPDATE p)
+         , Eq (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSU.SU (UP p) p)
+         , Show (IsSUCommit.CommitSU (UP p) p)
+         , Eq (Data.UPHash p)
+         , Show (IsSU.SU (UP p) p)
+         , Show (Data.UPHash p)
          ) => STS (UPDATE p) where
 
   type Environment (UPDATE p) = Env p
@@ -214,7 +229,7 @@ instance ( Hashable p
   data PredicateFailure (UPDATE p)
     = IdeationsFailure (PredicateFailure (IDEATION p))
     | ImplementationsFailure (PredicateFailure (IMPLEMENTATION p))
-    | ApprovalFailure (GENAPPROVAL (UP p) p)
+    | ApprovalFailure  (PredicateFailure (GENAPPROVAL (UP p) p))
 
   initialRules = []
 
@@ -321,22 +336,42 @@ instance ( Hashable p
 instance (STS (IDEATION p), STS (UPDATE p)) => Embed (IDEATION p) (UPDATE p) where
   wrapFailed = IdeationsFailure
 
+instance (STS (GENAPPROVAL (UP p) p), STS (UPDATE p)) => Embed (GENAPPROVAL (UP p) p) (UPDATE p) where
+  wrapFailed = ApprovalFailure
+
 instance (STS (UPDATE p)) => Embed (IMPLEMENTATION p) (UPDATE p) where
   wrapFailed = ImplementationsFailure
 
 data UPDATES p
 
-deriving instance ( Eq (GENAPPROVAL (UP p) p), HasSigningScheme p, Hashable p
-                ) => Eq (PredicateFailure (UPDATES p))
+deriving instance ( Eq (GENAPPROVAL (UP p) p)
+                  , HasSigningScheme p, Hashable p
+                  , Eq (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Eq (IsSU.SU (UP p) p)
+                  , Eq (Data.UPHash p)
+                  ) => Eq (PredicateFailure (UPDATES p))
 
-deriving instance ( Show (GENAPPROVAL (UP p) p), Hashable p, HasSigningScheme p
-                ) => Show (PredicateFailure (UPDATES p))
+deriving instance ( Show (GENAPPROVAL (UP p) p)
+                  , Hashable p
+                  , HasSigningScheme p
+                  , Eq (IsSU.SU (UP p) p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (PredicateFailure (UPDATES p))
 
 instance ( Hashable p
          , HasSigningScheme p
          , STS (UPDATE p)
          , Eq (GENAPPROVAL (UP p) p)
          , Show (GENAPPROVAL (UP p) p)
+         , Show (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSUCommit.CommitSU (UP p) p)
+         , Eq (IsSU.SU (UP p) p)
+         , Eq (Data.UPHash p)
+         , Show (IsSU.SU (UP p) p)
+         , Show (Data.UPHash p)
          ) => STS (UPDATES p) where
 
   type Environment (UPDATES p) = Environment (UPDATE p)
