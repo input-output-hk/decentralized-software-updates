@@ -29,6 +29,7 @@ import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (BlockCount, Slot)
+import           Cardano.Binary (ToCBOR)
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
@@ -45,6 +46,12 @@ import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
+import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
+import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs)
+import           Cardano.Ledger.Spec.State.WhenRevealedSUs (WhenRevealedSUs)
+import           Cardano.Ledger.Spec.State.WhenSubmittedSUs (WhenSubmittedSUs)
+import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
+import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.STS.Chain.Body (BODY)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Header (HEADER)
@@ -56,6 +63,13 @@ import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
+import           Cardano.Ledger.Spec.STS.Update.Data (UP)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
+import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
+import           Cardano.Ledger.Spec.STS.Update.GenApproval (GENAPPROVAL)
+import           Cardano.Ledger.Spec.STS.Update (UPDATE)
+import qualified Cardano.Ledger.Spec.STS.Update.GenApproval as GenApproval
 
 import           Cardano.Ledger.Test.Mock (Mock)
 
@@ -89,24 +103,46 @@ data St p
   = St
     { currentSlot :: !Slot
     , subsips :: !(SubmittedSIPs p)
+    , subUPs :: !(SubmittedSUs (UP p) p)
     , asips :: !(ActiveSIPs p)
+    , aUPs :: !(ActiveSUs (UP p) p)
     , wssips :: !(WhenSubmittedSIPs p)
+    , wsUPs :: !(WhenSubmittedSUs (UP p) p)
     , wrsips :: !(WhenRevealedSIPs p)
+    , wrUPs :: !(WhenRevealedSUs (UP p) p)
     , sipdb :: !(RevealedSIPs p)
+    , updb :: !(RevealedSUs (UP p) p)
     , ballots :: !(Ballot p)
+    , ballotUPs :: !(BallotSUs (UP p) p)
     , vresips :: !(SIPsVoteResults p)
     , apprvsips :: !(ApprovedSIPs p)
     , implementationSt :: !(State (IMPLEMENTATION p))
     , utxoSt :: !(State UTXO)
     }
-    deriving (Show)
+
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (St p)
 
 data Block p
   = Block
     { header :: Signal (HEADER p)
     , body :: Signal (BODY p)
     }
-    deriving (Show, Generic)
+    deriving (Generic)
+
+deriving instance ( Hashable p
+                  , Hashable (UP p)
+                  , HasSigningScheme p
+                  , HasSigningScheme (UP p)
+                  , Show p
+                  , Show (IsSUCommit.SUCommit (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (Block p)
 
 deriving instance ( Typeable p
                   , HasTypeReps (Signal (HEADER p))
@@ -126,6 +162,8 @@ instance ( Hashable p
          , Show (Size p)
          , STS (HEADER p)
          , STS (BODY p)
+         , Ord (IsSUCommit.CommitSU (UP p) p)
+         , Ord (Data.UPHash p)
          ) => STS (CHAIN p) where
 
   type Environment (CHAIN p) = Env p
@@ -143,11 +181,17 @@ instance ( Hashable p
     IRC Env { initialSlot } <- judgmentContext
     pure St { currentSlot = initialSlot
             , subsips = mempty
+            , subUPs = mempty
             , asips = mempty
+            , aUPs = mempty
             , wssips = mempty
+            , wsUPs = mempty
             , wrsips = mempty
+            , wrUPs = mempty
             , sipdb = mempty
+            , updb = mempty
             , ballots = mempty
+            , ballotUPs = mempty
             , vresips = mempty
             , apprvsips = mempty
             , implementationSt = Implementation.St ()
@@ -167,11 +211,17 @@ instance ( Hashable p
                 }
           , St  { currentSlot
                 , subsips
+                , subUPs
                 , asips
+                , aUPs
                 , wssips
+                , wsUPs
                 , wrsips
+                , wrUPs
                 , sipdb
+                , updb
                 , ballots
+                , ballotUPs
                 , vresips
                 , apprvsips
                 , implementationSt
@@ -183,6 +233,11 @@ instance ( Hashable p
         ?! MaximumBlockSizeExceeded (size block) (Threshold maximumBlockSize)
 
       -- First a HEAD transition in order to update the state
+      -- TODO Implement update of the following state by HEADER STS:
+            -- Header.wrUPs = wrUPs'
+            -- Header.aUPs = aUPs'
+            -- Header.vresUPs = vresUPs'
+            -- Header.apprvUPs = apprvUPs'
       Header.St
         { Header.currentSlot = currentSlot'
         , Header.wrsips = wrsips'
@@ -210,10 +265,15 @@ instance ( Hashable p
       -- Second a BODY transition with the updated state from header
       Transaction.St
         { Transaction.subsips = subsips'
+        , Transaction.subUPs = subUPs'
         , Transaction.wssips = wssips'
+        , Transaction.wsUPs = wsUPs'
         , Transaction.wrsips = wrsips''
+        , Transaction.wrUPs = wrUPs''
         , Transaction.sipdb = sipdb'
+        , Transaction.updb = updb'
         , Transaction.ballots = ballots'
+        , Transaction.ballotUPs = ballotUPs'
         , Transaction.implementationSt = implementationSt'
         , Transaction.utxoSt = utxoSt'
         } <- trans @(BODY p)
@@ -221,6 +281,8 @@ instance ( Hashable p
                           { Transaction.k = k
                           , Transaction.currentSlot = currentSlot'
                           , Transaction.asips = asips'
+                          , Transaction.aUPs = aUPs
+                            -- TODO: , Transaction.aUPs = aUPs'
                           , Transaction.participants = participants
                           , Transaction.stakeDist = stakeDist
                           , Transaction.apprvsips = apprvsips'
@@ -228,10 +290,16 @@ instance ( Hashable p
                           }
                       , Transaction.St
                           { Transaction.subsips = subsips
+                          , Transaction.subUPs = subUPs
                           , Transaction.wssips = wssips
+                          , Transaction.wsUPs = wsUPs
                           , Transaction.wrsips = wrsips'
+                          , Transaction.wrUPs = wrUPs
+                          -- TODO: , Transaction.wrUPs = wrUPs'
                           , Transaction.sipdb = sipdb
+                          , Transaction.updb = updb
                           , Transaction.ballots = ballots
+                          , Transaction.ballotUPs = ballotUPs
                           , Transaction.implementationSt = implementationSt
                           , Transaction.utxoSt = utxoSt
                           }
@@ -239,11 +307,18 @@ instance ( Hashable p
                      )
       pure $! St { currentSlot = currentSlot'
                  , subsips = subsips'
+                 , subUPs = subUPs'
                  , asips = asips'
+                 , aUPs = aUPs
+                 -- TODO: , aUPs = aUPs'
                  , wssips = wssips'
+                 , wsUPs = wsUPs'
                  , wrsips = wrsips''
+                 , wrUPs = wrUPs''
                  , sipdb = sipdb'
+                 , updb = updb'
                  , ballots = ballots'
+                 , ballotUPs = ballotUPs'
                  , vresips = vresips'
                  , apprvsips = apprvsips'
                  , implementationSt = implementationSt'
@@ -279,6 +354,18 @@ instance ( -- Sizeable p
          -- , STS.Gen.HasTrace (TRANSACTION p) ()
          -- , HasSize p (Transaction.Tx p)
          --  ToCBOR SlotCount
+           HasTypeReps (IsSUCommit.SUCommit (UP Mock) Mock)
+         , HasTypeReps (IsSU.SU (UP Mock) Mock)
+         , Show (GENAPPROVAL (UP Mock) Mock)
+         , Embed (GENAPPROVAL (UP Mock) Mock) (UPDATE Mock)
+         , Ord (IsSUCommit.CommitSU (UP Mock) Mock)
+         , Eq (GENAPPROVAL (UP Mock) Mock)
+         , Ord (Data.UPHash Mock)
+         , Ord (IsSU.SU (UP Mock) Mock)
+         , GenApproval.SUCommitGen (UP Mock) Mock
+         , IsSUCommit.SUCommitHasHash
+                          (UP Mock) Mock (UP Mock)
+         , ToCBOR (IsSUCommit.CommitSU (UP Mock) Mock)
          ) => STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do
@@ -312,11 +399,17 @@ instance ( -- Sizeable p
         }
     St { currentSlot
        , subsips
+       , subUPs
        , asips
+       , aUPs
        , wssips
+       , wsUPs
        , wrsips
+       , wrUPs
        , sipdb
+       , updb
        , ballots
+       , ballotUPs
        , apprvsips
        , implementationSt
        , utxoSt
@@ -329,6 +422,7 @@ instance ( -- Sizeable p
           { Transaction.k = k
           , Transaction.currentSlot = Header.slot someHeader
           , Transaction.asips = asips
+          , Transaction.aUPs = aUPs
           , Transaction.participants = participants
           , Transaction.stakeDist = stakeDist
           , Transaction.utxoEnv = UTxO.Env
@@ -337,10 +431,15 @@ instance ( -- Sizeable p
       transactionSt =
         Transaction.St
           { Transaction.subsips = subsips
+          , Transaction.subUPs = subUPs
           , Transaction.wssips = wssips
+          , Transaction.wsUPs = wsUPs
           , Transaction.wrsips = wrsips
+          , Transaction.wrUPs = wrUPs
           , Transaction.ballots = ballots
+          , Transaction.ballotUPs = ballotUPs
           , Transaction.sipdb = sipdb
+          , Transaction.updb = updb
           , Transaction.implementationSt = implementationSt
           , Transaction.utxoSt = utxoSt
           }

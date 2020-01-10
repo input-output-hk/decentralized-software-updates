@@ -10,12 +10,11 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Cardano.Ledger.Spec.STS.Chain.Transaction where
 
 import           Control.Exception (assert)
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
 import           Data.Typeable (typeOf, Typeable)
 import           Data.Set (Set)
 import           GHC.Generics (Generic)
@@ -40,6 +39,12 @@ import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
+import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
+import           Cardano.Ledger.Spec.State.BallotSUs (BallotSUs)
+import           Cardano.Ledger.Spec.State.WhenRevealedSUs (WhenRevealedSUs)
+import           Cardano.Ledger.Spec.State.WhenSubmittedSUs (WhenSubmittedSUs)
+import           Cardano.Ledger.Spec.State.RevealedSUs (RevealedSUs)
+import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (TxIn, TxOut, Coin (Coin), Witness)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload, UPDATES)
@@ -47,6 +52,11 @@ import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
+import           Cardano.Ledger.Spec.STS.Update.Data (UP)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
+import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
+import           Cardano.Ledger.Spec.STS.Update.GenApproval (GENAPPROVAL)
 
 
 -- | Environment of the TRANSACTION STS
@@ -54,26 +64,67 @@ data Env p =
   Env { k :: !BlockCount
       , currentSlot :: !Slot
       , asips :: !(ActiveSIPs p)
+      , aUPs :: !(ActiveSUs (UP p) p)
       , participants :: !(Participants p)
       , stakeDist :: !(StakeDistribution p)
       , apprvsips :: !(ApprovedSIPs p)
       , utxoEnv :: !(Environment UTXO)
       }
-  deriving (Show, Generic)
+  deriving (Generic)
+
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (Data.UPHash p)
+                  ) => Show (Env p)
 
 -- | State of the TRANSACTION STS
 data St p =
   St { subsips :: !(SubmittedSIPs p)
+     , subUPs :: !(SubmittedSUs (UP p) p)
      , wssips :: !(WhenSubmittedSIPs p)
+     , wsUPs :: !(WhenSubmittedSUs (UP p) p)
      , wrsips :: !(WhenRevealedSIPs p)
+     , wrUPs :: !(WhenRevealedSUs (UP p) p)
      , sipdb :: !(RevealedSIPs p)
+     , updb :: !(RevealedSUs (UP p) p)
      , ballots :: !(Ballot p)
+     , ballotUPs :: !(BallotSUs (UP p) p)
      , implementationSt :: State (IMPLEMENTATION p)
      , utxoSt :: State UTXO
      }
-  deriving (Show, Generic)
-  deriving Semigroup via GenericSemigroup (St p)
-  deriving Monoid via GenericMonoid (St p)
+  deriving (Generic)
+
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (St p)
+
+instance ( Hashable p
+         , Ord (Data.UPHash p)
+         , Ord (IsSUCommit.CommitSU (UP p) p)
+         ) => Semigroup (St p) where
+  (<>) St{ subsips = ss1, subUPs = su1, wssips = wsp1, wsUPs = wsu1
+         , wrsips = wrs1, wrUPs = wru1, sipdb = sd1, updb = ud1
+         , ballots = b1, ballotUPs = bu1, implementationSt = i1, utxoSt = u1 }
+       St{ subsips = ss2, subUPs = su2, wssips = wsp2, wsUPs = wsu2
+         , wrsips = wrs2, wrUPs = wru2, sipdb = sd2, updb = ud2
+         , ballots = b2, ballotUPs = bu2, implementationSt = i2, utxoSt = u2 }
+     = St{ subsips = ss1 <> ss2, subUPs = su1 <> su2, wssips = wsp1 <> wsp2
+         , wsUPs = wsu1 <> wsu2, wrsips = wrs1 <> wrs2, wrUPs = wru1 <> wru2
+         , sipdb = sd1 <> sd2, updb = ud1 <> ud2, ballots = b1 <> b2
+         , ballotUPs = bu1 <> bu2, implementationSt = i1 <> i2
+         , utxoSt = u1 <> u2 }
+
+instance ( Hashable p
+         , Ord (Data.UPHash p)
+         , Ord (IsSUCommit.CommitSU (UP p) p)
+         ) => Monoid (St p) where
+  mempty = St{ subsips = mempty, subUPs = mempty, wssips = mempty, wsUPs = mempty
+         , wrsips = mempty, wrUPs = mempty, sipdb = mempty, updb = mempty
+         , ballots = mempty, ballotUPs = mempty
+         , implementationSt = mempty, utxoSt = mempty }
 
 -- | Transactions contained in a block.
 data Tx p
@@ -81,7 +132,17 @@ data Tx p
   { body :: TxBody p
   , witnesses :: ![Witness]
   }
-  deriving (Show, Generic)
+  deriving (Generic)
+
+deriving instance ( Hashable p
+                  , Hashable (UP p)
+                  , HasSigningScheme p
+                  , HasSigningScheme (UP p)
+                  , Show p
+                  , Show (IsSUCommit.SUCommit (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (Tx p)
 
 deriving instance ( Typeable p
                   , HasTypeReps (TxBody p)
@@ -94,7 +155,17 @@ data TxBody p
   , fees :: !Coin
   , update :: ![UpdatePayload p]
     -- ^ Update payload
-  } deriving (Show, Generic)
+  } deriving (Generic)
+
+deriving instance ( Hashable p
+                  , Hashable (UP p)
+                  , HasSigningScheme p
+                  , HasSigningScheme (UP p)
+                  , Show p
+                  , Show (IsSUCommit.SUCommit (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (TxBody p)
 
 deriving instance ( Typeable p
                   , HasTypeReps (UpdatePayload p)
@@ -112,11 +183,22 @@ instance ( Typeable p
     ++ costsList (undefined :: UpdatePayload p)
 
 
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Eq (GENAPPROVAL (UP p) p)
+                  ) => Eq (PredicateFailure (TRANSACTION p))
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (GENAPPROVAL (UP p) p)
+                  ) => Show (PredicateFailure (TRANSACTION p))
+
 data TRANSACTION p
 
 instance ( Hashable p
          , HasSigningScheme p
          , STS (UPDATES p)
+         , Eq (GENAPPROVAL (UP p) p)
+         , Show (GENAPPROVAL (UP p) p)
          ) => STS (TRANSACTION p) where
 
   type Environment (TRANSACTION p) = Env p
@@ -127,7 +209,6 @@ instance ( Hashable p
 
   data PredicateFailure (TRANSACTION p)
     = TxFailure (PredicateFailure (UPDATES p))
-    deriving (Eq, Show)
 
   initialRules = []
 
@@ -136,16 +217,22 @@ instance ( Hashable p
       TRC ( Env { k
                 , currentSlot
                 , asips
+                , aUPs
                 , participants
                 , stakeDist
                 , apprvsips
                 , utxoEnv
                 }
           , St { subsips
+               , subUPs
                , wssips
+               , wsUPs
                , wrsips
+               , wrUPs
                , sipdb
+               , updb
                , ballots
+               , ballotUPs
                , implementationSt
                , utxoSt
                }
@@ -159,40 +246,54 @@ instance ( Hashable p
       -- boundaries and at header rules.
 
       Update.St { Update.subsips = subsips'
+                , Update.subUPs = subUPs'
                 , Update.wssips = wssips'
+                , Update.wsUPs = wsUPs'
                 , Update.wrsips = wrsips'
+                , Update.wrUPs = wrUPs'
                 , Update.sipdb = sipdb'
+                , Update.updb = updb'
                 , Update.ballots = ballots'
+                , Update.ballotUPs = ballotUPs'
                 , Update.implementationSt = implementationSt'
                 } <-
         trans @(UPDATES p) $
           TRC ( Update.Env { Update.k = k
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
+                           , Update.aUPs = aUPs
                            , Update.participants = participants
                            , Update.stakeDist = stakeDist
                            , Update.apprvsips = apprvsips
                            }
               , Update.St { Update.subsips = subsips
+                          , Update.subUPs = subUPs
                           , Update.wssips = wssips
+                          , Update.wsUPs = wsUPs
                           , Update.wrsips = wrsips
+                          , Update.wrUPs = wrUPs
                           , Update.sipdb = sipdb
+                          , Update.updb = updb
                           , Update.ballots = ballots
+                          , Update.ballotUPs = ballotUPs
                           , Update.implementationSt = implementationSt
                           }
               , update
               )
       pure $ St { subsips = subsips'
+                , subUPs = subUPs'
                 , wssips = wssips'
+                , wsUPs = wsUPs'
                 , wrsips = wrsips'
+                , wrUPs = wrUPs'
                 , sipdb = sipdb'
+                , updb = updb'
                 , ballots = ballots'
+                , ballotUPs = ballotUPs'
                 , implementationSt = implementationSt'
                 , utxoSt = utxoSt'
                 }
     ]
-
-
 instance (STS (TRANSACTION p)) => Embed UTXO (TRANSACTION p) where
   wrapFailed = error "UTXO transition shouldn't fail (yet)"
 
@@ -213,16 +314,22 @@ instance ( STS (TRANSACTION p)
     (Env { k
          , currentSlot
          , asips
+         , aUPs
          , participants
          , stakeDist
          , apprvsips
          }
     )
     (St { subsips
+        , subUPs
         , wssips
+        , wsUPs
         , wrsips
+        , wrUPs
         , sipdb
+        , updb
         , ballots
+        , ballotUPs
         , implementationSt
         }
     )
@@ -238,15 +345,21 @@ instance ( STS (TRANSACTION p)
                   Update.Env { Update.k = k
                              , Update.currentSlot = currentSlot
                              , Update.asips = asips
+                             , Update.aUPs = aUPs
                              , Update.participants = participants
                              , Update.stakeDist = stakeDist
                              , Update.apprvsips = apprvsips
                              }
                   Update.St { Update.subsips = subsips
+                            , Update.subUPs = subUPs
                             , Update.wssips = wssips
+                            , Update.wsUPs = wsUPs
                             , Update.wrsips = wrsips
+                            , Update.wrUPs = wrUPs
                             , Update.sipdb = sipdb
+                            , Update.updb = updb
                             , Update.ballots = ballots
+                            , Update.ballotUPs = ballotUPs
                             , Update.implementationSt = implementationSt
                             }
               pure $! someUpdatePayload

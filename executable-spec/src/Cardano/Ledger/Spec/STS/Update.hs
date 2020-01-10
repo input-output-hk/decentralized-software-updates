@@ -46,6 +46,7 @@ import qualified Cardano.Ledger.Spec.STS.Update.GenApproval as GenApproval
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.STS.Update.GenApproval (GENAPPROVAL)
+import           Cardano.Ledger.Spec.STS.Update.Data (UP)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.State.ActiveSUs (ActiveSUs)
 import           Cardano.Ledger.Spec.State.SubmittedSUs (SubmittedSUs)
@@ -61,18 +62,18 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme ( Signature
                                                               )
 import           Cardano.Ledger.Spec.Classes.Hashable (Hash)
 
-data UPDATE u p
+data UPDATE p
 
 -- | As we incorporate more phases, like UP (or IMPLEMENTATION), we will be
 -- adding more components to this environment.
 --
 -- See @Ideation.Env@ for more details on the meaning of each field.
-data Env u p
+data Env p
   = Env
     { k :: !BlockCount
     , currentSlot :: !Slot
     , asips :: !(ActiveSIPs p)
-    , aSUs :: !(ActiveSUs u p)
+    , aUPs :: !(ActiveSUs (UP p) p)
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     , apprvsips :: !(ApprovedSIPs p)
@@ -80,22 +81,22 @@ data Env u p
   deriving (Generic)
 
 deriving instance ( Hashable p
-                  , Show (IsSU.SUHash u p)
+                  , Show (IsSU.SUHash (UP p) p)
                   , HasSigningScheme p
-                  ) => Show (Env u p)
+                  ) => Show (Env p)
 
-data St u p
+data St p
   = St
     { subsips :: !(SubmittedSIPs p)
-    , subSUs :: !(SubmittedSUs u p)
+    , subUPs :: !(SubmittedSUs (UP p) p)
     , wssips :: !(WhenSubmittedSIPs p)
-    , wsSUs :: !(WhenSubmittedSUs u p)
+    , wsUPs :: !(WhenSubmittedSUs (UP p) p)
     , wrsips :: !(WhenRevealedSIPs p)
-    , wrSUs :: !(WhenRevealedSUs u p)
+    , wrUPs :: !(WhenRevealedSUs (UP p) p)
     , sipdb :: !(RevealedSIPs p)
-    , sudb :: !(RevealedSUs u p)
+    , updb :: !(RevealedSUs (UP p) p)
     , ballots :: !(Ballot p)
-    , ballotSUs :: !(BallotSUs u p)
+    , ballotUPs :: !(BallotSUs (UP p) p)
     , implementationSt :: State (IMPLEMENTATION p)
     }
   deriving (Generic)
@@ -103,26 +104,26 @@ data St u p
   -- deriving Monoid via GenericMonoid (St u p)
 
 instance ( Hashable p
-         , Ord (IsSUCommit.CommitSU u p)
-         , Ord (IsSU.SUHash u p)
-         ) => Semigroup (St u p) where
-  (<>) St{ subsips = sp1, subSUs = s1, wssips = wsp1, wsSUs = ws1, wrsips = wrp1
-         , wrSUs = wr1, sipdb = spd1, sudb = sd1, ballots = bp1, ballotSUs = b1
+         , Ord (IsSUCommit.CommitSU (UP p) p)
+         , Ord (IsSU.SUHash (UP p) p)
+         ) => Semigroup (St p) where
+  (<>) St{ subsips = sp1, subUPs = s1, wssips = wsp1, wsUPs = ws1, wrsips = wrp1
+         , wrUPs = wr1, sipdb = spd1, updb = sd1, ballots = bp1, ballotUPs = b1
          , implementationSt = i1
          }
-       St{ subsips = sp2, subSUs = s2, wssips = wsp2, wsSUs = ws2, wrsips = wrp2
-         , wrSUs = wr2, sipdb = spd2, sudb = sd2, ballots = bp2, ballotSUs = b2
+       St{ subsips = sp2, subUPs = s2, wssips = wsp2, wsUPs = ws2, wrsips = wrp2
+         , wrUPs = wr2, sipdb = spd2, updb = sd2, ballots = bp2, ballotUPs = b2
          , implementationSt = i2
          }
-     = St{ subsips = sp1 <> sp2, subSUs = s1 <> s2, wssips = wsp1 <> wsp2
-         , wsSUs = ws1 <> ws2, wrsips = wrp1 <> wrp2, wrSUs = wr1 <> wr2
-         , sipdb = spd1 <> spd2, sudb = sd1 <> sd2, ballots = bp1 <> bp2
-         , ballotSUs = b1 <> b2, implementationSt = i1 <> i2
+     = St{ subsips = sp1 <> sp2, subUPs = s1 <> s2, wssips = wsp1 <> wsp2
+         , wsUPs = ws1 <> ws2, wrsips = wrp1 <> wrp2, wrUPs = wr1 <> wr2
+         , sipdb = spd1 <> spd2, updb = sd1 <> sd2, ballots = bp1 <> bp2
+         , ballotUPs = b1 <> b2, implementationSt = i1 <> i2
          }
 
-instance (Hashable p, Ord (IsSUCommit.CommitSU u p), Ord (IsSU.SUHash u p)) => Monoid (St u p) where
-  mempty = St{ subsips = mempty, subSUs = mempty, wssips = mempty, wsSUs = mempty, wrsips = mempty
-             , wrSUs = mempty, sipdb = mempty, sudb = mempty, ballots = mempty, ballotSUs = mempty
+instance (Hashable p, Ord (IsSUCommit.CommitSU (UP p) p), Ord (IsSU.SUHash (UP p) p)) => Monoid (St p) where
+  mempty = St{ subsips = mempty, subUPs = mempty, wssips = mempty, wsUPs = mempty, wrsips = mempty
+             , wrUPs = mempty, sipdb = mempty, updb = mempty, ballots = mempty, ballotUPs = mempty
              , implementationSt = mempty
              }
 
@@ -132,100 +133,88 @@ instance (Hashable p, Ord (IsSUCommit.CommitSU u p), Ord (IsSU.SUHash u p)) => M
 -- deriving instance (Ord (IsSUCommit.CommitSU u p)) => Monoid (St u p)
 
 deriving instance ( Hashable p
-                  , Show (IsSUCommit.CommitSU u p)
-                  , Show (IsSU.SUHash u p)
-                  , Show (IsSU.SU u p)
+                  , Show (IsSUCommit.CommitSU (UP p) p)
+                  , Show (IsSU.SUHash (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
                   , HasSigningScheme p
-                  ) => Show (St u p)
+                  ) => Show (St p)
 
-data UpdatePayload u p
+data UpdatePayload p
   = Ideation (Ideation.IdeationPayload p)
   | Implementation Implementation.ImplementationPayload
-  | Approval (GenApproval.SUPayload u p)
+  | Approval (GenApproval.SUPayload (UP p) p)
   deriving (Generic)
 
 deriving instance ( Hashable p
-                  , Hashable u
                   , Show p
-                  , Hashable (Data.UP p)
+                  , Hashable (UP p)
                   , HasSigningScheme p
-                  , HasSigningScheme u
-                  , HasSigningScheme (Data.UP p)
-                  , Show (IsSUCommit.SUCommit (Data.UP p) p)
-                  , Show (IsSU.SU (Data.UP p) p)
+                  , HasSigningScheme (UP p)
                   , Show (Data.UPHash p)
-                  , Show (IsSUCommit.SUCommit u p)
-                  , Show (IsVoteForSU.IsVote u p)
-                  , Show (IsSU.SU u p)
-                  ) => Show (UpdatePayload u p)
+                  , Show (IsSUCommit.SUCommit (UP p) p)
+                  , Show (IsVoteForSU.IsVote (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  ) => Show (UpdatePayload p)
 
 deriving instance ( Typeable p
-                  , Typeable u
                   , HasTypeReps (Ideation.IdeationPayload p)
-                  , HasTypeReps (IsSUCommit.SUCommit (Data.UP p) p)
+                  , HasTypeReps (IsSUCommit.SUCommit (UP p) p)
                   , HasTypeReps p
-                  , HasTypeReps u
                   , HasTypeReps (VKey p)
                   , HasTypeReps (Hash p (Data.UPData p))
                   , HasTypeReps (Hash p Data.SIPData)
-                  , HasTypeReps (IsSU.SU (Data.UP p) p)
+                  , HasTypeReps (IsSU.SU (UP p) p)
                   , HasTypeReps
                       (Signature p (Data.SIPHash p, Data.Confidence, VKey p))
                   , HasTypeReps
                           (Signature p (Data.UPHash p, Data.Confidence, VKey p))
-                  , HasTypeReps (IsSU.SUHash u p)
-                  , HasTypeReps (IsSUCommit.SUCommit u p)
-                  , HasTypeReps (IsVoteForSU.IsVote u p)
-                  , HasTypeReps (IsSU.SU u p)
-                  ) => HasTypeReps (UpdatePayload u p)
+                  , HasTypeReps (IsSU.SUHash (UP p) p)
+                  , HasTypeReps (IsVoteForSU.IsVote (UP p) p)
+                  ) => HasTypeReps (UpdatePayload p)
 
 instance ( Typeable p
-         , Typeable u
          , HasTypeReps (Ideation.IdeationPayload p)
-         , HasTypeReps (IsSUCommit.SUCommit (Data.UP p) p)
+         , HasTypeReps (IsSUCommit.SUCommit (UP p) p)
          , HasTypeReps p
-         , HasTypeReps u
          , HasTypeReps (VKey p)
          , HasTypeReps (Hash p (Data.UPData p))
          , HasTypeReps (Hash p Data.SIPData)
-         , HasTypeReps (IsSU.SU (Data.UP p) p)
+         , HasTypeReps (IsSU.SU (UP p) p)
          , HasTypeReps (Signature p (Data.SIPHash p, Data.Confidence, VKey p))
          , HasTypeReps (Signature p (Data.UPHash p, Data.Confidence, VKey p))
-         , HasTypeReps (IsSU.SUHash u p)
-         , HasTypeReps (IsSUCommit.SUCommit u p)
-         , HasTypeReps (IsVoteForSU.IsVote u p)
-         , HasTypeReps (IsSU.SU u p)
-         ) => Sized (UpdatePayload u p) where
+         , HasTypeReps (IsSU.SUHash (UP p) p)
+         , HasTypeReps (IsVoteForSU.IsVote (UP p) p)
+         ) => Sized (UpdatePayload p) where
   costsList _
     =  costsList (undefined :: Ideation.IdeationPayload p)
     ++ costsList (undefined :: Implementation.ImplementationPayload)
 
-deriving instance ( Eq (GENAPPROVAL (Data.UP p) p)
+deriving instance ( Eq (GENAPPROVAL (UP p) p)
                   , HasSigningScheme p
                   , Hashable p
-                  ) => Eq (PredicateFailure (UPDATE u p))
+                  ) => Eq (PredicateFailure (UPDATE p))
 
-deriving instance ( Hashable p, Show (GENAPPROVAL (Data.UP p) p), HasSigningScheme p
-                ) => Show (PredicateFailure (UPDATE u p))
+deriving instance ( Hashable p, Show (GENAPPROVAL (UP p) p), HasSigningScheme p
+                ) => Show (PredicateFailure (UPDATE p))
 
 instance ( Hashable p
          , HasSigningScheme p
          , STS (IDEATION p)
-         , Eq (GENAPPROVAL (Data.UP p) p)
-         , Show (GENAPPROVAL (Data.UP p) p)
-         , Embed (GENAPPROVAL u p) (UPDATE u p)
-         ) => STS (UPDATE u p) where
+         , Eq (GENAPPROVAL (UP p) p)
+         , Show (GENAPPROVAL (UP p) p)
+         , Embed (GENAPPROVAL (UP p) p) (UPDATE p)
+         ) => STS (UPDATE p) where
 
-  type Environment (UPDATE u p) = Env u p
+  type Environment (UPDATE p) = Env p
 
-  type State (UPDATE u p) = St u p
+  type State (UPDATE p) = St p
 
-  type Signal (UPDATE u p) = UpdatePayload u p
+  type Signal (UPDATE p) = UpdatePayload p
 
-  data PredicateFailure (UPDATE u p)
+  data PredicateFailure (UPDATE p)
     = IdeationsFailure (PredicateFailure (IDEATION p))
     | ImplementationsFailure (PredicateFailure (IMPLEMENTATION p))
-    | ApprovalFailure (GENAPPROVAL (Data.UP p) p)
+    | ApprovalFailure (GENAPPROVAL (UP p) p)
 
   initialRules = []
 
@@ -234,21 +223,21 @@ instance ( Hashable p
       TRC ( Env { k
                 , currentSlot
                 , asips
-                , aSUs
+                , aUPs
                 , participants
                 , apprvsips
                 , stakeDist
                 }
           , st@St { subsips
-                  , subSUs
+                  , subUPs
                   , wssips
-                  , wsSUs
+                  , wsUPs
                   , wrsips
-                  , wrSUs
+                  , wrUPs
                   , sipdb
-                  , sudb
+                  , updb
                   , ballots
-                  , ballotSUs
+                  , ballotUPs
                   , implementationSt
                   }
           , update
@@ -299,65 +288,65 @@ instance ( Hashable p
 
         Approval approvalPayload ->
           do
-            GenApproval.St { GenApproval.subSUs = subSUs'
-                           , GenApproval.wsSUs = wsSUs'
-                           , GenApproval.wrSUs = wrSUs'
-                           , GenApproval.sudb = sudb'
-                           , GenApproval.ballots = ballotSUs'
+            GenApproval.St { GenApproval.subSUs = subUPs'
+                           , GenApproval.wsSUs = wsUPs'
+                           , GenApproval.wrSUs = wrUPs'
+                           , GenApproval.sudb = updb'
+                           , GenApproval.ballots = ballotUPs'
                            } <-
-              trans @(GENAPPROVAL u p) $
+              trans @(GENAPPROVAL (UP p) p) $
                 TRC ( GenApproval.Env { GenApproval.k = k
                                       , GenApproval.currentSlot = currentSlot
-                                      , GenApproval.aSUs = aSUs
+                                      , GenApproval.aSUs = aUPs
                                       , GenApproval.apprvsips = apprvsips
                                       , GenApproval.participants = participants
                                       , GenApproval.stakeDist = stakeDist
                                       }
-                    , GenApproval.St { GenApproval.subSUs = subSUs
-                                     , GenApproval.wsSUs = wsSUs
-                                     , GenApproval.wrSUs = wrSUs
-                                     , GenApproval.sudb = sudb
-                                     , GenApproval.ballots = ballotSUs
+                    , GenApproval.St { GenApproval.subSUs = subUPs
+                                     , GenApproval.wsSUs = wsUPs
+                                     , GenApproval.wrSUs = wrUPs
+                                     , GenApproval.sudb = updb
+                                     , GenApproval.ballots = ballotUPs
                                      }
                     , approvalPayload
                     )
-            pure $ st { subSUs = subSUs'
-                      , wsSUs = wsSUs'
-                      , wrSUs = wrSUs'
-                      , sudb = sudb'
-                      , ballotSUs = ballotSUs'
+            pure $ st { subUPs = subUPs'
+                      , wsUPs = wsUPs'
+                      , wrUPs = wrUPs'
+                      , updb = updb'
+                      , ballotUPs = ballotUPs'
                       }
     ]
 
-instance (STS (IDEATION p), STS (UPDATE u p)) => Embed (IDEATION p) (UPDATE u p) where
+instance (STS (IDEATION p), STS (UPDATE p)) => Embed (IDEATION p) (UPDATE p) where
   wrapFailed = IdeationsFailure
 
-instance (STS (UPDATE u p)) => Embed (IMPLEMENTATION p) (UPDATE u p) where
+instance (STS (UPDATE p)) => Embed (IMPLEMENTATION p) (UPDATE p) where
   wrapFailed = ImplementationsFailure
 
-data UPDATES u p
+data UPDATES p
 
-deriving instance ( Eq (GENAPPROVAL (Data.UP p) p), HasSigningScheme p, Hashable p
-                ) => Eq (PredicateFailure (UPDATES u p))
+deriving instance ( Eq (GENAPPROVAL (UP p) p), HasSigningScheme p, Hashable p
+                ) => Eq (PredicateFailure (UPDATES p))
 
-deriving instance ( Show (GENAPPROVAL (Data.UP p) p), Hashable p, HasSigningScheme p
-                ) => Show (PredicateFailure (UPDATES u p))
+deriving instance ( Show (GENAPPROVAL (UP p) p), Hashable p, HasSigningScheme p
+                ) => Show (PredicateFailure (UPDATES p))
 
 instance ( Hashable p
          , HasSigningScheme p
-         , STS (UPDATE u p)
-         , Eq (GENAPPROVAL (Data.UP p) p)
-         , Show (GENAPPROVAL (Data.UP p) p)
-         ) => STS (UPDATES u p) where
+         , STS (UPDATE p)
+         , Eq (GENAPPROVAL (UP p) p)
+         , Show (GENAPPROVAL (UP p) p)
+         ) => STS (UPDATES p) where
 
-  type Environment (UPDATES u p) = Environment (UPDATE u p)
+  type Environment (UPDATES p) = Environment (UPDATE p)
 
-  type State (UPDATES u p) = State (UPDATE u p)
+  type State (UPDATES p) = State (UPDATE p)
 
-  type Signal (UPDATES u p) = [Signal (UPDATE u p)]
+  type Signal (UPDATES p) = [Signal (UPDATE p)]
 
-  data PredicateFailure (UPDATES u p)
-    = UpdateFailure (PredicateFailure (UPDATE u p))
+  data PredicateFailure (UPDATES p)
+    = UpdateFailure (PredicateFailure (UPDATE p))
 
   initialRules = []
 
@@ -368,47 +357,47 @@ instance ( Hashable p
         [] -> pure $! st
         (update:updates') ->
           do
-            st' <- trans @(UPDATE u p) $ TRC (env, st, update)
-            trans @(UPDATES u p) $ TRC (env, st', updates')
+            st' <- trans @(UPDATE p) $ TRC (env, st, update)
+            trans @(UPDATES p) $ TRC (env, st', updates')
     ]
 
 
-instance (STS (UPDATE u p), STS (UPDATES u p)) => Embed (UPDATE u p) (UPDATES u p) where
+instance (STS (UPDATE p), STS (UPDATES p)) => Embed (UPDATE p) (UPDATES p) where
   wrapFailed = UpdateFailure
 
 --------------------------------------------------------------------------------
 -- Trace generators
 --------------------------------------------------------------------------------
 
-instance ( STS (UPDATES u p)
-         , STS.Gen.HasTrace (UPDATE u p) a
-         ) => STS.Gen.HasTrace (UPDATES u p) a where
+instance ( STS (UPDATES p)
+         , STS.Gen.HasTrace (UPDATE p) a
+         ) => STS.Gen.HasTrace (UPDATES p) a where
 
-  envGen traceGenEnv = STS.Gen.envGen @(UPDATE u p) traceGenEnv
+  envGen traceGenEnv = STS.Gen.envGen @(UPDATE p) traceGenEnv
 
   sigGen traceGenEnv env st
     =   traceSignals OldestFirst
-    <$> STS.Gen.traceFrom @(UPDATE u p) 10 traceGenEnv env st
+    <$> STS.Gen.traceFrom @(UPDATE p) 10 traceGenEnv env st
     -- We need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
   shrinkSignal =
-    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE u p) @a)
+    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE p) @a)
 
 instance ( Hashable p
-         , STS (UPDATE u p)
+         , STS (UPDATE p)
          , STS.Gen.HasTrace (IDEATION p) ()
-         , STS.Gen.HasTrace (GENAPPROVAL u p) ()
-         ) => STS.Gen.HasTrace (UPDATE u p) () where
+         , STS.Gen.HasTrace (GENAPPROVAL (UP p) p) ()
+         ) => STS.Gen.HasTrace (UPDATE p) () where
 
   envGen traceGenEnv = do
     env <- STS.Gen.envGen @(IDEATION p) traceGenEnv
-    envAppr <- STS.Gen.envGen @(GENAPPROVAL u p) traceGenEnv
+    envAppr <- STS.Gen.envGen @(GENAPPROVAL (UP p) p) traceGenEnv
     pure $!
       Env { k = Ideation.k env
           , currentSlot = Ideation.currentSlot env
           , asips = Ideation.asips env
-          , aSUs = GenApproval.aSUs envAppr
+          , aUPs = GenApproval.aSUs envAppr
           , participants = Ideation.participants env
           , stakeDist = Ideation.stakeDist env
           , apprvsips = mempty
@@ -441,5 +430,5 @@ instance ( Hashable p
     Ideation <$> STS.Gen.shrinkSignal @(IDEATION p) @() ideationPayload
   shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."
   shrinkSignal (Approval approvalPayload) =
-    Approval <$> STS.Gen.shrinkSignal @(GENAPPROVAL u p) @() approvalPayload
+    Approval <$> STS.Gen.shrinkSignal @(GENAPPROVAL (UP p) p) @() approvalPayload
 

@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Cardano.Ledger.Spec.STS.Chain.Body where
 
@@ -33,7 +34,11 @@ import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
 import           Cardano.Ledger.Spec.STS.Chain.Transaction (TRANSACTION)
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-
+import           Cardano.Ledger.Spec.STS.Update.Data (UP)
+import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.Classes.IsSU as IsSU
+import qualified Cardano.Ledger.Spec.Classes.IsSUCommit as IsSUCommit
+import           Cardano.Ledger.Spec.STS.Update.GenApproval (GENAPPROVAL)
 
 data BODY p
 
@@ -41,11 +46,33 @@ data BBody p
  = BBody
    { transactions :: ![Signal (TRANSACTION p)]
    }
-   deriving (Show, Generic)
+   deriving (Generic)
+
+deriving instance ( Hashable p
+                  , Hashable (UP p)
+                  , HasSigningScheme p
+                  , HasSigningScheme (UP p)
+                  , Show p
+                  , Show (IsSUCommit.SUCommit (UP p) p)
+                  , Show (IsSU.SU (UP p) p)
+                  , Show (Data.UPHash p)
+                  ) => Show (BBody p)
+
+
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Eq (GENAPPROVAL (UP p) p)
+                  ) => Eq (PredicateFailure (BODY p))
+deriving instance ( Hashable p
+                  , HasSigningScheme p
+                  , Show (GENAPPROVAL (UP p) p)
+                  ) => Show (PredicateFailure (BODY p))
 
 instance ( Hashable p
          , HasSigningScheme p
          , STS (TRANSACTION p)
+         , Eq (GENAPPROVAL (UP p) p)
+         , Show (GENAPPROVAL (UP p) p)
          ) => STS (BODY p) where
 
   type Environment (BODY p) = Environment (TRANSACTION p)
@@ -57,7 +84,6 @@ instance ( Hashable p
   data PredicateFailure (BODY p)
     =
      BodyFailure (PredicateFailure (TRANSACTION p))
-    deriving (Eq, Show)
 
 
   initialRules = [

@@ -63,6 +63,8 @@ import           Cardano.Ledger.Spec.STS.Update.Data
                      (SIPData (SIPData), UPData (UPData))
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.Classes.IsSUCommit ( SUCommit
+                                                        , SUCommit( SUSIPCommit )
+                                                        , SUCommit( SUUPCommit )
                                                         , CommitSU
                                                         , IsSUCommit
                                                         , SUCommitHasHash
@@ -582,10 +584,10 @@ class (Hashable p, IsSUCommit u p) => SUCommitGen u p where
   suCommitGen :: CommitSU u p -> VKey p -> (Signature p (CommitSU u p)) -> SUCommit u p
 
 instance (Hashable p) => SUCommitGen (Data.SIPCommit p) p  where
-  suCommitGen commit author signature = Data.SIPCommit commit author signature
+  suCommitGen commit author signature = SUSIPCommit $ Data.SIPCommit commit author signature
 
 instance (Hashable p) => SUCommitGen (Data.UPCommit p) p  where
-  suCommitGen commit author signature = Data.UPCommit commit author signature
+  suCommitGen commit author signature = SUUPCommit $ Data.UPCommit commit author signature
 
 
 class (Hashable p, IsVoteForSU u p, IsSU u p) => SUVoteGen u p where

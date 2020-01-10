@@ -19,19 +19,19 @@ import           Cardano.Ledger.Spec.Classes.IsSU (IsSU, SU, SU(SUSIP), SU(SUUP)
 
 -- | A software update commitment
 class (Hashable p) => IsSUCommit u p where
-  type SUCommit u p :: Type
+  data SUCommit u p :: Type
 
   authorSUcom :: SUCommit u p -> VKey p
 
 instance (Hashable p) => IsSUCommit (Data.SIPCommit p) p where
-  type SUCommit (Data.SIPCommit p) p = Data.SIPCommit p
+  newtype SUCommit (Data.SIPCommit p) p = SUSIPCommit (Data.SIPCommit p)
 
-  authorSUcom = Data.authorSIPcom
+  authorSUcom (SUSIPCommit sipcomm) = Data.authorSIPcom sipcomm
 
 instance (Hashable p) => IsSUCommit (Data.UPCommit p) p where
-  type SUCommit (Data.UPCommit p) p = Data.UPCommit p
+  newtype SUCommit (Data.UPCommit p) p = SUUPCommit (Data.UPCommit p)
 
-  authorSUcom = Data.authorUPcom
+  authorSUcom (SUUPCommit upcomm) = Data.authorUPcom upcomm
 
 -- | The (hash) id of a software update commitment
 class (Hashable p, IsSUCommit u p, IsSU su p) => SUCommitHasHash u p su where
@@ -48,8 +48,8 @@ instance ( Hashable p
          ) => SUCommitHasHash (Data.SIPCommit p) p (Data.SIP p) where
   type CommitSU (Data.SIPCommit p) p = Data.CommitSIP p
 
-  hashSUCommit = Data.commitSIP
-  sigSUcom = Data.sigSIP
+  hashSUCommit (SUSIPCommit sipcomm) = Data.commitSIP sipcomm
+  sigSUcom (SUSIPCommit sipcomm) = Data.sigSIP sipcomm
   calcCommitSU (SUSIP sip) = Data.calcCommit sip
 
 instance ( Hashable p
@@ -58,6 +58,6 @@ instance ( Hashable p
          ) => SUCommitHasHash (Data.UPCommit p) p (Data.UP p) where
   type CommitSU (Data.UPCommit p) p = Data.CommitUP p
 
-  hashSUCommit = Data.commitUP
-  sigSUcom = Data.sigUP
+  hashSUCommit (SUUPCommit upcomm) = Data.commitUP upcomm
+  sigSUcom (SUUPCommit upcomm) = Data.sigUP upcomm
   calcCommitSU (SUUP up) = Data.calcCommitUP up

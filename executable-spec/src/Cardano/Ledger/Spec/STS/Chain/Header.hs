@@ -37,7 +37,6 @@ import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Hupdate (HUPDATE)
 import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 
-
 -- | The Block HEADER STS
 data HEADER p
 
