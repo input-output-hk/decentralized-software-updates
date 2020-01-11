@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Cardano.Ledger.Spec.Classes.IsSUCommit where
 
@@ -68,8 +69,11 @@ instance ( Hashable p
 instance HasTypeReps p => HasTypeReps (SUCommit u p) where
   typeReps _ = typeReps (undefined :: p)
 
-instance ToCBOR (CommitSU (Data.UP p) p) where
-  toCBOR (Data.CommitUP commitup)
-    =  encodeListLen 1
-    <> toCBOR commitup
+
+-- deriving instance (ToCBOR (CommitSU u p))
+
+-- instance ToCBOR (CommitSU (Data.UP p) p) where
+--   toCBOR (Data.CommitUP commitup)
+--     =  encodeListLen 1
+--     <> toCBOR commitup
 
