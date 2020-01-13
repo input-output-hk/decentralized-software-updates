@@ -371,24 +371,24 @@ deriving instance ( Hashable p
 
 
 
--- | A Commitment for a Software Update
--- It is the `hash` $ (salt, sip_owner_pk,`hash` `SU`)
--- p: the hashing and signing algorithm
--- u: the type of the software update (`SIP` or `UP`)
-newtype CommitSU p u =
-  CommitSU
-    { getCommitSU :: Hash p (Int, VKey p, Hash p u)
-    }
-  deriving stock (Generic)
--- data CommitSU p u = ComSIP (CommitSIP p) | ComUP (CommitUP p)
+-- -- | A Commitment for a Software Update
+-- -- It is the `hash` $ (salt, sip_owner_pk,`hash` `SU`)
+-- -- p: the hashing and signing algorithm
+-- -- u: the type of the software update (`SIP` or `UP`)
+-- newtype CommitSU p u =
+--   CommitSU
+--     { getCommitSU :: Hash p (Int, VKey p, Hash p u)
+--     }
+--   deriving stock (Generic)
+-- -- data CommitSU p u = ComSIP (CommitSIP p) | ComUP (CommitUP p)
 
-deriving instance (Hashable p) => Eq (CommitSU p u)
-deriving instance Hashable p => Ord (CommitSU p u)
-deriving instance (Hashable p) => Show (CommitSU p u)
-deriving newtype instance ( Typeable p
-                          , Typeable u
-                          , ToCBOR (Hash p (Int, VKey p, Hash p u))
-                          ) => (ToCBOR (CommitSU p u))
+-- deriving instance (Hashable p) => Eq (CommitSU p u)
+-- deriving instance Hashable p => Ord (CommitSU p u)
+-- deriving instance (Hashable p) => Show (CommitSU p u)
+-- deriving newtype instance ( Typeable p
+--                           , Typeable u
+--                           , ToCBOR (Hash p (Int, VKey p, Hash p u))
+--                           ) => (ToCBOR (CommitSU p u))
 
 
 -- | A commitment data type for SIPs.
@@ -403,7 +403,7 @@ newtype CommitSIP p =
 -- type CommitUP p = CommitSU p (UP p)
 
 -- | A commitment data type for UPs.
--- It is the `hash` $ (salt, sip_owner_pk,`hash` `SIP`)
+-- It is the `hash` $ (salt, sip_owner_pk,`hash` `UP`)
 newtype CommitUP p =
   CommitUP
     { getCommitUP :: Hash p (Int, VKey p, Hash p (UP p))

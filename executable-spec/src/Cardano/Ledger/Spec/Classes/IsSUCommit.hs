@@ -11,6 +11,7 @@ module Cardano.Ledger.Spec.Classes.IsSUCommit where
 
 import           Data.Kind (Type)
 import           Data.AbstractSize (HasTypeReps, typeReps)
+import           Data.Typeable (Typeable)
 
 import           Cardano.Binary (ToCBOR (toCBOR))
 
@@ -70,10 +71,9 @@ instance HasTypeReps p => HasTypeReps (SUCommit u p) where
   typeReps _ = typeReps (undefined :: p)
 
 
--- deriving instance (ToCBOR (CommitSU u p))
+deriving instance ( Typeable p
+                  , Typeable u
+                  , ToCBOR (Hash p (Int, VKey p, Hash p u))
+                  ) => (ToCBOR (CommitSU u p))
 
--- instance ToCBOR (CommitSU (Data.UP p) p) where
---   toCBOR (Data.CommitUP commitup)
---     =  encodeListLen 1
---     <> toCBOR commitup
 
