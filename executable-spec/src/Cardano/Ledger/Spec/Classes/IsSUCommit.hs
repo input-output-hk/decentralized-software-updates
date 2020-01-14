@@ -71,9 +71,3 @@ instance HasTypeReps p => HasTypeReps (SUCommit u p) where
   typeReps _ = typeReps (undefined :: p)
 
 
-deriving instance ( Typeable p
-                  , Typeable u
-                  , ToCBOR (Hash p (Int, VKey p, Hash p u))
-                  ) => (ToCBOR (CommitSU u p))
-
-
