@@ -1,0 +1,227 @@
+\section{Properties} \label{sec:cand-properties}
+
+\subsection{Global properties}
+
+\begin{property}[Software Update Proposal]\label{prop:submissions-for-all}
+  A successfully submitted proposal always has an author who belongs to the set
+  of stakeholders.
+\end{property}
+
+\paragraph{Classify:} Property-based testing. Property fulfilling requirement
+\ref{req:upd-open}
+
+\begin{property}[Updates Utilize Blockchain]\label{prop:utilize-blockchain}
+  The number of generated update events equals the on-chain immutable update
+  events.
+\end{property}
+
+\paragraph{Classify:} Property-based testing. Property fulfilling requirement
+\ref{req:upd-blockchain}
+
+\begin{property}[Non Approved Software Updates]\label{prop:nonapproved-sus}
+  A software update that is not approved by the stakeholders' community will
+  never be applied.
+\end{property}
+
+\paragraph{Classify:} Property-based testing. Property fulfilling requirement
+\ref{req-dec-gov}
+
+\paragraph{how to test}
+Property-based testing: Every approved software update (SIP or UP) must have
+reached a stake in favor result above the threshold $\tau_V$.
+
+\begin{property}[Approved Software Updates]\label{prop:approved-sus}
+  An approved proposal cannot be blocked. Based on the assumption that given
+  sufficient time, an honest party will eventually upgrade to an approved
+  software update and that the software update is always available for
+  downloading, then a software update that has been approved by the
+  stakeholders' community will be eventually applied.
+\end{property}
+
+\paragraph{Classify:} Property-based testing. Property fulfilling requirement
+\ref{req-dec-gov}
+
+\paragraph{how to test}
+Every UP that has met its activation condition will be activated.
+
+\begin{property}[Secure Activation]\label{prop:updated-ledger-security}
+  Our update mechanism guarantees a secure activation according to the
+  requirement \ref{req-sec-act}.
+\end{property}
+
+\paragraph{Classify:}
+Mathematical proof. Alternatively, Property-based testing. Property fulfilling
+requirement \ref{req-sec-act}.
+
+\paragraph{how to test}
+When the updated ledger obtains the first stable block (genesis block), then for
+any two parties $P_1$ and $P_2$, the stable part of $P_1$ will be a prefix of
+the updated ledger of $P_2$. Moreover, at this moment, the activation condition
+(based on the adoption threshold $\tau_A$ and the safety lag) will hold, which
+means that the security assumptions of the new ledger will hold.
+
+\begin{property}[Conflict Resolution]\label{prop:conflict-res}
+  There is no trace where two or more conflicting updates are in one of the
+  states: Active, Approved or To-Be-Activated at the same time.
+\end{property}
+
+\paragraph{Classify:}
+Property-based testing. Property fulfilling requirement \ref{req:conflict-res}
+
+\begin{property}[Update Dependencies]\label{prop:update-dep}
+  There is no trace where an update whose dependency requirements are not met
+  and it is in one of the states Active, Approved or
+  To-Be-Activated.
+\end{property}
+
+\paragraph{Classify:} Property-based testing. Property fulfilling requirement
+\ref{req:update-dep}
+
+\begin{property}[Extensible Voting Period]\label{prop:dur-vot-period}
+  It is possible to extend the voting period once it has ended.
+\end{property}
+
+\paragraph{Classify:} Property-based testing. Property fulfilling requirement
+\ref{req:ext-vper}
+
+%\subsection{Consensus Protocol Properties}
+%
+%\begin{property}[Bootstrapping]\label{prop:bootstrap}
+%  The update mechanism leverages the consensus protocol of the blockchain
+%  itself.
+%\end{property}
+%
+%\begin{property}[Resiliency]\label{prop:resiliency}
+%  The resiliency of the consensus protocol (expressed as the fraction ($t/n$
+%  where $t$ is the adversary stake and $n$ is the total stake) of misbehaving
+%  parties a protocol can tolerate) is not affected by the update mechanism
+%\end{property}
+%
+%\begin{property}[Running Time]\label{prop:run-time}
+%  The worst number of rounds by which honest parties terminate the consensus
+%  protocol (i.e., reach a consensus) is not affected.
+%\end{property}
+%
+%\begin{property}[Communication Complexity]\label{prop:comm-complex}
+%  The worst total number of bits/messages communicated during a consensus
+%  protocol run is not affected.
+%\end{property}
+
+\subsection{Ideation phase properties}
+
+\begin{property}[Uniqueness of SIPs]\label{prop:unique-sip}
+  Submitted SIPs in the trace are unique.
+\end{property}
+
+\begin{property}[Valid Ownership of SIPs]\label{prop:owner-sip}
+  SIPs can be submitted only by stakeholders of the ledger.
+\end{property}
+
+\begin{property}[Validity of Revealed SIPs]\label{prop:reveal-valid}
+  Every Revealed SIP must correspond to one and only stable submitted SIP.
+\end{property}
+
+\begin{property}[Validity of a SIP]\label{prop:sip-valid}
+  Every valid SIP upon revealing must comprise a valid set of metadata and an
+  active URL pointing to an off-chain stored SIP bundle, whose structure
+  conforms to the SIP structure guideline.
+\end{property}
+
+\begin{property}[Validity of Active SIPs]\label{prop:active-sip-valid}
+  Every active SIP must correspond to one and only stable revealed SIP, whose
+  voting period end has not yet arrived.
+\end{property}
+
+\begin{property}[Validity of SIP votes]\label{prop:sip-votes-valid}
+  Every vote for a SIP must correspond to one and only valid active SIP (see
+  property \ref{prop:active-sip-valid}). Therefore the slot of the vote cannot
+  exceed the slot of the voting period end of the SIP in question.
+\end{property}
+
+\begin{property}[Number of Votes]\label{prop:num-votes-sip}
+  To every active SIP correspond zero or more votes.
+\end{property}
+
+\begin{property}[SIP Tally]\label{prop:sip-tally-valid}
+  A valid SIP tally refers to one and only SIP whose voting period has ended at
+  least 2k slots ago and counts only valid votes (see property
+  \ref{prop:sip-votes-valid}).
+\end{property}
+
+\begin{property}[SIP Tally Results]\label{prop:sip-tally-result}
+  A SIP in the trace that has been stably revealed, can be either Active,
+  Approved, Rejected or Expired.
+\end{property}
+
+\begin{property}[SIP Revoting]\label{prop:sip-revote}
+  A SIP in the trace cannot be revoted more than $prvNoQuorum + prvNoMajority$
+  times.
+\end{property}
+
+\subsection{Implementation phase properties}
+
+\begin{property}[Approved SIPs]\label{prop:sip-approved-valid}
+  Every approved SIP corresponds to a set of valid votes (see property
+  \ref{prop:sip-votes-valid}) that if tallied will yield a stake in favor above
+  the voting threshold $\tau_V$.
+\end{property}
+
+\subsection{Approval phase properties}
+
+\begin{property}[Correctness and accuracy]\label{prop:corr-accuracy}
+  The UP implements correctly (i.e., without bugs) and accurately (i.e., with no
+  divergences) the changes described in the corresponding voted SIP, as per the
+  approval of the stakeholders' community.
+\end{property}
+
+\begin{property}[Continuity]\label{prop:continuity}
+  Nothing else has changed beyond the scope of the corresponding SIP and
+  everything that worked in the base version for this UP, it continues to work,
+  as it did (as long as it was not in the scope of the SIP to be changed), as
+  per the approval of the stakeholders' community.
+\end{property}
+
+\subsection{Activation phase properties}
+
+\begin{property}[Sequential Activation of UPs]\label{prop:seq-activation}
+  Only one UP can be activated at a time.
+\end{property}
+
+\begin{property}[Activation Priorities of UPs]\label{prop:activation-priorities}
+  An UP that the stakeholders decide has a higher priority than some other
+  proposal will take higher priority in the activation sequence.
+\end{property}
+
+\begin{property}[Authenticity and safety]\label{prop:auth-safety}
+  Downloaded software is safe as per the approval by the stakeholders'
+  community. Moreover by downloading it, one downloads the original authentic
+  code that has been submitted and approved in the first place.
+\end{property}
+
+\begin{property}[Denial of Activation]\label{prop:doactivation}
+  Assuming that given sufficient time an honest party will always upgrade to an
+  approved UP, then an approved UP cannot be blocked from activation by the
+  adversary.
+\end{property}
+
+\begin{property}[Honest Stake Majority]\label{prop:honest-majority}
+  Upon activation of a UP the updated ledger will consist of sufficient honest
+  to run securely the consensus protocol.
+\end{property}
+
+\begin{property}[Chain Split]\label{prop:chain-split}
+  Upon activation of a UP the system is protected from chain splits.
+\end{property}
+
+
+%
+% a) a software update that has not achieved an honest stake majority approval,
+% will never be allowed to pass to the next phase in the SU lifecycle and
+%
+% b) a software update that has achieved an honest stake majority approval, will
+% eventually be allowed to pass to the next phase in the SU lifecycle.
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "decentralized-updates"
+%%% End:

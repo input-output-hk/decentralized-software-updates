@@ -34,11 +34,14 @@ data Mock
 instance Hashable Mock where
 
   newtype Hash Mock a = MockHash (Cardano.Crypto.Hash ShortHash a)
-    deriving (Eq, Ord, Show, ToCBOR, HasTypeReps)
+    deriving (Eq, Ord, ToCBOR, HasTypeReps)
 
   type HasHash Mock = ToCBOR
 
   hash = MockHash . Cardano.Crypto.hash
+
+instance Show (Hash Mock a) where
+  show (MockHash theHash) = "MockHash \"" ++ show theHash ++ "\""
 
 instance Sizeable Mock where
 

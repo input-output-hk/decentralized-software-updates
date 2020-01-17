@@ -9,6 +9,50 @@
   </a>
 </p>
 
+## Formal specification
+
+The formal specification is written in `LaTeX`. It can be found in the
+[`formal-spec`](./formal-spec) folder.
+
+We use [`nix`](https://nixos.org/nix/download.html) to achieve not only
+reproducible software builds, but also reproducible document builds across
+developers machines. This means that anybody who clones this code should be able
+to build the software and documents without requiring any additional setup other
+than having `nix` installed. But of course, the use of `nix` is not required.
+
+When using `nix` it is recommended that you setup the cache, so that it can
+reuse built artifacts, reducing the compilation times dramatically:
+
+If you are using [NixOS](https://nixos.org/) add the snippet below to your
+`/etc/nixos/configuration.nix`:
+
+```
+nix.binaryCaches = [
+  "https://cache.nixos.org"
+  "https://hydra.iohk.io"
+];
+
+nix.binaryCachePublicKeys = [
+  "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
+];
+```
+
+If you are using the `nix` package manager next to another operating system put
+the following in `/etc/nix/nix.conf` if you have a system-wide `nix`
+installation , or in `~/.config/nix/nix.conf` if you have a local installation:
+
+```
+substituters        = https://hydra.iohk.io https://cache.nixos.org/
+trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+```
+
+The PDF corresponding to the formal specification can be built by changing the
+working directory to `formal-spec` and then running:
+
+```sh
+nix-shell --pure --run "make"
+```
+
 ## Executable specification
 
 The executable specifications for the update mechanism can be found in the
@@ -49,38 +93,6 @@ Make sure:
 
 We try to adhere to the coding standard explained
 [here](https://github.com/input-output-hk/cardano-wallet/wiki/Coding-Standards)
-
-#### On nix
-
-The use of [`nix`](https://nixos.org/nix/download.html) is not required, but
-recommended, since it allows to achieve reproducible builds across developers
-machines.
-
-When using `nix` it is recommended that you setup the cache, so that it can
-reuse built artifacts, reducing the compilation times dramatically:
-
-If you are using [NixOS](https://nixos.org/) add the snippet below to your
-`/etc/nixos/configuration.nix`:
-
-```
-nix.binaryCaches = [
-  "https://cache.nixos.org"
-  "https://hydra.iohk.io"
-];
-
-nix.binaryCachePublicKeys = [
-  "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
-];
-```
-
-If you are using the `nix` package manager next to another operating system put
-the following in `/etc/nix/nix.conf` if you have a system-wide `nix`
-installation , or in `~/.config/nix/nix.conf` if you have a local installation:
-
-```
-substituters        = https://hydra.iohk.io https://cache.nixos.org/
-trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-```
 
 <hr/>
 

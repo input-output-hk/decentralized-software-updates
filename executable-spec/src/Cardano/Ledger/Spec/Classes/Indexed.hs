@@ -16,9 +16,9 @@ class Indexed m where
 
   type Value m :: *
 
-  lookup :: Key m -> m -> Value m
+  lookup :: Key m -> m -> Maybe (Value m)
 
-(!) :: Indexed m => m -> Key m -> Value m
+(!) :: Indexed m => m -> Key m -> Maybe (Value m)
 (!) = flip lookup
 
 instance Ord k => Indexed (Map k v) where
@@ -26,11 +26,15 @@ instance Ord k => Indexed (Map k v) where
 
   type Value (Map k v) = v
 
-  lookup = flip (Map.!)
+  lookup = Map.lookup
 
 instance (Ord k, Ord v) => Indexed (Bimap k v) where
   type Key (Bimap k v) = k
 
   type Value (Bimap k v) = v
 
-  lookup = flip (Bimap.!)
+  lookup = Bimap.lookup
+
+withValue :: Applicative m => Maybe a -> b -> (a -> m b) -> m b
+withValue Nothing  b _ = pure b
+withValue (Just a) _ f = f a

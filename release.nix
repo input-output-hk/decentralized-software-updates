@@ -35,6 +35,10 @@ let
       ]
     )
   )
+  # Collect all spec PDFs, without system suffix
+  // { inherit (project)
+         decentralizedUpdatesSpec;
+     }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
   // mapTestOn (packagePlatforms { inherit (project) shell; });

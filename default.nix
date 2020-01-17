@@ -45,4 +45,7 @@ in {
       ++ [  ];
   };
 
+  # Attributes of PDF builds of LaTeX documentation.
+  decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
+
 }

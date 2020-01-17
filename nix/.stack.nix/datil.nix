@@ -42,15 +42,15 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "decentralized-updates"; version = "0.1.0.0"; };
+      identifier = { name = "datil"; version = "0.1.0.0"; };
       license = "LicenseRef-Apache";
       copyright = "2019 IOHK";
       maintainer = "formal.methods@iohk.io";
       author = "IO Research and IOHK Formal Methods Team";
       homepage = "";
       url = "";
-      synopsis = "Decentralized updates for Cardano";
-      description = "A prototype for a decentralized update mechanism for Cardano";
+      synopsis = "Data-Automata Testing and Interpretation Library";
+      description = "Define, test, and interpret data automata models.";
       buildType = "Simple";
       isLocal = true;
       };
@@ -58,37 +58,13 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."bimap" or (buildDepError "bimap"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."generic-monoid" or (buildDepError "generic-monoid"))
+          (hsPkgs."mtl" or (buildDepError "mtl"))
+          (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-          (hsPkgs."random" or (buildDepError "random"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-          (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-          (hsPkgs."small-steps" or (buildDepError "small-steps"))
-          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
           ];
         buildable = true;
         };
-      tests = {
-        "ledger-rules-test" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."mtl" or (buildDepError "mtl"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
-            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
-            (hsPkgs."small-steps" or (buildDepError "small-steps"))
-            (hsPkgs."datil" or (buildDepError "datil"))
-            ];
-          buildable = true;
-          };
-        };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././executable-spec; }
+    } // rec { src = (pkgs.lib).mkDefault ../.././datil; }

@@ -1,0 +1,66 @@
+\section{Requirements for the software update mechanism} \label{sec:requirements}
+
+\subsection{Functional requirements} \label{sec:func-reqs}
+\begin{enumerate}
+\item \textbf{Updates are open to the community.} \label{req:upd-open} Any
+  stakeholder should be able to propose a software update to be voted by the
+  stakeholders' community.
+
+\item \textbf{Updates utilize the blockchain} \label{req:upd-blockchain} Update
+  events are stored in the blockchain as immutable events.
+
+\item \textbf{Decentralized Governance} \label{req-dec-gov} The stakeholders'
+  community is the only authority to decide on the approval, or rejection, of
+  the proposed software updates.
+
+\item \textbf{Secure Activation} \label{req-sec-act} Upon activation of a
+  software update the update mechanism guarantees a secure transition to the
+  updated ledger; a transition in which:
+  \begin{itemize}
+  \item The security assumptions of the updated ledger will hold (e.g., there
+    will be a sufficient percent of upgraded honest stake)
+  \item The updated ledger successfully incorporates the old ledger, i.e., the
+    state of the old ledger will be successfully moved into the new ledger.
+  \item There will be no chain splits due to the activation.
+\end{itemize}
+
+\item \textbf{Conflict Resolution.}\label{req:conflict-res} Two or more software
+  updates that have conflicting changes will not be applied both, but a conflict
+  resolution will take place.
+
+\item \textbf{Update Dependencies.}\label{req:update-dep} A software update will
+  never be applied if its dependency requirements are not met
+
+\item \textbf{Extensible voting period.} \label{req:ext-vper} The period
+  required for approving a software update is not fixed but can be extended by
+  the stakeholders' community. In other words, revoting is supported.
+
+\end{enumerate}
+
+\subsection{Non-functional requirements} \label{sec:non-func-reqs}
+
+\begin{enumerate}
+\item \textbf{Transaction Throughput}
+  \label{req:tr-throughput}
+  The ledger transaction throughput is not significantly impacted by the
+  presence of software updates (see section \ref{sec:measurements}).
+
+\item \textbf{Blockchain Size} \label{req:blockchain-size} The blockchain size
+  is not significantly impacted by the presence of software updates (see section
+  \ref{sec:measurements}).
+
+\item \textbf{Update Time to Activation}\label{req:update-thr} The time to
+  activation of a software update reduces linearly in the number of users
+  running the update protocol (see section \ref{sec:measurements}).
+
+\item \textbf{Processing Time}
+  \label{req:proc-time}
+  The processing time of a node due to the execution of the update protocol is
+  not significantly increased.
+
+\end{enumerate}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "decentralized-updates"
+%%% End:
