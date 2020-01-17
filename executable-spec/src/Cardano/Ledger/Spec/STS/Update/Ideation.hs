@@ -33,21 +33,25 @@ import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (�
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import qualified Cardano.Ledger.Generators.QuickCheck as Gen
+import           Cardano.Ledger.Spec.Classes.HasAuthor (author)
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable, hash, HasHash, Hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (sign, SKey, VKey, HasSigningScheme, verify, Signable)
 import           Cardano.Ledger.Spec.Classes.Indexed ((!), withValue)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot, updateBallot)
+import           Cardano.Ledger.Spec.State.Ballot (updateBallot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
-import           Cardano.Ledger.Spec.STS.Update.Data
+import           Cardano.Ledger.Spec.STS.Update.Ideation.Data
                      (IdeationPayload (Reveal, Submit, Vote), SIP (SIP),
                      SIPData (SIPData))
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit, calcCommit)
+import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
 
 import Cardano.Ledger.Test.Mock (Mock)
 
@@ -58,7 +62,6 @@ import Cardano.Ledger.Test.Mock (Mock)
 -- | Ideation phase of system updates
 data IDEATION p
 
--- Environmnet of the Ideation phase
 data Env p
   = Env
     { k :: !BlockCount
@@ -71,15 +74,13 @@ data Env p
     }
   deriving (Show, Generic)
 
--- | Ideation phase state
---
 data St p
   = St
     { subsips :: !(SubmittedSIPs p)
     , wssips :: !(WhenSubmittedSIPs p)
     , wrsips :: !(WhenRevealedSIPs p)
     , sipdb :: !(RevealedSIPs p)
-    , ballots :: !(Ballot p)
+    , ballots :: !(SIPBallot p)
     }
   deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)
@@ -91,8 +92,8 @@ instance ( Hashable p
          , HasHash p (Int, VKey p, Hash p (SIP p))
          , HasHash p (VKey p) -- needed to bring the 'Ord' instance for 'SIP'.
          , HasSigningScheme p
-         , Signable p (Data.Commit p)
-         , Signable p (Data.SIPHash p, Data.Confidence, VKey p)
+         , Signable p (Commit p (SIP p))
+         , Signable p (Ideation.Data.SIPHash p, Data.Confidence, VKey p)
          ) => STS (IDEATION p) where
 
   type Environment (IDEATION p) = Env p
@@ -103,15 +104,15 @@ instance ( Hashable p
 
   -- | IDEATION phase failures
   data PredicateFailure (IDEATION p)
-    = SIPAlreadySubmitted (Data.SIP p)
+    = SIPAlreadySubmitted (Ideation.Data.SIP p)
    -- | SIPSubmittedAlreadyRevealed (Data.SIP p)
-    | NoSIPToReveal (Data.SIP p)
-    | SIPAlreadyRevealed (Data.SIP p)
+    | NoSIPToReveal (Ideation.Data.SIP p)
+    | SIPAlreadyRevealed (Ideation.Data.SIP p)
     | InvalidAuthor (VKey p)
-    | NoStableAndCommittedSIP (Data.SIP p) (WhenSubmittedSIPs p)
+    | NoStableAndCommittedSIP (Ideation.Data.SIP p) (WhenSubmittedSIPs p)
     | InvalidVoter (VKey p)
-    | VoteNotForActiveSIP (Data.SIPHash p)
-    | VotingPeriodEnded (Data.SIPHash p) Slot
+    | VoteNotForActiveSIP (Ideation.Data.SIPHash p)
+    | VotingPeriodEnded (Ideation.Data.SIPHash p) Slot
     | CommitSignatureDoesNotVerify
     | VoteSignatureDoesNotVerify
     deriving (Eq, Show)
@@ -123,7 +124,6 @@ instance ( Hashable p
       TRC ( Env { k
                 , currentSlot
                 , asips
-                , stakeDist
                 }
           , st@St { subsips
                   , wssips
@@ -135,19 +135,17 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          hash (Data._author sipc) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
-          Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
+          Ideation.Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
 
-          verify (Data._author sipc) (Data.commit sipc) (Data.upSig sipc) ?!
+          verify (author sipc) (Ideation.Data.commit sipc) (Ideation.Data.upSig sipc) ?!
             CommitSignatureDoesNotVerify
 
-          pure $! st { wssips = wssips ⨃ [(Data.commit sipc, currentSlot)]
-                     , subsips = subsips ⨃ [(Data.commit sipc, sip)]
+          pure $! st { wssips = wssips ⨃ [(Ideation.Data.commit sipc, currentSlot)]
+                     , subsips = subsips ⨃ [(Ideation.Data.commit sipc, sip)]
                      }
 
         Reveal sip -> do
-          hash (Data.author sip) ∈ dom stakeDist ?! InvalidAuthor (Data.author sip)
-          (Data.calcCommit sip) ∈ dom subsips ?! NoSIPToReveal sip
+          calcCommit sip ∈ dom subsips ?! NoSIPToReveal sip
 
           sip ∉ range sipdb ?! SIPAlreadyRevealed sip
 
@@ -158,41 +156,37 @@ instance ( Hashable p
           -- TODO: this won't work if the submission slot is < 2k. For instance
           -- if a SIP was submitted at slot 0 this condition ensures that it can
           -- also be revealed at slot 0.
-          Data.calcCommit sip
+          calcCommit sip
             ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
             ?! NoStableAndCommittedSIP sip wssips
 
-          pure st { wssips = Set.singleton (Data.calcCommit sip) ⋪ wssips
-                  , wrsips = wrsips ⨃ [(Data.sipHash sip, currentSlot)]
-                  , sipdb = sipdb ⨃ [(Data.sipHash sip, sip)]
+          pure st { wssips = Set.singleton (calcCommit sip) ⋪ wssips
+                  , wrsips = wrsips ⨃ [(Ideation.Data.sipHash sip, currentSlot)]
+                  , sipdb = sipdb ⨃ [(Ideation.Data.sipHash sip, sip)]
                   }
 
         Vote voteForSIP -> do
-            -- voter must be a stakeholder
-            hash (Data.voter voteForSIP) ∈ dom stakeDist ?!
-              InvalidVoter (Data.voter voteForSIP)
-
             verify
-              (Data.voter voteForSIP)
-              ( Data.votedsipHash voteForSIP
-              , Data.confidence voteForSIP
-              , Data.voter voteForSIP
+              (Ideation.Data.voter voteForSIP)
+              ( Ideation.Data.votedsipHash voteForSIP
+              , Ideation.Data.confidence voteForSIP
+              , Ideation.Data.voter voteForSIP
               )
-              (Data.voterSig voteForSIP)
+              (Ideation.Data.voterSig voteForSIP)
               ?!
               VoteSignatureDoesNotVerify
 
             -- SIP must be an active SIP, i.e. it must belong to the set of
-            -- stable revealed SIPs
-            Data.votedsipHash voteForSIP ∈ dom asips ?!
-              VoteNotForActiveSIP (Data.votedsipHash voteForSIP)
+            -- stable revealed SIPs.
+            Ideation.Data.votedsipHash voteForSIP ∈ dom asips ?!
+              VoteNotForActiveSIP (Ideation.Data.votedsipHash voteForSIP)
 
             -- The end of the voting period for this SIP must not have been
             -- reached yet.
-            withValue (asips ! Data.votedsipHash voteForSIP) () $
+            withValue (asips ! Ideation.Data.votedsipHash voteForSIP) () $
               \asipSlot ->
                 currentSlot <= asipSlot ?!
-                VotingPeriodEnded (Data.votedsipHash voteForSIP) currentSlot
+                VotingPeriodEnded (Ideation.Data.votedsipHash voteForSIP) currentSlot
 
             pure $ st { ballots = updateBallot ballots voteForSIP }
     ]
@@ -259,26 +253,26 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
               (vkeyAuthor, skeyAuthor) <- QC.elements $ toList participants
               sipMData <- sipMetadataGen
               sipData <- sipDataGen sipMData
-              let sipHash = Data.SIPHash $ hash sipData
+              let sipHash = Ideation.Data.SIPHash $ hash sipData
               salt <- Gen.bounded 2
               pure $! (SIP sipHash vkeyAuthor salt sipData, skeyAuthor)
                 where
                   sipMetadataGen
-                    = Data.SIPMetadata
+                    = Ideation.Data.SIPMetadata
                     <$> versionFromGen
                     <*> versionToGen
-                    <*> QC.elements [Data.Impact, Data.NoImpact]
-                    <*> QC.sublistOf [ Data.BlockSizeMax
-                                     , Data.TxSizeMax
-                                     , Data.SlotSize
-                                     , Data.EpochSize
+                    <*> QC.elements [Ideation.Data.Impact, Ideation.Data.NoImpact]
+                    <*> QC.sublistOf [ Ideation.Data.BlockSizeMax
+                                     , Ideation.Data.TxSizeMax
+                                     , Ideation.Data.SlotSize
+                                     , Ideation.Data.EpochSize
                                      ]
                     <*> (SlotCount <$> QC.choose (5, 30))
                     where
                       versionFromGen = do
                         protVer <- word64Gen
                         apVer <- word64Gen
-                        pure $! (Data.ProtVer protVer, Data.ApVer apVer)
+                        pure $! (Ideation.Data.ProtVer protVer, Ideation.Data.ApVer apVer)
 
                       versionToGen = versionFromGen
 
@@ -295,16 +289,16 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
             mkSubmission skey sip = Submit sipCommit sip
               where
                 sipCommit =
-                  Data.SIPCommit commit (Data.author sip) sipCommitSignature
+                  Ideation.Data.SIPCommit commit (author sip) sipCommitSignature
                   where
-                    commit = Data.calcCommit sip
+                    commit = calcCommit sip
                     sipCommitSignature = sign commit skey
 
       revelationGen subsipsList = do
         -- Problem! 'QC.suchThat' will loop forever if it cannot find a
         -- revelation that satisfies the given predicate!
         sip <- QC.elements subsipsList
-        if Data.sipHash sip ∉ dom wrsips
+        if Ideation.Data.sipHash sip ∉ dom wrsips
           then pure $! Reveal sip
           else submissionGen
 
@@ -318,15 +312,15 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
           -- We promote a bit more the positive votes because we want
           -- to have a good percent of approved SIPs, since only approvals
           -- take us to the next phase in the lifecycle
-          confidence <- QC.frequency [ (60, pure $ Data.For)
-                                     , (20, pure $ Data.Against)
-                                     , (20, pure $ Data.Abstain)
+          confidence <- QC.frequency [ (60, pure Data.For)
+                                     , (20, pure Data.Against)
+                                     , (20, pure Data.Abstain)
                                      ]
 
           -- Choose among active sips whose voting period is still open
           sipHash <- QC.elements $ Set.toList $ dom (actsips ▷>= currSlot)
           let voterSig = sign (sipHash, confidence, voter) voterSkey
-          pure $ Vote $ Data.VoteForSIP sipHash confidence voter voterSig
+          pure $ Vote $ Ideation.Data.VoteForSIP sipHash confidence voter voterSig
 
 
   -- It doesn't seem plausible that the @IdeationPayload@ can be shrunk in a

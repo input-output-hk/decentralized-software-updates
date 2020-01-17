@@ -10,7 +10,8 @@ module Cardano.Ledger.Spec.State.SubmittedSIPs where
 
 import           Data.Map.Strict (Map)
 
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Data
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
@@ -19,6 +20,6 @@ import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 -- From these both the commited SIP's as well as the revealed SIPs will be
 -- created. This state is not part of the update protocol, it is used only for
 -- SIP generation purposes.
-newtype SubmittedSIPs p = SubmittedSIPs (Map (Data.Commit p) (Data.SIP p))
+newtype SubmittedSIPs p = SubmittedSIPs (Map (Commit p (Data.SIP p)) (Data.SIP p))
   deriving stock (Eq, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

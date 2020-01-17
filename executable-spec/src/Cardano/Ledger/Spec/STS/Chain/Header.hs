@@ -28,7 +28,6 @@ import           Ledger.Core (BlockCount, Slot (Slot))
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
@@ -36,7 +35,8 @@ import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import           Cardano.Ledger.Spec.STS.Update.Hupdate (HUPDATE)
 import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
-
+import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
+import           Cardano.Ledger.Spec.STS.Update.TallyImplVotes (TIVOTES)
 
 -- | The Block HEADER STS
 data HEADER p
@@ -44,7 +44,7 @@ data HEADER p
 data Env p
   = Env { k :: !BlockCount
         , sipdb :: !(RevealedSIPs p)
-        , ballots :: !(Ballot p)
+        , ballots :: !(SIPBallot p)
         , r_a :: !Float
          -- ^ adversary stake ratio
         , stakeDist :: !(StakeDistribution p)
@@ -61,6 +61,7 @@ data St p
       , asips :: !(ActiveSIPs p)
       , vresips :: !(SIPsVoteResults p)
       , apprvsips :: !(ApprovedSIPs p)
+      , approvalSt :: !(State (TIVOTES p))
       }
       deriving (Show, Generic)
 
@@ -87,7 +88,6 @@ instance ( Hashable p
     | HeaderFailure (PredicateFailure (HUPDATE p))
     deriving (Eq, Show)
 
-
   initialRules = [ ]
 
   transitionRules = [
@@ -100,6 +100,7 @@ instance ( Hashable p
                 , asips
                 , vresips
                 , apprvsips
+                , approvalSt
                 }
           , BHeader { slot }
           ) <- judgmentContext
@@ -110,6 +111,7 @@ instance ( Hashable p
                  , Hupdate.asips = asips'
                  , Hupdate.vresips = vresips'
                  , Hupdate.apprvsips = apprvsips'
+                 , Hupdate.approvalSt = approvalSt'
                  } <- trans @(HUPDATE p)
                       $ TRC ( Hupdate.Env { Hupdate.k = k
                                           , Hupdate.sipdb = sipdb
@@ -123,6 +125,7 @@ instance ( Hashable p
                                          , Hupdate.asips = asips
                                          , Hupdate.vresips = vresips
                                          , Hupdate.apprvsips = apprvsips
+                                         , Hupdate.approvalSt = approvalSt
                                          }
                             , slot
                             )
@@ -132,6 +135,7 @@ instance ( Hashable p
                 , asips = asips'
                 , vresips = vresips'
                 , apprvsips = apprvsips'
+                , approvalSt = approvalSt'
                 }
     ]
 

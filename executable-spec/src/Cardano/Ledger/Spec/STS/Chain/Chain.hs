@@ -37,8 +37,8 @@ import           Cardano.Ledger.Spec.Classes.Sizeable (HasSize, Size, Sizeable,
                      size)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
+import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
@@ -54,6 +54,8 @@ import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 
@@ -65,6 +67,7 @@ data CHAIN p
 data Env p
   = Env
     { k :: !BlockCount
+    , maxVotingPeriods :: !VotingPeriod
     , maximumBlockSize :: !(Size p)
       -- ^ Maximum block size. The interpretation of this value depends on the
       -- instance of 'Sized'.
@@ -93,10 +96,11 @@ data St p
     , wssips :: !(WhenSubmittedSIPs p)
     , wrsips :: !(WhenRevealedSIPs p)
     , sipdb :: !(RevealedSIPs p)
-    , ballots :: !(Ballot p)
+    , ballots :: !(Ideation.Data.SIPBallot p)
     , vresips :: !(SIPsVoteResults p)
     , apprvsips :: !(ApprovedSIPs p)
     , implementationSt :: !(State (IMPLEMENTATION p))
+    , approvalSt :: !(State (APPROVAL p))
     , utxoSt :: !(State UTXO)
     }
     deriving (Show)
@@ -151,6 +155,7 @@ instance ( Hashable p
             , vresips = mempty
             , apprvsips = mempty
             , implementationSt = Implementation.St ()
+            , approvalSt = mempty
             , utxoSt = UTxO.St ()
             }
     ]
@@ -158,6 +163,7 @@ instance ( Hashable p
   transitionRules = [
     do
       TRC ( Env { k
+                , maxVotingPeriods
                 , maximumBlockSize
                 , participants
                 , r_a
@@ -175,6 +181,7 @@ instance ( Hashable p
                 , vresips
                 , apprvsips
                 , implementationSt
+                , approvalSt
                 , utxoSt
                 }
           , block@Block{ header, body }
@@ -203,6 +210,7 @@ instance ( Hashable p
                                  , Header.asips = asips
                                  , Header.vresips = vresips
                                  , Header.apprvsips = apprvsips
+                                 , Header.approvalSt = approvalSt
                                  }
                      , header
                      )
@@ -219,6 +227,7 @@ instance ( Hashable p
         } <- trans @(BODY p)
                $ TRC ( Transaction.Env
                           { Transaction.k = k
+                          , Transaction.maxVotingPeriods = maxVotingPeriods
                           , Transaction.currentSlot = currentSlot'
                           , Transaction.asips = asips'
                           , Transaction.participants = participants
@@ -248,6 +257,10 @@ instance ( Hashable p
                  , apprvsips = apprvsips'
                  , implementationSt = implementationSt'
                  , utxoSt = utxoSt'
+                  -- TODO: if we run the CHAIN rules we need to wire up the
+                  -- approval rules. At the moment I want to try to get rid of
+                  -- this layer (and BODY and TRANSACTION).
+                 , approvalSt = approvalSt
                  }
     ]
 
@@ -273,12 +286,7 @@ instance ( STS (HEADER p), STS (CHAIN p) ) => Embed (HEADER p) (CHAIN p) where
 -- HasTrace instance
 --------------------------------------------------------------------------------
 
-instance ( -- Sizeable p
-         -- , STS (CHAIN p)
-         -- -- TODO: the constraints below could be simplified by defining an HasTrace instance for BODY.
-         -- , STS.Gen.HasTrace (TRANSACTION p) ()
-         -- , HasSize p (Transaction.Tx p)
-         ) => STS.Gen.HasTrace (CHAIN Mock) () where
+instance STS.Gen.HasTrace (CHAIN Mock) () where
 
   envGen _ = do
     someK <- Gen.k
@@ -291,6 +299,8 @@ instance ( -- Sizeable p
     somePrvNoQuorum <- Gen.prvNoQuorum
     somePrvNoMajority <- Gen.prvNoMajority
     let env = Env { k = someK
+                  -- TODO: generate this if we want to proceed with this approach to generation.
+                  , maxVotingPeriods = 0
                   -- For now we fix the maximum block size to an abstract size of 100
                   , maximumBlockSize = 100
                   , initialSlot = someCurrentSlot
@@ -306,6 +316,7 @@ instance ( -- Sizeable p
     _traceGenEnv
     Env { k
         , maximumBlockSize
+        , maxVotingPeriods
         , participants
         , stakeDist
         }
@@ -326,6 +337,7 @@ instance ( -- Sizeable p
       transactionEnv =
         Transaction.Env
           { Transaction.k = k
+          , Transaction.maxVotingPeriods = maxVotingPeriods
           , Transaction.currentSlot = Header.slot someHeader
           , Transaction.asips = asips
           , Transaction.participants = participants

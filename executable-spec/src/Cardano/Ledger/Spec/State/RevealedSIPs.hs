@@ -11,7 +11,7 @@ module Cardano.Ledger.Spec.State.RevealedSIPs where
 import           Data.Map.Strict (Map)
 import           Data.Maybe (fromMaybe)
 
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Data
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)

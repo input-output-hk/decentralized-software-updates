@@ -14,6 +14,7 @@ import qualified Cardano.Ledger.Spec.STS.SM.Update.Ideation.Full.Properties as S
 import qualified Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties as SM.Ideation
 import qualified Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance as Ideation.Conformance
 import qualified Cardano.Ledger.Spec.STS.SM.Update.Ideation.Vote.Properties as SM.Vote
+import           Cardano.Ledger.Spec.STS.Update.Approval.UnitTests as Approval.UnitTests
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Properties as Ideation
 
 main :: IO ()
@@ -22,7 +23,7 @@ main = defaultMain tests
   tests :: TestTree
   tests = localOption Auto $ testGroup
     "Update"
-    [ testGroup "Ideation phase examples" []
+    [ testGroup "Ideation phase unit tests" []
     , testGroup "Ideation phase properties"
         [ testProperty
             "Only valid traces are generated"
@@ -108,4 +109,5 @@ main = defaultMain tests
             Ideation.Conformance.prop_updateConforms
         ]
       ]
+    , testGroup "Approval phase unit tests" Approval.UnitTests.runTests
     ]

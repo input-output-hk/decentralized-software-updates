@@ -8,9 +8,8 @@
 -- | SM-SOS conformance tests
 module Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance where
 
-import           Control.Arrow (first, right)
+import           Control.Arrow (first)
 import           Control.Monad.Except (Except)
-import           Data.Bifunctor (bimap)
 import           Data.List.NonEmpty (fromList)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -32,160 +31,25 @@ import           Control.State.DataAutomata.Test.Conformance
 
 import           Cardano.Ledger.Spec.SM.Ideation
 import           Cardano.Ledger.Spec.SM.Ideation.Full
-import           Cardano.Ledger.Spec.SM.Vote
+import           Cardano.Ledger.Spec.SM.Vote hiding (SIPBallot)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey, sign)
-import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
-import           Cardano.Ledger.Spec.State.Participants
-                     (Participants (Participants))
-import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
-import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as STS.StakeDistribution
-import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
-import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
-import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
+
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Data.Commit (calcCommit)
 import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
-import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 
 import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
                      VerKeyDSIGN (VerKeyMockDSIGN))
 import           Cardano.Ledger.Test.Mock (Mock)
 
-import           Control.State.Transition (PredicateFailure, TRC (TRC),
-                     applySTS)
-
 import           Ledger.Core (BlockCount (BlockCount))
 
-
--- | Interface state:
---
--- - it contains values needed by the environment and state of the SOS rules.
--- - it is modified either by the application of the SOS rules, or application
---   of some special SM actions (such as stake distribution update)
---
-data IState =
-  IState
-  { iStateK :: !BlockCount
-  , iStateStakeDist :: !(STS.StakeDistribution.StakeDistribution Mock)
-  , iStateCurrentSlot :: !Core.Slot
-  , iStateSubsips :: !(SubmittedSIPs Mock)
-  , iStateSipdb :: !(RevealedSIPs Mock)
-  , iStateBallot :: !(Ballot Mock)
-  , iStateR_a :: !Float
-  , iStateWssips :: !(WhenSubmittedSIPs Mock)
-  , iStateWrsips :: !(WhenRevealedSIPs Mock)
-  , iStateAsips :: !(ActiveSIPs Mock)
-  , iStatevresips :: !(SIPsVoteResults Mock)
-  , iStateApprvsips :: !(ApprovedSIPs Mock)
-  } deriving (Show)
-
-
--- | Sum type used to aggregate errors of the header and body update interfaces.
-data UIError
-  = HupdateError [[PredicateFailure (Hupdate.HUPDATE Mock)]]
-  | UpdateError [[PredicateFailure (Update.UPDATE Mock)]]
-  deriving (Show)
-
-projectToHupdateEnv :: IState -> Hupdate.Env Mock
-projectToHupdateEnv
-  IState { iStateK
-         , iStateStakeDist
-         , iStateSipdb
-         , iStateBallot
-         , iStateR_a
-         }
-  =
-  Hupdate.Env
-  { Hupdate.k = iStateK
-  , Hupdate.sipdb = iStateSipdb
-  , Hupdate.ballots = iStateBallot
-  , Hupdate.r_a = iStateR_a
-  , Hupdate.stakeDist = iStateStakeDist
-   -- TODO: for now we're not allowing re-voting.
-   --
-  , Hupdate.prvNoQuorum = 0
-  , Hupdate.prvNoMajority = 0
-  }
-
-projecTotHupdateSt :: IState -> Hupdate.St Mock
-projecTotHupdateSt
-  IState
-  { iStateWrsips
-  , iStateAsips
-  , iStatevresips
-  , iStateApprvsips
-  }
-  =
-  Hupdate.St
-  { Hupdate.wrsips = iStateWrsips
-  , Hupdate.asips = iStateAsips
-  , Hupdate.vresips = iStatevresips
-  , Hupdate.apprvsips = iStateApprvsips
-  }
-
-projectToUpdateEnv :: IState -> Update.Env Mock
-projectToUpdateEnv
-  IState
-  { iStateK
-  , iStateCurrentSlot
-  , iStateAsips
-  , iStateStakeDist
-  , iStateApprvsips
-  }
-  =
-  Update.Env
-  { Update.k = iStateK
-  , Update.currentSlot = iStateCurrentSlot
-  , Update.asips = iStateAsips
-  , Update.participants = Participants [] -- TODO: The participants should be removed from the STS state.
-  , Update.stakeDist = iStateStakeDist
-  , Update.apprvsips = iStateApprvsips
-  }
-
-projectToUpdateSt :: IState -> Update.St Mock
-projectToUpdateSt
-  IState
-  { iStateSubsips
-  , iStateWssips
-  , iStateWrsips
-  , iStateSipdb
-  , iStateBallot
-  }
-  =
-  Update.St
-  { Update.subsips = iStateSubsips
-  , Update.wssips = iStateWssips
-  , Update.wrsips = iStateWrsips
-  , Update.sipdb = iStateSipdb
-  , Update.ballots = iStateBallot
-  , Update.implementationSt = Implementation.St ()
-  }
-
-fromHupdateSt :: IState -> Hupdate.St Mock -> IState
-fromHupdateSt iState hState =
-  iState
-  { iStateWrsips = Hupdate.wrsips hState
-  , iStateAsips = Hupdate.asips hState
-  , iStatevresips = Hupdate.vresips hState
-  , iStateApprvsips = Hupdate.apprvsips hState
-  }
-
-
-fromUpdateSt :: IState -> Update.St Mock -> IState
-fromUpdateSt iState uState =
-  iState
-  { iStateSubsips = Update.subsips uState
-  , iStateWssips = Update.wssips uState
-  , iStateWrsips = Update.wrsips uState
-  , iStateSipdb = Update.sipdb uState
-  , iStateBallot = Update.ballots uState
-  }
+import           Cardano.Ledger.Update.Interface
 
 data InitParams =
   InitParams
@@ -197,10 +61,11 @@ data InitParams =
   , currentSlot :: !Word
   }
 
-mkIState :: InitParams -> IState
+mkIState :: InitParams -> IState Mock
 mkIState InitParams {k, initStakeDist, r_a, currentSlot} =
   IState
     { iStateK = BlockCount $ fromIntegral k
+    , iStateMaxVotingPeriods = 2
     , iStateStakeDist = elaborateStakeDist initStakeDist
     , iStateCurrentSlot = Core.Slot $ fromIntegral currentSlot
     , iStateSubsips = mempty
@@ -212,6 +77,7 @@ mkIState InitParams {k, initStakeDist, r_a, currentSlot} =
     , iStateAsips = mempty
     , iStatevresips = mempty
     , iStateApprvsips = mempty
+    , iStateApproval = mempty
     }
 
 elaborateStakeDist :: StakeDistribution -> STS.StakeDistribution.StakeDistribution Mock
@@ -229,7 +95,7 @@ participantToVKey = VerKeyMockDSIGN . fromIntegral
 participantToSKey :: Word -> SKey Mock
 participantToSKey = SignKeyMockDSIGN . fromIntegral
 
-type SIPMapping = Map Word (Int, Data.SIPData, Participant)
+type SIPMapping = Map Word (Int, Ideation.Data.SIPData, Participant)
 
 -- | SM-SOS conformance test for the update interface.
 --
@@ -259,17 +125,17 @@ initParams =
 
     someAuthor = Participant 0
 
-    dummySIPData :: Data.SIPData
+    dummySIPData :: Ideation.Data.SIPData
     dummySIPData =
-      Data.SIPData
-      { Data.url = Data.URL "foo"
-      , Data.metadata =
-        Data.SIPMetadata
-        { Data.versionFrom = (Data.ProtVer 0, Data.ApVer 0)
-        , Data.versionTo = (Data.ProtVer 0, Data.ApVer 0)
-        , Data.impactsConsensus = Data.NoImpact
-        , Data.impactsParameters = []
-        , Data.votPeriodDuration = Core.SlotCount 20
+      Ideation.Data.SIPData
+      { Ideation.Data.url = Data.URL "foo"
+      , Ideation.Data.metadata =
+        Ideation.Data.SIPMetadata
+        { Ideation.Data.versionFrom = (Ideation.Data.ProtVer 0, Ideation.Data.ApVer 0)
+        , Ideation.Data.versionTo = (Ideation.Data.ProtVer 0, Ideation.Data.ApVer 0)
+        , Ideation.Data.impactsConsensus = Ideation.Data.NoImpact
+        , Ideation.Data.impactsParameters = []
+        , Ideation.Data.votPeriodDuration = Core.SlotCount 20
         }
       }
 
@@ -307,74 +173,51 @@ traceFilter = filter keep
                                    ] :: Set ActionName
                                   )
 
-runUpdateSOS :: IState -> CAction -> Either UIError IState
+runUpdateSOS :: IState Mock -> CAction -> Either (UIError Mock) (IState Mock)
 runUpdateSOS iState (CAction "tick" ms)
-  = right tick
-  $ bimap
-      HupdateError
-      (fromHupdateSt iState)
-      $ applySTS @(Hupdate.HUPDATE Mock) (TRC (env, st, slot))
+  = slotTick slot iState
   where
-    env = projectToHupdateEnv iState
-    st = projecTotHupdateSt iState
     slot =
       case cast ms of
         Nothing          -> error "Wrong type for the slot tick"
         Just (s :: Word) -> Core.Slot (fromIntegral s)
-    tick iState' = iState' { iStateCurrentSlot = slot }
 -- TODO: when composing multiple automata we need to parse the action names.
 runUpdateSOS iState (CAction "submit_0" _) =
-  bimap
-    UpdateError
-    (fromUpdateSt iState)
-    $ applySTS @(Update.UPDATE Mock) (TRC (env, st, updatePayload))
+  applyUpdatePayload updatePayload iState
     where
-      env = projectToUpdateEnv iState
-      st = projectToUpdateSt iState
       updatePayload
         = Update.Ideation
-        $ Data.Submit sipCommit sip
+        $ Ideation.Data.Submit sipCommit sip
         where
           sip = lookupSIP (sipMapping initParams) 0
           (_, _, Participant p)
             = fromMaybe (error "No SIP found") $ Map.lookup 0 $ sipMapping initParams
           sipCommit =
-            Data.SIPCommit
-            { Data.commit = commit
-            , Data._author = Data.author sip
-            , Data.upSig = sign commit (participantToSKey p)
+            Ideation.Data.SIPCommit
+            { Ideation.Data.commit = commit
+            , Ideation.Data.sipCommitAuthor = Ideation.Data.sipAuthor sip
+            , Ideation.Data.upSig = sign commit (participantToSKey p)
             }
-          commit = Data.calcCommit sip
-
+          commit = calcCommit sip
 runUpdateSOS iState (CAction "reveal_0" _) =
-  bimap
-    UpdateError
-    (fromUpdateSt iState)
-    $ applySTS @(Update.UPDATE Mock) (TRC (env, st, updatePayload))
+  applyUpdatePayload updatePayload iState
   where
-    env = projectToUpdateEnv iState
-    st = projectToUpdateSt iState
     updatePayload
       = Update.Ideation
-      $ Data.Reveal
+      $ Ideation.Data.Reveal
       $ lookupSIP (sipMapping initParams) 0
 runUpdateSOS iState (CAction "vote_0" vote) =
   -- Issue a vote for our only SIP. We need to take this from our SIP data.
-  bimap
-    UpdateError
-    (fromUpdateSt iState)
-    $ applySTS @(Update.UPDATE Mock) (TRC (env, st, updatePayload))
+  applyUpdatePayload updatePayload iState
   where
-    env = projectToUpdateEnv iState
-    st = projectToUpdateSt iState
     updatePayload
       = Update.Ideation
-      $ Data.Vote
-      $ Data.VoteForSIP
-        { Data.votedsipHash = sipHash
-        , Data.confidence = confidence
-        , Data.voter = aVk
-        , Data.voterSig = sign (sipHash, confidence, aVk) (participantToSKey i)
+      $ Ideation.Data.Vote
+      $ Ideation.Data.VoteForSIP
+        { Ideation.Data.votedsipHash = sipHash
+        , Ideation.Data.confidence = confidence
+        , Ideation.Data.voter = aVk
+        , Ideation.Data.voterSig = sign (sipHash, confidence, aVk) (participantToSKey i)
         }
       where
         (_, sipData, _) = fromMaybe (error "No SIP found") $ Map.lookup 0 $ sipMapping initParams
@@ -382,7 +225,7 @@ runUpdateSOS iState (CAction "vote_0" vote) =
           case cast vote of
             Nothing -> error "Wrong type for vote"
             Just v  -> v
-        sipHash = Data.SIPHash $ hash sipData -- TODO: we should cache this for efficiency.
+        sipHash = Ideation.Data.SIPHash $ hash sipData -- TODO: we should cache this for efficiency.
         confidence = decisionToConfidence aDecision
         aVk = participantToVKey i
 runUpdateSOS _iState act  = error $ "No dispatcher for action " ++ show act
@@ -405,13 +248,13 @@ decisionToConfidence For = Data.For
 decisionToConfidence Against = Data.Against
 decisionToConfidence Abstain = Data.Abstain
 
-lookupSIP :: SIPMapping -> Word -> Data.SIP Mock
+lookupSIP :: SIPMapping -> Word -> Ideation.Data.SIP Mock
 lookupSIP aSipMapping i =
-  Data.SIP
-  { Data.sipHash = Data.SIPHash $ hash sipData
-  , Data.author = participantToVKey p
-  , Data.salt = salt
-  , Data.sipPayload = sipData
+  Ideation.Data.SIP
+  { Ideation.Data.sipHash = Ideation.Data.SIPHash $ hash sipData
+  , Ideation.Data.sipAuthor = participantToVKey p
+  , Ideation.Data.sipSalt = salt
+  , Ideation.Data.sipPayload = sipData
   }
   where
     (salt, sipData, Participant p)
@@ -434,11 +277,11 @@ memoryFromInitParams InitParams { r_a, initStakeDist, k, sipMapping, currentSlot
 
     snd' (_, y, _) = y
 
-    extractVPD :: Data.SIPData -> Word
+    extractVPD :: Ideation.Data.SIPData -> Word
     extractVPD =
       -- We should make sure that Word and Word64 have the same representation
       -- in the architecture these tests are running.
-      fromIntegral . Core.unSlotCount .  Data.votPeriodDuration . Data.metadata
+      fromIntegral . Core.unSlotCount .  Ideation.Data.votPeriodDuration . Ideation.Data.metadata
 
 actsGenFromInitParams :: InitParams -> Map ActionName (Gen Cell)
 actsGenFromInitParams InitParams { participants, sipMapping } =

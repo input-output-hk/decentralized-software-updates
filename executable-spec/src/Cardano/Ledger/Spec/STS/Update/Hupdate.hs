@@ -28,12 +28,14 @@ import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪),
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs,
                      votingPeriodEnd)
 import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
+import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
+import           Cardano.Ledger.Spec.STS.Update.TallyImplVotes (TIVOTES)
+import qualified Cardano.Ledger.Spec.STS.Update.TallyImplVotes as TallyImplVotes
 import           Cardano.Ledger.Spec.STS.Update.Tallysip (TALLYSIPS)
 import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 
@@ -46,7 +48,7 @@ data Env p
  = Env { k :: !BlockCount
          -- ^ Chain stability parameter.
        , sipdb :: !(RevealedSIPs p)
-       , ballots :: !(Ballot p)
+       , ballots :: !(SIPBallot p)
        , r_a :: !Float
          -- ^ adversary stake ratio
        , stakeDist :: !(StakeDistribution p)
@@ -62,7 +64,7 @@ data St p
        , asips :: !(ActiveSIPs p)
        , vresips :: !(SIPsVoteResults p)
        , apprvsips :: !(ApprovedSIPs p)
-         -- ^ Set of approved SIPs
+       , approvalSt :: !(State (TIVOTES p))
        }
        deriving (Show, Generic)
 
@@ -76,8 +78,8 @@ instance ( Hashable p
   type Signal (HUPDATE p) = Slot
 
   data PredicateFailure (HUPDATE p)
-    = ErrorOnHUpdate Slot Slot
-    | HupdateFailure (PredicateFailure (TALLYSIPS p))
+    = TallySIPsFailure  (PredicateFailure (TALLYSIPS p))
+    | TIVOTESFailure    (PredicateFailure (TIVOTES p))
     deriving (Eq, Show)
 
 
@@ -88,6 +90,7 @@ instance ( Hashable p
                  , asips = mempty
                  , vresips = mempty
                  , apprvsips = mempty
+                 , approvalSt = mempty
                  }
     ]
 
@@ -100,6 +103,7 @@ instance ( Hashable p
                 , asips
                 , vresips
                 , apprvsips
+                , approvalSt
                 }
           , slot
           ) <- judgmentContext
@@ -142,14 +146,23 @@ instance ( Hashable p
                     , Set.toList toTally
                     )
 
+      let env = TallyImplVotes.Env k stakeDist r_a
+      approvalSt' <- trans @(TIVOTES p) $ TRC (env, approvalSt, slot)
+
       pure $! St { wrsips = wrsips'
                  , asips = asips'''
                  , vresips = vresips'
                  , apprvsips = apprvsips'
+                 , approvalSt = approvalSt'
                  }
     ]
 
 instance ( STS (TALLYSIPS p)
          , STS (HUPDATE p)
          ) => Embed (TALLYSIPS p) (HUPDATE p) where
-  wrapFailed = HupdateFailure
+  wrapFailed = TallySIPsFailure
+
+instance ( STS (TIVOTES p)
+         , STS (HUPDATE p)
+         ) => Embed (TIVOTES p) (HUPDATE p) where
+  wrapFailed = TIVOTESFailure

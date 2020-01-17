@@ -33,7 +33,6 @@ import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
@@ -47,11 +46,14 @@ import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.STS.Dummy.UTxO (UTXO)
 import qualified Cardano.Ledger.Spec.STS.Dummy.UTxO as UTxO
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
+import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
 
 
 -- | Environment of the TRANSACTION STS
 data Env p =
   Env { k :: !BlockCount
+      , maxVotingPeriods :: !VotingPeriod
       , currentSlot :: !Slot
       , asips :: !(ActiveSIPs p)
       , participants :: !(Participants p)
@@ -67,7 +69,7 @@ data St p =
      , wssips :: !(WhenSubmittedSIPs p)
      , wrsips :: !(WhenRevealedSIPs p)
      , sipdb :: !(RevealedSIPs p)
-     , ballots :: !(Ballot p)
+     , ballots :: !(Ideation.Data.SIPBallot p)
      , implementationSt :: State (IMPLEMENTATION p)
      , utxoSt :: State UTXO
      }
@@ -134,6 +136,7 @@ instance ( Hashable p
   transitionRules = [
     do
       TRC ( Env { k
+                , maxVotingPeriods
                 , currentSlot
                 , asips
                 , participants
@@ -167,6 +170,7 @@ instance ( Hashable p
                 } <-
         trans @(UPDATES p) $
           TRC ( Update.Env { Update.k = k
+                           , Update.maxVotingPeriods = maxVotingPeriods
                            , Update.currentSlot = currentSlot
                            , Update.asips = asips
                            , Update.participants = participants
@@ -179,6 +183,7 @@ instance ( Hashable p
                           , Update.sipdb = sipdb
                           , Update.ballots = ballots
                           , Update.implementationSt = implementationSt
+                          , Update.approvalSt = mempty -- TODO: need to pass something here.
                           }
               , update
               )
@@ -200,7 +205,8 @@ instance (STS (TRANSACTION p)) => Embed UTXO (TRANSACTION p) where
 instance (STS (UPDATES p), STS (TRANSACTION p)) => Embed (UPDATES p) (TRANSACTION p) where
   wrapFailed = TxFailure
 
-instance ( STS (TRANSACTION p)
+instance ( Hashable p
+         , STS (TRANSACTION p)
          , STS.Gen.HasTrace (UPDATES p) ()
          ) => STS.Gen.HasTrace (TRANSACTION p) () where
 
@@ -211,6 +217,7 @@ instance ( STS (TRANSACTION p)
   sigGen
     _traceGenEnv
     (Env { k
+         , maxVotingPeriods
          , currentSlot
          , asips
          , participants
@@ -236,6 +243,7 @@ instance ( STS (TRANSACTION p)
                   @(UPDATES p)
                   ()
                   Update.Env { Update.k = k
+                             , Update.maxVotingPeriods = maxVotingPeriods
                              , Update.currentSlot = currentSlot
                              , Update.asips = asips
                              , Update.participants = participants
@@ -248,6 +256,7 @@ instance ( STS (TRANSACTION p)
                             , Update.sipdb = sipdb
                             , Update.ballots = ballots
                             , Update.implementationSt = implementationSt
+                            , Update.approvalSt = mempty
                             }
               pure $! someUpdatePayload
           )

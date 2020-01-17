@@ -14,13 +14,13 @@ module Cardano.Ledger.Spec.State.ActiveSIPs where
 
 import           Data.Map.Strict (Map)
 
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPHash)
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
 -- | Active SIP's. The slot in the range (of the map) determines when the voting
 --   period will end.
-newtype ActiveSIPs p = ActiveSIPs (Map (Data.SIPHash p) Core.Slot)
+newtype ActiveSIPs p = ActiveSIPs (Map (SIPHash p) Core.Slot)
   deriving stock (Eq, Ord, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

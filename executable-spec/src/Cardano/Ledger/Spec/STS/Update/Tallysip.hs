@@ -23,12 +23,14 @@ import           Ledger.Core (Slot, addSlot, dom, (∈), (⨃))
 import           Cardano.Ledger.Spec.Classes.Indexed ((!), withValue)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs, registerApproval, isSIPApproved)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot, ballotFor, addVotes)
+import           Cardano.Ledger.Spec.State.Ballot (ballotFor, addVotes)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs, votingPeriodEnd)
 import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults, getRevotingCounters)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution, totalStake)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
+import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
 
 -- | STS for tallying the votes of a single SIP
 data TALLYSIP p
@@ -36,25 +38,25 @@ data TALLYSIP p
 data Env p
  = Env { currentSlot :: !Slot
        , sipdb :: !(RevealedSIPs p)
-       , ballots :: !(Ballot p)
+       , ballots :: !(SIPBallot p)
        , r_a :: !Float
-         -- ^ adversary stake ratio
+         -- ^ adversary stake ratio.
        , stakeDist :: !(StakeDistribution p)
        , prvNoQuorum :: !Word8
-         -- ^ How many times a revoting is allowed due to a no quorum result
+         -- ^ How many times a revoting is allowed due to a no quorum result.
        , prvNoMajority :: !Word8
-         -- ^ How many times a revoting is allowed due to a no majority result
+         -- ^ How many times a revoting is allowed due to a no majority result.
        }
        deriving (Show)
 
 data St p
   = St { vresips :: !(SIPsVoteResults p)
-         -- ^ Records the current voting result for each SIP
+         -- ^ Records the current voting result for each SIP.
        , asips :: !(ActiveSIPs p)
-      -- ^ Active SIP's. The slot in the range (of the map) determines when the
-      -- voting period will end.
+         -- ^ Active SIP's. The slot in the range (of the map) determines when
+         -- the voting period will end.
        , apprvsips :: !(ApprovedSIPs p)
-         -- ^ Set of approved SIPs
+         -- ^ Set of approved SIPs.
        }
        deriving (Show, Generic)
 
@@ -65,13 +67,13 @@ instance (Hashable p) => STS (TALLYSIP p) where
 
   type State (TALLYSIP p) = (St p)
 
-  type Signal (TALLYSIP p) = (Data.SIPHash p)
+  type Signal (TALLYSIP p) = (Ideation.Data.SIPHash p)
 
   data PredicateFailure (TALLYSIP p)
     =
-      TallySIPFailure (Data.SIPHash p)
-    | InvalidSIPHash (Data.SIPHash p)
-    | SIPAlreadyApproved (Data.SIPHash p)
+      TallySIPFailure (Ideation.Data.SIPHash p)
+    | InvalidSIPHash (Ideation.Data.SIPHash p)
+    | SIPAlreadyApproved (Ideation.Data.SIPHash p)
 
   initialRules = [
       do
@@ -209,8 +211,8 @@ tallyOutcome vres stakeDistribution pNoQ pNoM r_a =
                     else error "Tallysip.tallyOutcome: Reached an unpredictable tally outcome."
 
 
-deriving instance Eq (Data.SIPHash p) => Eq (PredicateFailure (TALLYSIP p))
-deriving instance Show (Data.SIPHash p) => Show (PredicateFailure (TALLYSIP p))
+deriving instance Eq (Ideation.Data.SIPHash p) => Eq (PredicateFailure (TALLYSIP p))
+deriving instance Show (Ideation.Data.SIPHash p) => Show (PredicateFailure (TALLYSIP p))
 
 -- | STS for tallying the votes of a
 -- bunch of SIPs
