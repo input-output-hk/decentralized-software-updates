@@ -163,7 +163,7 @@ a party $P_i$ receives the activation command and let $\activep$ be the set of p
 %secure.
 %Let $t$ be the time at which one of the parties that is running $\ledger_1$ is activated.
 Informally, a secure activation process guarantees that if the set of honest parties that are willing to run $\ledger_2$
-is such that $\asmp_2[t]=1$ for some $t\geq t_{P_1}$, then
+is such that $\asmp_2[\tau]=1$ for all $\tau\geq t$ and  $t\geq t_{P_1}$, then
 the state of $\ledger_2$ at time $t+\Delta$ corresponds to the state of $\ledger_1$ at some time
 $T\in [t,t+\Delta]$.
 The parameter $\Delta$ represents the time required for the update process to be completed.
