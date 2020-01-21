@@ -3,7 +3,7 @@
 To simplify our proof we introduce the notion of \emph{canonical scenario} for the the ledger $\ledger_2$. In a canonical scenario the ledger
 $\ledger_2$ is executed in the standard way. More precisely, 
 we assume the existence of a genesis block and that $\asmp_2[\tau]$=1 for all $\tau \geq 0$. Let $\parties$ be the set of parties that is running $\ledger_2$. Also, 
-let $t_j$ be the smallest time slot in which $B_j$ appears in $\state_2^{P_i}$ for each $P_i\in\parties$ and let $t_{j+k}$ be smallest time slot in which $B_{j+k}$ appears in 
+let $t_j$ be the smallest time slot in which $B_j$ appears in \nnote{$\state_2^{P_i}[t_j]$}  $\state_2^{P_i}$ for each $P_i\in\parties$ and let $t_{j+k}$ be smallest time slot in which $B_{j+k}$ appears in \nnote{$\state_2^{P_i}[t_{j+k}]$}
 $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
 We are now ready to prove the security of $\Pi$.
 
@@ -17,8 +17,8 @@ $k$ blocks are generated in $\state_1$ since $\ledger_2$ and $\ledger_1$ have th
 in $\state_2^P$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $\cg^{-1}$ time slots then we have that $\Delta \leq k \cg^{-1} + k \cg^{-1}$.
 In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
 using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
-Let $t'$ be the smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ for each $P_i\in\parties$.
+Let $t'$ be the smallest time slot in which $B_{j+k}$ appears in $\state_2^{P_i}[t']$ \nnote{Maybe you mean $\check \state_1^{P_i}[t']$ because that is what we have said above: "the parties need to wait that the $(j+k)$-th block of $\state_1$ is part of $\check \state_1^{P_i}[t]$" } for each $P_i\in\parties$.
 If we take the execution of the protocol from time $t$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
 that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
-that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
+that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ \nnote{Maybe you want to say: $B_{j+k}, B_{j+k+1},\dots, B_{j+k+k}$, because $\ledger_2$ starts its life from block $B_{j+k}$ and onwards until $k$ blocks are generated} are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
 any block of $\state_1$ can be turned into a block of $\state_2$. \end{proof}
