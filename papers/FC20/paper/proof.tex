@@ -18,11 +18,11 @@ in $\state_2^P$ for each honest $P\in\activep$. Given that a block in $\ledger_1
 In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
 using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
 Let $t'$ be the smallest time slot in which $B_{j+k}$ appears in $\check \state_2^{P_i}[t']$
- %\nnote{Maybe you mean $\check \state_1^{P_i}[t']$ because that is what we have said above: "the parties need to %wait that the $(j+k)$-th block of $\state_1$ is part of $\check \state_1^{P_i}[t]$" } 
+\nnote{$\state_2^{P_i}[t']$}
  for each $P_i\in\parties$.
 If we take the execution of the protocol from time $t$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
 that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
-that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$ \nnote{Maybe you want to say: $B_{j+k}, B_{j+k+1},\dots, B_{j+k+k}$, because $\ledger_2$ starts its life from block $B_{j+k}$ and onwards until $k$ blocks are generated} are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
+that the blocks $B_{j}, B_{j+1},\dots, B_{j+k}$  are generated using $\ledger_1$, but this does not represent an issue since we are assuming that
 any block of $\state_1$ can be turned into a block of $\state_2$. \end{proof}
 
 
