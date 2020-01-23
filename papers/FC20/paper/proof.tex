@@ -17,8 +17,8 @@ $k$ blocks are generated in $\state_1$ since $\ledger_2$ and $\ledger_1$ have th
 in $\state_2^P$ for each honest $P\in\activep$. Given that a block in $\ledger_1$ ($\ledger_2$) takes at most $\cg^{-1}$ time slots then we have that $\Delta \leq k \cg^{-1} + k \cg^{-1}$.
 In the moment that a \emph{candidate} block $B^i_{j+k}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j+k}$ is part of $\check \state_1^{P_i}$) then she starts running $\ledger_2$
 using ${B^i}'$ which is computed from $B^i_{j+k}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
-Let $t'$ be the smallest time slot in which $B_{j+k}$ appears in $\check \state_2^{P_i}[t']$
-\nnote{$\state_2^{P_i}[t']$}
+Let $t'$ be the smallest time slot in which $B_{j+k}$ appears in $ \state_2^{P_i}[t']$
+%\nnote{$\state_2^{P_i}[t']$}
  for each $P_i\in\parties$.
 If we take the execution of the protocol from time $t$ and $t'$ this can be seen as a canonical execution of $\ledger_2$ given
 that the parameters of $\ledger_1$ and $\ledger_2$ are the same. The only difference between this and the canonical scenario is
