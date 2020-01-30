@@ -80,7 +80,7 @@ Once in the repl, one can obtain a random trace as follows:
 λ > randomTrace @(IDEATION ShortHash) 100
 ```
 
-### Contributing
+## Contributing
 
 Make sure:
 
