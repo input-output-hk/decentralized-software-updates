@@ -90,5 +90,11 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           buildable = true;
           };
         };
+      benchmarks = {
+        "worst-case-analysis" = {
+          depends = [ (hsPkgs."base" or (buildDepError "base")) ];
+          buildable = true;
+          };
+        };
       };
     } // rec { src = (pkgs.lib).mkDefault ../.././executable-spec; }
