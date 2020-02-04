@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -37,11 +38,11 @@ import           Cardano.Ledger.Spec.STS.Update.Approval.Data
                      (Implementation (Implementation),
                      ImplementationData (ImplementationData),
                      Payload (Reveal, Submit), commit, implAuthor,
-                     implDataSIPHash, implDataVPD, implPayload, implSalt,
-                     sAuthor, sig)
+                     implCodeHash, implDataSIPHash, implDataVPD, implPayload,
+                     implSalt, implURL, sAuthor, sig)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (Confidence (Abstain, Against, For))
+                     (Confidence (Abstain, Against, For), URL (URL))
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (calcCommit)
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (IdeationPayload,
                      SIP (SIP), SIPHash (SIPHash), sipAuthor, sipHash,
@@ -317,7 +318,9 @@ impl0 = Implementation { implAuthor = participantToVKey 71
                        }
   where
     implData = ImplementationData { implDataSIPHash = sipHash sip0
-                                  , implDataVPD = 10
+                                  , implDataVPD     = 10
+                                  , implURL         = URL "foo"
+                                  , implCodeHash    = 48
                                   }
 
 --------------------------------------------------------------------------------

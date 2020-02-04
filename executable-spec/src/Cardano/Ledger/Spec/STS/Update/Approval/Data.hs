@@ -27,7 +27,7 @@ import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState)
 import           Cardano.Ledger.Spec.State.ProposalState (HasVotingPeriod,
                      IsVote, getConfidence, getVoter, getVotingPeriodDuration)
-import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
+import           Cardano.Ledger.Spec.STS.Update.Data (Confidence, URL)
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPData, SIPHash)
 import           Ledger.Core (SlotCount)
@@ -85,10 +85,18 @@ data ImplementationData p =
     -- ^ Reference to the SIP that is being implemented.
   , implDataVPD     :: !SlotCount
     -- ^ Vote period duration for the implementation proposal.
+  , implURL         :: URL
+    -- ^ URL that points to the location where the implementation code can be
+    -- found.
+ , implCodeHash    :: CodeHash
+    -- ^ Hash of the implementation code. The hash of the code 'implURL' points
+    -- to must be the same as this one.
   } deriving (Eq, Show, Generic)
 
 implSIPHash :: Implementation p -> SIPHash p
 implSIPHash = implDataSIPHash . implPayload
+
+type CodeHash = Int -- TODO: we need to define what this will be.
 
 instance HasVotingPeriod (ImplementationData p) where
   getVotingPeriodDuration = implDataVPD

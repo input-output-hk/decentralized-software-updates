@@ -14,6 +14,8 @@ module Cardano.Ledger.Spec.State.ProposalsState
   , votingPeriodEnded
   , votingPeriodHasNotEnded
   , decision
+  , isRevealed
+  , isNotRevealed
   )
 where
 
@@ -74,6 +76,26 @@ revealProposal
 revealProposal currentSlot dMaxVotingPeriods d (ProposalsState proposalStateMap)
   = ProposalsState
   $ Map.insert (hash d) (newProposalState currentSlot dMaxVotingPeriods d) proposalStateMap
+
+-- | Is the proposal revealed.
+isRevealed
+  :: ( Hashable p
+     , HasHash p d
+     )
+  => d
+  -> ProposalsState p d
+  -> Bool
+isRevealed d (ProposalsState proposalStateMap)
+  = Map.member (hash d) proposalStateMap
+
+isNotRevealed
+  :: ( Hashable p
+     , HasHash p d
+     )
+  => d
+  -> ProposalsState p d
+  -> Bool
+isNotRevealed d st = not $ isRevealed d st
 
 -- | Register the vote for the given proposal's hash.
 --

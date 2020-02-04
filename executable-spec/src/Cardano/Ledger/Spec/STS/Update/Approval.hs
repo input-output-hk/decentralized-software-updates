@@ -32,7 +32,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      Signable, VKey, verify)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs,
                      isSIPApproved)
-import           Cardano.Ledger.Spec.State.ProposalsState (revealProposal,
+import           Cardano.Ledger.Spec.State.ProposalsState (revealProposal, isNotRevealed,
                      updateBallot, votingPeriodHasNotEnded, votingPeriodStarted)
 import           Cardano.Ledger.Spec.State.WhenStable (WhenStable)
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data (
@@ -102,6 +102,7 @@ instance ( Hashable p
         (Hash p (ImplementationData p))
         Slot
         (IPSSt p)
+    | ProposalAlreadyRevealed (Implementation p)
     -- ^ No corresponding approved SIP (hash) was found among the approved SIP's.
 
   initialRules = []
@@ -122,6 +123,9 @@ instance ( Hashable p
           -- Check that the corresponding commit is stable.
           calcCommit impl ∈ dom (wsimpls ▷<= currentSlot)
             ?! NoStableAndCommittedImpl impl wsimpls
+          -- Check that this proposal hasn't been revealed before.
+          isNotRevealed (implPayload impl) ipsst
+            ?! ProposalAlreadyRevealed impl
           -- Check whether the referenced SIP in the metadata of the
           -- implementation metadata corresponds to an approved SIP.
           implSIPHash impl `isSIPApproved` apprvsips
