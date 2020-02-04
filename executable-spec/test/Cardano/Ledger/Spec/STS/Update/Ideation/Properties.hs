@@ -13,9 +13,9 @@ import           Cardano.Ledger.Test.Mock (Mock)
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated
   = QC.withMaxSuccess 300
-  $ STS.Gen.onlyValidSignalsAreGenerated @(IDEATION Mock) @() 100 ()
+  $ STS.Gen.onlyValidSignalsAreGenerated @(IDEATION Mock) @() () 100 ()
 
 qc_traceLengthsAreClassified :: QC.Property
 qc_traceLengthsAreClassified
   =  QC.withMaxSuccess 300
-  $ STS.Gen.traceLengthsAreClassified @(IDEATION Mock) 100 10 ()
+  $ STS.Gen.traceLengthsAreClassified @(IDEATION Mock) () 100 10 ()

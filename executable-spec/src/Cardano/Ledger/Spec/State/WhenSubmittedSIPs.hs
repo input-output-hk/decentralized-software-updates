@@ -10,12 +10,13 @@ module Cardano.Ledger.Spec.State.WhenSubmittedSIPs where
 
 import           Data.Map.Strict (Map)
 
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Data
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
 -- | Slot in which a SIP was submitted.
-newtype WhenSubmittedSIPs p = WhenSubmittedSIPs (Map (Data.Commit p) Core.Slot)
+newtype WhenSubmittedSIPs p = WhenSubmittedSIPs (Map (Commit p (Data.SIP p)) Core.Slot)
   deriving stock (Eq, Ord, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)

@@ -17,8 +17,8 @@ import qualified Test.QuickCheck as QC
 import qualified Control.State.Transition.Trace as Trace
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
-import           Ledger.Core (BlockCount, dom, range, size, unBlockCount,
-                     unSlotCount, SlotCount (SlotCount))
+import           Ledger.Core (BlockCount, SlotCount (SlotCount), dom, range,
+                     size, unBlockCount, unSlotCount)
 
 import           Cardano.Ledger.Spec.State.SIPsVoteResults
                      (SIPsVoteResults (SIPsVoteResults))
@@ -30,6 +30,7 @@ import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
 import qualified Cardano.Ledger.Spec.STS.Chain.Transaction as Transaction
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 
 import           Cardano.Ledger.Test.Mock (Mock)
@@ -37,17 +38,17 @@ import           Cardano.Ledger.Test.Mock (Mock)
 qc_onlyValidSignalsAreGenerated :: QC.Property
 qc_onlyValidSignalsAreGenerated
   = QC.withMaxSuccess 1000
-  $ STS.Gen.onlyValidSignalsAreGenerated @(CHAIN Mock) @() 25 ()
+  $ STS.Gen.onlyValidSignalsAreGenerated @(CHAIN Mock) @() () 25 ()
 
 qc_traceLengthsAreClassified :: QC.Property
 qc_traceLengthsAreClassified
   = QC.withMaxSuccess 100
-  $ STS.Gen.traceLengthsAreClassified @(CHAIN Mock) 100 10 ()
+  $ STS.Gen.traceLengthsAreClassified @(CHAIN Mock) () 100 10 ()
 
 qc_revealsAreClassified :: QC.Property
 qc_revealsAreClassified
   = QC.withMaxSuccess 300
-  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
+  $ STS.Gen.forAllTrace @(CHAIN Mock) @() () maxTraceLength ()
   $ \traceSample ->
       STS.Gen.classifySize "Reveals" traceSample lastStateReveals maxTraceLength step
   where
@@ -68,7 +69,7 @@ qc_revealsAreClassified
 relevantCasesAreCovered :: QC.Property
 relevantCasesAreCovered
   = QC.withMaxSuccess 300
-  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
+  $ STS.Gen.forAllTrace @(CHAIN Mock) @() () maxTraceLength ()
   $ \traceSample ->
         (QC..&&.)
           (STS.Gen.classifyTraceLength maxTraceLength 10 traceSample)
@@ -213,7 +214,7 @@ relevantCasesAreCovered
 extraTestsForTestDebugging :: QC.Property
 extraTestsForTestDebugging
   = QC.withMaxSuccess 300
-  $ STS.Gen.forAllTrace @(CHAIN Mock) @() maxTraceLength ()
+  $ STS.Gen.forAllTrace @(CHAIN Mock) @() () maxTraceLength ()
   $ \traceSample ->
       QC.collect (pctUpdatePayload traceSample) $
       QC.tabulate "Pct of Txs with Update Payload" [( show @Int
@@ -346,7 +347,7 @@ tallyOutcomeMap
   -> Word8  -- ^ max number of revoting for No Quorum
   -> Word8  -- ^ max number of revoting for No Majority
   -> Float  -- ^ adversary stake ratio
-  -> Map (Data.SIPHash p) Data.TallyOutcome
+  -> Map (Ideation.Data.SIPHash p) Data.TallyOutcome
 tallyOutcomeMap (SIPsVoteResults vresips) sDist pNoQ pNoM r_a =
   Map.map (\vr -> Tallysip.tallyOutcome vr sDist pNoQ pNoM r_a) vresips
 
@@ -372,19 +373,19 @@ pctSIPsInRevoting tr outc =
         * 100
       else 0
 
-getSIPsInTraceFromLastState :: Trace.Trace (CHAIN Mock) -> [(Data.SIP Mock)]
+getSIPsInTraceFromLastState :: Trace.Trace (CHAIN Mock) -> [(Ideation.Data.SIP Mock)]
 getSIPsInTraceFromLastState tr
   = Trace.lastState tr
   & Chain.subsips
   & range
   & toList
 
-getSIPsInTraceFromSignals :: Trace.Trace (CHAIN Mock) -> [(Data.SIP Mock)]
+getSIPsInTraceFromSignals :: Trace.Trace (CHAIN Mock) -> [(Ideation.Data.SIP Mock)]
 getSIPsInTraceFromSignals tr =
   let sips = foldl' (\tot b ->  tot ++ (sipsInABlock b)) [] blocks
       blocks = Trace.traceSignals Trace.NewestFirst tr
       sipsInABlock = \b -> map (\updPld -> case updPld of
-                                             Update.Ideation (Data.Submit _ sip)
+                                             Update.Ideation (Ideation.Data.Submit _ sip)
                                                -> sip
                                              _ -> error $
                                                    "getSIPsInTraceFromSignals:" ++
@@ -395,7 +396,7 @@ getSIPsInTraceFromSignals tr =
                            $ filter ( -- get sips only from upd payload
                                       \updPld -> case updPld of
                                         Update.Ideation
-                                          (Data.Submit _ _) -> True
+                                          (Ideation.Data.Submit _ _) -> True
                                         _ -> False
                                     )
                            $ concat

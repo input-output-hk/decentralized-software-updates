@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- See Cardano.Ledger.Spec.State.ActiveSIPs
@@ -9,8 +10,9 @@
 
 module Cardano.Ledger.Spec.State.StakeDistribution where
 
-import           Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           Data.Word (Word8)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
@@ -34,6 +36,7 @@ deriving instance (Hashable p) => Monoid (StakeDistribution p)
 -- | Returns the total stake from a stake distribution.
 totalStake :: StakeDistribution p -> Data.Stake
 totalStake (StakeDistribution stakeMap) =
+  -- TODO: we need to check for overflows!
   Map.foldr' (+) (Data.Stake 0) stakeMap
 
 -- | Returns a map showing the percent @[0,100]@ of stake ownership of each
@@ -43,3 +46,20 @@ stakeDistPct
   -> Map (Hash p (VKey p)) Word8
 stakeDistPct stakeDistribution@(StakeDistribution stakeMap) =
   Map.map (\st -> Data.stakePercentRound st $ totalStake stakeDistribution) stakeMap
+
+-- | Return percentage of the stake that the given keys have.
+stakePercentOfKeys
+  :: Ord (Hash p (VKey p))
+  => [Hash p (VKey p)]
+  -> StakeDistribution p
+  -> Word8
+stakePercentOfKeys keys stakeDist@(StakeDistribution stakeMap)
+  = round @Double
+  $ (fromIntegral (totalStake (StakeDistribution keysStakemap))
+     /
+    fromIntegral (totalStake stakeDist)
+    )
+    *
+    100
+  where
+    keysStakemap = Map.restrictKeys stakeMap (Set.fromList keys)

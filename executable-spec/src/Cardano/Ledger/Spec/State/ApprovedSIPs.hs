@@ -9,7 +9,7 @@ import           Data.Set as Set (Set)
 import qualified Data.Set as Set
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Data
 
 
 newtype ApprovedSIPs p = ApprovedSIPs (Set (Data.SIPHash p))

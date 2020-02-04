@@ -14,13 +14,13 @@ import qualified Data.Map.Strict as Map
 import           Data.Word (Word8)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed)
 
-
-newtype SIPsVoteResults p = SIPsVoteResults (Map (Data.SIPHash p) Data.VotingResult)
+newtype SIPsVoteResults p = SIPsVoteResults (Map (Ideation.Data.SIPHash p) Data.VotingResult)
   deriving stock (Eq, Ord, Show)
   deriving newtype (Core.Relation, Semigroup, Monoid, Indexed)
 
@@ -29,7 +29,7 @@ newtype SIPsVoteResults p = SIPsVoteResults (Map (Data.SIPHash p) Data.VotingRes
 -- counter.
 getRevotingCounters
   :: Hashable p
-  => Data.SIPHash p
+  => Ideation.Data.SIPHash p
   -> SIPsVoteResults p
   -> (Word8, Word8)
 getRevotingCounters sipHash (SIPsVoteResults sipHashesToResult) =

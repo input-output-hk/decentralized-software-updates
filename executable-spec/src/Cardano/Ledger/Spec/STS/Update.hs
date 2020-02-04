@@ -32,7 +32,6 @@ import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.State.Participants (Participants)
@@ -40,15 +39,19 @@ import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
+import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
+import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
+import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
+import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
+import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
 
 
 data UPDATE p
-
 
 -- | As we incorporate more phases, like UP (or IMPLEMENTATION), we will be
 -- adding more components to this environment.
@@ -57,6 +60,7 @@ data UPDATE p
 data Env p
   = Env
     { k :: !BlockCount
+    , maxVotingPeriods :: !VotingPeriod
     , currentSlot :: !Slot
     , asips :: !(ActiveSIPs p)
     , participants :: !(Participants p)
@@ -72,8 +76,9 @@ data St p
     , wssips :: !(WhenSubmittedSIPs p)
     , wrsips :: !(WhenRevealedSIPs p)
     , sipdb :: !(RevealedSIPs p)
-    , ballots :: !(Ballot p)
+    , ballots :: !(Ideation.Data.SIPBallot p)
     , implementationSt :: State (IMPLEMENTATION p)
+    , approvalSt :: !(State (APPROVAL p))
     }
   deriving (Show, Generic)
   deriving Semigroup via GenericSemigroup (St p)
@@ -81,24 +86,28 @@ data St p
 
 
 data UpdatePayload p
-  = Ideation (Data.IdeationPayload p)
+  = Ideation (Ideation.Data.IdeationPayload p)
   | Implementation Data.ImplementationPayload
+  | Approval (Approval.Data.Payload p)
   deriving (Show, Generic)
 
 deriving instance ( Typeable p
-                  , HasTypeReps (Data.IdeationPayload p)
+                  , HasTypeReps (Ideation.Data.IdeationPayload p)
+                  , HasTypeReps (Approval.Data.Payload p)
                   ) => HasTypeReps (UpdatePayload p)
 
 instance ( Typeable p
-         , HasTypeReps (Data.IdeationPayload p)
+         , HasTypeReps (Ideation.Data.IdeationPayload p)
+         , HasTypeReps (Approval.Data.Payload p)
          ) => Sized (UpdatePayload p) where
   costsList _
-    =  costsList (undefined :: Data.IdeationPayload p)
+    =  costsList (undefined :: Ideation.Data.IdeationPayload p)
     ++ costsList (undefined :: Data.ImplementationPayload)
 
 instance ( Hashable p
          , HasSigningScheme p
          , STS (IDEATION p)
+         , STS (APPROVAL p)
          ) => STS (UPDATE p) where
 
   type Environment (UPDATE p) = Env p
@@ -108,8 +117,9 @@ instance ( Hashable p
   type Signal (UPDATE p) = UpdatePayload p
 
   data PredicateFailure (UPDATE p)
-    = IdeationsFailure (PredicateFailure (IDEATION p))
-    | ImplementationsFailure (PredicateFailure (IMPLEMENTATION p))
+    = IdeationFailure (PredicateFailure (IDEATION p))
+    | ImplementationFailure (PredicateFailure (IMPLEMENTATION p))
+    | ApprovalFailure (PredicateFailure (APPROVAL p))
     deriving (Eq, Show)
 
   initialRules = []
@@ -117,11 +127,12 @@ instance ( Hashable p
   transitionRules = [
     do
       TRC ( Env { k
+                , maxVotingPeriods
                 , currentSlot
                 , asips
                 , participants
-                , apprvsips
                 , stakeDist
+                , apprvsips
                 }
           , st@St { subsips
                   , wssips
@@ -129,6 +140,7 @@ instance ( Hashable p
                   , sipdb
                   , ballots
                   , implementationSt
+                  , approvalSt
                   }
           , update
           ) <- judgmentContext
@@ -176,13 +188,24 @@ instance ( Hashable p
                   )
             pure $ st { implementationSt = implementationSt' }
 
+        Approval approvalPayload ->
+          do
+            let
+              env = Approval.Env k maxVotingPeriods currentSlot apprvsips
+            approvalSt' <-
+              trans @(APPROVAL p) $ TRC (env, approvalSt, approvalPayload)
+            pure st { approvalSt = approvalSt' }
+
     ]
 
 instance (STS (IDEATION p), STS (UPDATE p)) => Embed (IDEATION p) (UPDATE p) where
-  wrapFailed = IdeationsFailure
+  wrapFailed = IdeationFailure
 
 instance (STS (UPDATE p)) => Embed (IMPLEMENTATION p) (UPDATE p) where
-  wrapFailed = ImplementationsFailure
+  wrapFailed = ImplementationFailure
+
+instance (STS (APPROVAL p), STS (UPDATE p)) => Embed (APPROVAL p) (UPDATE p) where
+  wrapFailed = ApprovalFailure
 
 data UPDATES p
 
@@ -230,7 +253,7 @@ instance ( STS (UPDATES p)
 
   sigGen traceGenEnv env st
     =   traceSignals OldestFirst
-    <$> STS.Gen.traceFrom @(UPDATE p) 10 traceGenEnv env st
+    <$> STS.Gen.traceFrom @(UPDATE p) () 10 traceGenEnv env st
     -- We need to determine what is a realistic number of update
     -- transactions to be expected in a block.
 
@@ -246,6 +269,7 @@ instance ( Hashable p
     env <- STS.Gen.envGen @(IDEATION p) traceGenEnv
     pure $!
       Env { k = Ideation.k env
+          , maxVotingPeriods = 0 -- TODO: define this if we move on with these generators.
           , currentSlot = Ideation.currentSlot env
           , asips = Ideation.asips env
           , participants = Ideation.participants env
@@ -279,3 +303,4 @@ instance ( Hashable p
   shrinkSignal (Ideation ideationPayload) =
     Ideation <$> STS.Gen.shrinkSignal @(IDEATION p) @() ideationPayload
   shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."
+  shrinkSignal (Approval _) = error "Shrinking of APPROVAL signals is not defined yet."

@@ -17,17 +17,24 @@ library
   exposed-modules:     Cardano.Ledger.Generators.QuickCheck
                      , Cardano.Ledger.Spec.Classes.Indexed
                      , Cardano.Ledger.Spec.Classes.Hashable
+                     , Cardano.Ledger.Spec.Classes.HasAuthor
+                     , Cardano.Ledger.Spec.Classes.HasSalt
                      , Cardano.Ledger.Spec.Classes.HasSigningScheme
                      , Cardano.Ledger.Spec.Classes.Sizeable
                      , Cardano.Ledger.Spec.State.ActiveSIPs
                      , Cardano.Ledger.Spec.State.ApprovedSIPs
                      , Cardano.Ledger.Spec.State.Ballot
                      , Cardano.Ledger.Spec.State.Participants
+                     , Cardano.Ledger.Spec.State.ProposalState
+                     , Cardano.Ledger.Spec.State.ProposalsState
                      , Cardano.Ledger.Spec.State.RevealedSIPs
                      , Cardano.Ledger.Spec.State.SIPsVoteResults
                      , Cardano.Ledger.Spec.State.StakeDistribution
                      , Cardano.Ledger.Spec.State.SubmittedSIPs
+                     , Cardano.Ledger.Spec.State.WhenActive
+                     , Cardano.Ledger.Spec.State.WhenEnded
                      , Cardano.Ledger.Spec.State.WhenRevealedSIPs
+                     , Cardano.Ledger.Spec.State.WhenStable
                      , Cardano.Ledger.Spec.State.WhenSubmittedSIPs
                      , Cardano.Ledger.Spec.STS.Chain.Chain
                      , Cardano.Ledger.Spec.STS.Chain.Header
@@ -37,10 +44,15 @@ library
                      , Cardano.Ledger.Spec.STS.Dummy.UTxO
                      , Cardano.Ledger.Spec.STS.Sized
                      , Cardano.Ledger.Spec.STS.Update
+                     , Cardano.Ledger.Spec.STS.Update.Approval
+                     , Cardano.Ledger.Spec.STS.Update.Approval.Data
                      , Cardano.Ledger.Spec.STS.Update.Hupdate
                      , Cardano.Ledger.Spec.STS.Update.Tallysip
+                     , Cardano.Ledger.Spec.STS.Update.TallyImplVotes
                      , Cardano.Ledger.Spec.STS.Update.Data
+                     , Cardano.Ledger.Spec.STS.Update.Data.Commit
                      , Cardano.Ledger.Spec.STS.Update.Ideation
+                     , Cardano.Ledger.Spec.STS.Update.Ideation.Data
                      , Cardano.Ledger.Spec.STS.Update.Implementation
                      , Cardano.Ledger.Spec.STS.Update.Definitions
                      , Cardano.Ledger.Test.Mock
@@ -76,6 +88,8 @@ test-suite ledger-rules-test
                      , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Full.Properties
                      , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Vote.Properties
                      , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance
+                     , Cardano.Ledger.Update.Interface
+                     , Cardano.Ledger.Spec.STS.Update.Approval.UnitTests
   default-language:    Haskell2010
   build-depends:       base
                      , containers

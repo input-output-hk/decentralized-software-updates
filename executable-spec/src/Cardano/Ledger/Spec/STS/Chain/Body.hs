@@ -120,7 +120,7 @@ transactionsGen
   -> QC.Gen [Transaction.Tx p]
 transactionsGen maximumSize env st
   =   fitTransactions maximumSize . traceSignals OldestFirst
-  <$> STS.Gen.traceFrom @(TRANSACTION p) 30 () env st
+  <$> STS.Gen.traceFrom @(TRANSACTION p) () 30 () env st
 
 -- | Return the transactions that fit in the given maximum block size.
 fitTransactions
