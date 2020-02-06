@@ -1,8 +1,9 @@
 \subsubsection{Candidate Protocol.}
 
 Let $\ledger_1$ be the ledger that the parties are running and $\ledger_2$ be a new ledger.
-In our construction we assume that $\ledger_1$ and $\ledger_2$ have the same common-prefix parameter $k$, the same chain-growth parameter $(\cg, s)$ and that $\tcorrupt_1=\tcorrupt_2$. We also assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only it represents a valid genesis block for $\ledger_2$, but it also points to the state of $\ledger_1$ up to the block $B$. \mnote{I think that we should have a section where we discuss how to construct the genesis block and the two ways to construct it (i.e., the one where we condense the state in the genesis block and we lose the old transactions, and the one where we keep everything.)}\nnote{I agree.}
-\mnote{Could you sketch it and then I go over it?}
+In our construction we assume that $\ledger_1$ and $\ledger_2$ have the same common-prefix parameter $k$, the same chain-growth parameter $(\cg, s)$ and that $\tcorrupt_1=\tcorrupt_2$. We also assume that a block $B$ of $\ledger_1$ can be transformed into a \emph{special genesis block} $B'$ for $\ledger_2$. $B'$ is special because not only it represents a valid genesis block for $\ledger_2$, but it also points to the state of $\ledger_1$ up to the block $B$. 
+%\mnote{I think that we should have a section where we discuss how to construct the genesis block and the two ways to construct it (i.e., the one where we condense the state in the genesis block and we lose the old transactions, and the one where we keep everything.)}\nnote{I agree.}
+%\mnote{Could you sketch it and then I go over it?}
 We use this special genesis block to guarantee that: 1) the state of $\ledger_1$ at the end of the activation is moved into the state of the new ledger
 and 2) that we can use a block of $\ledger_1$ to bootstrap $\ledger_2$.
 At a very high level our protocol works as follows. When enough parties have received the command $(\activate,\cdot)$ such that $\asmp_2$ holds,
