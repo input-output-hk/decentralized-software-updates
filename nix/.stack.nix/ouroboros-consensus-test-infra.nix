@@ -39,18 +39,21 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-crypto-class"; version = "2.0.0"; };
+      identifier = {
+        name = "ouroboros-consensus-test-infra";
+        version = "0.1.0.0";
+        };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "operations@iohk.io";
-      author = "IOHK";
+      author = "IOHK Engineering Team";
       homepage = "";
       url = "";
-      synopsis = "Type classes abstracting over cryptography primitives for Cardano";
-      description = "Type classes abstracting over cryptography primitives for Cardano";
+      synopsis = "Infrastructure for testing ouroboros-consensus";
+      description = "";
       buildType = "Simple";
       isLocal = true;
       };
@@ -59,29 +62,46 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."base16-bytestring" or (buildDepError "base16-bytestring"))
+          (hsPkgs."binary" or (buildDepError "binary"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+          (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
+          (hsPkgs."cborg" or (buildDepError "cborg"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (buildDepError "deepseq"))
-          (hsPkgs."memory" or (buildDepError "memory"))
-          (hsPkgs."reflection" or (buildDepError "reflection"))
-          (hsPkgs."vector" or (buildDepError "vector"))
+          (hsPkgs."fgl" or (buildDepError "fgl"))
+          (hsPkgs."generics-sop" or (buildDepError "generics-sop"))
+          (hsPkgs."graphviz" or (buildDepError "graphviz"))
+          (hsPkgs."mtl" or (buildDepError "mtl"))
+          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+          (hsPkgs."quickcheck-state-machine" or (buildDepError "quickcheck-state-machine"))
+          (hsPkgs."random" or (buildDepError "random"))
+          (hsPkgs."serialise" or (buildDepError "serialise"))
+          (hsPkgs."text" or (buildDepError "text"))
+          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."transformers" or (buildDepError "transformers"))
+          (hsPkgs."tree-diff" or (buildDepError "tree-diff"))
+          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+          (hsPkgs."io-sim" or (buildDepError "io-sim"))
+          (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+          (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+          (hsPkgs."ouroboros-network-framework" or (buildDepError "ouroboros-network-framework"))
+          (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
           ];
         buildable = true;
         };
       tests = {
-        "test-crypto" = {
+        "test" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."cborg" or (buildDepError "cborg"))
-            (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
+            (hsPkgs."ouroboros-consensus-test-infra" or (buildDepError "ouroboros-consensus-test-infra"))
             ];
           buildable = true;
           };
@@ -89,9 +109,9 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-base";
-      rev = "474622cfde663730e10e2e0d5de0ed06a867a844";
-      sha256 = "1waqjyp6ycmn8lqrsnb8d14p43645mqknd5m0apb7814s3xd3f07";
+      url = "https://github.com/input-output-hk/ouroboros-network";
+      rev = "eab72b945a7c2c5f05ff8e9822f6066307846f8f";
+      sha256 = "0il9lrbmjjm8s35zw7as0j54njrdjrzcy1i029faj89d0h3kdsfj";
       });
-    postUnpack = "sourceRoot+=/cardano-crypto-class; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/ouroboros-consensus/ouroboros-consensus-test-infra; echo source root reset to \$sourceRoot";
     }

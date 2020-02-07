@@ -42,15 +42,15 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-crypto-class"; version = "2.0.0"; };
-      license = "Apache-2.0";
+      identifier = { name = "cardano-binary-test"; version = "1.3.0"; };
+      license = "MIT";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "Type classes abstracting over cryptography primitives for Cardano";
-      description = "Type classes abstracting over cryptography primitives for Cardano";
+      synopsis = "Test helpers from cardano-binary exposed to other packages";
+      description = "Test helpers from cardano-binary exposed to other packages";
       buildType = "Simple";
       isLocal = true;
       };
@@ -58,33 +58,22 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."base16-bytestring" or (buildDepError "base16-bytestring"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-          (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-          (hsPkgs."deepseq" or (buildDepError "deepseq"))
-          (hsPkgs."memory" or (buildDepError "memory"))
-          (hsPkgs."reflection" or (buildDepError "reflection"))
+          (hsPkgs."cardano-prelude-test" or (buildDepError "cardano-prelude-test"))
+          (hsPkgs."cborg" or (buildDepError "cborg"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."formatting" or (buildDepError "formatting"))
+          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+          (hsPkgs."hspec" or (buildDepError "hspec"))
+          (hsPkgs."pretty-show" or (buildDepError "pretty-show"))
+          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+          (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
+          (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."vector" or (buildDepError "vector"))
           ];
         buildable = true;
-        };
-      tests = {
-        "test-crypto" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."cborg" or (buildDepError "cborg"))
-            (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // {
@@ -93,5 +82,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "474622cfde663730e10e2e0d5de0ed06a867a844";
       sha256 = "1waqjyp6ycmn8lqrsnb8d14p43645mqknd5m0apb7814s3xd3f07";
       });
-    postUnpack = "sourceRoot+=/cardano-crypto-class; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/binary/test; echo source root reset to \$sourceRoot";
     }
