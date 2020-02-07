@@ -1,39 +1,98 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/cb54482c7e3d45f6c1aac490dc937ed835de0333/snapshot.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-prelude/00487726c4bc21b4744e59d913334ebfeac7d68e/snapshot.yaml
 
 packages:
   - executable-spec
   - datil
+  - oddchain
+
+flags:
+  io-sim-classes:
+    asserts: true
+    # Use this to check for thunks.
+    checktvarinvariant: false
+  network-mux:
+    asserts: true
+  ouroboros-network:
+    asserts: true
+  ouroboros-consensus:
+    asserts: true
 
 extra-deps:
-  - git: https://github.com/input-output-hk/cardano-prelude
-    commit: cb54482c7e3d45f6c1aac490dc937ed835de0333
+  - git: https://github.com/input-output-hk/iohk-monitoring-framework
+    commit: dd30455144e11efb435619383ba84ce02aee720d
+    subdirs:
+      - contra-tracer
+      - iohk-monitoring
+      - tracer-transformers
+
+  - git: https://github.com/input-output-hk/ouroboros-network
+    commit: eab72b945a7c2c5f05ff8e9822f6066307846f8f
+    subdirs:
+      - ouroboros-consensus
+      - ouroboros-consensus/ouroboros-consensus-test-infra
+      - io-sim-classes
+      - typed-protocols
+      - ouroboros-network
+      - ouroboros-network-framework
+      - typed-protocols-examples
+      - io-sim
+      - network-mux
 
   - git: https://github.com/input-output-hk/cardano-base
-    commit: 0fcb3a306e96ce36fca75d62792c55ab1de871ea
+    commit: 474622cfde663730e10e2e0d5de0ed06a867a844
     subdirs:
       - binary
+      - binary/test
       - cardano-crypto-class
+      - slotting
 
   - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: d348b506e752c73f7c185a23cca9e397e9d86cb7
+    commit: 6d154d16de01edf2d3ff56303b7a34cb188ed217
     subdirs:
       - byron/semantics/executable-spec
       - byron/ledger/executable-spec
+      - byron/chain/executable-spec
 
-  # Needed for cardano-ledger-specs
-  - Unique-0.4.7.6
-
-  # Needed for goblins, which is in turn needed for cardano-ledger-specs :(
   - git: https://github.com/input-output-hk/goblins
     commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
   - moo-1.2
   - gray-code-0.3.1
 
-  - tasty-hedgehog-1.0.0.1
-  - bimap-0.4.0@sha256:d56712c094d40b4666e30d35fb0dad4058a2b753c5af4574f062237b2f7d5b67,1619
-  - generic-monoid-0.1.0.0@sha256:00d1a7b7ff0890a3e3cba4032be24fe377c26e5e45d73afcacd42c98abb3b7e3,818
+  - git: https://github.com/input-output-hk/cardano-ledger
+    commit: 6d533b72d4a91b756cd8ffe164928d5f5eebcfa0
+    subdirs:
+      - cardano-ledger
+      - cardano-ledger/test
+      - crypto
+      - crypto/test
+
+  - git: https://github.com/input-output-hk/cardano-prelude
+    commit: 00487726c4bc21b4744e59d913334ebfeac7d68e
+    subdirs:
+      - .
+      - test
+
+  # Needed for cardano-ledger-specs
+  - Unique-0.4.7.6
+
   # Needed for lentil
   - terminal-progress-bar-0.4.1@sha256:ba857f3424ddb1034125163a9a384e9baab22e55de968259b046892c20ec0526,2257
+
+  # Needed by ouroboros-network
+  - bimap-0.4.0
+  - binary-0.8.7.0
+  - generic-monoid-0.1.0.0
+  - graphviz-2999.20.0.3
+  - hedgehog-quickcheck-0.1.1
+  - quickcheck-state-machine-0.6.0
+  - splitmix-0.0.2
+  - tasty-hedgehog-1.0.0.1
+  - statistics-linreg-0.3
+  - network-3.1.0.1
+
+  # Needed by iohk-monitoring
+  - time-units-1.0.0
+  - katip-0.8.3.0
 
 nix:
   shell-file: nix/stack-shell.nix
