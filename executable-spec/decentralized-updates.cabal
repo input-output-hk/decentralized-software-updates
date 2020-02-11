@@ -120,12 +120,14 @@ test-suite ledger-rules-test
                        -threaded
                        -rtsopts
 
-benchmark worst-case-analysis
-  hs-source-dirs:      bench/worst-case-analysis
+benchmark update-benchmarking
+  hs-source-dirs:        bench/worst-case-analysis
+                       , bench/micro-benchmarking 
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
-  build-depends:       base
+  build-depends:         base
+                       , decentralized-updates
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
@@ -140,3 +142,5 @@ benchmark worst-case-analysis
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Arithmetic
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Units.TBPS
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Report.LaTeX
+                     -- , Cardano.Ledger.MBenchmarks.Update.Tally.TallyMicroBenchmark
+
