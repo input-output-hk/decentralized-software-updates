@@ -142,5 +142,5 @@ benchmark update-benchmarking
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Arithmetic
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Units.TBPS
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Report.LaTeX
-                     -- , Cardano.Ledger.MBenchmarks.Update.Tally.TallyMicroBenchmark
+                     , Cardano.Ledger.MBenchmarks.Update.Tally.TallyMicroBenchmark
 
