@@ -14,6 +14,10 @@ main = do
 				                      , Cr.bench "10"   $ Cr.whnf runTally (BenchmarkParams 10 10)
 				                      , Cr.bench "100"  $ Cr.whnf runTally (BenchmarkParams 100 10)
 				                      , Cr.bench "1000" $ Cr.whnf runTally (BenchmarkParams 1000 10)
+				                      , Cr.bench "10000" $ Cr.whnf runTally (BenchmarkParams 10000 10)
+				                      , Cr.bench "100000" $ Cr.whnf runTally (BenchmarkParams 100000 10)
+				                      , Cr.bench "1000000" $ Cr.whnf runTally (BenchmarkParams 1000000 10)
+				                      , Cr.bench "10000000" $ Cr.whnf runTally (BenchmarkParams 10000000 10)
 				                      ]
   				 ]
 
