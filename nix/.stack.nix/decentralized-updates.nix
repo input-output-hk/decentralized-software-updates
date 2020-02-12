@@ -91,8 +91,15 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           };
         };
       benchmarks = {
-        "worst-case-analysis" = {
-          depends = [ (hsPkgs."base" or (buildDepError "base")) ];
+        "update-benchmarking" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
+            (hsPkgs."criterion" or (buildDepError "criterion"))
+            ];
           buildable = true;
           };
         };
