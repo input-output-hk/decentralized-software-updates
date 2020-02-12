@@ -10,7 +10,7 @@
 -- (improvement, implementation, etc).
 --
 module Cardano.Ledger.Spec.State.ProposalState
-  ( ProposalState (decision)
+  ( ProposalState (..)
   , tally
   , HasVotingPeriod
   , getVotingPeriodDuration

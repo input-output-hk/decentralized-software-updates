@@ -6,7 +6,7 @@
 -- | Information about different proposals in the update system.
 --
 module Cardano.Ledger.Spec.State.ProposalsState
-  ( ProposalsState
+  ( ProposalsState (..)
   , tally
   , revealProposal
   , updateBallot

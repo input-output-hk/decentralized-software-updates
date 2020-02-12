@@ -128,6 +128,9 @@ benchmark update-benchmarking
   default-language:    Haskell2010
   build-depends:         base
                        , decentralized-updates
+                       , containers
+                       , cs-ledger
+                       , cardano-crypto-class
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
