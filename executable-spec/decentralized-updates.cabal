@@ -131,6 +131,7 @@ benchmark update-benchmarking
                        , containers
                        , cs-ledger
                        , cardano-crypto-class
+                       , criterion
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
