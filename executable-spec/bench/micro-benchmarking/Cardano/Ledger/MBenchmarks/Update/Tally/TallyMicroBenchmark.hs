@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.MBenchmarks.Update.Tally.TallyMicroBenchmark where
 
@@ -37,28 +39,33 @@ data BenchmarkParams =
   }
   deriving (Show, Eq)
 
+data BenchmarkData p d = 
+    BenchmarkData
+    { k :: !BlockCount
+    , currentSlot :: !Slot
+    , stakeDist :: !(StakeDistribution p)
+    , r_a :: !Float
+    , propState :: !(ProposalsState p d)
+    }
+    deriving (Show)
 
-type TallyResult = [Decision]
+deriving instance ( Eq (StakeDistribution p)
+                  , Hashable p
+                  ) 
+                  => Eq (BenchmarkData p d)                
 
--- | Run the tally benchmark
-benchmarkTally = undefined
+type TallyResults = [Decision]
 
--- | Get number of participants and run the tally
-runTally :: BenchmarkParams -> TallyResult
-runTally params = getDecisions $ tally 
-                                    k 
-                                    currentSlot 
-                                    (stakeDist $ fromIntegral $ participants params) 
-                                    r_a 
-                                    (createProposalsStateMap params currentSlot)
+
+createBenchmarkData :: BenchmarkParams -> BenchmarkData Mock Word
+createBenchmarkData params = 
+    BenchmarkData
+        k
+        currentSlot
+        (stakeDist $ fromIntegral $ participants params) 
+        r_a 
+        (createProposalsStateMap params currentSlot)
     where
-        -- create final list of all decisions
-        getDecisions (ProposalsState proposalsMap) = foldr 
-                                                        (\(_, pState) accum ->  
-                                                            decision pState : accum 
-                                                        ) 
-                                                        [] 
-                                                   $ Map.toList proposalsMap
         k = BlockCount 2 -- very small to ensure stability
 
         currentSlot = Slot 1000 -- extremely large to ensure stability of voting period end
@@ -92,7 +99,25 @@ runTally params = getDecisions $ tally
                         createBallotMap bp = Map.fromList listOfBallots 
                             where
                                 listOfBallots = zip  (createListofHashVKeys (fromIntegral $ participants bp))
-                                                     (take (fromIntegral $ participants bp) $ repeat For)
+                                                     (replicate (fromIntegral $ participants bp) For)
+
+
+-- | Get number of participants and run the tally
+runTally :: BenchmarkData Mock Word -> TallyResults
+runTally bdata = getDecisions $ tally 
+                                    (k bdata)
+                                    (currentSlot bdata)
+                                    (stakeDist bdata) 
+                                    (r_a bdata)
+                                    (propState bdata)
+    where
+        -- create final list of all decisions
+        getDecisions (ProposalsState proposalsMap) = foldr 
+                                                        (\(_, pState) accum ->  
+                                                            decision pState : accum 
+                                                        ) 
+                                                        [] 
+                                                   $ Map.toList proposalsMap
                                     
                                         
                                                      
