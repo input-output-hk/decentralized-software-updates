@@ -137,7 +137,7 @@ benchmark update-benchmarking
                        -Wincomplete-record-updates
                        -Wincomplete-uni-patterns
                        -Wredundant-constraints
-                       "-with-rtsopts=-K1m -M15m"
+--                       "-with-rtsopts=-K1m -M15m"
                        -threaded
                        -rtsopts
   other-modules:       Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis
