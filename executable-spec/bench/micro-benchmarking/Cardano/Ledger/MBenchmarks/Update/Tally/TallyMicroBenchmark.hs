@@ -3,11 +3,15 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Cardano.Ledger.MBenchmarks.Update.Tally.TallyMicroBenchmark where
 
 import            Data.List (foldr, zip, repeat, take, map)
 import qualified  Data.Map.Strict as Map
+import qualified  Control.DeepSeq as Deep
+import            GHC.Generics (Generic)
 
 import           Ledger.Core (BlockCount (BlockCount), Slot (Slot),
                      SlotCount (SlotCount), (*.), (+.))
@@ -47,7 +51,13 @@ data BenchmarkData p d =
     , r_a :: !Float
     , propState :: !(ProposalsState p d)
     }
-    deriving (Show)
+    deriving (Show, Generic)
+
+deriving instance ( Deep.NFData (StakeDistribution p)
+                  , Deep.NFData (ProposalsState p d)
+                  , Deep.NFData BlockCount
+                  , Deep.NFData Slot
+                  ) => Deep.NFData (BenchmarkData p d)
 
 deriving instance ( Eq (StakeDistribution p)
                   , Hashable p

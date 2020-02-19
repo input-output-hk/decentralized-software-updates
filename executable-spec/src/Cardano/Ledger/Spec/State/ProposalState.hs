@@ -5,6 +5,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 -- | Information about the state of a proposal of the update-system
 -- (improvement, implementation, etc).
@@ -34,6 +36,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
+import qualified  Control.DeepSeq as Deep
 
 import           Ledger.Core (BlockCount (BlockCount), Slot,
                      SlotCount (SlotCount), (*.), (+.))
@@ -71,10 +74,11 @@ deriving instance Hashable p => Show (ProposalState p)
 
 -- | A voting period number.
 newtype VotingPeriod = VotingPeriod { unVotingPeriod :: Word8 }
-  deriving (Eq, Show, Generic, Num, Ord)
+  deriving stock (Eq, Show, Generic, Ord)
+  deriving newtype (Num)
 
 data Decision = Rejected | NoQuorum | Expired | Accepted | Undecided
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Deep.NFData)
 
 class HasVotingPeriod d where
   getVotingPeriodDuration :: d -> SlotCount

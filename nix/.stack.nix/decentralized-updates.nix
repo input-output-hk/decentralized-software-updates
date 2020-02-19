@@ -68,6 +68,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
           (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+          (hsPkgs."deepseq" or (buildDepError "deepseq"))
           ];
         buildable = true;
         };
@@ -85,6 +86,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
             (hsPkgs."small-steps" or (buildDepError "small-steps"))
+            (hsPkgs."deepseq" or (buildDepError "deepseq"))
             (hsPkgs."datil" or (buildDepError "datil"))
             ];
           buildable = true;
@@ -99,6 +101,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
             (hsPkgs."criterion" or (buildDepError "criterion"))
+            (hsPkgs."deepseq" or (buildDepError "deepseq"))
             ];
           buildable = true;
           };

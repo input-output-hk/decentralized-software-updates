@@ -69,6 +69,7 @@ library
                      , cardano-crypto-class
                      , small-steps
                      , cs-ledger
+                     , deepseq
   default-language:    Haskell2010
   ghc-options:        -Wall
                       -Wcompat
@@ -104,8 +105,9 @@ test-suite ledger-rules-test
                      , decentralized-updates
                      , cs-ledger
                      , small-steps
+                     , deepseq
                      -- Internal libraries
-                     , datil
+                     , datil                     
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
@@ -132,6 +134,7 @@ benchmark update-benchmarking
                        , cs-ledger
                        , cardano-crypto-class
                        , criterion
+                       , deepseq
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
