@@ -47,7 +47,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
                      stakePercentOfKeys)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (Confidence (Abstain, Against, For))
+                     (Confidence (Abstain, Against, For), Stake)
 import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 data ProposalState p =
@@ -92,13 +92,13 @@ tally
   :: Ord (Hash p (VKey p))
   => BlockCount
   -> Slot
-  -> StakeDistribution p
+  -> (StakeDistribution p, Stake)
   -> Float
   -> ProposalState p
   -> ProposalState p
 tally k
       currentSlot
-      stakeDistribution
+      (stakeDistribution, totStake)
       adversarialStakeRatio
       (ps@ProposalState
         { votingPeriod
@@ -108,7 +108,7 @@ tally k
         })
   =
   if decision == Undecided && votingPeriodEnd k ps +. 2 *. k  <= currentSlot
-    then ps { decision     = tallyResult
+    then ps { decision     = tallyResult 
 
             , votingPeriod = if tallyResult /= Expired
                                 then votingPeriod + 1
@@ -120,9 +120,9 @@ tally k
   where
     tallyResult
       =   fromMaybe expiredOrUndecided
-      $   tallyStake For     Accepted ballot stakeDistribution adversarialStakeRatio
-      <|> tallyStake Against Rejected ballot stakeDistribution adversarialStakeRatio
-      <|> tallyStake Abstain NoQuorum ballot stakeDistribution adversarialStakeRatio
+      $   tallyStake For     Accepted ballot (stakeDistribution, totStake) adversarialStakeRatio
+      <|> tallyStake Against Rejected ballot (stakeDistribution, totStake) adversarialStakeRatio
+      <|> tallyStake Abstain NoQuorum ballot (stakeDistribution, totStake) adversarialStakeRatio
       where
         expiredOrUndecided =
           if maxVotingPeriods <= votingPeriod
@@ -134,11 +134,11 @@ tallyStake
   => Confidence
   -> Decision
   -> Map (Hash p (VKey p)) Confidence
-  -> StakeDistribution p
+  -> (StakeDistribution p, Stake)
   -> Float
   -> Maybe Decision
-tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
-  if vThreshold adversarialStakeRatio < stakePercentOfKeys votingKeys stakeDistribution
+tallyStake confidence result ballot (stakeDistribution, totStake) adversarialStakeRatio =
+  if vThreshold adversarialStakeRatio < stakePercentOfKeys votingKeys (stakeDistribution, totStake)
   then Just result
   else Nothing
   where

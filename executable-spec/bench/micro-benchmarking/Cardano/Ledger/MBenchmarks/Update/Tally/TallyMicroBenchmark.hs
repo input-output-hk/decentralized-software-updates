@@ -26,7 +26,7 @@ import            Cardano.Ledger.Spec.State.ProposalState ( ProposalState (Propo
                                                           )
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For), Stake (Stake))
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution (StakeDistribution))                                          
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution (StakeDistribution), totalStake)                                          
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
@@ -47,7 +47,7 @@ data BenchmarkData p d =
     BenchmarkData
     { k :: !BlockCount
     , currentSlot :: !Slot
-    , stakeDist :: !(StakeDistribution p)
+    , stakeDist :: !(StakeDistribution p, Stake) -- ^ Precompute the total stake
     , r_a :: !Float
     , propState :: !(ProposalsState p d)
     }
@@ -57,6 +57,7 @@ deriving instance ( Deep.NFData (StakeDistribution p)
                   , Deep.NFData (ProposalsState p d)
                   , Deep.NFData BlockCount
                   , Deep.NFData Slot
+                  , Deep.NFData Stake
                   ) => Deep.NFData (BenchmarkData p d)
 
 deriving instance ( Eq (StakeDistribution p)
@@ -83,9 +84,12 @@ createBenchmarkData params =
         createListofHashVKeys pts = map (hash . VerKeyMockDSIGN) [1 .. pts]
 
         -- uniform stake distribution with a stake of 1 for each stakeholder
-        stakeDist ptcnts = StakeDistribution $ Map.fromList 
-                                            $ zip (createListofHashVKeys ptcnts) 
-                                                  (map (Stake) $ replicate ptcnts 1)
+        stakeDist ptcnts = 
+            let sd = StakeDistribution 
+                   $ Map.fromList 
+                   $ zip (createListofHashVKeys ptcnts) 
+                         (map (Stake) $ replicate ptcnts 1)
+            in (sd, totalStake sd)
 
         r_a = 0.49 -- adversary ratio
 
