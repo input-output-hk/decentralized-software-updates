@@ -82,8 +82,7 @@ mkIState InitParams {k, initStakeDist, r_a, currentSlot} =
 
 elaborateStakeDist :: StakeDistribution -> STS.StakeDistribution.StakeDistribution Mock
 elaborateStakeDist (StakeDistribution stakeMap)
-  =  STS.StakeDistribution.StakeDistribution
-  $ Map.fromList
+  = STS.StakeDistribution.fromList
   $ fmap (first participantToKeyHash)
   $ Map.toList stakeMap
   where

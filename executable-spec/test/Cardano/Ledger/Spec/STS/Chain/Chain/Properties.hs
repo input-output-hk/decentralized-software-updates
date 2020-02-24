@@ -22,8 +22,7 @@ import           Ledger.Core (BlockCount, SlotCount (SlotCount), dom, range,
 
 import           Cardano.Ledger.Spec.State.SIPsVoteResults
                      (SIPsVoteResults (SIPsVoteResults))
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     stakeDistPct)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain

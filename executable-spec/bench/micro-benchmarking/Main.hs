@@ -25,15 +25,15 @@ main = do
       !tallyData7 =
         createTallyData constants (NumberOfParticipants 1000000) (NumberOfConcurrentUPs 10)
   print $ runTally constants tallyData3
-  Cr.defaultMain
-    [ Cr.bgroup "tally" [ Cr.bench "1e2" $ Cr.whnf allApproved tallyData2
-                        , Cr.bench "1e3" $ Cr.whnf allApproved tallyData3
-                        , Cr.bench "1e4" $ Cr.whnf allApproved tallyData4
-                        , Cr.bench "1e5" $ Cr.whnf allApproved tallyData5
-                        , Cr.bench "1e6" $ Cr.whnf allApproved tallyData6
-                        , Cr.bench "1e7" $ Cr.whnf allApproved tallyData7
-                        ]
-    ]
+  -- Cr.defaultMain
+  --   [ Cr.bgroup "tally" [ Cr.bench "1e2" $ Cr.whnf allApproved tallyData2
+  --                       , Cr.bench "1e3" $ Cr.whnf allApproved tallyData3
+  --                       , Cr.bench "1e4" $ Cr.whnf allApproved tallyData4
+  --                       , Cr.bench "1e5" $ Cr.whnf allApproved tallyData5
+  --                       , Cr.bench "1e6" $ Cr.whnf allApproved tallyData6
+  --                       , Cr.bench "1e7" $ Cr.whnf allApproved tallyData7
+  --                       ]
+  --   ]
   where
     !constants =
       BenchmarkConstants
