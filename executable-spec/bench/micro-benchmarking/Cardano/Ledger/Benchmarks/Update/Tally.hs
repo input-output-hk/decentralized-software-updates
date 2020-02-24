@@ -8,19 +8,34 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Benchmarks.Update.Tally where
 
 import qualified Control.DeepSeq as Deep
+import           Data.Either (isRight)
 import           Data.List (foldr, map, repeat, take, zip)
 import           Data.List (foldl')
 import qualified Data.Map.Strict as Map
+import           Data.Serialize (encode)
 import           GHC.Generics (Generic)
 
-import           Cardano.Binary (ToCBOR)
+import qualified Codec.CBOR.Write as CBOR.Write
+import qualified Crypto.Hash as Crypto
+import qualified Data.ByteString.Builder as Builder
+import qualified Data.ByteString.Lazy as BSL
+
+import           Cardano.Binary (ToCBOR, toCBOR)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
 import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
                      VerKeyDSIGN (VerKeyMockDSIGN))
+import qualified Cardano.Crypto.DSIGN.Mock as Crypto.Mock
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     SKey, Signable, Signature, VKey, sign, verify)
 import           Ledger.Core (BlockCount (BlockCount), Slot (Slot),
                      SlotCount (SlotCount), (*.), (+.))
 
@@ -57,10 +72,10 @@ data TallyData p d =
   , proposals      :: ![Proposal]
   -- ^ Update proposals that are active at the same time. We assume their voting
   -- period overlaps exactly, which is the worst case.
-  , proposalHashes :: ![Hash Mock Proposal]
+  , proposalHashes :: ![Hash BenchCrypto Proposal]
   -- ^ Proposal hashes. These must correspond to 'proposals'. We use this to
   -- avoid computing hashes when getting the results of the tally.
-  , participants   :: ![VKey Mock]
+  , participants   :: ![VKey BenchCrypto]
   }
   deriving (Show, Generic)
 
@@ -82,11 +97,11 @@ benchmarksVotingPeriodDuration = 1
 
 data Vote =
   Vote
-  { issuer     :: VKey Mock
+  { issuer     :: VKey BenchCrypto
   , confidence :: Confidence
   } deriving (Eq, Show)
 
-instance IsVote Mock Vote where
+instance IsVote BenchCrypto Vote where
   getVoter = issuer
 
   getConfidence = confidence
@@ -100,8 +115,8 @@ deriving instance ( Eq (StakeDistribution p)
 -- parameters.
 revealProposals
   :: BenchmarkConstants
-  -> TallyData Mock Proposal
-  -> ProposalsState Mock Proposal
+  -> TallyData BenchCrypto Proposal
+  -> ProposalsState BenchCrypto Proposal
 revealProposals BenchmarkConstants { revelationSlot } TallyData { proposals } =
   foldl' reveal mempty proposals
   where
@@ -111,9 +126,9 @@ revealProposals BenchmarkConstants { revelationSlot } TallyData { proposals } =
 
 -- | Vote on all the proposals in the state.
 voteOnProposals
-  :: TallyData Mock Proposal
-  -> ProposalsState Mock Proposal
-  -> ProposalsState Mock Proposal
+  :: TallyData BenchCrypto Proposal
+  -> ProposalsState BenchCrypto Proposal
+  -> ProposalsState BenchCrypto Proposal
 voteOnProposals TallyData {participants, proposals} st =
   foldl' voteOnProposal st proposalsHashes
   where
@@ -126,7 +141,7 @@ voteOnProposals TallyData {participants, proposals} st =
 -- | Get number of participants and run the tally
 runTally
   :: BenchmarkConstants
-  -> (TallyData Mock Proposal, ProposalsState Mock Proposal)
+  -> (TallyData BenchCrypto Proposal, ProposalsState BenchCrypto Proposal)
   -> [Decision]
 runTally
   BenchmarkConstants { k, r_a, revelationSlot }
@@ -152,7 +167,7 @@ createTallyData
   :: BenchmarkConstants
   -> NumberOfParticipants
   -> NumberOfConcurrentUPs
-  -> (TallyData Mock Proposal, ProposalsState Mock Proposal)
+  -> (TallyData BenchCrypto Proposal, ProposalsState BenchCrypto Proposal)
 createTallyData
   constants
   (NumberOfParticipants numOfParticipants)
@@ -162,21 +177,57 @@ createTallyData
   where
     tallyData =
       TallyData
-      { stakeDist      = mkStakeDist participantsHashes
-      , proposals      = proposals'
-      , proposalHashes = hash <$> proposals'
-      , participants   = participants'
+      { stakeDist       = mkStakeDist participantsHashes
+      , proposals       = proposals'
+      , proposalHashes  = hash <$> proposals'
+      , participants    = participants'
       }
-    proposals'         = mkProposal <$> [1.. numOfConcurrentUPs]
-    proposalsState     = voteOnProposals tallyData
-                       $ revealProposals constants tallyData
-    participants'      = VerKeyMockDSIGN <$> [1 .. fromIntegral numOfParticipants]
-    participantsHashes = hash <$> participants'
+    proposals'          = mkProposal <$> [1.. numOfConcurrentUPs]
+    proposalsState      = voteOnProposals tallyData
+                        $ revealProposals constants tallyData
+    participants'       = VerKeyMockDSIGN <$> [1 .. fromIntegral numOfParticipants]
+    !participantsHashes = hash <$> participants'
 
 
 -- | Uniform stake distribution with a stake of 1 for each stakeholder.
-mkStakeDist :: [Hash Mock (VKey Mock)] -> StakeDistribution Mock
+mkStakeDist :: [Hash BenchCrypto (VKey BenchCrypto)] -> StakeDistribution BenchCrypto
 mkStakeDist participants
   = fromList
   $ zip participants
         (repeat (Stake 1))
+
+--------------------------------------------------------------------------------
+-- Hashing, signing, and verification algorithms to be used in the benchmarks
+--------------------------------------------------------------------------------
+
+data BenchCrypto
+
+instance Hashable BenchCrypto where
+
+  newtype Hash BenchCrypto a = BenchHash (Crypto.Digest Crypto.Blake2b_256)
+    deriving (Eq, Ord, Show, ToCBOR)
+
+  type HasHash BenchCrypto = ToCBOR
+
+  hash = BenchHash
+       . Crypto.hash
+       . BSL.toStrict
+       . Builder.toLazyByteString
+       . CBOR.Write.toBuilder
+       . toCBOR
+
+instance HasSigningScheme BenchCrypto where
+
+  newtype Signature BenchCrypto a = BenchCryptoSignature (SignedDSIGN MockDSIGN a)
+    deriving (Eq, Show)
+
+  type VKey BenchCrypto = Crypto.Mock.VerKeyDSIGN MockDSIGN
+
+  type SKey BenchCrypto = Crypto.Mock.SignKeyDSIGN MockDSIGN
+
+  type Signable BenchCrypto = Crypto.DSIGN.Signable MockDSIGN
+
+  sign a skey = BenchCryptoSignature $ Crypto.Mock.mockSigned a skey
+
+  verify vkey a (BenchCryptoSignature sig) =
+    isRight $ Crypto.DSIGN.verifySignedDSIGN @MockDSIGN () vkey a sig
