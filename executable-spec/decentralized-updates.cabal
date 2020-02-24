@@ -127,7 +127,7 @@ benchmark worst-case-analysis
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
-  build-depends:         base
+  build-depends:       base
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
@@ -149,20 +149,20 @@ benchmark update-benchmarking
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
-  build-depends:         base
-                       , cereal
-                       , containers
-                       , criterion
-                       , cryptonite
-                       , deepseq
+  build-depends:       base
+                     , cereal
+                     , containers
+                     , criterion
+                     , cryptonite
+                     , deepseq
                        -- Dependencies needed for defining the bench hashing
-                       , cborg
-                       , bytestring
+                     , cborg
+                     , bytestring
                        -- Cardano deps
-                       , cs-ledger
-                       , cardano-binary
-                       , cardano-crypto-class
-                       , decentralized-updates
+                     , cs-ledger
+                     , cardano-binary
+                     , cardano-crypto-class
+                     , decentralized-updates
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
