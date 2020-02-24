@@ -128,18 +128,20 @@ benchmark update-benchmarking
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
   build-depends:         base
-                       , decentralized-updates
                        , containers
-                       , cs-ledger
-                       , cardano-crypto-class
                        , criterion
                        , deepseq
+                       -- Cardano deps
+                       , cs-ledger
+                       , cardano-binary
+                       , cardano-crypto-class
+                       , decentralized-updates
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
                        -Wincomplete-uni-patterns
                        -Wredundant-constraints
-                       "-with-rtsopts=-K1m -M500m"
+                       "-with-rtsopts=-K1m -M4500m"
                        -threaded
                        -rtsopts
   other-modules:       Cardano.Ledger.Benchmarks.Update.Tally

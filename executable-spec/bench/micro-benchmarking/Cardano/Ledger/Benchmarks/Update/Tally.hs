@@ -1,8 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -10,9 +14,11 @@ module Cardano.Ledger.Benchmarks.Update.Tally where
 
 import qualified Control.DeepSeq as Deep
 import           Data.List (foldr, map, repeat, take, zip)
+import           Data.List (foldl')
 import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
 
+import           Cardano.Binary (ToCBOR)
 import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
                      VerKeyDSIGN (VerKeyMockDSIGN))
 import           Ledger.Core (BlockCount (BlockCount), Slot (Slot),
@@ -21,11 +27,11 @@ import           Ledger.Core (BlockCount (BlockCount), Slot (Slot),
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
-import           Cardano.Ledger.Spec.State.ProposalsState
-                     (ProposalsState (ProposalsState), tally)
+import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState,
+                     decision, revealProposal, tally, updateBallot)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Accepted, Expired, NoQuorum, Rejected, Undecided),
-                     ProposalState (ProposalState),
-                     VotingPeriod (VotingPeriod), decision)
+                     HasVotingPeriod, IsVote, VotingPeriod (VotingPeriod),
+                     getConfidence, getVoter, getVotingPeriodDuration)
 import           Cardano.Ledger.Spec.State.StakeDistribution
                      (StakeDistribution (StakeDistribution), totalStake)
 import           Cardano.Ledger.Spec.STS.Update.Data
@@ -33,102 +39,167 @@ import           Cardano.Ledger.Spec.STS.Update.Data
 import           Cardano.Ledger.Test.Mock (Mock)
 
 
-data BenchmarkParams =
-  BenchmarkParams
-  { participants   :: Word
-  -- ^ Number of participants.
-  , concurrentSIPs :: Word
-  -- ^ SIP's that are active at the same time. We assume their voting period
-  -- overlaps exactly, which is the worst case.
+data BenchmarkConstants =
+  BenchmarkConstants
+  { k                :: !BlockCount
+  -- ^ Chain stability parameter.
+  , r_a              :: !Float
+  -- ^ Adversarial stake ratio.
+  , revelationSlot   :: !Slot
+  -- ^ Slot at which __all__ proposals were registered.
   }
   deriving (Show, Eq)
 
-data BenchmarkData p d =
-    BenchmarkData
-    { k :: !BlockCount
-    , currentSlot :: !Slot
-    , stakeDist :: !(StakeDistribution p, Stake) -- ^ Precompute the total stake
-    , r_a :: !Float
-    , propState :: !(ProposalsState p d)
-    }
-    deriving (Show, Generic)
+-- | Data required for performing tallying the votes.
+data TallyData p d =
+  TallyData
+  { stakeDist      :: !(StakeDistribution p)
+  , proposals      :: ![Proposal]
+  -- ^ Update proposals that are active at the same time. We assume their voting
+  -- period overlaps exactly, which is the worst case.
+  , proposalHashes :: ![Hash Mock Proposal]
+  -- ^ Proposal hashes. These must correspond to 'proposals'. We use this to
+  -- avoid computing hashes when getting the results of the tally.
+  , participants   :: ![VKey Mock]
+  }
+  deriving (Show, Generic)
 
-deriving instance ( Deep.NFData (StakeDistribution p)
-                  , Deep.NFData (ProposalsState p d)
-                  , Deep.NFData BlockCount
-                  , Deep.NFData Slot
-                  , Deep.NFData Stake
-                  ) => Deep.NFData (BenchmarkData p d)
+-- | Type of proposals we're voting on in the benchmarks
+newtype Proposal = Proposal Word
+  deriving stock (Show, Eq, Generic)
+  deriving newtype (ToCBOR, Deep.NFData)
+
+mkProposal :: Word -> Proposal
+mkProposal = Proposal
+
+instance HasVotingPeriod Proposal where
+  -- We assume all proposals to last for 1 slot.
+  getVotingPeriodDuration = const benchmarksVotingPeriodDuration
+
+-- | Voting period duration that is used throughout the module.
+benchmarksVotingPeriodDuration :: SlotCount
+benchmarksVotingPeriodDuration = 1
+
+data Vote =
+  Vote
+  { issuer     :: VKey Mock
+  , confidence :: Confidence
+  } deriving (Eq, Show)
+
+instance IsVote Mock Vote where
+  getVoter = issuer
+
+  getConfidence = confidence
 
 deriving instance ( Eq (StakeDistribution p)
                   , Hashable p
                   )
-                  => Eq (BenchmarkData p d)
+                  => Eq (TallyData p d)
 
-type TallyResults = [Decision]
+-- type TallyResults = [Decision]
 
+-- createTallyData :: BenchmarkParams -> TallyData Mock Proposal
+-- createTallyData params =
+--   TallyData
+--     k
+--     currentSlot
+--     (mkStakeDist $ participantHashes)
+--     r_a
+--     (createProposalsStateMap params currentSlot)
+--   where
+--     k = BlockCount 2 -- very small to ensure stability
 
-createBenchmarkData :: BenchmarkParams -> BenchmarkData Mock Word
-createBenchmarkData params =
-    BenchmarkData
-        k
-        currentSlot
-        (stakeDist $ fromIntegral $ participants params)
-        r_a
-        (createProposalsStateMap params currentSlot)
-    where
-        k = BlockCount 2 -- very small to ensure stability
+--     currentSlot = Slot 1000 -- extremely large to ensure stability of voting period end
 
-        currentSlot = Slot 1000 -- extremely large to ensure stability of voting period end
+--     r_a = 0.49 -- adversary ratio
 
-        createListofHashVKeys pts = map (hash . VerKeyMockDSIGN) [1 .. pts]
+--     participantHashes = createListofHashVKeys $ fromIntegral $ participants params
 
-        -- uniform stake distribution with a stake of 1 for each stakeholder
-        stakeDist ptcnts =
-            let sd = StakeDistribution
-                   $ Map.fromList
-                   $ zip (createListofHashVKeys ptcnts)
-                         (map (Stake) $ replicate ptcnts 1)
-            in (sd, totalStake sd)
+createListofHashVKeys :: Int -> [Hash Mock (VKey Mock)]
+createListofHashVKeys pts = map (hash . VerKeyMockDSIGN) [1 .. pts]
 
-        r_a = 0.49 -- adversary ratio
+-- | Simulate the revelation of the number of proposals given be the benchmark
+-- parameters.
+revealProposals
+  :: BenchmarkConstants
+  -> TallyData Mock Proposal
+  -> ProposalsState Mock Proposal
+revealProposals BenchmarkConstants { revelationSlot } TallyData { proposals } =
+  foldl' reveal mempty proposals
+  where
+   -- For the purposes of benchmarking the tally process we only need a single
+   -- voting period.
+    reveal st i = revealProposal revelationSlot (VotingPeriod 1) i st
 
-        createProposalsStateMap :: BenchmarkParams -> Slot -> ProposalsState Mock Word
-        createProposalsStateMap bps currSlot = ProposalsState
-                                $ Map.fromList
-                                $ foldr (\i accum -> (hash i, createProposalState bps currSlot) : accum)
-                                        []
-                                        ([1 .. (concurrentSIPs bps)])
-            where
-                createProposalState :: BenchmarkParams -> Slot -> ProposalState Mock
-                createProposalState bparams currSlot =
-                    ProposalState
-                        (Slot 1)  -- Revealed slot - extremely small to ensure stability of voting period end
-                        (SlotCount 1) -- Voting Period Duration - likewise
-                        (VotingPeriod 1) -- current voting period
-                        (VotingPeriod 1)  -- max voting periods allowed
-                        (createBallotMap bparams)
-                        Undecided -- to enable tally
-                    where
-                        createBallotMap bp = Map.fromList listOfBallots
-                            where
-                                listOfBallots = zip  (createListofHashVKeys (fromIntegral $ participants bp))
-                                                     (replicate (fromIntegral $ participants bp) For)
-
+-- | Vote on all the proposals in the state.
+voteOnProposals
+  :: TallyData Mock Proposal
+  -> ProposalsState Mock Proposal
+  -> ProposalsState Mock Proposal
+voteOnProposals TallyData {participants, proposals} st =
+  foldl' voteOnProposal st proposalsHashes
+  where
+    voteOnProposal st' hp   =
+      foldl' vote st' participants
+      where
+        vote st'' who = updateBallot hp (Vote who For) st''
+    proposalsHashes = fmap hash proposals
 
 -- | Get number of participants and run the tally
-runTally :: BenchmarkData Mock Word -> TallyResults
-runTally bdata = getDecisions $ tally
-                                    (k bdata)
-                                    (currentSlot bdata)
-                                    (stakeDist bdata)
-                                    (r_a bdata)
-                                    (propState bdata)
-    where
-        -- create final list of all decisions
-        getDecisions (ProposalsState proposalsMap) = foldr
-                                                        (\(_, pState) accum ->
-                                                            decision pState : accum
-                                                        )
-                                                        []
-                                                   $ Map.toList proposalsMap
+runTally
+  :: BenchmarkConstants
+  -> (TallyData Mock Proposal, ProposalsState Mock Proposal)
+  -> [Decision]
+runTally
+  BenchmarkConstants { k, r_a, revelationSlot }
+  (TallyData { stakeDist, proposalHashes }, proposalsState)
+  = fmap (`decision` proposalsStateAfterTally) proposalHashes
+  where
+    proposalsStateAfterTally = tally k stableAt stakeDist r_a proposalsState
+      where
+        -- Here we're assuming a vote period duration of 1, as defined in the
+        -- 'HasVotingPeriod' instance of 'Vote'.
+        stableAt = revelationSlot
+                 +. 2 *. k                         -- Revelation is stable
+                 +. benchmarksVotingPeriodDuration -- Voting period ended
+                 +. 2 *. k                         -- End of the voting period
+                                                   -- is stable: tally can take
+                                                   -- place.
+
+newtype NumberOfParticipants = NumberOfParticipants Word
+
+newtype NumberOfConcurrentUPs = NumberOfConcurrentUPs Word
+
+createTallyData
+  :: BenchmarkConstants
+  -> NumberOfParticipants
+  -> NumberOfConcurrentUPs
+  -> (TallyData Mock Proposal, ProposalsState Mock Proposal)
+createTallyData
+  constants
+  (NumberOfParticipants numOfParticipants)
+  (NumberOfConcurrentUPs numOfConcurrentUPs)
+  =
+  (tallyData, proposalsState)
+  where
+    tallyData =
+      TallyData
+      { stakeDist      = mkStakeDist participantsHashes
+      , proposals      = proposals'
+      , proposalHashes = hash <$> proposals'
+      , participants   = participants'
+      }
+    proposals'         = mkProposal <$> [1.. numOfConcurrentUPs]
+    proposalsState     = voteOnProposals tallyData
+                       $ revealProposals constants tallyData
+    participants'      = VerKeyMockDSIGN <$> [1 .. fromIntegral numOfParticipants]
+    participantsHashes = hash <$> participants'
+
+
+-- | Uniform stake distribution with a stake of 1 for each stakeholder.
+mkStakeDist :: [Hash Mock (VKey Mock)] -> StakeDistribution Mock
+mkStakeDist participants
+  = StakeDistribution
+  $ Map.fromList
+  $ zip participants
+        (repeat (Stake 1))
