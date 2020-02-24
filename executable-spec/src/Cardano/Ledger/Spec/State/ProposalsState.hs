@@ -20,8 +20,8 @@ module Cardano.Ledger.Spec.State.ProposalsState
 where
 
 import           Control.Exception (assert)
-import qualified Data.Map as Map
 import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 import           Ledger.Core (BlockCount, Slot)
 
@@ -34,6 +34,10 @@ import           Cardano.Ledger.Spec.State.ProposalState (Decision,
 import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 
+
+-- | The @d@ parameter is the type of the proposals. The @p@ parameter
+-- determines the hashing and cryptographic algorithms to be used in the
+-- proposal state.
 newtype ProposalsState p d = ProposalsState (Map (Hash p d) (ProposalState p))
   deriving (Eq, Show)
 
@@ -71,6 +75,7 @@ revealProposal
   => Slot
   -> VotingPeriod
   -> d
+  -- ^ Proposal being revealed.
   -> ProposalsState p d
   -> ProposalsState p d
 revealProposal currentSlot dMaxVotingPeriods d (ProposalsState proposalStateMap)
@@ -112,9 +117,9 @@ updateBallot
   -> ProposalsState p d
   -> ProposalsState p d
 updateBallot dHash v (ProposalsState proposalStateMap)
-  = assert (dHash `Map.member` proposalStateMap)
-  $ ProposalsState
-  $ Map.adjust (ProposalState.updateBallot v) dHash proposalStateMap
+  =  assert (dHash `Map.member` proposalStateMap)
+  $  ProposalsState
+  $! Map.adjust (ProposalState.updateBallot v) dHash proposalStateMap
 
 votingPeriodStarted
   :: (Ord (Hash p d))

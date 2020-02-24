@@ -58,9 +58,9 @@ data ProposalState p =
     -- > revealedOn + votingPeriod * (2k + votingPeriodDuration)
     --
   , maxVotingPeriods     :: !VotingPeriod
-  , ballot               :: Map (Hash p (VKey p)) Confidence
+  , ballot               :: !(Map (Hash p (VKey p)) Confidence)
     -- ^ Votes cast for this proposal.
-  , decision             :: Decision
+  , decision             :: !Decision
     -- ^ Decision on the proposal. Before the voting period this is set to
     -- 'Undecided'.
   }
