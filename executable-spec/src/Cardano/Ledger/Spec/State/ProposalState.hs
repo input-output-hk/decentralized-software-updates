@@ -5,14 +5,12 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DerivingStrategies #-}
 
 -- | Information about the state of a proposal of the update-system
 -- (improvement, implementation, etc).
 --
 module Cardano.Ledger.Spec.State.ProposalState
-  ( ProposalState (..)
+  ( ProposalState (decision)
   , tally
   , HasVotingPeriod
   , getVotingPeriodDuration
@@ -36,7 +34,6 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
-import qualified  Control.DeepSeq as Deep
 
 import           Ledger.Core (BlockCount (BlockCount), Slot,
                      SlotCount (SlotCount), (*.), (+.))
@@ -47,7 +44,7 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
                      stakePercentOfKeys)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (Confidence (Abstain, Against, For), Stake)
+                     (Confidence (Abstain, Against, For))
 import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 
 data ProposalState p =
@@ -74,11 +71,10 @@ deriving instance Hashable p => Show (ProposalState p)
 
 -- | A voting period number.
 newtype VotingPeriod = VotingPeriod { unVotingPeriod :: Word8 }
-  deriving stock (Eq, Show, Generic, Ord)
-  deriving newtype (Num)
+  deriving (Eq, Show, Generic, Num, Ord)
 
 data Decision = Rejected | NoQuorum | Expired | Accepted | Undecided
-  deriving (Eq, Show, Generic, Deep.NFData)
+  deriving (Eq, Show, Generic)
 
 class HasVotingPeriod d where
   getVotingPeriodDuration :: d -> SlotCount
@@ -92,13 +88,13 @@ tally
   :: Ord (Hash p (VKey p))
   => BlockCount
   -> Slot
-  -> (StakeDistribution p, Stake)
+  -> StakeDistribution p
   -> Float
   -> ProposalState p
   -> ProposalState p
 tally k
       currentSlot
-      (stakeDistribution, totStake)
+      stakeDistribution
       adversarialStakeRatio
       (ps@ProposalState
         { votingPeriod
@@ -108,7 +104,7 @@ tally k
         })
   =
   if decision == Undecided && votingPeriodEnd k ps +. 2 *. k  <= currentSlot
-    then ps { decision     = tallyResult 
+    then ps { decision     = tallyResult
 
             , votingPeriod = if tallyResult /= Expired
                                 then votingPeriod + 1
@@ -120,9 +116,9 @@ tally k
   where
     tallyResult
       =   fromMaybe expiredOrUndecided
-      $   tallyStake For     Accepted ballot (stakeDistribution, totStake) adversarialStakeRatio
-      <|> tallyStake Against Rejected ballot (stakeDistribution, totStake) adversarialStakeRatio
-      <|> tallyStake Abstain NoQuorum ballot (stakeDistribution, totStake) adversarialStakeRatio
+      $   tallyStake For     Accepted ballot stakeDistribution adversarialStakeRatio
+      <|> tallyStake Against Rejected ballot stakeDistribution adversarialStakeRatio
+      <|> tallyStake Abstain NoQuorum ballot stakeDistribution adversarialStakeRatio
       where
         expiredOrUndecided =
           if maxVotingPeriods <= votingPeriod
@@ -134,11 +130,11 @@ tallyStake
   => Confidence
   -> Decision
   -> Map (Hash p (VKey p)) Confidence
-  -> (StakeDistribution p, Stake)
+  -> StakeDistribution p
   -> Float
   -> Maybe Decision
-tallyStake confidence result ballot (stakeDistribution, totStake) adversarialStakeRatio =
-  if vThreshold adversarialStakeRatio < stakePercentOfKeys votingKeys (stakeDistribution, totStake)
+tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
+  if vThreshold adversarialStakeRatio < stakePercentOfKeys votingKeys stakeDistribution
   then Just result
   else Nothing
   where

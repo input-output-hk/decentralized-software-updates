@@ -12,7 +12,7 @@ import           Ledger.Core (BlockCount, Slot)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.State.ProposalsState (tally)
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution, totalStake)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL, St (St),
                      ipsst)
 
@@ -46,5 +46,5 @@ instance Hashable p => STS (TIVOTES p) where
           , st@St { ipsst }
           , currentSlot
           ) <- judgmentContext
-      pure $! st { ipsst = tally k currentSlot (stakeDist, totalStake stakeDist) r_a ipsst }
+      pure $! st { ipsst = tally k currentSlot stakeDist r_a ipsst }
     ]

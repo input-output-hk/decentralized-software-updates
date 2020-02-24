@@ -54,3 +54,4 @@ specs/**/.ghc.environment.x86_64-linux-*
 *.prof
 *.prof.*
 *.profiterole.*
+.stack-profile

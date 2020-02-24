@@ -6,7 +6,7 @@
 -- | Information about different proposals in the update system.
 --
 module Cardano.Ledger.Spec.State.ProposalsState
-  ( ProposalsState (..)
+  ( ProposalsState
   , tally
   , revealProposal
   , updateBallot
@@ -33,7 +33,6 @@ import           Cardano.Ledger.Spec.State.ProposalState (Decision,
                      newProposalState)
 import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-import           Cardano.Ledger.Spec.STS.Update.Data (Stake)
 
 newtype ProposalsState p d = ProposalsState (Map (Hash p d) (ProposalState p))
   deriving (Eq, Show)
@@ -48,7 +47,7 @@ tally
   => BlockCount
   -- ^ Chain stability parameter.
   -> Slot
-  -> (StakeDistribution p, Stake)
+  -> StakeDistribution p
   -> Float
   -- ^ Adversarial stake ratio.
   -> ProposalsState p d
