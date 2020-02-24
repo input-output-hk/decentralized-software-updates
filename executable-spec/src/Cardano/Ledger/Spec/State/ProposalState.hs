@@ -27,6 +27,8 @@ module Cardano.Ledger.Spec.State.ProposalState
   )
 where
 
+import qualified Debug.Trace as Debug
+
 import           Control.Applicative ((<|>))
 import           Data.Coerce (coerce)
 import           Data.Map.Strict (Map)
@@ -42,10 +44,11 @@ import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     stakePercentOfKeys)
+                     stakeOfKeys, totalStake)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For))
-import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
+import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold,
+                     vThreshold)
 
 data ProposalState p =
   ProposalState
@@ -85,7 +88,7 @@ class HasVotingPeriod d where
 -- counter is increased by one.
 --
 tally
-  :: Ord (Hash p (VKey p))
+  :: Hashable p
   => BlockCount
   -> Slot
   -> StakeDistribution p
@@ -126,7 +129,7 @@ tally k
           else Undecided
 
 tallyStake
-  :: Ord (Hash p (VKey p))
+  :: Hashable p
   => Confidence
   -> Decision
   -> Map (Hash p (VKey p)) Confidence
@@ -134,7 +137,9 @@ tallyStake
   -> Float
   -> Maybe Decision
 tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
-  if vThreshold adversarialStakeRatio < stakePercentOfKeys votingKeys stakeDistribution
+  if stakeThreshold adversarialStakeRatio (totalStake stakeDistribution)
+     <
+     stakeOfKeys votingKeys stakeDistribution
   then Just result
   else Nothing
   where

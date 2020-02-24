@@ -32,8 +32,8 @@ import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState,
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Accepted, Expired, NoQuorum, Rejected, Undecided),
                      HasVotingPeriod, IsVote, VotingPeriod (VotingPeriod),
                      getConfidence, getVoter, getVotingPeriodDuration)
-import           Cardano.Ledger.Spec.State.StakeDistribution
-                     (StakeDistribution (StakeDistribution), totalStake)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
+                     fromList, totalStake)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For), Stake (Stake))
 import           Cardano.Ledger.Test.Mock (Mock)
@@ -95,28 +95,6 @@ deriving instance ( Eq (StakeDistribution p)
                   , Hashable p
                   )
                   => Eq (TallyData p d)
-
--- type TallyResults = [Decision]
-
--- createTallyData :: BenchmarkParams -> TallyData Mock Proposal
--- createTallyData params =
---   TallyData
---     k
---     currentSlot
---     (mkStakeDist $ participantHashes)
---     r_a
---     (createProposalsStateMap params currentSlot)
---   where
---     k = BlockCount 2 -- very small to ensure stability
-
---     currentSlot = Slot 1000 -- extremely large to ensure stability of voting period end
-
---     r_a = 0.49 -- adversary ratio
-
---     participantHashes = createListofHashVKeys $ fromIntegral $ participants params
-
-createListofHashVKeys :: Int -> [Hash Mock (VKey Mock)]
-createListofHashVKeys pts = map (hash . VerKeyMockDSIGN) [1 .. pts]
 
 -- | Simulate the revelation of the number of proposals given be the benchmark
 -- parameters.
@@ -199,7 +177,6 @@ createTallyData
 -- | Uniform stake distribution with a stake of 1 for each stakeholder.
 mkStakeDist :: [Hash Mock (VKey Mock)] -> StakeDistribution Mock
 mkStakeDist participants
-  = StakeDistribution
-  $ Map.fromList
+  = fromList
   $ zip participants
         (repeat (Stake 1))

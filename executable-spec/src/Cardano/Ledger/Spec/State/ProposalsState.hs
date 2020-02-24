@@ -47,7 +47,7 @@ deriving instance Ord (Hash p d) => Monoid (ProposalsState p d)
 -- | Tally each proposal in the state.
 --
 tally
-  :: (Ord (Hash p (VKey p )))
+  :: Hashable p
   => BlockCount
   -- ^ Chain stability parameter.
   -> Slot

@@ -2,8 +2,6 @@
 
 module Main where
 
-import           Control.Exception (assert)
-
 import           Ledger.Core (Slot (Slot))
 
 import           Cardano.Ledger.Benchmarks.Update.Tally
@@ -13,16 +11,24 @@ import qualified Criterion.Main as Cr
 
 main :: IO ()
 main = do
-  let !tallyData5 =
+  let
+      -- !tallyData2 =
+      --   createTallyData constants (NumberOfParticipants 10)     (NumberOfConcurrentUPs 10)
+      -- !tallyData3 =
+      --   createTallyData constants (NumberOfParticipants 100)    (NumberOfConcurrentUPs 10)
+      -- !tallyData4 =
+      --   createTallyData constants (NumberOfParticipants 1000)   (NumberOfConcurrentUPs 10)
+      !tallyData5 =
         createTallyData constants (NumberOfParticipants 10000)  (NumberOfConcurrentUPs 10)
-      !tallyData6 =
-        createTallyData constants (NumberOfParticipants 100000) (NumberOfConcurrentUPs 10)
+      -- !tallyData6 =
+      --   createTallyData constants (NumberOfParticipants 100000) (NumberOfConcurrentUPs 10)
+--  print $ runTally constants tallyData2
   print $ runTally constants tallyData5
-  Cr.defaultMain
-    [ Cr.bgroup "tally" [ Cr.bench "1e5" $ Cr.whnf allApproved tallyData5
-                        , Cr.bench "1e6" $ Cr.whnf allApproved tallyData6
-                        ]
-    ]
+  -- Cr.defaultMain
+  --   [ Cr.bgroup "tally" [ Cr.bench "1e5" $ Cr.whnf allApproved tallyData5
+  --                       , Cr.bench "1e6" $ Cr.whnf allApproved tallyData6
+  --                       ]
+  --   ]
   where
     !constants =
       BenchmarkConstants
@@ -31,4 +37,6 @@ main = do
       , revelationSlot = Slot 0
       }
     allApproved tallyData
-      = all (== Accepted) $ runTally constants tallyData
+      = if all (== Accepted) $ runTally constants tallyData
+        then True
+        else error "All proposals should be accepted!"
