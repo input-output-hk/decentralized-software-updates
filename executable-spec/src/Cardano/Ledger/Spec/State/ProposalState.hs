@@ -143,7 +143,7 @@ tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
   then Just result
   else Nothing
   where
-    votingKeys = Map.keys $ Map.filter (== confidence) ballot
+    votingKeys = Map.filter (== confidence) ballot
 
 newProposalState
   :: (Ord (Hash p (VKey p)), HasVotingPeriod d)

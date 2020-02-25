@@ -71,18 +71,15 @@ instance Hashable p => Indexed (StakeDistribution p) where
 -- | Return percentage of the stake that the given keys have.
 stakeOfKeys
   :: Hashable p
-  => [Hash p (VKey p)]
+  => Map (Hash p (VKey p)) b
   -> StakeDistribution p
   -> Data.Stake
 stakeOfKeys
-  keys
+  keyMap
   StakeDistribution
   { stakeMap
   }
-  = foldl' lookupAndAdd 0 keys
-  where
-    lookupAndAdd total hashKey =
-      total + stakeMap Map.! hashKey
+  = Map.foldl (+) 0 $ stakeMap `Map.intersection` keyMap
 
 -- | Add the given stake amount to the stake of the given key.
 --
