@@ -205,17 +205,23 @@ data BenchCrypto
 
 instance Hashable BenchCrypto where
 
-  newtype Hash BenchCrypto a = BenchHash (Crypto.Digest Crypto.Blake2b_256)
+  newtype Hash BenchCrypto a = BenchHash (Crypto.Digest Crypto.Blake2b_224)
     deriving (Eq, Ord, Show, ToCBOR)
 
   type HasHash BenchCrypto = ToCBOR
 
-  hash = BenchHash
-       . Crypto.hash
-       . BSL.toStrict
-       . Builder.toLazyByteString
-       . CBOR.Write.toBuilder
-       . toCBOR
+  -- Calculate the hash as it is done in Byron. See @module
+  -- Cardano.Chain.Common.AddressHash@ in @cardano-ledger@.
+  --
+  hash = BenchHash . Crypto.hash . firstHash
+    where
+      firstHash :: ToCBOR a => a -> Crypto.Digest Crypto.SHA3_256
+      firstHash
+        = Crypto.hash
+        . BSL.toStrict
+        . Builder.toLazyByteString
+        . CBOR.Write.toBuilder
+        . toCBOR
 
 instance HasSigningScheme BenchCrypto where
 
