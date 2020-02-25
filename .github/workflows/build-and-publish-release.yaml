@@ -1,0 +1,21 @@
+name: Build LaTeX document
+on: [push]
+
+jobs:
+  build_latex:
+    name: Build LaTeX document & upload as artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v1
+      - name: Compile LaTeX document
+        uses: xu-cheng/latex-action@master
+        with:
+          working_directory: formal-spec
+          root_file: decentralized-updates.tex
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v1
+        with:
+          name: decentralized-updates-${{ github.sha }}.zip
+          path: formal-spec/decentralized-updates.pdf
