@@ -12,7 +12,7 @@
 ## Formal specification
 
 The formal specification is written in `LaTeX`. It can be found in the
-[`formal-spec`](./formal-spec) folder.
+[`formal-spec`](./formal-spec) folder. A compiled pdf can be found [here](https://hydra.iohk.io/job/Cardano/decentralized-software-updates/decentralizedUpdatesSpec/latest/download-by-type/doc-pdf/decentralized-updates).
 
 We use [`nix`](https://nixos.org/nix/download.html) to achieve not only
 reproducible software builds, but also reproducible document builds across
