@@ -2,18 +2,25 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- | Information about different proposals in the update system.
 --
 module Cardano.Ledger.Spec.State.ProposalsState
   ( ProposalsState
+  , ProposalsStateCompact
   , tally
+  , tallyCompact
   , revealProposal
+  , revealProposalCompact
   , updateBallot
+  , updateBallotCompact
   , votingPeriodStarted
   , votingPeriodEnded
   , votingPeriodHasNotEnded
   , decision
+  , decisionCompact
   , isRevealed
   , isNotRevealed
   )
@@ -24,16 +31,31 @@ import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
 import           Ledger.Core (BlockCount, Slot)
+import           Cardano.Binary (ToCBOR, toCBOR)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
+                     VerKeyDSIGN (VerKeyMockDSIGN))
+
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision,
-                     HasVotingPeriod, IsVote, ProposalState, VotingPeriod,
-                     newProposalState)
+                     HasVotingPeriod, IsVote, ProposalState, VotingPeriod, ProposalStateCompact,
+                     newProposalState, newProposalStateCompact)
 import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution, StakeDistributionCompact)
+import           Cardano.Ledger.Spec.STS.Common.Compact (CompactHash, toCompactHash)
+import           Cardano.Ledger.Spec.STS.Common.Crypto (BenchCrypto)
 
+
+newtype ProposalsStateCompact = ProposalsStateCompact (Map CompactHash ProposalStateCompact )
+  deriving (Eq, Show)
+
+deriving instance  Semigroup (ProposalsStateCompact)
+deriving instance  Monoid (ProposalsStateCompact)
 
 -- | The @d@ parameter is the type of the proposals. The @p@ parameter
 -- determines the hashing and cryptographic algorithms to be used in the
@@ -65,6 +87,28 @@ tally k
   $ fmap (ProposalState.tally k currentSlot stakeDistribution adversarialStakeRatio)
          proposalStateMap
 
+-- | Tally each proposal in the state.
+--
+tallyCompact
+  :: BlockCount
+  -- ^ Chain stability parameter.
+  -> Slot
+  -> StakeDistributionCompact 
+  -> Float
+  -- ^ Adversarial stake ratio.
+  -> ProposalsStateCompact
+  -> ProposalsStateCompact
+tallyCompact k
+      currentSlot
+      stakeDistribution
+      adversarialStakeRatio
+      (ProposalsStateCompact proposalStateMap)
+  = ProposalsStateCompact
+  $ fmap (ProposalState.tallyCompact k currentSlot stakeDistribution adversarialStakeRatio)
+         proposalStateMap
+
+
+
 -- | Register the revelation of a proposal.
 --
 revealProposal
@@ -81,6 +125,24 @@ revealProposal
 revealProposal currentSlot dMaxVotingPeriods d (ProposalsState proposalStateMap)
   = ProposalsState
   $ Map.insert (hash d) (newProposalState currentSlot dMaxVotingPeriods d) proposalStateMap
+
+revealProposalCompact
+  :: ( Hashable p
+     , HasHash p d
+     , HasVotingPeriod d
+     , ToCBOR (Hash BenchCrypto d)
+     , p ~ BenchCrypto
+     )
+  => Slot
+  -> VotingPeriod
+  -> d
+  -- ^ Proposal being revealed.
+  -> ProposalsStateCompact
+  -> ProposalsStateCompact
+revealProposalCompact currentSlot dMaxVotingPeriods d (ProposalsStateCompact proposalStateMap)
+  = ProposalsStateCompact
+  $ Map.insert (toCompactHash . (hash @BenchCrypto) $ d) (newProposalStateCompact currentSlot dMaxVotingPeriods d) proposalStateMap
+
 
 -- | Is the proposal revealed.
 isRevealed
@@ -121,6 +183,23 @@ updateBallot dHash v (ProposalsState proposalStateMap)
   $  ProposalsState
   $! Map.adjust (ProposalState.updateBallot v) dHash proposalStateMap
 
+updateBallotCompact
+  :: ( Hashable p
+     , IsVote p v
+     , HasHash p (VKey p)
+     , ToCBOR (Hash BenchCrypto (VerKeyDSIGN MockDSIGN))
+     , p ~ BenchCrypto
+     )
+  => CompactHash
+  -> v
+  -> ProposalsStateCompact
+  -> ProposalsStateCompact
+updateBallotCompact dHash v (ProposalsStateCompact proposalStateMap)
+  =  assert (dHash `Map.member` proposalStateMap)
+  $  ProposalsStateCompact
+  $! Map.adjust (ProposalState.updateBallotCompact v) dHash proposalStateMap
+
+
 votingPeriodStarted
   :: (Ord (Hash p d))
   => BlockCount
@@ -158,6 +237,17 @@ decision
   -> Decision
 decision dHash (ProposalsState proposalStateMap)
   = maybe err ProposalState.decision
+  $ Map.lookup dHash proposalStateMap
+  where
+    err = error $ "No proposal with the given hash found."
+
+
+decisionCompact
+  :: CompactHash
+  -> ProposalsStateCompact
+  -> Decision
+decisionCompact dHash (ProposalsStateCompact proposalStateMap)
+  = maybe err ProposalState.decisionCmp
   $ Map.lookup dHash proposalStateMap
   where
     err = error $ "No proposal with the given hash found."

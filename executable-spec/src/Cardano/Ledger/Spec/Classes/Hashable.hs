@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+
 module Cardano.Ledger.Spec.Classes.Hashable where
 
 import Data.Kind (Type)
@@ -20,3 +21,5 @@ class ( forall a . Eq (Hash h a)
   type HasHash h :: * -> Constraint
 
   hash :: HasHash h a => a -> Hash h a
+
+

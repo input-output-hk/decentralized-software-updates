@@ -56,7 +56,9 @@ library
                      , Cardano.Ledger.Spec.STS.Update.Ideation.Data
                      , Cardano.Ledger.Spec.STS.Update.Implementation
                      , Cardano.Ledger.Spec.STS.Update.Definitions
+                     , Cardano.Ledger.Spec.STS.Common.Compact
                      , Cardano.Ledger.Test.Mock
+                     , Cardano.Ledger.Spec.STS.Common.Crypto
   build-depends:       base >=4.11 && <5
                      , bimap >= 0.4.0
                      , containers
@@ -70,6 +72,10 @@ library
                      , small-steps
                      , cs-ledger
                      , deepseq
+                     , cardano-prelude
+                     , bytestring
+                     , cryptonite
+                     , cborg
   default-language:    Haskell2010
   ghc-options:        -Wall
                       -Wcompat
@@ -174,3 +180,4 @@ benchmark update-benchmarking
                        -threaded
                        -rtsopts
   other-modules:       Cardano.Ledger.Benchmarks.Update.Tally
+                     

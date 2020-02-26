@@ -5,17 +5,24 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE GADTs #-}
 
 -- | Information about the state of a proposal of the update-system
 -- (improvement, implementation, etc).
 --
 module Cardano.Ledger.Spec.State.ProposalState
   ( ProposalState (decision)
+  , ProposalStateCompact (decisionCmp)  
   , tally
+  , tallyCompact
   , HasVotingPeriod
   , getVotingPeriodDuration
   , newProposalState
+  , newProposalStateCompact
   , updateBallot
+  , updateBallotCompact
   , IsVote
   , getVoter
   , getConfidence
@@ -37,18 +44,47 @@ import           Data.Maybe (fromMaybe)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
+import           Cardano.Binary (ToCBOR, toCBOR)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
+                     VerKeyDSIGN (VerKeyMockDSIGN))
+
 import           Ledger.Core (BlockCount (BlockCount), Slot,
                      SlotCount (SlotCount), (*.), (+.))
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     stakeOfKeys, totalStake)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution, StakeDistributionCompact,
+                     stakeOfKeys, totalStake, totalStakeCmp, stakeOfKeysCompact)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For))
 import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold,
                      vThreshold)
+import           Cardano.Ledger.Spec.STS.Common.Compact (CompactHash, toCompactHash)
+import           Cardano.Ledger.Spec.STS.Common.Crypto (BenchCrypto)
+
+
+data ProposalStateCompact =
+  ProposalStateCompact
+  { revealedOnCmp           :: !Slot
+    -- ^ Proposals enter the system when they are revealed.
+  , votingPeriodDurationCmp :: !SlotCount
+  , votingPeriodCmp         :: !VotingPeriod
+    -- ^ Voting period number. To calculate the end of voting period we take the use the formula:
+    --
+    -- > revealedOn + votingPeriod * (2k + votingPeriodDuration)
+    --
+  , maxVotingPeriodsCmp     :: !VotingPeriod
+  , ballotCmp               :: !(Map CompactHash Confidence)
+    -- ^ Votes cast for this proposal.
+  , decisionCmp             :: !Decision
+    -- ^ Decision on the proposal. Before the voting period this is set to
+    -- 'Undecided'.
+  }
+  deriving (Eq, Show, Generic)
 
 data ProposalState p =
   ProposalState
@@ -128,6 +164,46 @@ tally k
           then Expired
           else Undecided
 
+tallyCompact
+  :: BlockCount
+  -> Slot
+  -> StakeDistributionCompact
+  -> Float
+  -> ProposalStateCompact 
+  -> ProposalStateCompact 
+tallyCompact k
+      currentSlot
+      stakeDistribution
+      adversarialStakeRatio
+      (ps@ProposalStateCompact
+        { votingPeriodCmp
+        , maxVotingPeriodsCmp
+        , ballotCmp
+        , decisionCmp
+        })
+  =
+  if decisionCmp == Undecided && votingPeriodEndCompact k ps +. 2 *. k  <= currentSlot
+    then ps { decisionCmp     = tallyResult
+
+            , votingPeriodCmp = if tallyResult /= Expired
+                                then votingPeriodCmp + 1
+                                else votingPeriodCmp
+            , ballotCmp        = mempty -- The votes get cleaned after a voting period ends.
+            }
+    else
+      ps -- End of the voting period is not stable yet. Nothing to do.
+  where
+    tallyResult
+      =   fromMaybe expiredOrUndecided
+      $   tallyStakeCompact For     Accepted ballotCmp stakeDistribution adversarialStakeRatio
+      <|> tallyStakeCompact Against Rejected ballotCmp stakeDistribution adversarialStakeRatio
+      <|> tallyStakeCompact Abstain NoQuorum ballotCmp stakeDistribution adversarialStakeRatio
+      where
+        expiredOrUndecided =
+          if maxVotingPeriodsCmp <= votingPeriodCmp
+          then Expired
+          else Undecided
+
 tallyStake
   :: Hashable p
   => Confidence
@@ -145,6 +221,23 @@ tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
   where
     votingKeys = Map.filter (== confidence) ballot
 
+tallyStakeCompact
+  :: Confidence
+  -> Decision
+  -> Map CompactHash Confidence -- Map (Hash p (VKey p)) Confidence
+  -> StakeDistributionCompact
+  -> Float
+  -> Maybe Decision
+tallyStakeCompact confidence result ballot stakeDistribution adversarialStakeRatio =
+  if stakeThreshold adversarialStakeRatio (totalStakeCmp stakeDistribution)
+     <
+     stakeOfKeysCompact votingKeys stakeDistribution
+  then Just result
+  else Nothing
+  where
+    votingKeys = Map.filter (== confidence) ballot
+
+
 newProposalState
   :: (Ord (Hash p (VKey p)), HasVotingPeriod d)
   => Slot
@@ -161,6 +254,24 @@ newProposalState currentSlot dMaxVotingPeriods d =
   , decision = Undecided
   }
 
+
+newProposalStateCompact
+  :: (HasVotingPeriod d)
+  => Slot
+  -> VotingPeriod
+  -> d
+  -> ProposalStateCompact
+newProposalStateCompact currentSlot dMaxVotingPeriods d =
+  ProposalStateCompact
+  { revealedOnCmp = currentSlot
+  , votingPeriodDurationCmp = getVotingPeriodDuration d
+  , votingPeriodCmp = 1
+  , maxVotingPeriodsCmp = dMaxVotingPeriods
+  , ballotCmp = mempty
+  , decisionCmp = Undecided
+  }
+
+
 updateBallot
   :: ( Hashable p
      , IsVote p v
@@ -171,6 +282,19 @@ updateBallot
   -> ProposalState p
 updateBallot v ps =
   ps { ballot = Map.insert (hash $ getVoter v) (getConfidence v) (ballot ps) }
+
+updateBallotCompact
+  :: ( ToCBOR (Hash BenchCrypto (VerKeyDSIGN MockDSIGN))
+     , HasHash BenchCrypto (VKey BenchCrypto)
+     , Hashable BenchCrypto
+     , IsVote BenchCrypto v
+     )
+  => v
+  -> ProposalStateCompact
+  -> ProposalStateCompact
+updateBallotCompact v ps =
+  ps { ballotCmp = Map.insert ( (toCompactHash . (hash @BenchCrypto)) $ getVoter v) (getConfidence v) (ballotCmp ps) }
+
 
 class IsVote p v | v -> p where
   getVoter :: v -> VKey p
@@ -242,3 +366,14 @@ votingPeriodEnd k ProposalState { revealedOn, votingPeriod, votingPeriodDuration
   +. votingPeriod' * ( 2 * coerce k + votingPeriodDuration)
   where
     votingPeriod' = fromIntegral (unVotingPeriod votingPeriod)
+
+
+votingPeriodEndCompact
+  :: BlockCount
+  -> ProposalStateCompact
+  -> Slot
+votingPeriodEndCompact k ProposalStateCompact { revealedOnCmp, votingPeriodCmp, votingPeriodDurationCmp }
+  =  revealedOnCmp
+  +. votingPeriod' * ( 2 * coerce k + votingPeriodDurationCmp)
+  where
+    votingPeriod' = fromIntegral (unVotingPeriod votingPeriodCmp)

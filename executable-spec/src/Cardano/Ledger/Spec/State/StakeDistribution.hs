@@ -12,10 +12,14 @@
 
 module Cardano.Ledger.Spec.State.StakeDistribution
   ( StakeDistribution
+  , StakeDistributionCompact  
   , emptyStakeDistribution
   , fromList
+  , fromListCompact
   , totalStake
+  , totalStakeCmp
   , stakeOfKeys
+  , stakeOfKeysCompact
   , addStake
   )
 where
@@ -34,7 +38,21 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      VKey)
 import           Cardano.Ledger.Spec.Classes.Indexed (Indexed, Key, Value,
                      lookup)
+import           Cardano.Ledger.Spec.STS.Common.Compact (CompactHash)
 
+
+data StakeDistributionCompact =
+  StakeDistributionCompact
+  { stakeMapCmp    :: !(Map CompactHash Data.Stake)
+    -- ^ use compact hashes
+  , totalStakeCmp  :: !Data.Stake
+    -- ^ Total stake in the stake distribution.
+    --
+    -- INVARIANT:
+    --
+    -- > totalStake = Map.foldr' (+) (Data.Stake 0) stakeMap
+    --
+  } deriving (Show)
 
 data StakeDistribution p =
   StakeDistribution
@@ -81,6 +99,19 @@ stakeOfKeys
   }
   = Map.foldl (+) 0 $ stakeMap `Map.intersection` keyMap
 
+
+stakeOfKeysCompact
+  :: Map CompactHash b -- Map (Hash p (VKey p)) b
+  -> StakeDistributionCompact
+  -> Data.Stake
+stakeOfKeysCompact
+  keyMap
+  StakeDistributionCompact
+  { stakeMapCmp
+  }
+  = Map.foldl (+) 0 $ stakeMapCmp `Map.intersection` keyMap
+
+
 -- | Add the given stake amount to the stake of the given key.
 --
 -- If the key is not present in the map it is added to it, with the given stake.
@@ -109,4 +140,14 @@ fromList xs
   = StakeDistribution
     { stakeMap   = Map.fromList xs
     , totalStake = foldl' (+) 0 $ fmap snd xs
+    }
+
+
+fromListCompact
+  :: [(CompactHash, Data.Stake)]
+  -> StakeDistributionCompact
+fromListCompact xs
+  = StakeDistributionCompact
+    { stakeMapCmp   = Map.fromList xs
+    , totalStakeCmp = foldl' (+) 0 $ fmap snd xs
     }

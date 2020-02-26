@@ -1,15 +1,27 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 
 module Main where
 
 import           Ledger.Core (Slot (Slot))
+
+import           Cardano.Binary (ToCBOR, toCBOR)
+import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
+import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
+                     VerKeyDSIGN (VerKeyMockDSIGN))
+import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
+                     hash)
+import           Cardano.Ledger.Spec.STS.Common.Crypto (BenchCrypto)
 
 import           Cardano.Ledger.Benchmarks.Update.Tally
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Accepted))
 
 import qualified Criterion.Main as Cr
 
-main :: IO ()
+main :: (ToCBOR (Hash BenchCrypto (VerKeyDSIGN MockDSIGN)), ToCBOR (Hash BenchCrypto Proposal)) => IO ()
 main = do
   let
       !tallyData2 =
