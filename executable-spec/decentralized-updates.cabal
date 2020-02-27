@@ -158,6 +158,7 @@ benchmark update-benchmarking
                        -- Dependencies needed for defining the bench hashing
                      , cborg
                      , bytestring
+                     , memory
                        -- Cardano deps
                      , cs-ledger
                      , cardano-binary

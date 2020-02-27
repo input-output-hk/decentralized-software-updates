@@ -25,8 +25,11 @@ import           GHC.Generics (Generic)
 
 import qualified Codec.CBOR.Write as CBOR.Write
 import qualified Crypto.Hash as Crypto
+import qualified Data.ByteArray as ByteArray
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as BSL
+import           Data.ByteString.Short (ShortByteString)
+import qualified Data.ByteString.Short as Short
 
 import           Cardano.Binary (ToCBOR, toCBOR)
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
@@ -205,7 +208,7 @@ data BenchCrypto
 
 instance Hashable BenchCrypto where
 
-  newtype Hash BenchCrypto a = BenchHash (Crypto.Digest Crypto.Blake2b_224)
+  newtype Hash BenchCrypto a = BenchHash ShortByteString
     deriving (Eq, Ord, Show, ToCBOR)
 
   type HasHash BenchCrypto = ToCBOR
@@ -213,7 +216,12 @@ instance Hashable BenchCrypto where
   -- Calculate the hash as it is done in Byron. See @module
   -- Cardano.Chain.Common.AddressHash@ in @cardano-ledger@.
   --
-  hash = BenchHash . Crypto.hash . firstHash
+  hash
+    = BenchHash
+    . Short.toShort
+    . ByteArray.convert
+    . secondHash
+    . firstHash
     where
       firstHash :: ToCBOR a => a -> Crypto.Digest Crypto.SHA3_256
       firstHash
@@ -222,6 +230,9 @@ instance Hashable BenchCrypto where
         . Builder.toLazyByteString
         . CBOR.Write.toBuilder
         . toCBOR
+      secondHash :: Crypto.Digest Crypto.SHA3_256 -> Crypto.Digest Crypto.Blake2b_224
+      secondHash = Crypto.hash
+
 
 instance HasSigningScheme BenchCrypto where
 
