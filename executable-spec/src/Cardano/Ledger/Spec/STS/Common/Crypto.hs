@@ -13,6 +13,9 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
+
 
 module Cardano.Ledger.Spec.STS.Common.Crypto where
 
@@ -22,7 +25,9 @@ import qualified Crypto.Hash as Crypto
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as BSL
 
-import           Cardano.Binary (ToCBOR, toCBOR)
+import qualified Cardano.Prelude as CP
+
+import           Cardano.Binary (FromCBOR(..), ToCBOR(..), serialize', decodeFull')
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
 import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
@@ -35,6 +40,8 @@ import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      SKey, Signable, Signature, VKey, sign, verify)
 import qualified Crypto.Hash as Crypto
+import qualified Data.ByteString.Short as BSS (fromShort, toShort)
+import Data.ByteString.Short (ShortByteString)
 
 --------------------------------------------------------------------------------
 -- Hashing, signing, and verification algorithms to be used in the benchmarks
@@ -42,28 +49,51 @@ import qualified Crypto.Hash as Crypto
 
 data BenchCrypto
 
--- deriving instance ( ToCBOR (Crypto.Digest Crypto.Blake2b_224)
---                   ) => ToCBOR BenchCrypto
+-- deriving instance ( ToCBOR ShortByteString)
+--                   => ToCBOR BenchCrypto
 
-instance Hashable BenchCrypto where
+-- instance ToCBOR BenchCrypto where
+--   toCBOR (BenchHash (Crypto.Digest Crypto.Blake2b_224)) = toCBOR (Crypto.Digest Crypto.Blake2b_224)
 
-  newtype Hash BenchCrypto a = BenchHash (Crypto.Digest Crypto.Blake2b_224)
-    deriving (Eq, Ord, Show, ToCBOR)
+
+instance (CP.Typeable a) => FromCBOR (Hash BenchCrypto a) where
+  fromCBOR = BenchHash . BSS.toShort <$> fromCBOR
+
+instance (CP.Typeable a) => ToCBOR (Hash BenchCrypto a) where
+  toCBOR (BenchHash sbs) = toCBOR (BSS.fromShort sbs)
+
+instance  Hashable BenchCrypto where
+
+  newtype Hash BenchCrypto a = BenchHash ShortByteString -- BenchHash (Crypto.Digest Crypto.Blake2b_224)
+    deriving (Eq, Ord, Show)
+    
 
   type HasHash BenchCrypto = ToCBOR
 
   -- Calculate the hash as it is done in Byron. See @module
   -- Cardano.Chain.Common.AddressHash@ in @cardano-ledger@.
   --
-  hash = BenchHash . Crypto.hash . firstHash
-    where
-      firstHash :: ToCBOR a => a -> Crypto.Digest Crypto.SHA3_256
-      firstHash
-        = Crypto.hash
-        . BSL.toStrict
-        . Builder.toLazyByteString
-        . CBOR.Write.toBuilder
-        . toCBOR
+  hash a = BenchHash $ BSS.toShort (serialize' a)
+  -- hash :: (HasHash BenchCrypto a, ToCBOR (Crypto.Digest a), Crypto.HashAlgorithm a) 
+  --      => a -> Hash BenchCrypto a
+  -- hash a =   toBenchHash $ (Crypto.hash . firstHash $ a) -- BenchHash . Crypto.hash . firstHash
+  --   where
+  --     firstHash :: ToCBOR a => a -> Crypto.Digest Crypto.SHA3_256
+  --     firstHash
+  --       = Crypto.hash
+  --       . BSL.toStrict
+  --       . Builder.toLazyByteString
+  --       . CBOR.Write.toBuilder
+  --       . toCBOR
+
+-- toBenchHash :: (ToCBOR (Hash p a), CP.Typeable a) =>  Hash p a -> Hash BenchCrypto a
+-- toBenchHash hsh =
+--   BenchHash (BSS.toShort (serialize' hsh))
+
+-- toBenchHash :: (ToCBOR (Crypto.Digest a), CP.Typeable a) =>  Crypto.Digest a -> Hash BenchCrypto a
+-- toBenchHash hsh =
+--   BenchHash (BSS.toShort (serialize' hsh))
+
 
 instance HasSigningScheme BenchCrypto where
 
