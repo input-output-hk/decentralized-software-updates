@@ -1,13 +1,33 @@
-<h1 align="center">On decentralized software updates for blockchain systems.</h1>
+<h1 align="center">On decentralized software updates for blockchain systems</h1>
 
 <p align="center">
   <a href="https://buildkite.com/input-output-hk/decentralized-software-updates">
-    <img alt="Build Status" src="https://img.shields.io/buildkite/0400e4f455135087dc9f04095439712f6c0225226e9d2ab623?style=for-the-badge"/>
+    <img alt="Build Status" src="https://img.shields.io/buildkite/0400e4f455135087dc9f04095439712f6c0225226e9d2ab623/master?style=for-the-badge"/>
   </a>
   <a href="https://coveralls.io/github/input-output-hk/decentralized-software-updates?branch=master">
     <img alt="Coverage Status" src="https://img.shields.io/coveralls/github/input-output-hk/decentralized-software-updates?style=for-the-badge"/>
   </a>
 </p>
+
+This repository contains research output (papers, specifications, models, and
+executable software) about decentralized software updates for blockchain
+systems. Our research focuses on defining a protocol that covers the life cycle
+of software updates, which consists of:
+
+- ideation: the definition and specification of an update proposal, similar to
+  [Bitcoin](https://github.com/bitcoin/bips) or
+  [Ethereum](https://github.com/ethereum/EIPs) improvement proposals.
+- implementation: the actual implementation of improvement proposals.
+- activation: the activation of new software version across nodes in the
+  blockchain.
+
+
+This work is funded by the [Priviledge](https://priviledge-project.eu/) project,
+and these results will be incorporated into the
+[Voltaire](https://cardanoroadmap.com/en/voltaire/) release of Cardano.
+
+The research roadmap can be found in [our
+wiki](https://github.com/input-output-hk/decentralized-software-updates/wiki/Roadmap).
 
 ## Formal specification
 
