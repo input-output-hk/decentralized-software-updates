@@ -47,10 +47,6 @@ data StakeDistribution p =
   }
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (StakeDistribution p)
--- deriving instance (Hashable p, HasSigningScheme p) => Core.Relation (StakeDistribution p)
--- deriving instance (Hashable p) => Indexed (StakeDistribution p)
--- deriving instance (Hashable p) => Semigroup (StakeDistribution p)
--- deriving instance (Hashable p) => Monoid (StakeDistribution p)
 
 emptyStakeDistribution :: Hashable p => StakeDistribution p
 emptyStakeDistribution =

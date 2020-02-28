@@ -93,15 +93,25 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           };
         };
       benchmarks = {
+        "worst-case-analysis" = {
+          depends = [ (hsPkgs."base" or (buildDepError "base")) ];
+          buildable = true;
+          };
         "update-benchmarking" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
+            (hsPkgs."cereal" or (buildDepError "cereal"))
             (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
             (hsPkgs."criterion" or (buildDepError "criterion"))
+            (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
             (hsPkgs."deepseq" or (buildDepError "deepseq"))
+            (hsPkgs."cborg" or (buildDepError "cborg"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."memory" or (buildDepError "memory"))
+            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
+            (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             ];
           buildable = true;
           };
