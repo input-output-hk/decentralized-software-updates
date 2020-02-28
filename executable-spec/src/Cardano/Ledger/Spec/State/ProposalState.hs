@@ -27,8 +27,6 @@ module Cardano.Ledger.Spec.State.ProposalState
   )
 where
 
-import qualified Debug.Trace as Debug
-
 import           Control.Applicative ((<|>))
 import           Data.Coerce (coerce)
 import           Data.Map.Strict (Map)
@@ -47,8 +45,8 @@ import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
                      stakeOfKeys, totalStake)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For))
-import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold,
-                     vThreshold)
+import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold)
+                     
 
 data ProposalState p =
   ProposalState

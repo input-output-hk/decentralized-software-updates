@@ -17,10 +17,8 @@ module Cardano.Ledger.Benchmarks.Update.Tally where
 
 import qualified Control.DeepSeq as Deep
 import           Data.Either (isRight)
-import           Data.List (foldr, map, repeat, take, zip)
+import           Data.List (repeat, zip)
 import           Data.List (foldl')
-import qualified Data.Map.Strict as Map
-import           Data.Serialize (encode)
 import           GHC.Generics (Generic)
 
 import qualified Codec.CBOR.Write as CBOR.Write
@@ -35,27 +33,23 @@ import           Cardano.Binary (ToCBOR, toCBOR)
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
 import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
-import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
-                     VerKeyDSIGN (VerKeyMockDSIGN))
+import           Cardano.Crypto.DSIGN.Mock (VerKeyDSIGN (VerKeyMockDSIGN))
 import qualified Cardano.Crypto.DSIGN.Mock as Crypto.Mock
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      SKey, Signable, Signature, VKey, sign, verify)
-import           Ledger.Core (BlockCount (BlockCount), Slot (Slot),
-                     SlotCount (SlotCount), (*.), (+.))
+import           Ledger.Core (BlockCount, Slot, SlotCount, (*.), (+.))
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
 import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState,
                      decision, revealProposal, tally, updateBallot)
-import           Cardano.Ledger.Spec.State.ProposalState (Decision (Accepted, Expired, NoQuorum, Rejected, Undecided),
+import           Cardano.Ledger.Spec.State.ProposalState (Decision,
                      HasVotingPeriod, IsVote, VotingPeriod (VotingPeriod),
                      getConfidence, getVoter, getVotingPeriodDuration)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     fromList, totalStake)
+                     fromList)
 import           Cardano.Ledger.Spec.STS.Update.Data
-                     (Confidence (Abstain, Against, For), Stake (Stake))
-import           Cardano.Ledger.Test.Mock (Mock)
+                     (Confidence (For), Stake (Stake))
 
 
 data BenchmarkConstants =
@@ -209,8 +203,8 @@ data BenchCrypto
 instance Hashable BenchCrypto where
 
   newtype Hash BenchCrypto a = BenchHash ShortByteString
-    deriving (Eq, Ord, Show, ToCBOR)
-
+    deriving (Eq, Ord, Show)
+    
   type HasHash BenchCrypto = ToCBOR
 
   -- Calculate the hash as it is done in Byron. See @module

@@ -24,10 +24,8 @@ import           Data.List (foldl')
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Monoid (Sum (Sum), getSum)
-import           Data.Word (Word8)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
