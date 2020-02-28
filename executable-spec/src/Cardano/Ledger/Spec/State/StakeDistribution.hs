@@ -12,6 +12,7 @@
 
 module Cardano.Ledger.Spec.State.StakeDistribution
   ( StakeDistribution
+  , stakeMap
   , emptyStakeDistribution
   , fromList
   , totalStake
