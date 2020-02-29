@@ -69,6 +69,7 @@ library
                      , cardano-crypto-class
                      , small-steps
                      , cs-ledger
+                     , deepseq
   default-language:    Haskell2010
   ghc-options:        -Wall
                       -Wcompat
@@ -104,6 +105,7 @@ test-suite ledger-rules-test
                      , decentralized-updates
                      , cs-ledger
                      , small-steps
+                     , deepseq
                      -- Internal libraries
                      , datil
   ghc-options:         -Wall
@@ -140,3 +142,36 @@ benchmark worst-case-analysis
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Arithmetic
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Units.TBPS
                      , Cardano.Ledger.Benchmarks.Update.WorstCaseAnalysis.Report.LaTeX
+
+
+benchmark update-benchmarking
+  hs-source-dirs:      bench/micro-benchmarking
+  main-is:             Main.hs
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  build-depends:       base
+                     , cereal
+                     , containers
+                     , criterion
+                     , cryptonite
+                     , deepseq
+                       -- Dependencies needed for defining the bench hashing
+                     , cborg
+                     , bytestring
+                     , memory
+                       -- Cardano deps
+                     , cs-ledger
+                     , cardano-binary
+                     , cardano-crypto-class
+                     , decentralized-updates
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wredundant-constraints
+                       -- We have a map with up to 10M 32 bytes hashes, so we
+                       -- need a lot of heap.
+                       "-with-rtsopts=-K1m -M1500m"
+                       -threaded
+                       -rtsopts
+  other-modules:       Cardano.Ledger.Benchmarks.Update.Tally

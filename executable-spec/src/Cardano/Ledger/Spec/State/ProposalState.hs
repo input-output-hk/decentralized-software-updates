@@ -42,10 +42,11 @@ import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     stakePercentOfKeys)
+                     stakeOfKeys, totalStake)
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For))
-import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
+import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold)
+                     
 
 data ProposalState p =
   ProposalState
@@ -58,9 +59,9 @@ data ProposalState p =
     -- > revealedOn + votingPeriod * (2k + votingPeriodDuration)
     --
   , maxVotingPeriods     :: !VotingPeriod
-  , ballot               :: Map (Hash p (VKey p)) Confidence
+  , ballot               :: !(Map (Hash p (VKey p)) Confidence)
     -- ^ Votes cast for this proposal.
-  , decision             :: Decision
+  , decision             :: !Decision
     -- ^ Decision on the proposal. Before the voting period this is set to
     -- 'Undecided'.
   }
@@ -85,7 +86,7 @@ class HasVotingPeriod d where
 -- counter is increased by one.
 --
 tally
-  :: Ord (Hash p (VKey p))
+  :: Hashable p
   => BlockCount
   -> Slot
   -> StakeDistribution p
@@ -126,7 +127,7 @@ tally k
           else Undecided
 
 tallyStake
-  :: Ord (Hash p (VKey p))
+  :: Hashable p
   => Confidence
   -> Decision
   -> Map (Hash p (VKey p)) Confidence
@@ -134,11 +135,13 @@ tallyStake
   -> Float
   -> Maybe Decision
 tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
-  if vThreshold adversarialStakeRatio < stakePercentOfKeys votingKeys stakeDistribution
+  if stakeThreshold adversarialStakeRatio (totalStake stakeDistribution)
+     <
+     stakeOfKeys votingKeys stakeDistribution
   then Just result
   else Nothing
   where
-    votingKeys = Map.keys $ Map.filter (== confidence) ballot
+    votingKeys = Map.filter (== confidence) ballot
 
 newProposalState
   :: (Ord (Hash p (VKey p)), HasVotingPeriod d)

@@ -22,8 +22,7 @@ import           Ledger.Core (BlockCount, SlotCount (SlotCount), dom, range,
 
 import           Cardano.Ledger.Spec.State.SIPsVoteResults
                      (SIPsVoteResults (SIPsVoteResults))
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     stakeDistPct)
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution, totalStake, stakeMap)
 import qualified Cardano.Ledger.Spec.STS.Chain.Body as Body
 import           Cardano.Ledger.Spec.STS.Chain.Chain (CHAIN)
 import qualified Cardano.Ledger.Spec.STS.Chain.Chain as Chain
@@ -522,9 +521,20 @@ stakeDistWhoOwns80PctOfStk tr pctOwn =
   let env = Trace._traceEnv tr
       sDist = Chain.stakeDist env
       sDistPct = stakeDistPct sDist
+        where
+          stakeDistPct sd = 
+            Map.foldlWithKey' 
+              ( \accum key stake -> 
+                  Map.insert 
+                    key 
+                    ( (fromIntegral stake) / (fromIntegral (totalStake sd)) * 100) 
+                    accum
+              )
+              Map.empty 
+              (stakeMap sd)
       stakePcts =  Map.elems sDistPct
       stakePctsDesc = sortBy (\x y -> compare y x) stakePcts
       pctOwner = take (round $ (fromIntegral $ length stakePcts) * pctOwn) stakePctsDesc
       pctOwnerTot = sum pctOwner
   in -- 20% of stakeholders hold 80% of stake
-    pctOwnerTot >= 80
+    pctOwnerTot >= (80.0 :: Float)

@@ -16,7 +16,6 @@ where
 import           GHC.Exts (fromList)
 
 import           Control.Arrow ((&&&))
-import qualified Data.Map as Map
 import           Data.Word (Word8)
 import           System.Random (Random)
 
@@ -30,8 +29,8 @@ import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.State.Participants
                      (Participants (Participants), vkeyHashes)
-import           Cardano.Ledger.Spec.State.StakeDistribution
-                     (StakeDistribution (StakeDistribution))
+import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
+import qualified Cardano.Ledger.Spec.State.StakeDistribution as StakeDistribution
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import           Cardano.Ledger.Test.Mock (Mock)
@@ -99,7 +98,7 @@ stakeDist someParticipants = do
   stks <- Gen.oneof [ stakeDistUniform (length hashes)
                     , stakeDistSkewed (length hashes)
                     ]
-  pure $ StakeDistribution $ Map.fromList $ zip hashes stks
+  pure $ StakeDistribution.fromList $ zip hashes stks
   where
     stakeDistUniform :: Int -> Gen [Data.Stake]
     stakeDistUniform n = Gen.vectorOf n (Gen.choose (1, 20))
