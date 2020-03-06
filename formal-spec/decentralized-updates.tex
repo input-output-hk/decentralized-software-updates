@@ -29,6 +29,7 @@
 \usepackage{pgfplots}
 \usepackage{tikz}
 \usepackage{tikz}
+\usepackage{hyperref}
 \usetikzlibrary{arrows,automata, decorations.pathreplacing, positioning, arrows.meta, calc, shapes}
 % For drawing simple diagrams involving arrows between LaTeX symbols
 \usepackage{tikz-cd}
@@ -49,6 +50,28 @@
 $}}}
 
 \newcommand{\nnote}[1]{{\color{blue}\small Nikos: #1}}
+
+
+\lstdefinestyle{mystyle}{
+%    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+%    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,   
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
 
 \begin{document}
 
