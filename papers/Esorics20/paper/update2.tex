@@ -1,0 +1,75 @@
+\begin{figure}
+\setlength{\fboxsep}{12pt}
+\begin{center}
+\begin{boxedminipage}{13cm}
+
+\begin{center}
+% \usepackage[usenames,dvipsnames]{pstricks}
+% \usepackage{epsfig}
+% \usepackage{pst-grad} % For gradients
+% \usepackage{pst-plot} % For axes
+% \usepackage[space]{grffile} % For spaces in paths
+% \usepackage{etoolbox} % For spaces in paths
+% \makeatletter % For spaces in paths
+% \patchcmd\Gread@eps{\@inputcheck#1 }{\@inputcheck"#1"\relax}{}{}
+% \makeatother
+% 
+\psscalebox{1.0 1.0} % Change this value to rescale the drawing.
+{
+\begin{pspicture}(0,-3.8829687)(14.42,3.8829687)
+\definecolor{colour0}{rgb}{0.8,0.8,0.8}
+\definecolor{colour1}{rgb}{0.4,0.4,0.4}
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](2.0,1.7929688)(0.7,1.0929687)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](2.04,1.4929688)(2.2,1.4929688)
+\psline[linecolor=black, linewidth=0.04](2.36,1.4929688)(2.6,1.4929688)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](3.7,1.7929688)(2.4,1.0929687)
+\rput[bl](2.8,1.2929688){flag}
+\rput[bl](2.7,-0.70703125){$\aflag$}
+\psline[linecolor=black, linewidth=0.04](3.7,1.4929688)(4.0333333,1.4929688)(4.0333333,1.4929688)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](4.0571427,1.4929688)(4.2,1.4929688)
+\psline[linecolor=black, linewidth=0.04](4.5333333,0.39296874)(4.8,0.39296874)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour1, dimen=outer](6.1,0.6929687)(4.8,-0.00703125)
+\psline[linecolor=black, linewidth=0.04](6.1,0.39296874)(6.5,0.39296874)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](1.3,-1.6070312)(0.6,-2.0070312)
+\rput[bl](1.6,-1.9070313){$\ledger_1$ block}
+\rput[bl](5.0,-0.70703125){$\aflag+k+1$}
+\rput[bl](8.9,-0.70703125){$\aflag+k$}
+\rput[bl](1.9,3.5929687){$T_0$}
+\rput[bl](2.8,3.5929687){$T_0+s$}
+\rput[bl](9.0,3.5929687){$T_0+s_1+(k_1+1)\cg_1^{-1}$}
+\rput[bl](0.2,3.5929687){{\bf Round}}
+\rput[bl](0.0,-0.70703125){{\bf Block index}}
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour1, dimen=outer](7.8,0.6929687)(6.5,-0.00703125)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour0, dimen=outer](1.3,-2.2070312)(0.6,-2.6070313)
+\rput[bl](1.7,-2.6070313){Unstable $\ledger_1$ block}
+\psline[linecolor=black, linewidth=0.04](4.5333333,2.9929688)(4.8,2.9929688)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour0, dimen=outer](6.1,3.2929688)(4.8,2.5929687)
+\psline[linecolor=black, linewidth=0.04](6.1,2.9929688)(6.5,2.9929688)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour1, dimen=outer](7.8,3.2929688)(6.5,2.5929687)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](7.8,2.9929688)(8.2,2.9929688)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour1, dimen=outer](1.3,-2.8070312)(0.6,-3.2070312)
+\rput[bl](1.7,-3.2070312){$\ledger_2$ block}
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](7.8,0.39296874)(8.3,0.39296874)(8.3,0.39296874)
+\rput[bl](6.5,1.9929688){$\aflag+k+1$}
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](4.6,2.9929688)(4.3,2.9929688)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](4.6,0.39296874)(4.3,0.39296874)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](9.9,1.7929688)(8.6,1.0929687)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour1, dimen=outer](11.5,1.7929688)(10.2,1.0929687)
+\rput[bl](10.6,-0.70703125){$\aflag+k+1$}
+\psline[linecolor=black, linewidth=0.04](2.2,3.3929687)(2.0,2.9929688)(2.3,2.5929687)(2.0,2.1929688)(2.3,1.7929688)(2.0,1.2929688)(2.3,0.8929688)(2.3,0.8929688)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](8.6,1.4929688)(8.3,1.4929688)
+\psline[linecolor=black, linewidth=0.04](9.9,1.4929688)(10.2,1.4929688)
+\psline[linecolor=black, linewidth=0.04](10.8,3.3929687)(10.6,2.9929688)(10.8,2.6929688)(10.6,2.2929688)(10.8,1.8929688)(10.8,1.8929688)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour1, dimen=outer](1.3,-3.4070313)(0.6,-3.8070312)
+\rput[bl](1.7,-3.8070312){Unstable $\ledger_2$ block}
+\end{pspicture}
+}
+
+
+\end{center}
+
+\end{boxedminipage}
+\end{center}
+\caption{Transition from $\ledger_1$ to $\ledger_2$. Note that different honest parties might have different views (i.e., forks) of the unstable part of the chain which have also different lengths.} 
+\label{fig:sketch2}
+\end{figure}

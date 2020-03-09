@@ -1,0 +1,43 @@
+
+
+Before doing that, we introduce the notion of \emph{canonical execution} for the ledger $\ledger_2$. A canonical execution represents a standalone execution of $\ledger_2$. More precisely, 
+we assume the existence of a genesis block for $\ledger_2$ (that the adversary and the honest party see at the round $0$) and that $\asmp_2[\tau]$=1 for all $\tau \geq 0$.
+ Let $\parties$ be the set of parties that is running $\ledger_2$. Also, 
+let $t$ be the smallest time slot in which $B_\aflag$ appears in  $\state_2^{P_i}[t]$ for all $P_i\in\parties$ 
+and let $\tilde t_{i,j}$ be the smallest time slot in which $B^i_{j}$ appears in $\check \state_2^{P_i}[t_{i,j}]$ for each 
+$P_i\in\parties$ with $j:=\aflag+k+1$.
+
+%with $j:=\aflag+k+1$ for some $\aflag\in\mathbb{N}$.
+
+We now go back to our updatable ledger protocol.
+In the protocol that we have described, by assumption, we have that $\asmp_2[T_0]=1$ for all $\tau \geq T_0$.
+From the moment when $\asmp_2$ becomes true the activation process takes $\Delta\leq (k+1) \cg^{-1} + s$  time slots to be completed.
+This is because the parties need to wait for the block $\aflag$ to be part of all the honest parties stable view
+and wait for the $j$-th block (with $j:=\aflag+k+1$) of to be part of $\check \state_1^{P_i}[t_{i,j}]$  for all $P_i$ with $t_{i,j}\in\mathbb{N}$. 
+Note that in the moment that the block $B^i_{j}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j}$ is part of $\check \state_1^{P_i}$) then the party starts running $\ledger_2$ to extend $B^i_{j}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
+Let $t'_{i,j}$ be the smallest time slot in which $B^i_{j}$ appears in $\check \state_2^{P_i}[t'_{i,j}]$
+%\nnote{$\state_2^{P_i}[t']$}
+ for each $P_i\in\parties$ with $t'_{i,j}\in\mathbb{N}$. 
+If we consider the execution of the protocol from time $T_0$ and $T_0+\Delta$ this can be seen as a canonical execution of $\ledger_2$ given that $\ledger_1$ and $\ledger_2$ follow the same rules 
+and the same assumption, and given that $\check \state_1^{P_i}$ (and $\check \state_2^{P_i}$) contains at most $k$ blocks 
+more than $\state_1^{P_i}$ (and $\state_2^{P_i}$) for all $P_i\in\activep$. Hence, any advantage that the adversary has on our updatable ledger can be translated into an advantage for an adversary that is attacking $\ledger_2$, which is assumed to be secure.
+Note that it is crucial that the assumption that underlines the two ledger is the same. Indeed, we note that the
+number of honest parties that received $(\activate, \ledger_2)$ might be lower that the overall number of honest parties. Hence, the honest parties that are running the update procedure are less than the parties that are running $\ledger_1$ (this might happen as we do not require all the honest parties to update). However, given that 
+$\asmp_1=\asmp_2$, we can see the honest parties that did not receive the command $(\activate,\ledger_2)$
+as parties controlled by the adversary as they are not following the update procedure. Luckily, this does not
+cause problems as even if we consider these parties as adversarial, $\asmp_1$ would still hold  
+(given that $\asmp_1=\asmp_2$). Hence, we can claim that in the worst case everything that can be done by the adversary during the update can be done also in the canonical execution given that the number of honest parties
+in the canonical execution is the same as the number of honest parties that are performing the update.
+
+We remark that the only difference between this and the canonical execution described above is
+that the blocks $B_{\aflag},\dots, B_{j-2}, B_{j-1}$  are generated using $\ledger_1$, but this does not represent an issue since we are assuming that any block of $\ledger_1$ is valid for $\ledger_2$.
+
+
+
+
+
+
+
+
+
+
