@@ -15,7 +15,7 @@ main = do
       !tallyData2 =
         createTallyData constants (NumberOfParticipants 100)      (NumberOfConcurrentUPs 1)
       !tallyData3 =
-         createTallyData constants (NumberOfParticipants 1000)     (NumberOfConcurrentUPs 1)
+        createTallyData constants (NumberOfParticipants 1000)     (NumberOfConcurrentUPs 1)
       !tallyData4 =
         createTallyData constants (NumberOfParticipants 10000)    (NumberOfConcurrentUPs 1)
       !tallyData5 =

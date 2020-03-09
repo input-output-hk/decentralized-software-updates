@@ -143,9 +143,8 @@ voting period, and each participant changing her vote twice.
       ylabel={Usage percentage},
       ymin=0.0,
       ymax=250.0,
-      ymode=log, %linear,
+      ymode=log, 
       ytick={0.001, 0.01, 0.1, 1, 10, 100, 1000},
-      %ytick={5.0, 20.0, 50.0, 100.0, 150.0, 200.0, 250.0},
       legend pos=north west,
       ymajorgrids=true,
       grid style=dashed,
@@ -158,19 +157,25 @@ voting period, and each participant changing her vote twice.
   \label{fig:usage-vs-participants}
 \end{figure}
 
-We can see that the impact on the system's performance is negligible even when
-we consider $100,000$ participants. Moreover, we see that the usage consumption percentage scales linearly in the number of participants, i.e., a 10 times increase in the number of participants will only increase 10 times the required usage percent. Also, if we double the throughput, then we can process a double amount of participants workload at the same time.
+We can see that the impact on the system's performance is negligible
+even when we consider $100,000$ participants. Moreover, we see that 
+the usage consumption percentage scales linearly in the number of 
+participants, i.e., a 10 times increase in the number of participants 
+will only increase 10 times the required usage percent. Also, if we 
+double the throughput, then we can process a double amount of 
+participants workload at the same time.
 %
-These results indicate that the update protocol will start degrading the system
-performance \emph{only} past the 1,000,000 participants. Although this will
-require that the worst case conditions being met: 10 SIP's being voted at the
-same time over the period of 7 days, where each participant votes twice.
+These results indicate that the update protocol will start degrading
+the system performance \emph{only} past the 1,000,000 participants. 
+Although this will require that the worst case conditions being met:
+ 10 SIP's being voted at the same time over the period of 7 days, 
+where each participant votes twice.
 %
-In such case, relying on \emph{voting pools} (or \emph{expert pools}) becomes of
-crucial importance. In this way delegation of voting rights can help the update
-system is to scale beyond this number of participants. Alternatively, by
-increasing the duration of the vote period the impact on the system's
-performance can be mitigated.
+In such case, relying on \emph{voting pools} (or \emph{expert pools}) 
+becomes of crucial importance. In this way delegation of voting rights 
+can help the update system is to scale beyond this number of 
+participants. Alternatively, by increasing the duration of the vote 
+period the impact on the system's performance can be mitigated.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% TODO: we need the revisit the section below considering the insight of
@@ -178,11 +183,18 @@ performance can be mitigated.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{Processing Time and Memory Consumption}
-Clearly the most processing intesive task of the update mechanism is the tally phase. It is the phase where all the collected votes are counted in order to reach at a decision for a specific proposal. 
+Clearly the most processing intesive task of the update mechanism 
+is the tally phase. It is the phase where all the collected votes 
+are counted in order to reach at a decision for a specific proposal. 
 
-We start with a theoretical time complexity analysis where we assume a worst-case scenario, where we have $n$ participants that all of them vote by submiting a single vote. Also we assume that we have a single proposal, so that within a voting period, the number $n$ of participants coincides to the number of submitted ballots.
+We start with a theoretical time complexity analysis where we 
+assume a worst-case scenario, where we have $n$ participants that all
+of them vote by submiting a single vote. Also we assume that we have
+a single proposal, so that within a voting period, the number $n$ of participants coincides to the number of submitted ballots.
 
-In the following we try to break up the operations during the tally phase. In the heart of the tally phase lies the following function call, which is called three times sequencially for each proposal.
+In the following we try to break up the operations during the tally phase.
+ In the heart of the tally phase lies the following function call, 
+ which is called for each proposal.
  
 \begin{lstlisting}[language=Haskell, caption=Tally phase initial function call]
 tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
@@ -195,7 +207,9 @@ tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
     votingKeys = Map.filter (== confidence) ballot
 \end{lstlisting}
 
-\lstinline{Map.filter} is $O(n)$ \footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#g:25}}, so \lstinline{votingKeys} is $O(n)$, where $n$ is the number of ballots, which as we have said coincides to the number of participants. At this point, we have a single pass (loop) over $n$ ballots.
+\lstinline{Map.filter} \footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#g:25}}, is $O(n)$ so \lstinline{votingKeys} is $O(n)$, where $n$ is the number of ballots, 
+which as we have said coincides to the number of participants. At 
+this point, we have a single pass (loop) over $n$ ballots.
 
 Furthermore, \lstinline{stakeOfKeys} makes the following calls:
 \begin{lstlisting}[language=Haskell, caption=Code example]
@@ -207,11 +221,18 @@ stakeOfKeys
   = Map.foldl (+) 0 $ stakeMap `Map.intersection` keyMap
 \end{lstlisting}
 
-The $intersection$ function in the worst-case is $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:intersection}}. Therefore this is a second pass (loop) over the data of length $n$.
-\lstinline{foldl} is also $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:foldl}}. This is a third pass (loop) over the data of length $n$.
-Thus from the above analysis we see that we have for a single proposal three calls of \lstinline{tallyStake}, where in each one we have three passes over the data of length $n$. So in total for a single proposal we do $9$ passes over the data of length $n$. That is $9n$ operations, which means that the tally time complexity is $O(n)$. 
+The $intersection$ function in the worst-case is $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:intersection}}. Therefore this is a second pass
+ (loop) over the data of length $n$.
+\lstinline{foldl} is also $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:foldl}}. This is a third pass (loop) over the data of 
+length $n$. Thus from the above analysis we see that we have for 
+a single proposal a call of \lstinline{tallyStake}, where in each
+ such call we have three passes over the data of length $n$. So in total 
+ for a single proposal we do $3$ passes over the data of length $n$. 
+ That is $3n$ operations, which means that the tally time 
+ complexity is $O(n)$. 
 
-This result is also confirmed by the experimental evaluation shown in the graph below:
+This result is also confirmed by the experimental evaluation 
+shown in the graph below:
 
 \begin{figure}[htp]
   \centering
@@ -241,9 +262,17 @@ This result is also confirmed by the experimental evaluation shown in the graph 
   \label{fig:eltime-vs-participants}
 \end{figure}
 
-In Figure \ref{fig:eltime-vs-participants}, we see the elapsed time of the tally phase to scale linearly in the number of participants. In addition, we see that it takes almost one tenth of a second to process the votes of $1$ million participants. These results correspond to a no-parallel execution of the tally algorithm on a i7 CPU laptop with 32GB of RAM.
+In Figure \ref{fig:eltime-vs-participants}, we see that the elapsed 
+time increases linearly in the number of participants. In addition, 
+we see that it takes almost one tenth of a second to process
+ the votes of $1$ million participants. These results correspond to 
+ a no-parallel execution of the tally algorithm on a i7 CPU laptop 
+ with 32GB of RAM.
 
-Finally, we present the measurments of the memory consumption during the tally phase. Again as the graph in Figure \ref{fig:memcons-vs-participants} shows, the memory allocated scales linearly in the number of participants.
+Finally, we present the measurments of the memory consumption 
+during the tally phase. Again as the graph in 
+Figure \ref{fig:memcons-vs-participants} shows, the memory 
+allocated scales linearly in the number of participants.
 
 \begin{figure}[htp]
   \centering
