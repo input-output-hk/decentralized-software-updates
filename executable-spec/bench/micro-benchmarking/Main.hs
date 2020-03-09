@@ -13,18 +13,18 @@ main :: IO ()
 main = do
   let
       !tallyData2 =
-        createTallyData constants (NumberOfParticipants 10)      (NumberOfConcurrentUPs 10)
+        createTallyData constants (NumberOfParticipants 100)      (NumberOfConcurrentUPs 1)
       !tallyData3 =
-        createTallyData constants (NumberOfParticipants 100)     (NumberOfConcurrentUPs 10)
+        createTallyData constants (NumberOfParticipants 1000)     (NumberOfConcurrentUPs 1)
       !tallyData4 =
-        createTallyData constants (NumberOfParticipants 1000)    (NumberOfConcurrentUPs 10)
+        createTallyData constants (NumberOfParticipants 10000)    (NumberOfConcurrentUPs 1)
       !tallyData5 =
-        createTallyData constants (NumberOfParticipants 10000)   (NumberOfConcurrentUPs 10)
+        createTallyData constants (NumberOfParticipants 100000)   (NumberOfConcurrentUPs 1)
       !tallyData6 =
-        createTallyData constants (NumberOfParticipants 100000)  (NumberOfConcurrentUPs 10)
+        createTallyData constants (NumberOfParticipants 1000000)  (NumberOfConcurrentUPs 1)
       !tallyData7 =
-        createTallyData constants (NumberOfParticipants 1000000) (NumberOfConcurrentUPs 10)
-  print $ runTally constants tallyData3
+        createTallyData constants (NumberOfParticipants 10000000) (NumberOfConcurrentUPs 1)
+  print $ runTally constants tallyData2
   Cr.defaultMain
     [ Cr.bgroup "tally" [ Cr.bench "1e2" $ Cr.whnf allApproved tallyData2
                         , Cr.bench "1e3" $ Cr.whnf allApproved tallyData3
