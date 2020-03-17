@@ -239,13 +239,13 @@ shown in the graph below:
 
   \begin{tikzpicture}
     \begin{axis}[
-      title={Elapsed time (sec) vs Number of participants},
+      title={Processing time (sec) vs Number of participants},
       xlabel={Participants},
       xmin=100.0,
       xmax=1.0e7,
       xmode=log,
       xtick={10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 1.0e7},
-      ylabel={Elapsed time (sec)},
+      ylabel={Processing time (sec)},
       ymin=0.0000001,
       ymax=10,
       ymode=log, 
@@ -269,27 +269,27 @@ we see that it takes almost one tenth of a second to process
  a no-parallel execution of the tally algorithm on a i7 CPU laptop 
  with 32GB of RAM.
 
-Finally, we present the measurments of the memory consumption 
+Finally, we present the measurements of the memory consumption 
 during the tally phase. Again as the graph in 
 Figure \ref{fig:memcons-vs-participants} shows, the memory 
-allocated scales linearly in the number of participants.
+allocated is below 1GB for up to 1 million of participants. We observe an almost quadratic increase of the memory allocation in the number of participants. Although clearly there is room for improvement in the memory consumption scalability, we have to note that in our implementation, we have not yet performed any memory optimization techniques, like using specialized data structures that offer compression, but we have used the most common out-of-the-box container data structures offered by the Haskell language, in particular the Map \footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html}} data structure.
 
 \begin{figure}[htp]
   \centering
 
   \begin{tikzpicture}
     \begin{axis}[
-      title={Memory consumed (bytes) vs Number of participants},
+      title={Memory consumed (MBs) vs Number of participants},
       xlabel={Participants},
       xmin=100.0,
       xmax=1.0e7,
       xmode=log,
       xtick={10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 1.0e7},
-      ylabel={Memory consumed (bytes)},
-      ymin=1.0e6,
-      ymax=1.0e12,
+      ylabel={Memory consumed (MBs)},
+      ymin=0.1,
+      ymax=10000,
       ymode=log, 
-      ytick={1.0e6, 1.0e7, 1.0e8, 1.0e9, 1.0e10, 1.0e11, 1.0e12},
+      ytick={0.1, 1, 10, 100, 1000, 10000},
       legend pos=north west,
       ymajorgrids=true,
       grid style=dashed,
