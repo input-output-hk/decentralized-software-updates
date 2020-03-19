@@ -65,6 +65,7 @@ library
                      , random
                      , text
                      -- Cardano specific imports
+                     , cardano-prelude
                      , cardano-binary
                      , cardano-crypto-class
                      , small-steps
@@ -155,6 +156,7 @@ benchmark update-benchmarking
                      , criterion
                      , cryptonite
                      , deepseq
+                     , pretty-simple
                        -- Dependencies needed for defining the bench hashing
                      , cborg
                      , bytestring
@@ -164,14 +166,16 @@ benchmark update-benchmarking
                      , cardano-binary
                      , cardano-crypto-class
                      , decentralized-updates
+                     , cardano-prelude
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
                        -Wincomplete-uni-patterns
                        -Wredundant-constraints
-                       -- We have a map with up to 10M 32 bytes hashes, so we
-                       -- need a lot of heap.
-                       "-with-rtsopts=-K1m -M1500m"
+                       -- We use large maps for storing and manilpulating data
+                       -- (for instance, we have a maximum 10M proposals). Hence
+                       -- we need to set very large heap limits.
+                       "-with-rtsopts=-K1m -M6500m"
                        -threaded
                        -rtsopts
   other-modules:       Cardano.Ledger.Benchmarks.Update.Tally

@@ -6,7 +6,7 @@ packages:
 
 extra-deps:
   - git: https://github.com/input-output-hk/cardano-prelude
-    commit: cb54482c7e3d45f6c1aac490dc937ed835de0333
+    commit: 3ac22a2fda11ca7131a011a9ea48fcbfdc26d6b3
 
   - git: https://github.com/input-output-hk/cardano-base
     commit: 0fcb3a306e96ce36fca75d62792c55ab1de871ea
@@ -15,7 +15,7 @@ extra-deps:
       - cardano-crypto-class
 
   - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: d348b506e752c73f7c185a23cca9e397e9d86cb7
+    commit: c006b101b699b7b54a96d077fdbad07005b8da77
     subdirs:
       - byron/semantics/executable-spec
       - byron/ledger/executable-spec

@@ -1,10 +1,13 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Information about the state of a proposal of the update-system
 -- (improvement, implementation, etc).
@@ -16,6 +19,7 @@ module Cardano.Ledger.Spec.State.ProposalState
   , getVotingPeriodDuration
   , newProposalState
   , updateBallot
+  , updateBallot'
   , IsVote
   , getVoter
   , getConfidence
@@ -26,6 +30,8 @@ module Cardano.Ledger.Spec.State.ProposalState
   , VotingPeriod (VotingPeriod)
   )
 where
+
+import           Cardano.Prelude (NoUnexpectedThunks)
 
 import           Control.Applicative ((<|>))
 import           Data.Coerce (coerce)
@@ -46,7 +52,7 @@ import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
 import           Cardano.Ledger.Spec.STS.Update.Data
                      (Confidence (Abstain, Against, For))
 import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold)
-                     
+
 
 data ProposalState p =
   ProposalState
@@ -70,12 +76,16 @@ data ProposalState p =
 deriving instance Hashable p => Eq (ProposalState p)
 deriving instance Hashable p => Show (ProposalState p)
 
+instance NoUnexpectedThunks (Hash p (VKey p)) => NoUnexpectedThunks (ProposalState p)
+
 -- | A voting period number.
 newtype VotingPeriod = VotingPeriod { unVotingPeriod :: Word8 }
-  deriving (Eq, Show, Generic, Num, Ord)
+  deriving stock    (Eq, Show, Generic)
+  deriving newtype  (Num, Ord)
+  deriving anyclass (NoUnexpectedThunks)
 
 data Decision = Rejected | NoQuorum | Expired | Accepted | Undecided
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, NoUnexpectedThunks)
 
 class HasVotingPeriod d where
   getVotingPeriodDuration :: d -> SlotCount
@@ -168,7 +178,18 @@ updateBallot
   -> ProposalState p
   -> ProposalState p
 updateBallot v ps =
-  ps { ballot = Map.insert (hash $ getVoter v) (getConfidence v) (ballot ps) }
+  updateBallot' (hash $ getVoter v) (getConfidence v) ps
+
+updateBallot'
+  :: ( Hashable p
+     )
+  => Hash p (VKey p)
+  -> Confidence
+  -> ProposalState p
+  -> ProposalState p
+updateBallot' voterKeyHash confidence ps =
+  ps { ballot = Map.insert voterKeyHash confidence (ballot ps) }
+
 
 class IsVote p v | v -> p where
   getVoter :: v -> VKey p

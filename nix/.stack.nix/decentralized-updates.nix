@@ -64,6 +64,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."random" or (buildDepError "random"))
           (hsPkgs."text" or (buildDepError "text"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
@@ -105,6 +106,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."criterion" or (buildDepError "criterion"))
             (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
             (hsPkgs."deepseq" or (buildDepError "deepseq"))
+            (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."memory" or (buildDepError "memory"))
@@ -112,6 +114,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
+            (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
             ];
           buildable = true;
           };

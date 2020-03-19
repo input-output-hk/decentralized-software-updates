@@ -69,6 +69,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."Unique" or (buildDepError "Unique"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
           ];
         buildable = true;
@@ -112,8 +113,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "d348b506e752c73f7c185a23cca9e397e9d86cb7";
-      sha256 = "0p4966bx5g9nzqcinm558www7yvmm4rwd9y2npm8bcxh8nm4sl8r";
+      rev = "c006b101b699b7b54a96d077fdbad07005b8da77";
+      sha256 = "1m2xs2z9bq83k65l2hx41zbj1akyl83cdlxhdxssd8nbmb723qar";
       });
     postUnpack = "sourceRoot+=/byron/ledger/executable-spec; echo source root reset to \$sourceRoot";
     }

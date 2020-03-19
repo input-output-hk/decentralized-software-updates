@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -21,10 +23,13 @@ module Cardano.Ledger.Spec.State.StakeDistribution
   )
 where
 
+import           Cardano.Prelude (NoUnexpectedThunks)
+
 import           Data.List (foldl')
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Monoid (Sum (Sum), getSum)
+import           GHC.Generics (Generic)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
@@ -45,9 +50,12 @@ data StakeDistribution p =
     --
     -- > totalStake = Map.foldr' (+) (Data.Stake 0) stakeMap
     --
-  }
+  } deriving (Generic)
+
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (StakeDistribution p)
+
+instance NoUnexpectedThunks (Hash p (VKey p)) => NoUnexpectedThunks (StakeDistribution p)
 
 emptyStakeDistribution :: Hashable p => StakeDistribution p
 emptyStakeDistribution =
@@ -74,7 +82,7 @@ stakeOfKeys
   StakeDistribution
   { stakeMap
   }
-  = Map.foldl (+) 0 $ stakeMap `Map.intersection` keyMap
+  = Map.foldl' (+) 0 $ stakeMap `Map.intersection` keyMap
 
 -- | Add the given stake amount to the stake of the given key.
 --

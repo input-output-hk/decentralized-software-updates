@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -10,6 +11,7 @@ module Cardano.Ledger.Spec.State.ProposalsState
   , tally
   , revealProposal
   , updateBallot
+  , updateBallot'
   , votingPeriodStarted
   , votingPeriodEnded
   , votingPeriodHasNotEnded
@@ -19,9 +21,12 @@ module Cardano.Ledger.Spec.State.ProposalsState
   )
 where
 
+import           Cardano.Prelude (NoUnexpectedThunks)
+
 import           Control.Exception (assert)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           GHC.Generics (Generic)
 
 import           Ledger.Core (BlockCount, Slot)
 
@@ -33,16 +38,18 @@ import           Cardano.Ledger.Spec.State.ProposalState (Decision,
                      newProposalState)
 import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-
+import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
 
 -- | The @d@ parameter is the type of the proposals. The @p@ parameter
 -- determines the hashing and cryptographic algorithms to be used in the
 -- proposal state.
 newtype ProposalsState p d = ProposalsState (Map (Hash p d) (ProposalState p))
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 deriving instance Ord (Hash p d) => Semigroup (ProposalsState p d)
 deriving instance Ord (Hash p d) => Monoid (ProposalsState p d)
+instance ( NoUnexpectedThunks (Hash p d)
+         , NoUnexpectedThunks (Hash p (VKey p))) => NoUnexpectedThunks (ProposalsState p d)
 
 -- | Tally each proposal in the state.
 --
@@ -107,6 +114,8 @@ isNotRevealed d st = not $ isRevealed d st
 -- The proposal must be present in the map, otherwise an 'AssertionFailed'
 -- exception will be thrown, unless the code is compiles with assertions
 -- disabled. See 'Control.Exception.assert'.
+--
+-- TODO: we should remove this in favor of 'updateBallot''.
 updateBallot
   :: ( Hashable p
      , IsVote p v
@@ -120,6 +129,20 @@ updateBallot dHash v (ProposalsState proposalStateMap)
   =  assert (dHash `Map.member` proposalStateMap)
   $  ProposalsState
   $! Map.adjust (ProposalState.updateBallot v) dHash proposalStateMap
+
+updateBallot'
+  :: ( Hashable p
+     )
+  => Hash p d
+  -> Hash p (VKey p)
+  -> Confidence
+  -> ProposalsState p d
+  -> ProposalsState p d
+updateBallot' dHash voterKeyHash confidence (ProposalsState proposalStateMap)
+  =  assert (dHash `Map.member` proposalStateMap)
+  $  ProposalsState
+  $! Map.adjust (ProposalState.updateBallot' voterKeyHash confidence) dHash proposalStateMap
+
 
 votingPeriodStarted
   :: (Ord (Hash p d))

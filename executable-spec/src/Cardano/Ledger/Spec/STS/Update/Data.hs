@@ -17,6 +17,8 @@
 
 module Cardano.Ledger.Spec.STS.Update.Data where
 
+import           Cardano.Prelude (NoUnexpectedThunks)
+
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -32,11 +34,11 @@ import           Data.AbstractSize (HasTypeReps, typeReps)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 data ImplementationPayload = ImplementationPayload
-  deriving (Eq, Show, Generic, HasTypeReps)
+  deriving (Eq, Show, Generic, HasTypeReps, NoUnexpectedThunks)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Enum, Generic, HasTypeReps)
+  deriving (Eq, Ord, Show, Enum, Generic, HasTypeReps, NoUnexpectedThunks)
 
 -- | Records the voting result for a specific software update (SIP/UP)
 data VotingResult =
@@ -54,7 +56,7 @@ data VotingResult =
                --
                -- TODO: this should be a newtype
                }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NoUnexpectedThunks)
 
 addVote :: Stake -> Confidence -> VotingResult -> VotingResult
 addVote
@@ -68,7 +70,7 @@ addVote
     Abstain -> votingResult { stakeAbstain = stakeAbstain + stake}
 
 data TallyOutcome = Approved | Rejected | NoQuorum | NoMajority | Expired
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NoUnexpectedThunks)
 
 -- | Returns the stake percent as a rounded value
 -- in the range [0,100]
@@ -81,15 +83,18 @@ stakePercentRound st totSt =
 
 -- | Stake
 newtype Stake = Stake { getStake :: Word64 }
+ deriving stock (Generic)
  deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random)
+ deriving anyclass (NoUnexpectedThunks)
 
 -- | Voting Period status values
 data VPStatus = VPOpen | VPClosed
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NoUnexpectedThunks)
 
 newtype URL = URL { getText :: Text }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (ToCBOR)
+  deriving anyclass (NoUnexpectedThunks)
 
 --------------------------------------------------------------------------------
 -- HasTypeReps instances
