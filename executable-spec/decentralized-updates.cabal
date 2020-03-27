@@ -116,7 +116,7 @@ test-suite ledger-rules-test
                        -- We set a bound here so that we're alerted of potential
                        -- space leaks in our generators (or test) code.
                        --
-                       -- The 4 megabytes stack bound and 150 megabytes heap bound were
+                       -- The 1 megabyte stack bound and 150 megabytes heap bound were
                        -- determined ad-hoc.
                        "-with-rtsopts=-K1m -M150m"
                        -threaded

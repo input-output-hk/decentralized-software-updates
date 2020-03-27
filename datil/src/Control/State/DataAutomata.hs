@@ -23,12 +23,17 @@ import qualified Data.Set as Set
 
 import           Control.State.DataAutomata.Expr
 
+
+-- | A data automata consists of a set of states, and transitions between those
+-- states.
 data DataAutomaton =
   DataAutomaton
-  { start :: State
+  { start       :: State
   , transitions :: [Transition]
   } deriving (Show)
 
+-- | A state is simply a label.
+--
 newtype State = State Text
   deriving (IsString, Eq, Ord, Show)
 
@@ -41,8 +46,13 @@ data Transition =
   , to     :: State
   } deriving (Show)
 
+-- | Instances of this class combined with function '(.-->)' provide a
+-- convenient way to specifying transitions.
+--
 class TransitionPreBuilder a where
   (.--) :: State -> a -> (State -> Transition)
+
+infixl 2 .--
 
 instance TransitionPreBuilder (Expr Bool, Action, [Update]) where
   fromSt .-- (someGuard, someAct, someUpdates) =
@@ -72,11 +82,15 @@ instance TransitionPreBuilder Action where
 (.-->)  :: (State -> Transition) -> State -> Transition
 f .--> target = f target
 
+infixl 2 .-->
+
+-- | Actions are of two type: input or output. Its meaning depends on the
+-- automata interpreter.
 data Action
-  = forall t . Typeable t => Input ActionName (Var t)
+  = forall t . Typeable t                 => Input ActionName (Var t)
   | forall t . (Typeable t, Show t, Eq t) => Output ActionName (Expr t)
 
-newtype ActionName = ActionName Text
+newtype ActionName = ActionName { unActionName :: Text}
   deriving (Eq, Ord, Show, IsString)
 
 class HasActionName a where
@@ -103,6 +117,7 @@ namePrefix .@ i = ActionName $ namePrefix <> "_" <> T.pack (show i)
 
 infixl 3 .@
 
+-- | Create an action that outputs the given value.
 (#!)
   :: ( Typeable t
      , Show t

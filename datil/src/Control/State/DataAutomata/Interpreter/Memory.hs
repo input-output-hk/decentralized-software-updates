@@ -16,7 +16,7 @@ import qualified Data.Map.Strict as Map
 
 
 newtype Memory = Memory { unMemory :: Map Text Cell }
-  deriving (Show, IsList)
+  deriving (Show, IsList, Semigroup, Monoid)
 
 data Cell = forall v . (Typeable v, Show v, Eq v) => Cell v
 

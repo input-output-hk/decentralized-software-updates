@@ -83,6 +83,10 @@ data Error
   | InterleavingParallelComposition Error Error
   deriving (Show)
 
+isDeadlock :: Error -> Bool
+isDeadlock (Deadlock _) = True
+isDeadlock _            = False
+
 run
   :: Memory
   -> DataAutomaton
@@ -100,6 +104,12 @@ finalState :: Show err => Except err (mem, st) -> st
 finalState exc = either err snd $ runExcept exc
   where
     err what = error $ "Expected Right, but got Left " ++ show what
+
+getError :: Show b => Except (a, Error) b -> Error
+getError exc = either snd err $ runExcept exc
+  where
+    err what = error $ "Expected Left, but got Right " ++ show what
+
 
 stepAutomaton
   :: DataAutomaton
@@ -231,6 +241,13 @@ runAutomata mem aut acts = go (mem, initialStateTree aut) acts
       (mem'', st') <- withExcept (st,) $ automataStep aut (mem', st) cAct
       go (mem'', st') acts'
 
+runModel
+  :: RunnableModel
+  -> [CAction]
+  -> Except (LTree State, Error) (LTree Memory, LTree State)
+runModel RunnableModel { initialMemory, automata } =
+  runAutomata initialMemory automata
+
 -- | Necessary ingredients to run a model.
 --
 -- TODO: we might want to define smart constructors to make sure that the memory
@@ -238,5 +255,5 @@ runAutomata mem aut acts = go (mem, initialStateTree aut) acts
 data RunnableModel =
   RunnableModel
   { initialMemory :: LTree Memory
-  , automata :: Automata
+  , automata      :: Automata
   }

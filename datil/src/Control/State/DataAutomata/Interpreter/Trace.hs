@@ -10,7 +10,7 @@ import           Data.Maybe (isJust)
 
 import           Control.State.DataAutomata
 
-
+-- | Concrete action.
 data CAction
   = forall t . (Typeable t, Show t, Eq t) => CAction ActionName t
 
