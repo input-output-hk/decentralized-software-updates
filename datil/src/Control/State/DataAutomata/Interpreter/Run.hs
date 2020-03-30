@@ -23,6 +23,7 @@ import           Data.Foldable (elem)
 import           Data.Sequence ((|>))
 import           Data.Text (Text)
 import           Data.Typeable (TypeRep, Typeable, cast, typeOf)
+import           GHC.Exts (IsString, fromString)
 import           Text.Pretty.Simple (pPrint)
 
 import           Control.State.DataAutomata
@@ -189,6 +190,9 @@ instance Functor LTree where
 
 instance Semigroup (LTree a) where
   lt <> rt = lt :++ rt
+
+instance IsString s => IsString (LTree s) where
+  fromString s = Leaf $ fromString s
 
 automataStep
   :: Automata

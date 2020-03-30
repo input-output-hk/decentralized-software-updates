@@ -37,7 +37,9 @@ library
 test-suite datil-examples
   hs-source-dirs:      test/examples/
   main-is:             Main.hs
-  other-modules:       Datil.Examples.PingPong
+  other-modules:       Datil.Examples.Echo
+                     , Datil.Examples.FarmerCrossesRiver
+                     , Datil.Examples.PingPong
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
   build-depends:       base
