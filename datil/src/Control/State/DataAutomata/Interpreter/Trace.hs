@@ -4,6 +4,7 @@
 
 module Control.State.DataAutomata.Interpreter.Trace where
 
+import           GHC.Exts (IsString, fromString)
 import           Data.Typeable (Typeable, cast)
 import           Data.List (find)
 import           Data.Maybe (isJust)
@@ -21,6 +22,9 @@ instance HasActionName CAction where
 
 concreteActionValue :: Typeable t => CAction -> Maybe t
 concreteActionValue (CAction _ val) = cast val
+
+instance IsString CAction where
+  fromString str = CAction (fromString str) ()
 
 type Trace = [CAction]
 

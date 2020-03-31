@@ -5,12 +5,12 @@
 module Datil.Examples.Echo where
 
 import           Test.Tasty (TestTree, testGroup)
-import           Test.Tasty.QuickCheck (testProperty)
 
 import           Control.State.DataAutomata
 import           Control.State.DataAutomata.Expr
 import           Control.State.DataAutomata.Interpreter.Memory
 import           Control.State.DataAutomata.Interpreter.Run
+import           Control.State.DataAutomata.Interpreter.Run.Test
 import           Control.State.DataAutomata.Interpreter.Trace
 
 
@@ -76,42 +76,3 @@ tests
       , "in"  ?! "marco"
       , "out" ?! "polo" ]
     ]
-
---------------------------------------------------------------------------------
--- Generic testing utilities. TODO: We should include this in the datil lib
---------------------------------------------------------------------------------
-
-with :: RunnableModel -> [RunnableModel -> TestTree] -> [TestTree]
-with model = fmap ( $ model )
-
--- | Run all the actions on the given model, and check whether the model results
--- in the expected state.
-shouldEndInState
-  :: [CAction]
-  -- ^ Actions to run. First action to run is the first element of the list.
-  -> LTree State
-  -- ^ Expected state after running the given actions.
-  -> RunnableModel
-  -> TestTree
-shouldEndInState acts expectedState model
-  = testProperty (actionNames acts <> " ends in state " <> show expectedState)
-  $ finalState (runModel model acts) == expectedState
-
-
-actionNames :: [CAction] -> String
-actionNames = show . fmap (unActionName . actionName)
-
--- | Run all the actions, and check whether we get a deadlock error after
--- trying to run the given actions.
---
--- TODO: we might want to add the pre-condition that the 'init' of the list __should__ not deadlock.
-shouldDeadlockWhenRunning
-  :: [CAction]
-  -- ^ Actions to run. First action to run is the first element of the list.
-  -> RunnableModel
-  -> TestTree
-shouldDeadlockWhenRunning acts model
-  = testProperty (actionNames acts <> " deadlocks")
-  $ isDeadlock
-  $ getError
-  $ runModel model acts

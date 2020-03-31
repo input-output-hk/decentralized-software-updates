@@ -19,6 +19,7 @@ library
                      , Control.State.DataAutomata.Interpreter.Gen
                      , Control.State.DataAutomata.Interpreter.Memory
                      , Control.State.DataAutomata.Interpreter.Run
+                     , Control.State.DataAutomata.Interpreter.Run.Test
                      , Control.State.DataAutomata.Interpreter.Trace
                      , Control.State.DataAutomata.Test.Conformance
   build-depends:       base >=4.11 && <5
@@ -27,6 +28,9 @@ library
                      , pretty-simple
                      , QuickCheck
                      , text
+                     -- Dependencies needed for testing models
+                     , tasty
+                     , tasty-quickcheck
   default-language:    Haskell2010
   ghc-options:        -Wall
                       -Wcompat

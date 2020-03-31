@@ -4,11 +4,11 @@
 module Datil.Examples.PingPong where
 
 import           Test.Tasty (TestTree, testGroup)
-import           Test.Tasty.QuickCheck (testProperty)
 
 import           Control.State.DataAutomata
+
 import           Control.State.DataAutomata.Interpreter.Run
-import           Control.State.DataAutomata.Interpreter.Trace
+import           Control.State.DataAutomata.Interpreter.Run.Test
 
 pingPong :: DataAutomaton
 pingPong =
@@ -38,24 +38,13 @@ runnablePingPong =
 tests :: TestTree
 tests
   = testGroup "ping-pong"
-  $ fmap check          [ ([]                      , "Ping")
-                        , (["ping"]                , "Pong")
-                        , (["ping", "pong"]        , "Ping")
-                        , (["ping", "pong", "ping"], "Pong")
-                        ]
-  ++ fmap checkDeadlock [ (["pong"])
-                        , (["ping", "ping"])
-                        , (["ping", "pong", "pong"])
-                        ]
-  where
-    check (xs, st) =
-      testProperty ("Passes with " <> actionNames xs)
-      (finalState (runPingPong xs) == Leaf st)
+  $ with runnablePingPong
+  [ []                       `shouldEndInState` "Ping"
+  , ["ping"]                 `shouldEndInState` "Pong"
+  , ["ping", "pong"]         `shouldEndInState` "Ping"
+  , ["ping", "pong", "ping"] `shouldEndInState` "Pong"
 
-    actionNames = show . fmap unActionName
-
-    checkDeadlock xs =
-      testProperty ("Deadlocks with " <> actionNames xs)
-      (isDeadlock $ getError (runPingPong xs))
-
-    runPingPong xs = runModel runnablePingPong $ fmap (`CAction` ()) xs
+  , shouldDeadlockWhenRunning ["pong"]
+  , shouldDeadlockWhenRunning ["ping", "ping"]
+  , shouldDeadlockWhenRunning ["ping", "pong", "pong"]
+  ]
