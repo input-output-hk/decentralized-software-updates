@@ -20,13 +20,14 @@ import           GHC.Exts (IsString, fromString)
 data Expr t where
   VarE  :: (Show t, Eq t) => Var t -> Expr t
   Const :: (Show t, Eq t) => t -> Expr t
+  Not   :: Expr Bool -> Expr Bool
   (:==) :: (Typeable n, Eq n, Show n)  => Expr n -> Expr n -> Expr Bool
   (:<)  :: (Typeable n, Ord n, Show n) => Expr n -> Expr n -> Expr Bool
   (:<=) :: (Typeable n, Ord n, Show n) => Expr n -> Expr n -> Expr Bool
   (:*)  :: (Typeable n, Num n, Show n) => Expr n -> Expr n -> Expr n
   (:+)  :: (Typeable n, Num n, Show n) => Expr n -> Expr n -> Expr n
   -- | Semigroup binary operator
-  (:<>) :: (Typeable a
+  (:<>) :: ( Typeable a
            , Semigroup a
            , Show a
            ) => Expr a -> Expr a -> Expr a
@@ -105,6 +106,7 @@ instance Show (Expr t) where
   -- TODO: add parenthesis to remove ambiguity.
   show (VarE var)        = "VarE " ++ show var
   show (Const t)         = "Const " ++ show t
+  show (Not e)           = "Not " ++ show e
   show (expr0 :== expr1) = show expr0 ++ " :== " ++ show expr1
   show (expr0 :< expr1)  = show expr0 ++ " :< " ++ show expr1
   show (expr0 :<= expr1) = show expr0 ++ " :<= " ++ show expr1
@@ -130,7 +132,7 @@ instance Show (Expr t) where
 -- Variables
 --------------------------------------------------------------------------------
 
-newtype Var t = Var Text
+newtype Var t = Var { unVar :: Text }
   deriving (IsString, Show, Eq, Ord)
 
 varType :: forall t . Typeable t => Var t -> TypeRep

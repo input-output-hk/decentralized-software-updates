@@ -43,6 +43,7 @@ performUpdates mem updates = foldM performUpdate mem updates
 eval :: (Typeable t, Show t, Eq t) => Memory -> Expr t -> Except Memory.Error t
 eval mem (VarE (Var name)) = mem .? name
 eval _ (Const n) = pure n
+eval mem (Not e) = not <$> eval mem e
 eval mem (n :== m) = (==) <$> eval mem n <*> eval mem m
 eval mem (n :< m) = (<) <$> eval mem n <*> eval mem m
 eval mem (n :<= m) = (<=) <$> eval mem n <*> eval mem m
