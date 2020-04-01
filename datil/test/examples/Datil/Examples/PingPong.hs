@@ -5,7 +5,6 @@
 module Datil.Examples.PingPong where
 
 import           Test.Tasty (TestTree, testGroup)
-import           Test.Tasty.QuickCheck (testProperty)
 
 import           Control.State.DataAutomata
 import           Control.State.DataAutomata.Interpreter.Gen
@@ -14,6 +13,10 @@ import           Control.State.DataAutomata.Interpreter.Run
 import           Control.State.DataAutomata.Test.Properties
 import           Control.State.DataAutomata.Test.Run
 
+
+--------------------------------------------------------------------------------
+-- Model
+--------------------------------------------------------------------------------
 
 pingPong :: DataAutomaton
 pingPong =
