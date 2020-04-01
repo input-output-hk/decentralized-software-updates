@@ -88,8 +88,8 @@ action ?! val = CAction action val
 -- Property tests
 --------------------------------------------------------------------------------
 
-testablePingPong :: GeneratorModel
-testablePingPong =
+testableEcho :: GeneratorModel
+testableEcho =
   GeneratorModel
   -- Note that unlike the @PingPong@ example, this model has a "in" input
   -- action. Unlike output actions, which can be calculated, input actions refer
@@ -102,7 +102,7 @@ testablePingPong =
 propertyTests :: TestTree
 propertyTests
   = testGroup "echo"
-  $ with testablePingPong
+  $ with testableEcho
   [ actionIsTriggered 100 (Desired 2) "in"
   , actionIsTriggered 100 (Desired 2) "out"
   ]

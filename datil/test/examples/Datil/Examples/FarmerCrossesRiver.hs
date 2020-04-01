@@ -21,14 +21,17 @@ module Datil.Examples.FarmerCrossesRiver where
 import qualified Data.Map.Strict as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import           Test.QuickCheck (Gen, arbitrary, elements, oneof)
 import           Test.Tasty (TestTree, testGroup)
 
 import           Control.State.DataAutomata
 import           Control.State.DataAutomata.Expr
+import           Control.State.DataAutomata.Interpreter.Gen
 import           Control.State.DataAutomata.Interpreter.Memory hiding (remove)
 import           Control.State.DataAutomata.Interpreter.Run
 import           Control.State.DataAutomata.Interpreter.Trace
 
+import           Control.State.DataAutomata.Test.Properties
 import           Control.State.DataAutomata.Test.Run
 
 
@@ -260,3 +263,26 @@ failBecause failure = CAction "fail" failure
 
 theFarmer :: ActionName -> CAction
 theFarmer what = CAction what ()
+
+--------------------------------------------------------------------------------
+-- Property tests
+--------------------------------------------------------------------------------
+
+testableFarmer :: GeneratorModel
+testableFarmer =
+  GeneratorModel
+  { actionGenerators = Map.fromList
+                     [ ("leftWith", Cell <$> someItem)]
+  , runnableModel    = runnableFarmer
+  }
+  where
+    someItem :: Gen (Maybe Item)
+    someItem = oneof [pure Nothing, Just <$> elements [Wolf, Goat, Cabbage]]
+
+
+propertyTests :: TestTree
+propertyTests
+  = testGroup "farmer crosses the river"
+  $ with testableFarmer
+  [ actionIsTriggered 10000 (Desired 500) "success"
+  ]

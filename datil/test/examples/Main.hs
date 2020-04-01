@@ -19,5 +19,6 @@ main = defaultMain tests
         , testGroup "Properties"
             [ PingPong.propertyTests
             , Echo.propertyTests
+            , Farmer.propertyTests
             ]
         ]
