@@ -2,7 +2,7 @@
 
 module Control.State.DataAutomata.Test.Run where
 
-import           Test.Tasty (TestTree, testGroup)
+import           Test.Tasty (TestTree)
 import           Test.Tasty.QuickCheck (testProperty)
 
 import           Control.State.DataAutomata
@@ -17,8 +17,8 @@ import           Control.State.DataAutomata.Interpreter.Trace
 --
 -- > with someModel $ [ xs `shouldEndInState` someSt, ys `shouldEndInState` someOtherSt ]
 --
-with :: RunnableModel -> [RunnableModel -> TestTree] -> [TestTree]
-with model = fmap ( $ model )
+with :: a -> [a -> b] -> [b]
+with a = fmap ( $ a )
 
 -- | Run all the actions on the given model, and check whether the model results
 -- in the expected state.

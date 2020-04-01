@@ -11,7 +11,12 @@ main = defaultMain tests
   where
     tests =
       testGroup "Examples"
-      [ PingPong.tests
-      , Echo.tests
-      , Farmer.tests
-      ]
+        [ testGroup "Unit tests"
+            [ PingPong.tests
+            , Echo.tests
+            , Farmer.tests
+            ]
+        , testGroup "Properties"
+            [ PingPong.propertyTests
+            ]
+        ]

@@ -1,14 +1,17 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Trivial automata without data
 module Datil.Examples.PingPong where
 
 import           Test.Tasty (TestTree, testGroup)
+import           Test.Tasty.QuickCheck (testProperty)
 
 import           Control.State.DataAutomata
-
+import           Control.State.DataAutomata.Interpreter.Gen
 import           Control.State.DataAutomata.Interpreter.Run
 
+import           Control.State.DataAutomata.Test.Properties
 import           Control.State.DataAutomata.Test.Run
 
 
@@ -26,16 +29,16 @@ pingPong =
     ]
   }
 
+--------------------------------------------------------------------------------
+-- Unit tests
+--------------------------------------------------------------------------------
+
 runnablePingPong :: RunnableModel
 runnablePingPong =
   RunnableModel
   { initialMemory = Leaf mempty -- No variables in this model.
   , automata      = Single pingPong
   }
-
---------------------------------------------------------------------------------
--- Unit tests
---------------------------------------------------------------------------------
 
 tests :: TestTree
 tests
@@ -49,4 +52,24 @@ tests
   , shouldDeadlockWhenRunning ["pong"]
   , shouldDeadlockWhenRunning ["ping", "ping"]
   , shouldDeadlockWhenRunning ["ping", "pong", "pong"]
+  ]
+
+--------------------------------------------------------------------------------
+-- Property tests
+--------------------------------------------------------------------------------
+
+testablePingPong :: GeneratorModel
+testablePingPong =
+  GeneratorModel
+  { actionGenerators = []
+  , runnableModel    = runnablePingPong
+  }
+
+
+propertyTests :: TestTree
+propertyTests
+  = testGroup "ping-pong"
+  $ with testablePingPong
+  [ actionIsTriggered 100 (Desired 2) "ping"
+  , actionIsTriggered 100 (Desired 2) "pong"
   ]

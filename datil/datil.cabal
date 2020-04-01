@@ -21,6 +21,7 @@ library
                      , Control.State.DataAutomata.Interpreter.Run
                      , Control.State.DataAutomata.Interpreter.Trace
                      , Control.State.DataAutomata.Test.Conformance
+                     , Control.State.DataAutomata.Test.Properties
                      , Control.State.DataAutomata.Test.Run
   build-depends:       base >=4.11 && <5
                      , containers

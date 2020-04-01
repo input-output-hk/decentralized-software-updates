@@ -359,5 +359,5 @@ invalidActionCandidateInAutomata _ _ _ _ = cardinalityError
 data GeneratorModel =
   GeneratorModel
   { actionGenerators :: Map ActionName (Gen Cell)
-  , runnableModel :: RunnableModel
+  , runnableModel    :: RunnableModel
   }
