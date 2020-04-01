@@ -1,6 +1,6 @@
--- | Utilities for testing runnable models.
+-- | Utilities for testing automata runs.
 
-module Control.State.DataAutomata.Interpreter.Run.Test where
+module Control.State.DataAutomata.Test.Run where
 
 import           Test.Tasty (TestTree, testGroup)
 import           Test.Tasty.QuickCheck (testProperty)

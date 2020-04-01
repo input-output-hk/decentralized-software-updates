@@ -8,7 +8,9 @@ import           Test.Tasty (TestTree, testGroup)
 import           Control.State.DataAutomata
 
 import           Control.State.DataAutomata.Interpreter.Run
-import           Control.State.DataAutomata.Interpreter.Run.Test
+
+import           Control.State.DataAutomata.Test.Run
+
 
 pingPong :: DataAutomaton
 pingPong =

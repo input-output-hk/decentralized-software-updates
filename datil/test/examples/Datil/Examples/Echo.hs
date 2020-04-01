@@ -10,8 +10,9 @@ import           Control.State.DataAutomata
 import           Control.State.DataAutomata.Expr
 import           Control.State.DataAutomata.Interpreter.Memory
 import           Control.State.DataAutomata.Interpreter.Run
-import           Control.State.DataAutomata.Interpreter.Run.Test
 import           Control.State.DataAutomata.Interpreter.Trace
+
+import           Control.State.DataAutomata.Test.Run
 
 
 echo :: DataAutomaton
