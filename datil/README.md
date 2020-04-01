@@ -13,3 +13,9 @@
       `RunnableModel.initialMemory`. We could also check types as well.
 - [ ] Generate property tests to check that all actions are reachable. This will
       help with checking the models, and detect errors early.
+
+### Documentation
+
+- [ ] Scan the examples and extract information from the comments to explain the
+      different parts of the framework (syntax, semantics, generation,
+      conformance, etc).
