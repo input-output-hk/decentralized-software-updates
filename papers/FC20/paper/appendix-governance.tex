@@ -1,10 +1,15 @@
 \section{Update Governance}
 
 %\paragraph{What is update governance. Why we should care?}
-With the term \emph{update governance} we mean the processes used to control the software updates mechanism. %As we have seen, in the centralized setting, update governance is quite straightforward. 
+With the term \emph{update governance} we mean the processes used to control the software updates mechanism. %As we have seen, in the centralized setting, update governance is quite straightforward.
 In the centralized setting, the mere existence of a central authority (owner of the code) simplifies decision making significantly. On the other side, in the decentralized approach, we have seen that all decision-making procedures have been replaced by a voting process, where a decision is taken collectively by the whole stake. Thus, we are dealing with a \emph{decentralized governance model}. Therefore voting and delegation are key components of a decentralized approach to software updates.
 %\paragraph{What is the scope of the sections that follow?}
-%It is true that in the decentralized setting the tools that one has at one's disposal for controlling the software updates process, but more importantly, for leading the participating stakeholders towards an \emph{update consensus}, i.e., to reach at an agreement regarding the acceptance, or not, of the updates and the order (i.e., priorities), by which these will be applied,  are the voting and delegation mechanisms. 
+%It is true that in the decentralized setting the tools that one has at one's
+% disposal for controlling the software updates process, but more importantly,
+% for leading the participating stakeholders towards an \emph{update consensus},
+% i.e., to reach at an agreement regarding the acceptance, or not, of the
+% updates and the order (i.e., priorities), by which these will be applied, are
+% the voting and delegation mechanisms.
 In this section, we describe both of these mechanisms.
 % and end with a description of the software updates protocol that encompasses them.
 
@@ -16,10 +21,10 @@ In this section, we describe both of these mechanisms.
 
 Voting is the main vehicle for driving democracy and in our case is indeed the main mechanism for decision making in a decentralized setting for software updates
 %\paragraph{What is a vote}
-\emph{A vote} is a fee-based transaction that is valid for a specific period of time called the \emph{voting period}. In particular, after the object of voting (a SIP or a UP) has been submitted to the blockchain (initially encrypted and then at a second step revealed - based on a commit-reveal scheme),% it has been buried under a sufficient number of blocks, in order to be confirmed and finally it has been revealed, 
-then the voting period for this software update begins. 
+\emph{A vote} is a fee-based transaction that is valid for a specific period of time called the \emph{voting period}. In particular, after the object of voting (a SIP or a UP) has been submitted to the blockchain (initially encrypted and then at a second step revealed - based on a commit-reveal scheme),% it has been buried under a sufficient number of blocks, in order to be confirmed and finally it has been revealed,
+then the voting period for this software update begins.
 
-We acknowledge the fact that not all software updates are equal and therefore, we cannot have a fixed voting period. %Moreover, software updates (especially UPs, which are essentially source code) are complex technical objects, where sufficient time must be provided for their evaluation. 
+We acknowledge the fact that not all software updates are equal and therefore, we cannot have a fixed voting period. %Moreover, software updates (especially UPs, which are essentially source code) are complex technical objects, where sufficient time must be provided for their evaluation.
 Therefore, the voting period must be adaptive to the complexity of the specific software update. We propose to have a \emph{metadata-driven} voting period duration, based on the size, or complexity, of the software update.%, expressed as required man-effort in the accompanying metadata of the software update. %So the voting period duration $v_{duration}(su_{size})$ , which can be expressed as a number of blocks (or slots), is a function of the software update size (e.g., expressed in man-days).
 
 We introduce a \emph{vote} as a new transaction type, the \emph{Software Update Vote Transaction (SUVT)} that can only be included in a block during the voting period (see Appendix~\ref{se:bcabstraction} for a formal definition of a transaction). The core information conveyed by the vote transaction (i.e., included into the transaction Payload field) is summarized in the following tuple:
@@ -35,13 +40,13 @@ $H(<SIP/UP>$ is the hash of the content of the SIP/UP and plays the role of the 
 
 Anyone who owns stake has a legitimate right to vote and this vote will count proportionally to the owned stake. Furthermore, as we will describe in detail in the next section, the right to vote can also be delegated to another party. However, we want to give the power to a stakeholder to override the vote of his/her delegate. Therefore, if within the same voting period appear both a private vote and a delegate's vote, for the same software update, then the private vote will prevail.
 
-%Moreover, as we have stated above, we acknowledge the fact that software updates are complex entities and their evaluation is a challenging task. This is true especially, when someone has to evaluate source code. Therefore, 
+%Moreover, as we have stated above, we acknowledge the fact that software updates are complex entities and their evaluation is a challenging task. This is true especially, when someone has to evaluate source code. Therefore,
 Moreover,we cannot exclude the possibility that a voter/evaluator changes his/her mind after voting for a specific SU (for example, the evaluator identifies a software bug after voting positively for a software update). We want to provide the flexibility to the evaluators to change their minds. Therefore, we allow for a voter to vote multiple times, within a voting period for a specific software update. At the end, we count only the last vote of a specific public key in the voting period for a specific software update.
 
 \subsubsection{Voting Results}
-After the end of the voting period for a specific software update and after we allow some stabilization period (in order to ensure that all votes have been committed into the blockchain), the votes are tallied and an outcome is decided. First, the non-delegated votes are counted. The tallying is performed as follows: For each slot within the voting period, if a block was issued pertaining to that slot, each SUVT in that block is examined. If the staking key for that transaction has been tallied on a non-delegated vote previously, the previous vote is discarded and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every SUVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{non-delegated stake in favour}, the \emph{non-delegated stake against} and the \emph{non-delegated abstaining stake}. 
+After the end of the voting period for a specific software update and after we allow some stabilization period (in order to ensure that all votes have been committed into the blockchain), the votes are tallied and an outcome is decided. First, the non-delegated votes are counted. The tallying is performed as follows: For each slot within the voting period, if a block was issued pertaining to that slot, each SUVT in that block is examined. If the staking key for that transaction has been tallied on a non-delegated vote previously, the previous vote is discarded and the new vote is counted. This allows voters to modify their votes until the end of the voting period. For every SUVT which has been counted, the stake that votes for it is summed and this constitutes the \emph{non-delegated stake in favour}, the \emph{non-delegated stake against} and the \emph{non-delegated abstaining stake}.
 
-Subsequently, the delegated votes are counted. %For each slot within the voting period, if a block was issued pertaining to that slot, each SUVT in that block is examined. 
+Subsequently, the delegated votes are counted. %For each slot within the voting period, if a block was issued pertaining to that slot, each SUVT in that block is examined.
 If the delegatee staking key for that transaction has been tallied on a delegatable vote previously, the previous vote is discarded and the new vote is counted. For each of the delegatable votes, the keys delegating to it are found. Each of the keys delegating is checked to ensure that the delegating key has not cast a non-delegated vote; if the delegating key has also cast a non-delegated vote, then the non-delegated vote is counted instead of the delegated vote. For each delegatable SUVT which has been counted, the stake delegating to it which hasn't issued a non-delegated vote is summed and this constitutes the \emph{delegated stake in favour}, the \emph{delegated stake against}, and the \emph{delegated abstaining stake}.
 
 The sum of the non-delegated stake in favour and delegated stake in favour forms the \emph{stake in favour}; similarly, we obtain the \emph{stake against} as well as the \emph{abstaining stake}.
@@ -61,111 +66,140 @@ Suppose that we define a voting threshold $\tau_V$, then at the end of the tally
 \item \emph{Expired}. This is the state of a software update that has gone through $rv_{no-quorum}$ (or $rv_{no-majority}$) consecutive voting periods, but still it has failed to get approved or rejected.
 \end{itemize}
 
-In our proposal, we have chosen a three-value logic for our vote (for/against/abstain). In this way, apart from the actual result, we can extract the real sentiment (positive, negative, neutral) of the community for a specific software update. This is very important in a decentralized governance model, because it clearly shows the appeal of a software update proposal to the stakeholders. If we did not allow negative votes, then the negative feeling would be hidden under the abstaining stake. 
-%Moreover, the \say{abstain} vote is a sign that the stakeholder has not formed an opinion for, or against, a specific software update. However, it might also denote that the evaluator has not made yet a decision and maybe he/she needs more time. Therefore, 
+In our proposal, we have chosen a three-value logic for our vote (for/against/abstain). In this way, apart from the actual result, we can extract the real sentiment (positive, negative, neutral) of the community for a specific software update. This is very important in a decentralized governance model, because it clearly shows the appeal of a software update proposal to the stakeholders. If we did not allow negative votes, then the negative feeling would be hidden under the abstaining stake.
+%Moreover, the \say{abstain} vote is a sign that the stakeholder has not formed an opinion for, or against, a specific software update. However, it might also denote that the evaluator has not made yet a decision and maybe he/she needs more time. Therefore,
 Moreover, the abstain vote can be also used as a way for the evaluator to say that the evaluation of the SU has not finished, a conclusion can not be drawn yet and indirectly submit a request for a time extension (i.e., a new voting period).
 
 \subsubsection{On Assumptions and Thresholds}
-We require that for each voting period and for every software update submitted, there is always an actual stake percent of  honest parties $h_a$ that is actively participating in the voting process (i.e., submitting a vote with a value of for/against/abstain).
-%, where $h$ is the \emph{honest stake threshold assumption} of our software updates protocol. 
-%In order to achieve this high degree of availability for our protocol, we leverage delegation to \emph{stake pools}, or \emph{expert pools}, which is a topic that we describe in detail in the next section. Therefore, our software updates protocol (and especially the voting phases), similarly (in-concept) to the underlying consensus protocol, make the assumption that $h$ percent of honest stake is being active at all time. 
-%If the underlying consensus protocol has an honest stake threshold $x$ (e.g., $x$ = 51\%), then we require $h \geq x$. %The rationale behind this is that the software updates protocol is built \emph{on top} the consensus protocol, since all the software updates protocol events are essentially transactions committed into the blockchain. Therefore, the software updates protocol cannot require less honest stake than the consensus protocol on which it is based. However, there might be cases (i.e., software updates), where a greater majority is required for the voting process and therefore a greater percent of honest stake $h$ might be used for the software updates protocol.
+Lets assume that $H$ is the percent of honest stake and $T$ is the percent of adversarial stake that actively participate in the voting process. From Garay et. al. in \cite{sok}, we know that the ratio $r = \frac{T}{T+H} = \frac{T}{100}$ is upper bounded by the theoretical adversary tolerance $r_{Th}$ of our consensus protocol, i.e., $r = \frac{AdversaryStake}{TotalStake} = \frac{T}{100} < r_{Th}$ (e.g., $r < 1/2 = r_{Th}$, or $r < 1/3 = r_{Th}$ etc.).
+
+Then, the following hold:
+\begin{equation} \label{eq1}
+T = r \times 100 < 50
+\end{equation}
+\begin{equation} \label{eq2}
+H = (1-r) \times 100 > 50
+\end{equation}
+
 Moreover, the stake considered during the tally is the stake that the voters have at that moment. That is, we only consider the stake of the voters at the moment of the tally, without taking into account the stake that the voters had in the moment that the votes were casted. %Therefore, the stake distribution is not known at the moment where the voting takes place, which is a security measure against voters' coercion.\mnote{What do we mean by that? The stake of the voters is known, it is just that we consider the stake distribution at the end of the voting period.}
+
+We know that we have a percent of $H$ honest stake actively voting. Let's assume that we impose a threshold $\tau_V \geq H$. Then, since we need more that $H$ votes for the SU to get approved, then the adversary could block the approval, either by voting 'against', or 'abstain', or by not voting at all. So when the voting threshold exceeds the honest stake percentage participating in the voting process, we risk a denial of approval, even if the honest stake $H$ votes unanimously.
+
+
+On the opposite side, if we impose a threshold $\tau_V < H$,
+, then the adversary could potentially approve a malicious SU, if the honest stake $H$ does not vote a unanimous rejection (i.e., some part of the honest stake votes \say{against}, some other part part votes \say{abstain} and maybe some part (mistakenly) votes positively) and the adversary stake votes positively, so that in total the voting threshold is reached.
+
+Intuitively, when the voting threshold is too low with respect to the honest stake, then we risk the approval of a malicious SU by the adversary stake, while when it is too high, we risk the denial of approval attack. This is a similar (but not identical) situation with the adoption threshold\footnote{The most important difference is that in the case of the adoption threshold, the goal is not just to reach at a decision, we must additionally ensure that a sufficient percent of honest stake has upgraded, in order for the security assumptions of the upgraded ledger to hold.} described in Section \ref{se:informal}.
+
+In general, we assume that the adversary has whatever power is given to him by the threat model of the underlying consensus protocol. Within this scope, we identify two potential attacks.
+
+\paragraph{Malicious Proposal Attack}
+The adversary manages with its own stake to approve a malicious proposal.
+
+\paragraph{Denial of Approval Attack}
+The adversary manages to block a proposal approved by the honest stake majority.
 
 With respect to the voting threshold $\tau_V$, we have seen that for a software update (either a SIP, or an UP) to get approved the following condition should hold: $stake\ in\ favour > \tau_V$. We provide the following definition:
 \begin{definition}
-We define as an $\mu$-honest stake majority result (e.g., approval, rejection), a voting result that is voted by more than (or equal) $h_a/2 + \mu$ percent of votes coming from the honest stake exclusively, where $0 < \mu \leq h_a/2$.
+We define as an $\mu$-honest stake majority result (e.g., approval, rejection), a voting result that is voted by more than (or equal) $H/2 + \mu$ percent of votes coming from the honest stake $H$ exclusively, where $0 < \mu \leq H/2$.
 
-If we do not explicitly define $\mu$, then we simply say that we have an honest stake majority result. 
+If we do not explicitly define $\mu$, then we simply say that we have an honest stake majority result.
 \end{definition}
-Our voting mechanism, from a security perspective, has essentially two main goals: a) a software update that has not achieved an honest stake majority approval, will never be allowed to pass to the next phase in the SU lifecycle and b) a software update that has achieved an honest stake majority approval, will eventually be allowed to pass to the next phase in the SU lifecycle.
+Essentially, an $\mu$-honest stake majority result signifies the strength of a voting result that has been voted by the honest majority. If $\mu = H/2$, then we have a unanimous result from the honest stake $H$. We call $\mu$ the \emph{strength} of an honest stake majority result.
 
-Intuitively, failing to achieve the first goal means that we risk the adversary to be able to approve a malicious proposal that is not approved by the honest stake majority; and by failing to achieve the second goal, we risk that the adversary might block the approval of a proposal that has been approved by the honest stake majority. We call the latter a \emph{Denial of Approval} attack.
+Based on this definition, for our voting mechanism, we set two main security goals:
+\begin{itemize}
+\item \textbf{Security Goal A:} a software update that has not achieved an honest stake approval, will never be allowed to pass to the next phase in the SU lifecycle, i.e., will not be approved.
+\item \textbf{Security Goal B:} a software update that has achieved an honest stake majority approval, will be allowed to pass to the next phase in the SU lifecycle, i.e., will be approved.
+\end{itemize}
 
-We know that we have a percent of $h_a$ honest stake actively voting. Let's assume that we impose a threshold $\tau_V \geq h_a$.
-%Let's assume that we imposed another threshold: $stake\ in\ favour \geq \tau_V + \delta$, where $\delta > 0$. 
- Then, since we need more that $h_a$ votes for the SU to get approved, then the adversary could block the approval, either by voting 'against', or 'abstain', or by not voting at all. So when the voting threshold exceeds the honest stake percentage participating in the voting process, we risk a denial of approval, even if the honest stake $h_a$ votes unanimously.
- %, where we are constantly entering a revoting period, until the software update becomes expired.
- 
-On the opposite side, if we impose a threshold $\tau_V < h_a$,  
-% Similarly, if we imposed as a threshold $stake\ in\ favour \geq \tau_V - \delta$
-, then the adversary could potentially approve a malicious SU, if the honest stake $h_a$ does not vote a unanimous rejection (i.e., some part of the honest stake votes \say{against}, some other part part votes \say{abstain} and maybe some part (mistakenly) votes positively) and the adversary stake votes positively, so that in total the voting threshold is reached. 
+Intuitively, failing to achieve the first goal means that we risk the adversary to be able to approve a malicious proposal that is not approved by the honest stake (i.e., some part of the honest stake); and by failing to achieve the second goal, we risk that the adversary might block the approval of a proposal that has been approved by the honest stake majority (i.e., at least half of the honest stake). %We call the latter a \emph{Denial of Approval} attack.
 
-In a nutshell, when the voting threshold is too low, we risk the approval of a malicious SU by the adversary stake, while when it is too high, we risk the denial of approval attack. This is a similar (but not identical) situation with the one described in Section \ref{se:informal}.
-
-Lets assume that $r$ is the resiliency\footnote{According to Garay et. al. in \cite{sok}, the resiliency is the fraction $(t/n)$ of misbehaving parties a protocol can tolerate, where $t$ are the number of adversaries and n are the total number of parties. In our case, we can assume that $t$ is the total adversary stake and $n$ is the total stake.} of the underlying consensus protocol by means of which the voting transactions are diffused in the network and on top of which the voting mechanism is implemented. Lets also define as $r_a = \frac{T}{h_a+T}$ the actual fraction between the percent of adversary stake $T$ and total stake and therefore $r_a \leq r$. Due to the necessity of the honest majority (according to Garay et al. \cite{sok}), we know that $r < 0.5$. Then, 
-%if $T$ is the total percent of adversary stake, 
- the following hold:
-\begin{equation} \label{eq1}
-h_a = 100 -T
-\end{equation}
-\begin{equation} \label{eq2}
-T = r_a \times 100 \leq r \times 100 < 50
-\end{equation}
-\begin{equation} \label{eq3}
-h_a = (1-r_a) \times 100 \geq (1-r)\times 100 > 50
+Naturally, in order to avoid the approval of a malicious proposal by the adversary stake $T$, we need a voting threshold $\tau_V > T$. So that the adversary cannot control the result of the voting process with its own stake. Therefore, $\tau_V = T + \delta$, where $\delta > 0$. Without loss of the generality, we choose to express $\delta$ as a fraction of the honest stake $H$. I.e.,
+\begin{equation} \label{eq-tau_v}
+\tau_V(p) = T + \frac{H}{p},\ p > 1
 \end{equation}
 
-With respect to our two security goals, we provide the following theorem.
+We call $p$ the \emph{honest fraction parameter}. If we allowed  $p=1$, then the voting threshold would equal the total stake, but we need  $stake\ in\ favour > \tau_V$ to approve a software update. Therefore, we require that $p>1$. Clearly this condition guards us against the malicious proposal attack, since there will always be a need for some honest stake to vote positively, additionally to the adversary stake, in order to approve a malicious proposal. The smaller the value of the parameter $p$ the more control is handed over to the honest parties. For $1 < p \leq 2$, the control of the decision to approve, or not, a malicious proposal is given to the honest stake majority, since more than half of the honest stake must vote positively. On the contrary, if $p > 2$, then the control of the decision to approve or not a malicious proposal goes to an honest stake minority. Of course, the smaller the percent of honest stake that controls the decision, the more possible is to have a malicious proposal attack.
 
-\begin{theorem}
-A software update that has not achieved an honest stake majority approval cannot be approved, only if $\tau_V \geq T + h_a/2 =  50 \times (r_a + 1)$.
+In Equation \ref{eq-tau_v}, we have expressed the adoption threshold as a function of the honest fraction parameter $p$, which defines the required fraction of the honest stake $H$. In the following theorem we identify what is the necessary and sufficient condition in order for this adoption threshold to satisfy both of the security goals.
 
-If $\tau_V = T + h_a/2 =  50 \times (r_a + 1)$, then a software update that has achieved an $\mu$-honest stake majority approval cannot be blocked by the adversary stake $T$, only if $T < \mu$.
+\begin{theorem} \label{theorem-adopthresh}
+The adoption threshold $\tau_V(p) = T + \frac{H}{p},\ p > 1$ achieves both security goals A and B iff the honest majority strength $\mu$ is $\mu > T + H \times (\frac{1}{p} - \frac{1}{2})$ and the honest fraction parameter $p$ is $1 < p \leq 2$.
 \end{theorem}
 \begin{proof}
-Clearly, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V \geq T + \delta$, where $0 < \delta \leq (1-r_a) \times 100$. According to our security goals, we want to give to the honest stake majority the power to control the result of the voting process. Therefore $\delta$ should be lower bounded by $h_a/2$, which based on Equations \ref{eq2} and \ref{eq3} means that $\tau_V \geq T + h_a/2 =  50 \times (r_a + 1)$.
+Clearly, for security goal A, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V \geq T + \delta$,
+where $0 < \delta \leq H$. In our case, $\delta = \frac{H}{p},\ p > 1$, where $0 < \frac{H}{p} \leq H$. In other words, there will always be the need for a fraction of the honest stake $H$ to vote in order to approve a proposal.
 
-Let's assume $\tau_V = T + h_a/2$ and that we have an $\mu$-honest stake majority approval for an SU. This means that the specific SU has received a number of $h_a/2 + \mu$ positive votes from the honest stake, where $0 < \mu \leq h_a/2$. In order for the adversary not to be able to block this approval, we need $\tau_V < h_a/2 +\mu$. Then this means that $T + h_a/2 < h_a/2 + \mu$, which of course means $T < \mu$. 
+For security goal B, we assume that we have an $\mu$-honest stake majority approval for an SU. This means that the specific SU has received a number of $H/2 + \mu$ positive votes from the honest stake, where $0 < \mu \leq H/2$.
+Therefore the adoption threshold could be lower bounded by $T + H/2$, since we know that we have received more that $T + H/2$ votes. This results from the fact that our threshold should be above $T$, as much as possible, to ensure security goal A, but at the same time, we know that we have an honest stake majority approval, which by definition means that we have also received more that $H/2$ honest positive votes. Therefore,  $\tau_V > T + H/2$. Then, equivalently we can wright $\tau_V = T + H/p ,\ 1 < p \leq 2$.
+
+In order for the adversary not to be able to block this approval, of course we need $\tau_V < H/2 + \mu$. But then this also means that $T + H/p < H/2 + \mu$, which means $\mu > T + H \times (\frac{1}{p} - \frac{1}{2})$.
+\end{proof}
+
+Intuitively, the closer $p$ gets to $1$ the safer it is with respect to the malicious proposal attack. On the other hand, as $p$ gets smaller, the adoption threshold gets bigger and the more control we give to the adversary stake to block a good proposal. So we need to strike the right balance and choose a value for $p$ (i.e., the right percent of honest stake) that will keep us safe from both attacks. In the lemma that follows we prove that the optimal value of $p$ that achieves both of the above security goals, while requiring the minimum honest majority strength $\mu$, is $2$.
+
+\begin{lemma} \label{lemma-all-in-one}
+The optimal voting threshold that achieves both security goals A and B, while requiring the minimum honest majority strength $\mu$, is $\tau_V = T + \frac{H}{2} = 50 \times (r + 1)$ and the necessary and sufficient condition is $T < \mu$.
+\end{lemma}
+\begin{proof}
+From theorem \ref{theorem-adopthresh}, we know that in order for the two security goals to hold we need $\tau_V(p) = T + \frac{H}{p}$ and $\mu > T + H \times (\frac{1}{p} - \frac{1}{2})$ and $1 < p \leq 2$.
+
+For security goal B, since $1 < p \leq 2$, then the component $H \times (\frac{1}{p} - \frac{1}{2}) \geq 0$ and becomes $0$, when $p = 2$ and becomes larger as $p$ gets closer to $1$. This means that the smaller $p$ gets, i.e., for larger fractions of the honest stake, we require a greater strength $\mu$ of an honest stake majority result to avoid the blocking of the adversary. Obviously, the less honest stake is required to avoid the denial of approval attack the better. Therefore, in the range of values $1 < p \leq 2$ the value of $p$ that achieves the minimum strength $\mu$, is the value $p = 2$. In this case, from theorem \ref{theorem-adopthresh} the voting threshold becomes $\tau_V = T + \frac{H}{2}$ and the necessary and sufficient condition for $T$ becomes $T < \mu$.
+
+If $\tau_V = T + \frac{H}{2}$ it is trivial to see that the security goal A is achieved (more that $T$ stake is required for the approval of a proposal).
+
+Finally, for $p=2$, if we substitute $H$ and $T$ from equations \ref{eq1} and \ref{eq2}, we get that $\tau_V = 50 \times (r + 1)$
+\end{proof}
+
+
+%With respect to our two security goals, we provide the following theorems:
+%
+%\begin{theorem}\label{theorem-v-threshold1}
+%if $\tau_V = T + H/p,\ 1 < p \leq 2$, then the security goal A is achieved, i.e., a software update that has not achieved an honest stake majority approval cannot be approved.
+%\end{theorem}
+%
+%\begin{proof}
+%Clearly, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V \geq T + \delta$, where $0 < \delta \leq H$. According to our security goals, we want to give to the honest stake majority the power to control the result of the voting process. Therefore $\delta$ should be lower bounded by $H/2$, which means that $\tau_V \geq T + H/2$. Then, equivalently we can wright $\tau_V = T + H/p ,\ 1 < p \leq 2$.
+%\end{proof}
+%
+%\begin{theorem}\label{theorem-v-threshold2}
+%If $\tau_V = T + H/2,$ and $T < \mu$, then both the security goals A and B are achieved, i.e., a software update that has not achieved an honest stake majority approval cannot be approved and a software update that has achieved an $\mu$-honest stake majority approval cannot be blocked by the adversary stake $T$.
+%\end{theorem}
+%
+%\begin{proof}
+%Since $\tau_V = T + H/2,$, therefore $\tau_V = T + H/p, \ p=2$ and we know from theorem \ref{theorem-v-threshold1} that the security goal A holds for this value of $p$.
+%Since we have an $\mu$-honest stake majority approval for an SU. This means that the specific SU has received a number of $H/2 + \mu$ positive votes from the honest stake, where $0 < \mu \leq H/2$. In order for the adversary not to be able to block this approval, we need $\tau_V < H/2 + \mu$. But then this also means that $T + H/2 < H/2 + \mu$, which of course means $T < \mu$.
+%\end{proof}
+
+%All in all theorem \ref{theorem-v-threshold1} says that the control of a malicious proposal's approval can be under the honest stake majority, if the voting threshold is sufficiently large and in particular it must be $\tau_V \geq T + H/2$. While theorem \ref{theorem-v-threshold2} says that in order for the adversary stake $T$ not to be able to block an $\mu$-honest stake majority result and launch a denial of approval attack, the \emph{strength} of the honest stake majority result $\mu$ must be greater than the adversary stake percent $T$.
+
+All in all, lemma \ref{lemma-all-in-one} says that the control of a malicious proposal's approval can be under the honest stake and at the same time we can avoid the blocking of an $\mu$-honest stake majority approval, with a minimum required strength $\mu$, if $\tau_V = T + \frac{H}{2}$ and $T < \mu$.
+
+\begin{lemma} \label{lemma-unanimous}
+If we have a unanimous approval by the honest stake for a software update, then we need also $T < 1/3 \times 100$, in order for this approval not to be able to be blocked by the adversary stake.
+\end{lemma}
+\begin{proof}
+If we have a unanimous approval by the honest stake (i.e., $H$ positive votes from the honest stake), then $\mu = H/2$. In this case, we know from lemma \ref{lemma-all-in-one}, that in order to avoid blocking we need to have $T < \mu$, which means $ T < H/2$ and because of $H = 100 -T$, we get $T < 1/3 \times 100$.
 \end{proof}
 
 \begin{lemma}
-If we have a unanimous approval by the honest stake for a software update, then this cannot be blocked by the adversary stake $T$, only if $T < 1/3 \times 100$.
+If $\tau_V = T + H/2 =  50 \times (r + 1)$, then the voting threshold is upper bounded by 75\%, $\tau_V < 75\%$
 \end{lemma}
 \begin{proof}
-If we have a unanimous approval by the honest stake (i.e., $h_a$ positive votes from the honest stake), then $\mu = h_a/2$. In this case, we have $T < h_a/2$ and because of Equation \ref{eq1}, we get $T < 1/3 \times 100$.
+Since $\tau_V =  50 \times (r + 1)$ and we know that $r$ is upper bounded by $r_{Th}$. Due to the necessity of the honest majority (according to Garay et al. \cite{sok}), we know that $r_{Th}$ is upper bounded by $0.5$. Then $\tau_V <  50 \times (0.5 + 1) = 75$.
 \end{proof}
 
-\begin{lemma}
-If $\tau_V = T + h_a/2 =  50 \times (r_a + 1)$, then the voting threshold is upper bounded by 75\%, $\tau_V < 75\%$
-\end{lemma}
-\begin{proof}
-Since $\tau_V =  50 \times (r_a + 1)$ and we know that $r_a$ is upper bounded by $r$ and $r$ by definition is upper bounded by $0.5$, then $\tau_V <  50 \times (0.5 + 1) = 75$.
-\end{proof}
+For example, lets take $\tau_V = T + H/2$. If $T = 30\%$, then $H = 70\%$ and $\tau_V = 65\%$. In this case, only $\mu = 31$-honest stake majority results cannot be blocked (i.e., we need $ \frac{70}{2} + 31 = 66\%$, or more of honest stake positive votes to avoid the denial of approval attack). If we ignored this and just picked a high threshold, like the 95\% used by bitcoin \cite{bitcoin}, then we would enable blocking by the adversary, when we could have a low threshold like 65\% and enjoy safety from blocking by requiring at least 66\% of honest stake positive votes.
 
 
-
-%A naive approach would be to assume that an honest party will never vote positively for a malicious SU - not even by mistake. In this case, we can safely choose $\tau_V = 50\%$ to achieve our two security goals. Indeed, since $h_a > 50$ (Equation \ref{eq3}), we have enough honest stake to reach the voting threshold and thus the adversary cannot perform a denial of a majority result attack. In addition, if we have a malicious proposal SU, then we can have at most $T$ positive votes from the adversary, but no positive votes from the honest parties (due to our assumption). Then, since $T < 50$ (Equation \ref{eq2}), then we see that the adversary does not have enough stake to approve a malicious proposal.
-
-%Let's omit the naive assumption. Clearly, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V = r_a \times 100 + \delta$, where $0 < \delta < (1-r_a) \times 100$. According to our security goals, we want to give to the honest stake majority $h_a/2$ the power to control the result of the voting process. Therefore $\delta$ could be chosen to be equal to $h_a/2$, which based on Equation \ref{eq3} is equal to $(1-r_a) \times 100 / 2$. Which results to the following condition for the voting threshold: 
-%\begin{equation} \label{eq4}
-%\tau_V = T + h_a/2  \Leftrightarrow \tau_V = 50 \times (r_a + 1) \leq 75\%
-%\end{equation}
-%
-%Since, we know that $r_a$ is upper bounded by $r$, which is also upper bounded by $0.5$, then $\tau_V$ is upper bounded by 75\%. Therefore in this case, a malicious SU cannot be approved by the adversary stake $T$,unless the honest stake majority $h_a/2$, also agrees.
-%%For example, if the resiliency $r$ of our consensus protocol is upper bounded by $1/2$, then we need a voting threshold $\tau_V \geq 75\%$, so that a malicious proposal cannot be voted by the adversary stake, unless the honest stake majority $h_a/2$ also agrees. 
-%%The intuition behind Equation \ref{eq4} is that we have tried to increase the voting threshold, in order to avoid to give the power to the adversary to approve a malicious SU and at the same time, this increase to be the smallest possible, in order to minimize the risk the adversary to block a good SU (a denial of a majority result attack), but also give the decision power to the honest majority ($h_a/2$). Indeed, according to Equation \ref{eq4}, the worst case where the adversary $T$ has full blocking power is when we have a marginal approval of a SU from the honest stake (i.e., a stake in favor result close to $h_a/2$ - so only half of the honest stake supports a proposal) and therefore in that case, we need the whole adversary stake to vote positively, in order to reach the voting threshold. 
-%
-%%Naturally, the stronger the honest majority, the weaker becomes the power of the adversary to block a SU. 
-%Furthermore, we have seen that if the voting threshold is too high then we risk a denial of a majority result attack. In particular, if it exceeds the active honest stake $\tau_V > h_a$, then even if the whole honest stake unanimously votes for a SU, then the adversary still has the power to launch a denial of a majority attack. Therefore, from Equation \ref{eq4}, 
-%%we choose to take the lower bound for $\tau_V$, so as to keep the voting threshold as low as possible, and hence assume that $\tau_V = T + h_a/2$ and therefore 
-% we impose the condition of $T + h_a/2 \leq h_a$, in order not to risk a denial of a majority attack in the case of a \emph{unanimous result} from the honest stake $h_a$. This, due to Equation \ref{eq1} translates to the following condition:
-%\begin{equation} \label{eq5}
-% h_a \geq 2/3 \times 100 \Leftrightarrow T \leq 1/3 \times 100
-%\end{equation}
-%Condition \ref{eq5} says that if the active honest stake participating in voting process is more than or equal to $66.6\%$, then a unanimous decision from the honest stake cannot be blocked, if the voting threshold is defined according to Equation \ref{eq4}. For example, if $h_a = 70\%$, then according to Equation \ref{eq4} $\tau_V = 65\%$ and indeed a unanimous decision by the honest stake cannot be blocked.
-%
-%In the case where we don't have a unanimous decision from the active honest stake $h_a$, then there is still the risk of a denial of a majority attack. Indeed, according to Equation \ref{eq4}, the worst case where the adversary $T$ has full blocking power is when we have a marginal approval of a SU from the honest stake (i.e., a stake in favor result close to $h_a/2$ - so only half of the honest stake supports a proposal) and therefore in that case, we need the whole adversary stake to vote positively, in order to reach the voting threshold. In fact, if we want a unanimous decision by the honest stake majority $h_a/2$ not to be blocked, then we need $\tau_V \leq h_a/2$, which due to Equation \ref{eq4} leads to the condition that $T=0$. All in all, with respect to our two security goals we have proved from the above the following theorem.
-%
-For example, if $T = 20\%$, then $h_a = 80\%$ and $\tau_V = 60\%$. In this case, only $\mu = 21$-honest stake majority results cannot be blocked (i.e., we need $61\%$, or more of honest stake positive votes). In the case where we have an adversary stake percent that is greater, or equal than $1/3 \times 100$, then even if we have a unanimous honest stake majority approval, the adversary can still launch an denial of approval attack. For example, if $T = 40\%$, then $h_a = 60\%$ and $\tau_V = 70\%$ and even if all the honest stake votes positively, the adversary can still launch a denial of approval attack.
+In the case where we have an adversary stake percent that is greater, or equal than $1/3 \times 100 \approx 33.33\%$, then even if we have a unanimous honest stake majority approval, according to lemma \ref{lemma-unanimous} the adversary can still launch a denial of approval attack. For example, if $T = 40\%$, then $H = 60\%$ and $\tau_V = 70\%$ and even if all the honest stake votes positively, the adversary can still block the approval.
 
  To mitigate this risk, as we have already described above, we propose that a denial of approval attack results to a no-majority result, which leads to a revoting process for the specific SU. This revoting can take place a $rv_{no-majority}$ number of times and only after $rv_{no-majority}$ times of a no-majority result the SU will become expired. Therefore, we are limiting the power of the adversary to block a SU, only for a specific voting period and give the chance to the honest stake ($rv_{no-majority}$ number of times) to reconsider its decision and maybe choose to support a candidate SU with a stronger vote.
 
-%In other words, the  $stake\ in\ favour \geq h$ threshold that we have chosen, guarantees that the adversaries cannot block a good software update, since there is enough honest stake majority to approve it. Moreover, due to the \emph{liveness} property of the underlying consensus protocol, all honest parties' votes will be eventually committed to the blockchain, as long as the tallying takes place after a stabilization period. At the same time, the adversaries cannot approve a malicious software update, since they do not have the majority to approve a malicious software update.
-
 \subsection{Delegation} \label{appxdelegation}
 Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.
-%This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs through a voting process and finally the adoption signaling, when an upgrade has taken place. 
+%This participation entails: the submission of update proposals (in the form of SIPs and later as UPs), the approval, or rejection, of SIPs or UPs through a voting process and finally the adoption signaling, when an upgrade has taken place.
 In this section, we discuss the delegation of the protocol participation right to some other party. As we will see next, this delegation serves various purposes and copes with several practical challenges.
 \subsubsection{Delegation for Technical Expertise}\label{delfortech}
 One of the first practical challenges that one faces, when dealing with the decentralized governance of software updates is the requirement of technical expertise, in order to assess a specific software update proposal. Indeed, even at the SIP level, many of the software update proposals are too technical for the majority of stake to understand. Moreover, during the UP approval phase, the approver is called for approving, or rejecting, the submitted source code, which is certainly a task only for experts.
@@ -173,7 +207,7 @@ One of the first practical challenges that one faces, when dealing with the dece
 Our proposal for a solution to this problem is to enable delegation for technical expertise. Stakeholders will be able to delegate their right to participate in the update protocol to an \emph{expert pool}. The proposed delegation to an expert pool comprises the following distinct responsibilities:
 \begin{itemize}
 \item The voting for a specific SIP
-\item The voting for a special category of SIPs 
+\item The voting for a special category of SIPs
 \item The voting for any SIP
 \item The approval of a specific UP
 \item The approval of a special category of UPs
@@ -182,7 +216,7 @@ Our proposal for a solution to this problem is to enable delegation for technica
 \end{itemize}
 As you can see, we distinguish delegation for voting for a SIP document and that for approving an UP. We could have defined delegation for SIP voting to imply also the approval of the corresponding UP. However, since both have a totally different scope, there might be a need to delegate to different expert pools for these two. Indeed, a SIP is an update proposal justification document and the expert who is called to vote for, or against, a specific SIP, must have a good sense of the road-map of the system. On the contrary, the approval of a UP is a very technical task, which deals with the review and testing of a piece of code against some declared requirements (i.e., the corresponding SIP) and has nothing to do with the software road-map.
 
-%We allow voting for a specific SIP/UP, or for \emph{any} SIP/UP. In the former case, the id of the specific SIP/UP must be submitted along with the delegation certificate. In the latter case, if one wants to override the \say{any} delegation and delegate to some other party for a specific SIP/UP, then this is possible via the submission of a new delegation for the specific SIP/UP. 
+%We allow voting for a specific SIP/UP, or for \emph{any} SIP/UP. In the former case, the id of the specific SIP/UP must be submitted along with the delegation certificate. In the latter case, if one wants to override the \say{any} delegation and delegate to some other party for a specific SIP/UP, then this is possible via the submission of a new delegation for the specific SIP/UP.
 %
 %There is also delegation for special categories of SIP/UPs, as well as the delegation for the adoption signaling. These will be the topics that we will describe next.
 
@@ -190,15 +224,15 @@ As you can see, we distinguish delegation for voting for a SIP document and that
 %\nnote{Describe how we use delegation for enabling voting for specialized UPs (e.g., platform specific)}
 It is known that there exist special categories of software updates. Let us consider for example, security fixes. It is common sense, that security fixes are software updates that: a) have a high priority and b) require significant technical expertise to be evaluated. Therefore, by having a special expert pool as a \emph{default delegate} for this category of software updates (both SIPs and UPs) enables: a) a faster path to activation and b) sufficient expertise for the evaluation of such SUs. The former is due to the omission of the delegation step in the process and that the evaluation (i.e., voting of SIPs/UPs) will take place generally in shorter times; exactly because this is a specialized and experienced expert pool that deals only with security fixes; we assume that they can do it faster than anybody else.
 
-%There are many different angles (a.k.a. dimensions) by which one can view software updates and distinguish them into different categories. For example, the reason for a SU can be such an angle (i.e., dimension). A SU can be a bug-fix (or security fix), or it can be a change request (or a new feature request). Another dimension is the priority (high/medium/low) of the SU. Furthermore, in blockchain systems, a typical dimension for distinguishing SUs is the impact to the consensus protocol (impact/no-impact). Moreover, for those SUs that impact the consensus protocol, the type of change that they trigger (soft/hard fork) is another dimension. For those SUs that do not impact the consensus protocol another dimension could be, if they are platform specific (e.g., applicable only to Linux, Windows, MacOS etc. versions of the client software). 
+%There are many different angles (a.k.a. dimensions) by which one can view software updates and distinguish them into different categories. For example, the reason for a SU can be such an angle (i.e., dimension). A SU can be a bug-fix (or security fix), or it can be a change request (or a new feature request). Another dimension is the priority (high/medium/low) of the SU. Furthermore, in blockchain systems, a typical dimension for distinguishing SUs is the impact to the consensus protocol (impact/no-impact). Moreover, for those SUs that impact the consensus protocol, the type of change that they trigger (soft/hard fork) is another dimension. For those SUs that do not impact the consensus protocol another dimension could be, if they are platform specific (e.g., applicable only to Linux, Windows, MacOS etc. versions of the client software).
 
-%All these are valid ways to categorize software updates to certain categories. However, special categories might justify some specialized treatment. 
+%All these are valid ways to categorize software updates to certain categories. However, special categories might justify some specialized treatment.
 We do not propose any specific set of categories in this paper. However, we do propose that: a) software updates are tagged with a specific category and b) to use delegation for enabling specialized treatment on special categories.
 
 %Let us consider for example security fixes. It is common sense, that security fixes are software updates that: a) have a high priority and b) require significant technical expertise to be evaluated. Therefore, by having a special expert pool as a \emph{default delegate} for this category of software updates (both SIPs and UPs) enables: a) a faster path to activation and b) sufficient expertise for the evaluation of such SUs. The former is due to the omission of the delegation step in the process and that the evaluation (i.e., voting of SIPs/UPs) will take place generally in shorter times; exactly because this is a specialized and experienced expert pool that deals only with security fixes; we assume that they can do it faster than anybody else.
 So, for software updates with a special tag, our proposal is, to have \emph{default} specialized expert pools that will participate in the software updates protocol on behalf of the
  %\emph{whole stake}
- delegated stake. Of course, this default delegation based on SU tagging can be overridden. Any stakeholder can submit a different delegation for a specific SIP/UP regardless of its tag. 
+ delegated stake. Of course, this default delegation based on SU tagging can be overridden. Any stakeholder can submit a different delegation for a specific SIP/UP regardless of its tag.
 %Note that the ''any'' delegation described in the previous subsection does not override delegation for specialization.
 %What about software updates without a special tag? These will be the topic of discussion of the next subsection.
 
@@ -208,19 +242,19 @@ Blockchain protocols based on the Proof-of-Stake (PoS) paradigm are by nature de
 One option to overcome this problem, which is typical in PoS protocols, is to enable stake representation, thus allowing users to delegate their participation rights to other participants and, in the process, to form
 \say{stake pools}(\cite{stakepools}). The core idea is that stake pool operators are always online and perform
 the required actions on behalf of regular users, while the users retain the ownership of their
-assets (\cite{stakepools}). 
+assets (\cite{stakepools}).
 
-In this paper, we propose to utilize the stake pools mechanism for our software updates protocol in tandem with the consensus protocol. In particular, we propose to allow each stakeholder to define a default delegate for participating in the software updates protocol from the list of available stake pools that participate in the core consensus protocol. This will be a \say{baseline} representative of each stakeholder to the software updates protocol, just for the sake of maintaining the participation to the protocol at a sufficient level and minimizing the risks of non-participation. This delegate will coincide with the delegate for the participation in the consensus protocol. A stakeholder will be able at any time to override this default delegation. A delegation to an expert pool for a specific software update, or a specific category of software updates, due to specialization, described in the previous section, will override the default delegation to a stake pool. 
-%Moreover, adoption signaling simply follows the delegation of the proof-of-stake consensus protocol and ignores delegation to expert pools. This is because blocks are generated in practice by the stake pools, then these should be also responsible for the adoption signaling as well. 
+In this paper, we propose to utilize the stake pools mechanism for our software updates protocol in tandem with the consensus protocol. In particular, we propose to allow each stakeholder to define a default delegate for participating in the software updates protocol from the list of available stake pools that participate in the core consensus protocol. This will be a \say{baseline} representative of each stakeholder to the software updates protocol, just for the sake of maintaining the participation to the protocol at a sufficient level and minimizing the risks of non-participation. This delegate will coincide with the delegate for the participation in the consensus protocol. A stakeholder will be able at any time to override this default delegation. A delegation to an expert pool for a specific software update, or a specific category of software updates, due to specialization, described in the previous section, will override the default delegation to a stake pool.
+%Moreover, adoption signaling simply follows the delegation of the proof-of-stake consensus protocol and ignores delegation to expert pools. This is because blocks are generated in practice by the stake pools, then these should be also responsible for the adoption signaling as well.
 
 %Therefore,  all software updates without a special category tag that have not been included into an explicit delegation certificate, will be managed (by default delegation) by the same stake pool that the stakeholder has delegated to run the  proof-of-stake consensus protocol. This will allow the stakeholder to be able to abstain from the software updates protocol, for periods of time, without causing a problem. This delegation to stake pools has also another advantage that we discuss next.
 
-%We have seen that one of the responsibilities of a stakeholder that participates in the software updates protocol, at the activation phase, is to signal the adoption of a UP. This signal is placed within each generated block after the node upgrades. 
-%In addition, we know that in a proof-of-stake consensus protocol blocks are generated by the stakeholders (with possibility proportional to their stake) and in a more realistic setting by the stake pools, which have been delegated to do so. So in practice, the stake pools are called for signaling the adoption event, merely because they are the block issuers. Therefore, the choice of stake pools as the default delegates for the software updates protocol, fits nicely with the fact that stake pools will be responsible for signaling adoption anyway. %If a stakeholder has not delegated his participation to the proof-of-stake consensus protocol and is chosen to generate a block, then he/she will also be responsible for signaling the adoption of a specific UP. 
+%We have seen that one of the responsibilities of a stakeholder that participates in the software updates protocol, at the activation phase, is to signal the adoption of a UP. This signal is placed within each generated block after the node upgrades.
+%In addition, we know that in a proof-of-stake consensus protocol blocks are generated by the stakeholders (with possibility proportional to their stake) and in a more realistic setting by the stake pools, which have been delegated to do so. So in practice, the stake pools are called for signaling the adoption event, merely because they are the block issuers. Therefore, the choice of stake pools as the default delegates for the software updates protocol, fits nicely with the fact that stake pools will be responsible for signaling adoption anyway. %If a stakeholder has not delegated his participation to the proof-of-stake consensus protocol and is chosen to generate a block, then he/she will also be responsible for signaling the adoption of a specific UP.
 %In other words, adoption signaling simply follows the delegation of the proof-of-stake consensus protocol and ignores delegation to expert pools.
 
 \subsubsection{Delegation Mechanics}
-For the realization of the stake pool delegation mechanism that we described above, we closely follow the work of Karakostas et al. \cite{stakepools}, so we refer the interested reader to this work for all the relevant details. 
+For the realization of the stake pool delegation mechanism that we described above, we closely follow the work of Karakostas et al. \cite{stakepools}, so we refer the interested reader to this work for all the relevant details.
 In this subsection, we would like to focus
 on the most basic mechanics (i.e., technical details) that will enable such a delegation mechanism to work. Please note that many of our ideas are based on the design of the delegation mechanism for the Cardano blockchain system \cite{deldesign}. %Due to space limitations, we have moved the delegation mechanics to the appendix.
 \paragraph{Staking keys.}
@@ -232,16 +266,16 @@ In its simplest form, delegation of stake from some party A to another party B (
 At its core, the delegation of stake to some other party, essentially requires two things: a) stake registration and b) issuance of a delegation certificate:
 
 \paragraph{Stake key registration.}
-This step is a public declaration of a party that it wishes to exercise its right for participation in the proof-of-stake protocol, due to its ownership of stake. In order for a stakeholder to exercise these rights, he/she must first issue a stake key registration certificate. This is a signed message stored in the metadata (i.e., Payload) of a transaction (see Appendix~\ref{se:bcabstraction}) and thus it is published to the blockchain. The key registration certificate must contain the public staking key $vks$, and the signature of the text of the transaction $m$ by the staking private key $sks$, which is the rightful owner of the stake. In other words, the key registration certificate $r$ is the pair: $r = (vks, \sigma_{sks}(m))$. The signature $\sigma$ of the certificate, authorizes the registration and  plays the role of a witness. 
-%Interestingly, it also prevents against a certificate replay attack. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in UTxO accounting blockchains, a transaction cannot be replayed (a UTxO can be only spent once), similarly a certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}. 
+This step is a public declaration of a party that it wishes to exercise its right for participation in the proof-of-stake protocol, due to its ownership of stake. In order for a stakeholder to exercise these rights, he/she must first issue a stake key registration certificate. This is a signed message stored in the metadata (i.e., Payload) of a transaction (see Appendix~\ref{se:bcabstraction}) and thus it is published to the blockchain. The key registration certificate must contain the public staking key $vks$, and the signature of the text of the transaction $m$ by the staking private key $sks$, which is the rightful owner of the stake. In other words, the key registration certificate $r$ is the pair: $r = (vks, \sigma_{sks}(m))$. The signature $\sigma$ of the certificate, authorizes the registration and  plays the role of a witness.
+%Interestingly, it also prevents against a certificate replay attack. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in UTxO accounting blockchains, a transaction cannot be replayed (a UTxO can be only spent once), similarly a certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}.
 Symmetrically, there is also a de-registration certificate for a stake key, which is a declaration that a party no longer wishes to participate in the proof-of-stake protocol.
 
-\paragraph{Delegation registration.} 
-In order to register the delegation of stake from one party (source) to another (target), a delegation certificate must be issued and posted to the blockchain by the source party. This certificate publicly announces to the network that the source party wishes to delegate its stake right (for participation in the proof-of-stake protocol) to the target party and this is recorded forever in the immutable history of the blockchain. 
+\paragraph{Delegation registration.}
+In order to register the delegation of stake from one party (source) to another (target), a delegation certificate must be issued and posted to the blockchain by the source party. This certificate publicly announces to the network that the source party wishes to delegate its stake right (for participation in the proof-of-stake protocol) to the target party and this is recorded forever in the immutable history of the blockchain.
 At a minimum, a delegation certificate consists of the following information:
 $$
 (H(vks_{source}), H(vks_{target}), \sigma_{sks_{source}}(m))
-$$ 
+$$
 Where, $H(vks_{source})$ is the hash of the source party's public staking key, $H(vks_{target})$ is the hash of the target party's public staking key and $\sigma_{sks_{source}}(m)$ is the signature of the text $m$ of the transaction (within which the delegation certificate is embedded) by the source party's private staking key $sks_{source}$, which authorizes the certificate and plays the role of a witness (see Appendix~\ref{se:bcabstraction} for a formal definition of the signature scheme).
 
 If at some point, the source party wishes to re-delegate to some other party, or even to participate in the protocol on its own, then it must simply issue a new delegation certificate. For self-participation in the protocol, a party must issue a delegation certificate to its own \emph{private stake pool}\footnote{A \emph{private stake pool} is a trivial case of a stake pool. By treating self-staking as a special case of stake pool delegation is a design decision for the sake of simplicity \cite{deldesign}.}. If the source staking key is de-registered, then the delegation certificate is revoked.
@@ -261,7 +295,7 @@ In order to enable delegation to an expert pool, we extend the delegation certif
  <category>)
 \end{align*}
 
-In this case, the $H(vks_{target})$ is the hash of the public staking key of the expert pool. We have extended the delegation certificate to include a boolean flag $SU_{Flag}$, which denotes, if the delegation pertains to a SIP, or an UP. We have explained previously (see subsection \ref{delfortech}), the rationale for distinguishing the delegation for these two. Finally, the hash $H(<SIP/UP>)$ is the hash of the content of the SIP, or UP, in question and plays the role of the unique id for this SIP, or UP respectively. Note that if instead of a specific SIP/UP id, a special value is provided for this field (e.g., '*'), then this corresponds to a delegation for \emph{any} SU of this type (SIP or UP). Finally, if the SU id field is empty (or $NULL$, it depends on the implementation), then we take into account the last field, which specifies the \emph{category} of the SU (e.g., \say{security-fix}, \say{linux-update}, etc.) that, we wish to delegate for. This will be a simple string value chosen from a fixed set of values (a list of acknowledged SU categories). 
+In this case, the $H(vks_{target})$ is the hash of the public staking key of the expert pool. We have extended the delegation certificate to include a boolean flag $SU_{Flag}$, which denotes, if the delegation pertains to a SIP, or an UP. We have explained previously (see subsection \ref{delfortech}), the rationale for distinguishing the delegation for these two. Finally, the hash $H(<SIP/UP>)$ is the hash of the content of the SIP, or UP, in question and plays the role of the unique id for this SIP, or UP respectively. Note that if instead of a specific SIP/UP id, a special value is provided for this field (e.g., '*'), then this corresponds to a delegation for \emph{any} SU of this type (SIP or UP). Finally, if the SU id field is empty (or $NULL$, it depends on the implementation), then we take into account the last field, which specifies the \emph{category} of the SU (e.g., \say{security-fix}, \say{linux-update}, etc.) that, we wish to delegate for. This will be a simple string value chosen from a fixed set of values (a list of acknowledged SU categories).
 
 In summary, with this certificate, a party can delegate its participation right in the software updates protocol to an expert pool: a) for a specific software update (SIP or UP), b) for a specific category of software updates, or c) for any software update. Of course, in order for this delegation registration to be valid, the target expert pool must have been appropriately registered first in the blockchain. This is the topic to be discussed next.
 
@@ -277,11 +311,11 @@ The certificate contains all the information that is relevant for the execution 
 
 \item $(<URL>, H(<metadata>))$: A URL pointing to the metadata describing the expert pool and a content hash of these metadata. The URL points to some storage server and the hash of the content retrieved must match the one stored in the certificate for the pool registration to be considered as valid.
 
-%\item $[\sigma_{sks_{expool}}(m),\sigma_{sks_{sup_1}}(m),...,\sigma_{sks_{sup_p}}(m)]$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ and by all the $p$ supporter stakeholders $sks_{sup_i}, i \in [1,p]$, on the text $m$ of the transaction that includes the certificate.  
+%\item $[\sigma_{sks_{expool}}(m),\sigma_{sks_{sup_1}}(m),...,\sigma_{sks_{sup_p}}(m)]$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ and by all the $p$ supporter stakeholders $sks_{sup_i}, i \in [1,p]$, on the text $m$ of the transaction that includes the certificate.
 
-\item $\sigma_{sks_{expool}}(m)$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ on the text $m$ of the transaction that includes the certificate.  
+\item $\sigma_{sks_{expool}}(m)$: The certificate must be authorized by the signature $\sigma$ of the expert pool $sks_{expool}$ on the text $m$ of the transaction that includes the certificate.
 
-\end{itemize} 
+\end{itemize}
 
 Symmetrically, there should be also an \emph{expert pool retirement certificate} for allowing an expert pool to cease to operate. This should include the public staking key of the expert pool, as well as a time indication (e.g., expressed in block number, or an epoch number etc.) of when the pool will cease to operate.
 
@@ -291,7 +325,7 @@ The expert pool metadata are necessary information that describe sufficiently an
 %\paragraph{Pledged stake rationale.}
 %In a centralized setting, a new expert pool, in order to establish a certain level of trust on its credentials from the community of stakeholders, would typically provide some reference/certification from a trusted third party authority. In the decentralized approach, the role of this trusted party that certifies for a new expert pool is assumed by the \emph{supporters stake}. In other words, the \emph{pledged stake} is the stake that supports a new expert pool on registration. This stake is beyond the stake that might (or might not) be owned by the expert pool staking key. It is a way for some of the stake to say that we trust this new expert pool and we are willing to support it by delegating our stake to it. It is therefore, a promise for a minimum of stake delegation to be received from the beginning of operation of the expert pool. It is also a hard prerequisite for allowing the participation of the expert pool in the software updates protocol. Conveniently, it also prevents from a specific type of attack, namely a sybil attack, as we will discuss briefly.
 
-\subsection*{Miscellaneous Considerations on Delegation}  
+\subsection*{Miscellaneous Considerations on Delegation}
 
 \paragraph{Chain delegation.}
 %\nnote{Do we allow chain delegation? Can a stake pool delegate further to some other party?}
@@ -303,13 +337,13 @@ key of one certificate is the delegate key of the previous one. In principle the
 %\item ''Any'' delegation is not allowed by expert pools. (is similar in concept with subcontracting in a project. A subcontractor cannot assume the whole project, only a part of it, otherwise there is no role for the prime contractor).
 %\end{itemize}
 
-%\subsubsection*{Security Considerations} 
+%\subsubsection*{Security Considerations}
 
 \paragraph{Certificate replay attacks.}
 For all our certificates, namely: stake key registration, delegation registration and expert pool registration, we have provided signatures of the text of the encompassing transaction (the certificates are included as transaction metadata), signed by the party(ies) authorized to issue the certificate. This is a design choice made in \cite{deldesign} that prevents against a certificate replay attack. In this attack, an attacker re-publishes an old certificate, in order for example to change a delegation to a new expert pool. In particular, since the certificate includes a signature on a specific transaction text, then this certificate is bound forever with the specific transaction, and just like in blockchains with a UTxO accounting model, a transaction cannot be replayed (a UTxO can be only spent once), similarly the specific certificate cannot be replayed either. For account based blockchains there are other approaches that one can follow, in order to prevent a replay attack, such as the \emph{address whitelist} proposed in Karakostas et. al. \cite{stakepools}, where the transaction that includes the certificate must be issued from a specific whitelisted address. Of course there are other common solutions like the counter-based mechanism (known as the \emph{nonce}) used in Ethereum \cite{ethereum}.
 
 %\paragraph{Sybil attacks.}
-%The attack in this case has to do with an adversary who tries to register too many expert pools, in order to gain control of the stake via delegations. The pledged stake described above provides an incentive-based protection mechanism against this type of attack, which has been proposed in Bruenjes et. al. \cite{incentives} and also is described in Kant et. al. \citep{deldesign}. In particular, the commitment of specific stake from the expert pool supporters, in the form of the pledged stake, which is published and stored forever in the blockchain, prevents (indirectly) an adversary to register too many expert pools. Moreover, the fact that the reward of the expert pool could be proportional to the pledged stake, de-incentivizes adversaries to try to register many expert pools with a very small pledged stake. 
+%The attack in this case has to do with an adversary who tries to register too many expert pools, in order to gain control of the stake via delegations. The pledged stake described above provides an incentive-based protection mechanism against this type of attack, which has been proposed in Bruenjes et. al. \cite{incentives} and also is described in Kant et. al. \citep{deldesign}. In particular, the commitment of specific stake from the expert pool supporters, in the form of the pledged stake, which is published and stored forever in the blockchain, prevents (indirectly) an adversary to register too many expert pools. Moreover, the fact that the reward of the expert pool could be proportional to the pledged stake, de-incentivizes adversaries to try to register many expert pools with a very small pledged stake.
 
 \paragraph{Identity theft.}
 Significant expertise on difficult technical issues is not a skill that is easy to acquire. Moreover, experience comes after a long period (probably many years) of struggle with technical issues. Therefore, real specialists on a technical domain are hard to find and for this reason they are invaluable. Typically, these experts are well-known and well-respected figures in the community. Therefore, such a well-known expert is expected to receive a significant amount of delegations, if he/she chooses to register an expert pool. This fact makes expert pool registration susceptible to identity theft. This is the case where an expert pool falsely claims to be the famous \say{expert A}, just for the sake of receiving the delegations drawn from the fame of the expert. This identity assurance problem is external to the software updates protocol and also to the underlying consensus protocol and thus some out-of-band solution could be adopted. For example, a famous expert, could post his/her public key (or its fingerprint) to social media, so that the people who follow him/her, will know, which is the genuine key that they can delegate to. Of course, other similar in concept, solutions can be exploited as well. However at the end of the day, in a decentralized setting, it is the stake via delegation that will be the ultimate judge of an expert pool.
@@ -317,7 +351,7 @@ Significant expertise on difficult technical issues is not a skill that is easy 
 %\subsection{Fees and rewards}
 %\subsubsection{Fees}
 %\begin{itemize}
-%\item Describe the events of the protocol that are implemented as transactions. 
+%\item Describe the events of the protocol that are implemented as transactions.
 %\item Who are these transactions paying? The treasury system?
 %\item Fees prevent DoS attacks
 %\end{itemize}
