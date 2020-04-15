@@ -1,51 +1,45 @@
-################################################################################
-# See `skeleton` project at https://github.com/input-output-hk/iohk-nix/
-################################################################################
-
 { system ? builtins.currentSystem
 , crossSystem ? null
+# allows to cutomize haskellNix (ghc and profiling, see ./nix/haskell.nix)
 , config ? {}
-# Import IOHK common nix lib
-, iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
-# Use nixpkgs pin from iohkLib
-, pkgs ? iohkLib.pkgs
+# allows to override dependencies of the project without modifications,
+# eg. to test build against local checkout of nixpkgs and iohk-nix:
+# nix build -f default.nix decentralized-software-updates --arg sourcesOverride '{
+#   iohk-nix = ../iohk-nix;
+# }'
+, sourcesOverride ? {}
+# pinned version of nixpkgs augmented with overlays (iohk-nix and our packages).
+, pkgs ? import ./nix { inherit system crossSystem config sourcesOverride; }
+, gitrev ? pkgs.iohkNix.commitIdFromGitRepoOrZero ./.git
 }:
-
+with pkgs; with commonLib;
 let
-  haskell = pkgs.callPackage iohkLib.nix-tools.haskell {};
-  src = iohkLib.cleanSourceHaskell ./.;
-  util = pkgs.callPackage ./nix/util.nix {};
 
-  # Import the Haskell package set.
-  haskellPackages = import ./nix/pkgs.nix {
-    inherit pkgs haskell src;
-    # Provide cross-compiling secret sauce
-    inherit (iohkLib.nix-tools) iohk-extras iohk-module;
+  haskellPackages = recRecurseIntoAttrs
+    # the Haskell.nix package set, reduced to local packages.
+    (selectProjectPackages decentralizedUpdatesHaskellPackages);
+
+  self = {
+    inherit haskellPackages hydraEvalErrors;
+    # Attributes of PDF builds of LaTeX documentation.
+    decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
+
+    inherit (pkgs.iohkNix) checkCabalProject;
+
+    # `tests` are the test suites which have been built.
+    tests = collectComponents' "tests" haskellPackages;
+    # `benchmarks` (only built, not run).
+    benchmarks = collectComponents' "benchmarks" haskellPackages;
+
+    checks = recurseIntoAttrs {
+      # `checks.tests` collect results of executing the tests:
+      tests = collectChecks haskellPackages;
+    };
+
+    shell = import ./shell.nix {
+      inherit pkgs;
+      withHoogle = true;
+    };
   };
 
-in {
-  inherit pkgs iohkLib src haskellPackages;
-  inherit (haskellPackages.decentralized-updates.identifier) version;
-
-  tests = util.collectComponents "tests" util.isDecentralizedUpdates haskellPackages;
-  benchmarks = util.collectComponents "benchmarks" util.isDecentralizedUpdates haskellPackages;
-
-  # This provides a development environment that can be used with nix-shell or
-  # lorri. See https://input-output-hk.github.io/haskell.nix/user-guide/development/
-  shell = haskellPackages.shellFor {
-    name = "decentralized-updates-shell";
-    # List all local packages in the project.
-    packages = ps: with ps; [
-      decentralized-updates
-    ];
-    # These programs will be available inside the nix-shell.
-    buildInputs =
-      with pkgs.haskellPackages; [ hlint stylish-haskell weeder ghcid lentil ]
-      # You can add your own packages to the shell.
-      ++ [  ];
-  };
-
-  # Attributes of PDF builds of LaTeX documentation.
-  decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
-
-}
+in self

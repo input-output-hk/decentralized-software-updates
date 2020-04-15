@@ -1,14 +1,40 @@
-{ supportedSystems ? [ "x86_64-linux" "x86_64-darwin" ]
+############################################################################
+#
+# Hydra release jobset.
+#
+# The purpose of this file is to select jobs defined in default.nix and map
+# them to all supported build platforms.
+#
+############################################################################
+
+# The project sources
+{ decentralized-updates ? { outPath = ./.; rev = "abcdef"; }
+
+# Function arguments to pass to the project
+, projectArgs ? {
+    config = { allowUnfree = false; inHydra = true; };
+    gitrev = decentralized-updates.rev;
+  }
+
+# The systems that the jobset will be built for.
+, supportedSystems ? [ "x86_64-linux" "x86_64-darwin" ]
+
+# The systems used for cross-compiling
 , supportedCrossSystems ? [ "x86_64-linux" ]
+
+# A Hydra option
 , scrubJobs ? true
-, decentralized-updates ? { outPath = ./.; rev = "abcdef"; }
-, projectArgs ? { config = { allowUnfree = false; inHydra = true; }; }
-, iohkLib ? import ./nix/iohk-common.nix {}
+
+# Dependencies overrides
+, sourcesOverride ? {}
+
+# Import pkgs, including IOHK common nix lib
+, pkgs ? import ./nix { inherit sourcesOverride; }
+
 }:
 
-with (import iohkLib.release-lib) {
-  inherit (import ./nix/iohk-common.nix {}) pkgs;
-
+with (import pkgs.iohkNix.release-lib) {
+  inherit pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
   packageSet = import decentralized-updates;
   gitrev = decentralized-updates.rev;
