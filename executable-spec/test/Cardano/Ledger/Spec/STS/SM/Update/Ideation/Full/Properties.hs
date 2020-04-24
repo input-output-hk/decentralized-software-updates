@@ -154,7 +154,7 @@ prop_sufficientActions coveragePct aname =
 
 -- | Check that a sufficient number of @"noverdict"@ events is generated.
 prop_sufficientNoVerdicts :: Property
-prop_sufficientNoVerdicts = prop_sufficientActions 30 ("noverdict" .@ aSipId)
+prop_sufficientNoVerdicts = prop_sufficientActions 15 ("noverdict" .@ aSipId)
 
 prop_sufficientRejections :: Property
 prop_sufficientRejections = prop_sufficientActions 15 ("reject" .@ aSipId)

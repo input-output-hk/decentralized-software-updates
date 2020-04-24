@@ -39,7 +39,7 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {};
+    flags = { asserts = false; pretty = true; };
     package = {
       specVersion = "1.10";
       identifier = { name = "decentralized-updates"; version = "0.1.0.0"; };
@@ -64,12 +64,17 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."random" or (buildDepError "random"))
           (hsPkgs."text" or (buildDepError "text"))
+          (hsPkgs."newtype-generics" or (buildDepError "newtype-generics"))
+          (hsPkgs."strict-base-types" or (buildDepError "strict-base-types"))
+          (hsPkgs."monad-validate" or (buildDepError "monad-validate"))
+          (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
           (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
           (hsPkgs."deepseq" or (buildDepError "deepseq"))
+          (hsPkgs."mtl" or (buildDepError "mtl"))
           ];
         buildable = true;
         };
@@ -82,6 +87,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
+            (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))

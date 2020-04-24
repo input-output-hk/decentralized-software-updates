@@ -128,7 +128,7 @@ instance (Hashable p) => STS (TALLYSIP p) where
                    prvNoMajority
                    r_a of
                 Data.Approved   ->
-                  ( registerApproval sipHash apprvsips
+                  ( registerApproval sipHash currentSlot apprvsips
                   , asips
                   , vResult'
                   )

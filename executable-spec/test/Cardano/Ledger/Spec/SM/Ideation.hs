@@ -43,7 +43,11 @@ ticker =
     cslot = "cslot"
 
 tickerActsGen :: Map ActionName (Gen Cell)
-tickerActsGen = [ ("setInc", Cell <$> (elements [1 .. (3 :: Word)])) ]
+-- TODO: we tick in increments of 1 in the interface, so setting the increment
+-- to make a jump of more than 1 will break the model. These conformance tests
+-- will be soon replaced by better ones which do not duplicate the logic of the
+-- STS.
+tickerActsGen = [ ("setInc", Cell <$> (elements [1 .. (1 :: Word)])) ]
 
 initTickerMem :: Word -> Memory
 initTickerMem currentSlot =

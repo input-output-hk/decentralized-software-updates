@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -22,10 +22,17 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      initialRules, judgmentContext, trans, transitionRules,
                      wrapFailed)
 
-import           Ledger.Core (BlockCount, Slot, addSlot, dom, (*.), (-.), (⋪),
-                     (▷<=), (⨃))
+import           Ledger.Core (BlockCount, Slot, SlotCount, addSlot, dom, (*.),
+                     (-.), (⋪), (▷<=), (⨃))
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
+                     (HasStakeDistribution, StakePools (StakePools),
+                     stakeDistribution)
+import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime)
+import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime as SlotTime
+import           Cardano.Ledger.Spec.State.ActivationState (ActivationState)
+import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
 import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs,
@@ -33,11 +40,14 @@ import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs,
 import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
+import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
+import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
 import           Cardano.Ledger.Spec.STS.Update.TallyImplVotes (TIVOTES)
 import qualified Cardano.Ledger.Spec.STS.Update.TallyImplVotes as TallyImplVotes
 import           Cardano.Ledger.Spec.STS.Update.Tallysip (TALLYSIPS)
 import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
+import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio (HasAdversarialStakeRatio, adversarialStakeRatio)
 
 -- | The Header Update STS
 -- Incorporates "update logic" processing
@@ -56,15 +66,79 @@ data Env p
          -- ^ How many times a revoting is allowed due to a no quorum result
        , prvNoMajority :: !Word8
          -- ^ How many times a revoting is allowed due to a no majority result
+
+       --------------------------------------------------------------------------------
+       -- Additions needed to the environment by the approval phase.
+       --------------------------------------------------------------------------------
+       -- TODO: the fields below should be made strict.
+       , slotsPerEpoch :: SlotCount
+       , currentSlot   :: Slot
+         -- ^ The current slot is currently part of the signal, but I think it
+         -- is better to make it explicit in the environment that we're
+         -- referring to the current slot. The rule that changes slots and epochs
+         -- should maintain the state invariant that:
+         --
+         -- > epochFirstSlot <= currentSlot < epochFirstSlot + slotsPerEpoch
+         --
+         -- here state refers to the state associated to that rule.
+         --
+         -- So having the current slot in the environment makes it easier to
+         -- ensure that the slot we pass to the rule is the rule that respects
+         -- this invariant, since we will be transferring this from the state.
+         --
+         -- Then the chain tick rule (or header rule) would look something like:
+         --
+         -- > (... slotsPerEpoch ...)
+         -- > |-
+         -- > (... currentSlot, epochFirstSlot ...)
+         -- > -- slot / SLOTTICK -->
+         -- > (... currentSlot', epochFirstSlot' ...)
+         -- >
+         -- > Env { ... currentSlot', epochFirstSlot' }
+         -- > |-
+         -- > updateSt' -- HUPDATE --> updateSt'
+         --
+         -- The SLOTTICK rule could be something like:
+         --
+         -- > epochFirstSlot + slotsPerEpoch  == slot
+         -- > ---------------------------------------
+         -- > (currentSlot, epochFirstSlot)
+         -- > -- slot / SLOTTICK -->
+         -- > (slot, slot)
+         --
+         -- Plus the rules for the cases in which the first slot of the epoch
+         -- doesn't change.
+         --
+         -- NOTE that it is __crucial__ that the chain tick rule
+         -- __does not miss any slots__.
+       , epochFirstSlot :: Slot
+         -- ^ What is the slot of the first epoch.
+       , stakepoolsDistribution :: (StakeDistribution p)
        }
        deriving (Show)
 
+instance TracksSlotTime (Env p) where
+  stableAfter    Env { k }              = 2 *. k
+  currentSlot    Env { currentSlot }    = currentSlot
+  slotsPerEpoch  Env {slotsPerEpoch }   = slotsPerEpoch
+  epochFirstSlot Env { epochFirstSlot } = epochFirstSlot
+
+instance HasStakeDistribution StakePools (Env p) p where
+  stakeDistribution StakePools = stakepoolsDistribution
+
+instance HasAdversarialStakeRatio (Env p) where
+  adversarialStakeRatio = r_a
+
+
 data St p
-  = St { wrsips :: !(WhenRevealedSIPs p)
-       , asips :: !(ActiveSIPs p)
-       , vresips :: !(SIPsVoteResults p)
-       , apprvsips :: !(ApprovedSIPs p)
-       , approvalSt :: !(State (TIVOTES p))
+  = St { wrsips       :: !(WhenRevealedSIPs p)
+       , asips        :: !(ActiveSIPs p)
+       , vresips      :: !(SIPsVoteResults p)
+       , apprvsips    :: !(ApprovedSIPs p)
+       , approvalSt   :: !(State (APPROVAL p))
+       -- TODO: we can make this field strict once we get rid of the STS's that
+       -- use this one.
+       , activationSt ::  ActivationState p
        }
        deriving (Show, Generic)
 
@@ -86,28 +160,41 @@ instance ( Hashable p
   initialRules = [
     do
       IRC Env { } <- judgmentContext
-      pure $! St { wrsips = mempty
-                 , asips = mempty
-                 , vresips = mempty
-                 , apprvsips = mempty
-                 , approvalSt = mempty
+      pure $! St { wrsips       = mempty
+                 , asips        = mempty
+                 , vresips      = mempty
+                 , apprvsips    = mempty
+                 , approvalSt   = mempty
+                 , activationSt = Activation.initialState undefined undefined
+                 -- TODO: I can't conjure initial hashes and implementation data
+                 -- here! Can't we just remove this initial rule?
                  }
     ]
 
   transitionRules = [
     do
-      TRC ( Env { k, sipdb, ballots, r_a, stakeDist
-                , prvNoQuorum, prvNoMajority
-                }
+      TRC ( env@Env { k
+                    , sipdb
+                    , ballots
+                    , r_a
+                    , stakeDist
+                    , prvNoQuorum, prvNoMajority
+                    }
           , St  { wrsips
                 , asips
                 , vresips
                 , apprvsips
                 , approvalSt
+                , activationSt
                 }
           , slot
           ) <- judgmentContext
 
+      let activationSt' = Activation.tick env activationSt
+
+      --------------------------------------------------------------------------
+      -- Ideation tick
+      --------------------------------------------------------------------------
       let
           -- Add newly revealed (but stable) SIPs to the active sips.
           asips' = asips
@@ -146,14 +233,35 @@ instance ( Hashable p
                     , Set.toList toTally
                     )
 
-      let env = TallyImplVotes.Env k stakeDist r_a
-      approvalSt' <- trans @(TIVOTES p) $ TRC (env, approvalSt, slot)
+      --------------------------------------------------------------------------
+      -- Approval tick
+      --------------------------------------------------------------------------
+      approvalSt' <- trans @(TIVOTES p)
+                           $ TRC ( TallyImplVotes.Env k stakeDist r_a
+                                 , approvalSt
+                                 , slot
+                                 )
 
-      pure $! St { wrsips = wrsips'
-                 , asips = asips'''
-                 , vresips = vresips'
-                 , apprvsips = apprvsips'
-                 , approvalSt = approvalSt'
+      -- Depending on its type, each newly approved proposal has to:
+      --
+      -- - be considered for addition in the activation queue (which might
+      --   additionaly result in the cancellation of the old proposal,
+      --   cancellation of the new proposal, or changing the current candidate
+      --   proposal by the new one).
+      -- - be put in the list of approved application updates.
+      -- - cancel a proposal in the activation queue.
+      --
+      let (ipsst', activationSt'') =
+            Activation.transferApprovals env
+                                         (Approval.ipsst approvalSt')
+                                         activationSt'
+
+      pure $! St { wrsips       = wrsips'
+                 , asips        = asips'''
+                 , vresips      = vresips'
+                 , apprvsips    = apprvsips'
+                 , approvalSt   = approvalSt' { Approval.ipsst =  ipsst'}
+                 , activationSt = activationSt''
                  }
     ]
 

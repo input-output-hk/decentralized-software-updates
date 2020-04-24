@@ -13,6 +13,17 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+flag asserts
+  description: Enable assertions
+  manual:      False
+  default:     False
+
+flag pretty
+  description: Enable pretty printing of error mesages and debug traces
+  manual:      True
+  default:     True
+
+
 library
   hs-source-dirs:      src
   exposed-modules:     Cardano.Ledger.Generators.QuickCheck
@@ -22,6 +33,7 @@ library
                      , Cardano.Ledger.Spec.Classes.HasSalt
                      , Cardano.Ledger.Spec.Classes.HasSigningScheme
                      , Cardano.Ledger.Spec.Classes.Sizeable
+                     , Cardano.Ledger.Spec.State.ActivationState
                      , Cardano.Ledger.Spec.State.ActiveSIPs
                      , Cardano.Ledger.Spec.State.ApprovedSIPs
                      , Cardano.Ledger.Spec.State.Ballot
@@ -56,7 +68,15 @@ library
                      , Cardano.Ledger.Spec.STS.Update.Ideation.Data
                      , Cardano.Ledger.Spec.STS.Update.Implementation
                      , Cardano.Ledger.Spec.STS.Update.Definitions
+                      -- TODO: @Cardano.Ledger.Test.Mock@ this doesn't seem to belong here
                      , Cardano.Ledger.Test.Mock
+                     , Cardano.Ledger.Spec.Classes.TracksSlotTime
+                     , Cardano.Ledger.Spec.Classes.HasStakeDistribution
+                     , Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+                     , Cardano.Ledger.Spec.STS.CanExtract
+                     -- Non-update specific modules. Can be extracted to a library if needed somewhere else.
+                     , Cardano.Ledger.Assert
+                     , Cardano.Ledger.Debug
   build-depends:       base >=4.11 && <5
                      , bimap >= 0.4.0
                      , containers
@@ -64,6 +84,10 @@ library
                      , QuickCheck
                      , random
                      , text
+                     , newtype-generics
+                     , strict-base-types
+                     , monad-validate
+                     , pretty-simple
                      -- Cardano specific imports
                      , cardano-prelude
                      , cardano-binary
@@ -71,12 +95,22 @@ library
                      , small-steps
                      , cs-ledger
                      , deepseq
+                     -- Needed for 'Cardano.Ledger.Debug' only. We might want to
+                     -- put this module on our test section.
+                     , mtl
   default-language:    Haskell2010
   ghc-options:        -Wall
                       -Wcompat
                       -Wincomplete-record-updates
                       -Wincomplete-uni-patterns
                       -Wredundant-constraints
+                      -fno-ignore-asserts
+  if flag(asserts)
+    ghc-options:       -fno-ignore-asserts
+    cpp-options:       -DENABLE_ASSERTIONS
+  if flag(pretty)
+    cpp-options:       -DPRETTY_PRINT
+
 
 test-suite ledger-rules-test
   hs-source-dirs:      test
@@ -92,7 +126,16 @@ test-suite ledger-rules-test
                      , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Vote.Properties
                      , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance
                      , Cardano.Ledger.Update.Interface
-                     , Cardano.Ledger.Spec.STS.Update.Approval.UnitTests
+                     , Cardano.Ledger.UpdateSpec
+                     , Cardano.Ledger.Update.TestCase
+
+                     , Cardano.Ledger.Update.UnitTests.Ideation
+                     , Cardano.Ledger.Update.UnitTests.Approval
+                     , Cardano.Ledger.Update.UnitTests.Activation
+                     , Cardano.Ledger.Update.UnitTests.Common
+
+                     , Util.TestCase
+
   default-language:    Haskell2010
   build-depends:       base
                      , containers
@@ -100,6 +143,8 @@ test-suite ledger-rules-test
                      , QuickCheck
                      , tasty
                      , tasty-quickcheck
+                     , pretty-simple
+                     , text
                      -- Cardano specific imports
                      , cardano-crypto-class
                      , cardano-binary
@@ -122,6 +167,7 @@ test-suite ledger-rules-test
                        "-with-rtsopts=-K1m -M150m"
                        -threaded
                        -rtsopts
+                       -fno-ignore-asserts
 
 benchmark worst-case-analysis
   hs-source-dirs:      bench/worst-case-analysis

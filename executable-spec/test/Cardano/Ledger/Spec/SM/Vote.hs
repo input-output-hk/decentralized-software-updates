@@ -182,7 +182,7 @@ activation autId =
     , "Idle"     .-- ("reveal" .@! autId, rslot .= cslot)                              .--> "Revealed"
     , "Revealed" .-- (cslot .< rslot .+ _2 .* k, "tick" #? s, cslot .= s )             .--> "Revealed"
     , "Revealed" .-- (rslot .+ _2 .* k .<= cslot, "active" .@! autId, aslot .= cslot ) .--> "Active"
-    , "Active"   .-- ("vote" .@ autId #? _vote)                                        .--> "Active"
+    , "Active"   .-- ("vote" .@ autId #? _vote)  .--> "Active"
     , "Active"   .-- (s .< aslot .+ vpd , "tick" #? s, cslot .= s )                    .--> "Active"
     , "Active"   .-- (aslot .+ vpd .<= s, "tick" #? s, vpeslot .= s )                  .--> "EndingVP"
     , "EndingVP" .-- ("vpend" .@! autId)                                               .--> "VPEnded"

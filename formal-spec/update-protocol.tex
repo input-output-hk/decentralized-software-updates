@@ -63,16 +63,16 @@ the update proposal dictates.
 Additionally, consensus update must specify where the code and binaries that
 run the new protocol can be obtained.
 
-All proposals must specify:
+All parameters and consensus proposals must specify:
 \begin{itemize}
-\item The version that they supersede. They proposal can only be applied to this
+\item The version that they supersede. The proposal can only be applied to this
   version.
 \item The (hash of the) proposal they supersede. Update proposals in the
   approval phase can have the same version, so proposals need to disambiguate
   the proposal they supersede. This allows us to avoid a situation in which a
   proposal depends on a given version, but also (implicitly) on a particular
   implementation of that version. If we do not make this dependency implicit,
-  then we risk having a update being applied on the wrong version.
+  then we risk having an update being applied on the wrong version.
   %
   We cannot on the other hand, enforce uniqueness of versions in update
   proposals, since we risk having malicious actors organizing a denial of
@@ -82,10 +82,12 @@ All proposals must specify:
   start with a Genesis (implementation) proposal.
 \end{itemize}
 
-When a proposal is approved it enters a \emph{priority queue} where it waits to
-be activated. The priority of the queue is determined by the update proposal's
-versions. A proposal with lower version will activate \textbf{before} a proposal
-with a higher version.
+When a parameters or consensus proposal is approved\footnote{Cancellation and
+  application update proposals come into effect immediately after being
+  approved.} it enters a \emph{priority queue} where it waits to be activated.
+The priority of the queue is determined by the update proposal's versions. A
+proposal with lower version will activate \textbf{before} a proposal with a
+higher version.
 %
 We call the proposals in the activation queue the \emph{approved proposals}.
 
@@ -149,10 +151,9 @@ If the proposal gathers enough endorsements, then it can be
 If the candidate proposal does not need endorsements, i.e. it is a protocol
 parameters update, it becomes immediately scheduled.
 
-In the case of parameters or consensus updates, a scheduled proposal
-\textbf{waits} to be activated \textbf{till the end of the current epoch}. In
-case of application updates, the proposal does not need to be activated. The
-ledger simply records its approval.
+A scheduled proposal \textbf{waits} to be activated \textbf{till the first slot
+  of the next epoch}. In case of application updates, the proposal does not need
+to be activated. The ledger simply records its approval.
 
 The next sub-sections describe the details of the activation protocol outlined
 above.
@@ -164,8 +165,8 @@ An update proposal can enter the endorsement period if two conditions are met:
 \begin{enumerate}
 \item It is at the front of the priority queue (i.e. it is has the lowest
   version among the proposals queue).
-\item The version that the proposal declares to supersede must be \textbf{the
-    same} as the current version.
+\item The version and proposal hash that the proposal declares to supersede must
+  be \textbf{the same} as the current version.
 \end{enumerate}
 Once in the endorsement period, \textbf{it might return to the queue} if a new
 update proposal is approved and ends up in front of the priority queue (which
@@ -259,7 +260,7 @@ version \texttt{1.1.0}, in which case it can be activated after this version
 \subsubsection{Application updates}
 \label{sec:software-only-updates}
 
-Application updates are not related to protocol updated, and therefore the do
+Application updates are not related to protocol updates, and therefore the do
 not enter the activation phase.
 %
 Upon approval of an application update the ledger simply records this event.
@@ -289,7 +290,7 @@ however, the explicit cancellation \emph{immediately cancels} the proposals it
 refers to once it gets approved by the expert pools in the approval phase.
 
 Cancellation proposals have no next-versions associated with it. They only
-specify the versions they cancel.
+specify the hash of the implementations they cancel.
 
 \subsubsection{Cancellations}
 \label{sec:cancellations}
