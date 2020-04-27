@@ -1,0 +1,78 @@
+\documentclass[runningheads,10pt]{llncs}
+\usepackage[strings]{underscore}
+\usepackage{preamble}
+\usepackage{dirtytalk}
+\usepackage{tabu} 
+\usepackage{boxedminipage}
+
+%%%% graphics
+\usepackage[usenames,dvipsnames,pdf]{pstricks}
+ \usepackage{epsfig}
+ \usepackage{pst-grad} % For gradients
+ \usepackage{pst-plot} % For axes
+ \usepackage[space]{grffile} % For spaces in paths
+ \usepackage{etoolbox} % For spaces in paths
+ \makeatletter % For spaces in paths
+ \patchcmd\Gread@eps{\@inputcheck#1 }{\@inputcheck"#1"\relax}{}{}
+ \makeatother
+ \usepackage{auto-pst-pdf}
+ % User Packages:
+
+
+
+\newcommand{\pubinfo}[1]{
+	\begin{figure}[!t] \vspace*{-5ex} #1\end{figure}}
+
+
+\newcommand{\mnote}[1]{{\color{blue}\small\sc Michele: #1}}
+\newcommand{\nnote}[1]{{\color{magenta}\small Nikos: #1}}
+\newcommand{\nknote}[1]{{\color{brown}\small Nikos: #1}}
+
+\begin{document}
+\import{./}{title.tex}
+\import{./}{abstract.tex}
+\clearpage
+
+\input{introduction}
+
+\import{./}{model.tex}
+
+\section{Secure Updatable Ledgers}
+\import{./}{activation_formal.tex}
+
+\import{./}{activation_protocol.tex}
+
+
+
+\ignore{
+
+\import{./}{introduction.tex}
+\import{./}{lifecycle.tex}
+\import{./}{activation.tex}
+
+\clearpage
+\bibliography{references}
+
+\appendix
+\import{./}{definitions}
+\import{./}{general_notions.tex}
+\import{./}{ledger.tex}
+\import{./}{appendix-lifecycle.tex}
+\import{./}{appendix-governance.tex}
+\import{./}{appendix-updlogic.tex}
+
+}
+
+\clearpage
+\bibliographystyle{splncs04}
+
+%\bibliographystyle{alpha}
+\bibliography{abbrev3,crypto,references}
+
+\appendix
+
+\input{clock}
+\input{registration}
+
+\end{document}
+

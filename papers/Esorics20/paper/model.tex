@@ -1,0 +1,217 @@
+\section{The Model}
+
+Protocol participants are represented as parties---formally Interactive Turing Machine instances (ITIs)---in a multi-party computation. We assume a central adversary who  corrupts miners and  uses them to attack the protocol. The adversary is {\em adaptive}, i.e., can corrupt (additional) parties  at any point  and depending on his current view of the protocol execution. Our protocols are synchronous (G)UC protocols~\cite{C:BMTZ17,TCC:KMTZ13}:  parties have access to  a (global) clock setup, denoted by~$\gclock,$ and can communicate over a network of authenticated multicast channels. We assume instant and {\em fetch-based}  delivery channels~\cite{TCC:KMTZ13,AC:CGHZ16}. Such channels, whenever they receive a message from their sender, they record it and deliver it to the receiver upon his request with a ``fetch'' command. In fact, all functionalities we design in this work will have such  fetch-based delivery of their outputs. We remark that the instant-delivery assumption is without loss of generality as the channels are only used for communicating the timestamped object to the verifier which can anyway happen at any point after its creation. However, our treatment trivially applies also to the setting where parties communicate over  bounded-delay channels as in~\cite{C:BMTZ17}. 
+
+
+We adopt the {\em dynamic availability} model implicit in~\cite{C:BMTZ17} which was fleshed out in~\cite{CCS:BGKRZ18}. We next sketch its main components: All functionalities, protocols, and global setups have a dynamic party set. i.e., they all include special instructions allowing parties to register,  deregister, and allowing the adversary to learn the current set of registered parties. Additionally,  global setups allow any other setup (or functionality) to register and deregister with them, and they also allow other setups to learn their set of registered parties. For more details on the registration process we refer the reader to Appendix~\ref{se:registration}.  
+\paragraph{The Clock Functionality} $\gclock$ (cf. Fig.~\ref{fig:gclock}).
+%As in~\cite{BMTZ17} we  assume a global UC-functionality $\gclock$  that allows the parties to ensure that the protocol they are running proceeds in synchronized rounds. 
+The \emph{clock functionality}  was initially proposed in~\cite{TCC:KMTZ13} to enable synchronous execution of UC protocols. Here we adopt its global-setup version, denoted by $\gclock$, which was proposed by~\cite{C:BMTZ17} and was used in the (G)UC proofs of the ledger's security.\footnote{As a global setup, $\gclock$ also exists in the ideal world and the ledger connects to it to keep track of rounds.}  $\gclock$  allows  parties (and functionalities) to ensure that the protocol they are running proceeds in synchronized rounds; it keeps track of  round variable whose value can be retrieved by parties (or by functionalities) via sending to it the pair: $\gread$. This value is increased when every honest party has sent to the clock a command $\gupdate$.
+The parties use the clock as follows.  Each party starts every operation by reading the current round from $\gclock$ via the command $\gread$. Once any party  has executed all its instructions
+for that round it instructs the clock to advance by sending a $\gupdate$ command, and gets in an idle mode where it simply reads the clock time in every activation until the round advances. %The clock advances to the next round when all the parties have requested to advance to the next round.
+%In~\cite{KZZ16,BMTZ17}, this idea was transfered to the (G)UC setting, by assuming that the clock is a global setup. This allows  different protocols to use the same clock and we will also use the latter model in this paper. In particular, we model the \emph{time aspect} of all the functionalities that we propose, in terms of number of rounds. Therefore, when  $\gclock$ proceeds from one round to another, we say that $\gclock$ has \emph{ticked}. 
+%For completeness, we have included the global clock functionality in Appendix~\ref{app:funcs} We refer  readers to Fig.~\ref{fig:gclock} for a formal description of the functionality.
+To keep more compact the description of our functionalities that rely on $\gclock$, we implicitly assume that
+whenever an input is received the command $\gread$ is sent to $\gclock$ to retrieve the current round. Moreover, before giving the output, the functionalities request to advance the clock by sending $\gupdate$ to $\gclock$.
+
+
+
+
+
+
+\subsection{Ledger Consensus: Model}\label{se:ledgermodel}
+
+In this section, we define our notion of protocol execution following~\cite{EC:GarKiaLeo15,FOCS:Canetti01}.
+The execution of a protocol $\Pi$ is driven by an
+environment program $\env$ that may spawn multiple instances running the protocol $\Pi$. The programs
+in question can be thought of as interactive Turing machines (ITM) that have communication,
+input and output tapes. An instance of an ITM running a certain program will be referred to as
+an interactive Turing machine instance or ITI. The spawning of new ITI's by an existing ITI as
+well as the interaction between them is at the discretion of a control program which is also an ITM
+and is denoted by $C$. The pair $(\env, C)$ is called a system of ITM's, cf.~\cite{FOCS:Canetti01}.
+Specifically, the execution driven by $\env$ is defined with respect to a protocol $\Pi$, an adversary $\adv$
+(also an ITM) and a set of parties $P_1,\dots,P_n$; these are hardcoded in the control program $C$.
+Initially, the environment $\env$ is restricted by $C$ to spawn the adversary $\adv$. Each time the
+adversary is activated, it may send one or more messages of the form $(\corrupt, P_i)$ to $C$. The control
+program $C$ will register party $P_i$ as corrupted, only provided that the environment has previously
+given an input of the form $(\corrupt, P_i)$ to $\adv$ and that the number of corrupted parties is less or
+equal $\tcorrupt$, a bound that is also hardcoded in $C$.
+
+We divide time into discrete units called \emph{time slots} or {\emph round}. Players are equipped with (roughly)
+synchronized clocks $\gclock$ that indicate the current slot: we assume that any clock drift is subsumed in the slot
+length.
+%Each slot $\slr$ is indexed by an integer $r\in\{1,2,\dots\}$.
+
+
+%The first ITI party to be spawned running protocol
+%$\Pi$ is restricted by $C$ to be party $P_1$. After a party $P_i$ is activated, the environment is restricted to
+%activate party $P_{i+1}$, except when $P_n$ is activated in which case the next ITI to be activated is always
+%the adversary $\adv$. Note that when a corrupted party $Pi$ is activated the adversary $\adv$ is activated
+%instead.
+
+
+
+\subsubsection{Ledger Consensus.}
+Ledger consensus (a.k.a. ``Nakamoto consensus'') is the problem where a set of nodes
+(or parties) operate continuously accepting inputs
+that are called transactions and incorporate them in a public data
+structure called the {\em ledger}.
+A ledger (denoted in calligraphic-face, e.g. $\ledger$) is a mechanism for maintaining a sequence of transactions, often
+stored in the form of a blockchain. In this work, we denote with $\ledger$
+the algorithms used to maintain the sequence, and with $\state$ all the views of the
+participants of the state of these algorithms when being executed. For example, the (existing) ledger Bitcoin
+consists of the set of all transactions that ever took place in the Bitcoin network, the current UTXO set, as
+well as the local views of all the participants.
+In contrast, we call a \emph{ledger state} a concrete sequence of transactions $\tx_1,\tx_2,\dots$ stored in the stable
+part of a ledger state $\state$, typically as viewed by a particular party. Hence, in every blockchain-based ledger $\ledger$,
+every fixed chain $\mathcal{C}$ defines a concrete ledger state by applying the interpretation rules given as a part of the
+description of $\ledger$. In this work, we assume that the ledger state is obtained from the blockchain by dropping the last $k$ blocks
+and serializing the transactions in the remaining blocks. We refer to $k$ as the \emph{common-prefix parameter}.
+We denote by $\state^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
+and by ${\check \state}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. $\state^P[t]$ can be obtained from  ${\check \state}^{P}[t]$ by dropping the last $k$ block.
+%ledger states (or, more generally, any sequences), we denote by the prefix relation.
+% and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet.
+
+
+For two ledger states (or, more generally, any sequences), we denote by $\preceq$ the prefix relation.
+Recall the definition of secure ledger protocol given in~\cite{RSA:GarKia20}.
+
+
+\begin{definition}\label{de:ledger} A ledger protocol $\ledger$ is secure if it enjoys the following properties.
+
+
+\ignore{
+\begin{itemize}
+\item {\em Consistency:} This property mandates that if a client queries
+an honest node's ledger at round $t_1$
+and receives the response $\mc{L}_1$,
+then a client querying an honest node's ledger at round $t_2\geq t_1 $
+ receives a response $\mc{L}_2$ that satisfies $\mc{L}_1 \preceq \mc{L}_2$,
+where $\preceq$ denotes the standard prefix operation.
+
+\item {\em Liveness:} If a transaction $tx$ is given as input to all honest
+nodes continuously for a certain number of rounds denoted by $u$,
+and a client queries any honest node's ledger
+after these $u$ rounds, then the node responds with a value
+$\mc{L}$ that includes $tx$.
+%\end{itemize}
+}
+
+\begin{myitemize}
+  \item[]{\bf Consistency.}
+    For any two honest parties $\party_1,\party_2$ and two time slots $t_1\leq t_2$,
+    it holds  $\LView{\state}{\party_1}{t_1} \preceq
+    \LView{\check{\state}}{\party_2}{t_2}$.
+
+  \item[]{\bf Liveness.}
+    If all honest parties in the system attempt to include a  transaction $\tx$
+    then, at any slot $t$ after $s$ slots (called the
+    liveness parameter), any honest party $\party$, if queried,
+    will report $\tx \in \LView{\state}{\party}{t}$.
+\end{myitemize}
+
+\end{definition}
+
+In this work we also explicitly rely on the properties of \emph{Common Prefix (CP)}, \emph{Chain Growth (CG)} 
+and  \emph{Chain Quality (CQ)}. 
+
+\begin{myitemize}
+  \item[] {\bf Common Prefix (CP); with parameters $k\in\mathbb{N}$} 
+states that for any pair of honest players  $P_1,P_2$ at rounds $r_1\leq r_2$ respectively, it holds that  ${ \state}^{P_1}[r_1] \preceq  {\check \state}^{P_2}[r_2] $.    
+  \item[] {\bf Chain Growth (CG); with parameters $\cg\in (0,1]$ and $s\in\mathbb{N}$}. Consider the chain $\mathcal{C}$
+  adopted by an honest party at the onset of a slot and any portion of $\mathcal{C}$ spanning $s$ prior slots; then the number of
+  blocks appearing in this portion of the chain is at least $\tau s$.
+  
+  \item[] {\bf Chain Quality (CQ) with parameters $\mu\in\mathbb{R}$
+and $\ell\in\mathbb{N}$}. For any honest party $P$ with chain $\mathcal{C}$  it holds that for any $\ell$ consecutive blocks of $\mathcal{C}$ the ratio of honest blocks is at least $\mu$.
+ \end{myitemize}
+
+
+
+We consider a setting where a set of parties run a protocol maintaining a ledger $\ledger_1$. Following~\cite{SP:GazKiaZin19}, we denote by $\asmp_1$
+the assumptions for $\ledger_1$.
+ That is, if the assumption $\asmp_1$ holds, then ledger $\ledger_1$ is secure under the Definition~\ref{de:ledger}.
+Formally, $\asmp_i$ for a ledger $\ledger_i$ is a sequence of events $\asmp_i[t]$ for each time slot $t$ that can assume value $1$,
+if the assumption is satisfied, and $0$ otherwise.
+For example, $\asmp_i$ may denote that
+there has never been a majority of hashing power (or stake in a particular
+asset, on this ledger or elsewhere) under the control of the adversary; that a
+particular entity (in case of a centralized ledger) was not corrupted; and so
+on.
+Without loss of generality, we say that the assumption $\asmp_1$ for the ledger $\ledger_1$ holds if and only if the fraction of corrupted parties (the parties
+that received the input $(\corrupt, \cdot)$) is below the threshold $\tcorrupt_1$ (where $\tcorrupt_1$ is part of the control function as described in the beginning
+of this section).
+
+\paragraph{Chain selection rule and block validation.} We sometimes assume that a ledger protocol describes a \emph{chain selection rule} that we denote with $\chainsel$.
+That is, we assume that  each party in each round of the execution of the protocol collects all chains that come from the network and runs the algorithm $\chainsel$ to decide whether to keep his current local chain $\cloc$, or adopt one of the newly received chains. 
+Following~\cite{C:BMTZ17} we also assume 
+that before applying the chain-selection rule, any given chain is tested
+ using the procedure $\isvalid$. $\isvalid$ checks filters the
+ valid chains among all the chain received from the network and only
+ the valid chain are used as input for $\chainsel$.
+ $\chainsel$ in turns rely on the algorithm $\isvalidb$.
+ $\isvalidb$ take as input a block $B$ of $\cloc$ and outputs $1$ if $B$ is a valid block (i.e., the structure of
+ the block is correct) and  $0$ otherwise.
+ 
+ 
+ We note that by assuming that a ledger protocol is always equipped with the algorithms $\chainsel$, 
+ $\isvalid$ and $\isvalidb$ make some of our results less general. However, we will show that it is possible to
+obtain a better updatable ledger in the case when the two ledgers (the current ledger) and the new ledger have the same chain selection rule (among other similarities).
+
+
+\subsection{Genesis Block Functionality}
+The ledger protocols that we consider in this work are equipped with the description of an algorithm $\genesis$ that, on input a random value of appropriate length, outputs a valid genesis block (i.e., the first block of the chain). The security of most of the known ledger protocols holds
+under the additional assumption that the genesis block is correct. That is, the genesis block has been generated
+accordingly to $\genesis$ using appropriate randomness.
+Multiple ways have been presented to generate a correct genesis block in the literature (i.e., by relying on a trusted authority, use
+unpredictable information (like in bitcoin), run a multi-party computation (MPC) protocol~\cite{zcash}, 
+rely on PoW~\cite{PKC:GKLP18} assumptions and so on and so forth). 
+In this work we abstract the generation of the genesis block by means of an ideal functionality.
+The ideal functionality that one might expect, upon being activated from the adversary or from an honest party, should sample a random string and use it to run the algorithm $\genesis$. Unfortunately this simple functionality does not cover real world scenarios where an adversarial party might see the genesis block before the honest parties do. This, for example, can happen in the case when $\genesis$ is realized via an MPC protocol and a rushing adversary\footnote{A rushing adversary waits to receive the messages from all the honest parties and then computes its reply. Note that this means that, in general, the adversary is always able to see the output of the computation before the honest parties do.} could hold the genesis block (the output of the computation) for some bounded amount of time $\delay$ before the honest parties can see it.
+We note that an adversary can use this strategy to take an advantage on the generation of the blocks that extend the genesis block.
+ Therefore, the first modification that we consider for our ideal functionality is to allow the adversary to see the genesis block up to $\delay$ rounds earlier than the honest parties.
+ The second relaxation allows the adversary to see up to 
+ $\maxblocks$ honestly generated genesis blocks and consequently decide which of these blocks will become the 
+ genesis block.
+ We propose the formal description of our genesis functionality $\fgenesis$ in Fig.~\ref{fig:genesis}. 
+ We note that the case where $\delay=0$ and $\maxblocks=1$ corresponds to the case where there is only one candidate genesis block and all the parties can see it at the same round.
+   
+
+
+\begin{figure}[]
+\small
+\setlength{\fboxsep}{8pt}
+\begin{center}
+\begin{boxedminipage}{12cm}
+{\bf Genesis Functionality for $\ledger$}
+
+{\bf Parameters.} The functionality is parametrized by $\delay$, the maximum number of candidate genesis block $\maxblocks$, the genesis block $\bgen$ initialized with a default value $\bot$ and the procedure $\genesis()$.
+We assume the functionality to be registered to $\gclock$ and that it maintains a set of registered parties $\parties$.
+On any input $I$ the functionality queries $\gclock$, and we denote with  $\now$ be the response obtained by $\gclock$.  
+
+
+\begin{description}
+\item[-] If $I=\gengenesis$ is received  from the adversary $\adv$ then  set $\tau:=\now$, generate $\maxblocks$
+ genesis blocks (each block is generated by running the procedure $\genesis()$) $\GB:=\{\bgen_1,\dots, \bgen_\maxblocks\}$ for $\ledger$, and send $\GB$ to the adversary.
+ 
+ \item[-] If $I=\getgenesis$ is received from an honest party $p_i\in\parties$ do the following
+ \begin{itemize}
+ 	\item If $\bgen\neq\bot$ then return $\bgen$ to $p_i$.
+	\item If $\bgen =\bot$ and $R-\tau>\delay$ then set generate a genesis block $\tilde \bgen$ by running 
+	 $\genesis$, set
+	$\bgen\leftarrow \tilde \bgen$ and send $\bgen$ to $p_i$.
+\end{itemize}
+ \item[-] If $I=(\setgenesis,{\bgen}')$ is received from the adversary do the following 
+ \begin{itemize}
+ 	\item If $(R-\tau)\leq\delay$ and ${\bgen}'\in\GB$ then set $\bgen:={\bgen}'$.
+	\item Else, return $\bot$ to the adversary.
+ \end{itemize}
+
+\end{description}
+
+\end{boxedminipage}
+\end{center}
+\caption{The genesis functionality $\fgenesis$.} 
+\label{fig:genesis}
+\end{figure}
+
