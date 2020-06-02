@@ -38,6 +38,10 @@ import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
 import           Cardano.Ledger.Spec.STS.Update.TallyImplVotes (TIVOTES)
 
+-- TODO: this should be moved to the test modules. It is not the responsibility
+-- of the update system to provide a slot tick rule.
+--
+
 -- | The Block HEADER STS
 data HEADER p
 
@@ -118,6 +122,12 @@ instance ( Hashable p
                                           , Hupdate.ballots = ballots
                                           , Hupdate.r_a = r_a
                                           , Hupdate.stakeDist = stakeDist
+                                          -- TODO: we should get rid of this STS (HEADER).
+                                          , Hupdate.slotsPerEpoch = undefined
+                                          , Hupdate.currentSlot = undefined
+                                          , Hupdate.epochFirstSlot = undefined
+                                          , Hupdate.stakepoolsDistribution = undefined
+                                          --
                                           , Hupdate.prvNoQuorum = prvNoQuorum
                                           , Hupdate.prvNoMajority = prvNoMajority
                                           }
@@ -126,6 +136,7 @@ instance ( Hashable p
                                          , Hupdate.vresips = vresips
                                          , Hupdate.apprvsips = apprvsips
                                          , Hupdate.approvalSt = approvalSt
+                                         , Hupdate.activationSt = undefined
                                          }
                             , slot
                             )

@@ -19,6 +19,7 @@ module Cardano.Ledger.Spec.State.StakeDistribution
   , fromList
   , totalStake
   , stakeOfKeys
+  , stakeOfKeys'
   , addStake
   )
 where
@@ -29,6 +30,7 @@ import           Data.List (foldl')
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Monoid (Sum (Sum), getSum)
+import           Data.Set (Set)
 import           GHC.Generics (Generic)
 
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
@@ -71,18 +73,28 @@ instance Hashable p => Indexed (StakeDistribution p) where
 
   lookup key StakeDistribution { stakeMap } = Map.lookup key stakeMap
 
--- | Return percentage of the stake that the given keys have.
+-- | Return the sum of the stake associated with each key.
 stakeOfKeys
   :: Hashable p
   => Map (Hash p (VKey p)) b
   -> StakeDistribution p
   -> Data.Stake
-stakeOfKeys
-  keyMap
-  StakeDistribution
-  { stakeMap
-  }
+stakeOfKeys keyMap StakeDistribution { stakeMap }
   = Map.foldl' (+) 0 $ stakeMap `Map.intersection` keyMap
+
+-- | Return the sum of the stake associated with each key.
+--
+-- Unlike 'stakeOfkeys', this function takes a set of keys instead of a 'Map'.
+-- Using a 'Set' instead of a 'Map' is slower, so when possible, 'stakeOfkeys'
+-- should be used.
+--
+stakeOfKeys'
+  :: Hashable p
+  => Set (Hash p (VKey p))
+  -> StakeDistribution p
+  -> Data.Stake
+stakeOfKeys' keyset StakeDistribution { stakeMap } =
+  Map.foldl' (+) 0 $ stakeMap `Map.restrictKeys` keyset
 
 -- | Add the given stake amount to the stake of the given key.
 --

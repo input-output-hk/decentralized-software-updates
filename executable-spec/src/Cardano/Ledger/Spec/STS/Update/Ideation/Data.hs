@@ -28,13 +28,13 @@ import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSalt (HasSalt, salt)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
-                     Signature, VKey)
+                     SKey, Signable, Signature, VKey, sign)
 import           Cardano.Ledger.Spec.State.Ballot (Ballot, Vote)
 import qualified Cardano.Ledger.Spec.State.Ballot as Ballot
 import           Cardano.Ledger.Spec.State.ProposalState (HasVotingPeriod,
                      getVotingPeriodDuration)
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence, URL)
-import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
+import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit, calcCommit)
 
 -- | Ideation signals.
 --
@@ -42,7 +42,10 @@ import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
 data IdeationPayload p
   = Submit (SIPCommit p) (SIP p)
   | Reveal (SIP p)
-  | Vote (VoteForSIP p)
+  | Vote (VoteForSIP p) -- TODO: make this consistent with
+                        -- Cardano.Ledger.Spec.STS.Update.Approval.Data. I'd use
+                        -- 'SIPVote', since 'VoteForSIP' sounds more like a
+                        -- command.
   deriving (Show, Generic)
 
 isSubmit :: IdeationPayload p -> Bool
@@ -53,7 +56,7 @@ isReveal :: IdeationPayload p -> Bool
 isReveal (Reveal {}) = True
 isReveal _ = False
 
-data (VoteForSIP p) =
+data VoteForSIP p =
   VoteForSIP { votedsipHash :: !(SIPHash p)
                -- ^ SIP id that this ballot is for
              , confidence :: !Confidence
@@ -63,6 +66,24 @@ data (VoteForSIP p) =
              , voterSig :: !(Signature p (SIPHash p, Confidence, VKey p))
              }
   deriving (Generic)
+
+mkVoteForSIP
+  :: ( HasSigningScheme p
+     , Signable p (SIPHash p, Confidence, VKey p)
+     )
+  => SKey p
+  -> VKey p
+  -> Confidence
+  -> SIPHash p
+  -> VoteForSIP p
+mkVoteForSIP voterSKey voterVKey confidence' sipHash =
+  VoteForSIP
+  { votedsipHash = sipHash
+  , confidence   = confidence'
+  , voter        = voterVKey
+  , voterSig     = sign (sipHash, confidence', voterVKey) voterSKey
+  }
+
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSIP p)
 
@@ -108,6 +129,9 @@ data ConcensusImpact = Impact | NoImpact
 -- | Metadata structure for SIP
 data SIPMetadata =
   SIPMetadata
+  -- TODO: I think the protocol version needs to go to the implementation
+  --
+  -- TODO: Also the application version should probably be removed.
     { versionFrom :: !(ProtVer, ApVer)
       -- ^ The version the this SIP has been based on
     , versionTo :: !(ProtVer, ApVer)
@@ -200,6 +224,20 @@ deriving instance (Hashable p, HasSigningScheme p) => Show (SIPCommit p)
 
 instance HasAuthor (SIPCommit p) p where
   author = sipCommitAuthor
+
+
+mkSIPCommit
+  :: ( Hashable p
+     , HasHash p (SIP p)
+     , HasHash p (Int, VKey p, Hash p (SIP p))
+     , HasSigningScheme p
+     , Signable p (Commit p (SIP p))
+     )
+  => SKey p -> SIP p -> SIPCommit p
+mkSIPCommit skey sip = SIPCommit commit (author sip) sipCommitSignature
+  where
+    commit             = calcCommit sip
+    sipCommitSignature = sign commit skey
 
 --------------------------------------------------------------------------------
 -- HasTypeReps instances

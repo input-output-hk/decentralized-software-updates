@@ -4,6 +4,11 @@ packages:
   - executable-spec
   - datil
 
+flags:
+  decentralized-updates:
+    asserts: true
+    pretty:  true
+
 extra-deps:
   - git: https://github.com/input-output-hk/cardano-prelude
     commit: 3ac22a2fda11ca7131a011a9ea48fcbfdc26d6b3
@@ -34,6 +39,9 @@ extra-deps:
   - generic-monoid-0.1.0.0@sha256:00d1a7b7ff0890a3e3cba4032be24fe377c26e5e45d73afcacd42c98abb3b7e3,818
   # Needed for lentil
   - terminal-progress-bar-0.4.1@sha256:ba857f3424ddb1034125163a9a384e9baab22e55de968259b046892c20ec0526,2257
+
+  # Needed for the assertions library
+  - monad-validate-1.2.0.0@sha256:9850f408431098b28806dd464b6825a88a0b56c84f380d7fe0454c1df9d6f881,3505
 
 nix:
   shell-file: nix/stack-shell.nix

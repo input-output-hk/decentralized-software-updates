@@ -37,14 +37,15 @@ import           Cardano.Ledger.Spec.Classes.Hashable (hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey, sign)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as STS.StakeDistribution
 
+import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
+                     VerKeyDSIGN (VerKeyMockDSIGN))
+import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import qualified Cardano.Ledger.Spec.STS.Update as Update
+import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (calcCommit)
 import           Cardano.Ledger.Spec.STS.Update.Definitions (vThreshold)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
-
-import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
-                     VerKeyDSIGN (VerKeyMockDSIGN))
 import           Cardano.Ledger.Test.Mock (Mock)
 
 import           Ledger.Core (BlockCount (BlockCount))
@@ -61,13 +62,29 @@ data InitParams =
   , currentSlot :: !Word
   }
 
+-- TODO: we need to make this a smart constructor, and put it in the same module
+-- as the initial state. We need to satisfy the invariant that:
+--
+-- > iStateEpochFirstSlot <= iStateCurrentSlot
+--
+-- and
+--
+-- > iStateCurrentSlot < iStateSlotsPerEpoch + iStateEpochFirstSlot
+--
 mkIState :: InitParams -> IState Mock
 mkIState InitParams {k, initStakeDist, r_a, currentSlot} =
   IState
     { iStateK = BlockCount $ fromIntegral k
     , iStateMaxVotingPeriods = 2
     , iStateStakeDist = elaborateStakeDist initStakeDist
-    , iStateCurrentSlot = Core.Slot $ fromIntegral currentSlot
+    , iStateCurrentSlot = currentSlot'
+    , iStateEpochFirstSlot = currentSlot'
+    , iStateSlotsPerEpoch = 10 -- TODO: we should move this to 'InitParams'. We
+                               -- don't use it in the conformance tests yet, and
+                               -- probably we won't be doing conformance tests
+                               -- with data automata, but we still need to
+                               -- (property) test with different values of this
+                               -- parameter.
     , iStateSubsips = mempty
     , iStateSipdb = mempty
     , iStateBallot = mempty
@@ -78,7 +95,35 @@ mkIState InitParams {k, initStakeDist, r_a, currentSlot} =
     , iStatevresips = mempty
     , iStateApprvsips = mempty
     , iStateApproval = mempty
+    , iStateActivation =
+      Activation.initialState  (hash genesisImplData) genesisImplData
+    , iStateStakepoolsDistribution = STS.StakeDistribution.emptyStakeDistribution
     }
+  where
+    currentSlot' = Core.Slot $ fromIntegral currentSlot
+    genesisImplData =
+      Approval.Data.ImplementationData
+      { Approval.Data.implDataSIPHash = Ideation.Data.SIPHash $ hash genesisSIPData
+      , Approval.Data.implDataVPD     = 0
+      , Approval.Data.implType        =
+          Approval.Data.genesisUpdateType genesisImplURL genesisImplHash
+      }
+      where
+        genesisImplURL  = Data.URL "foo"
+        genesisImplHash = 0 -- TODO: for now we have not defined a type for this
+
+    genesisSIPData =
+      Ideation.Data.SIPData
+      { Ideation.Data.url = Data.URL "foo"
+      , Ideation.Data.metadata =
+        Ideation.Data.SIPMetadata
+        { Ideation.Data.versionFrom       = (Ideation.Data.ProtVer 0, Ideation.Data.ApVer 0)
+        , Ideation.Data.versionTo         = (Ideation.Data.ProtVer 0, Ideation.Data.ApVer 0)
+        , Ideation.Data.impactsConsensus  = Ideation.Data.Impact
+        , Ideation.Data.impactsParameters = []
+        , Ideation.Data.votPeriodDuration = 0
+        }
+      }
 
 elaborateStakeDist :: StakeDistribution -> STS.StakeDistribution.StakeDistribution Mock
 elaborateStakeDist (StakeDistribution stakeMap)

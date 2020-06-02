@@ -70,3 +70,6 @@ instance HasSigningScheme Mock where
   sign a skey = MockSignature $ Crypto.Mock.mockSigned a skey
 
   verify vkey a (MockSignature sig) = isRight $ Crypto.DSIGN.verifySignedDSIGN @MockDSIGN () vkey a sig
+
+vkeyFromSkey :: SKey Mock -> VKey Mock
+vkeyFromSkey (Crypto.Mock.SignKeyMockDSIGN i) = Crypto.Mock.VerKeyMockDSIGN i

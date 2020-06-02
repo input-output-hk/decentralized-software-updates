@@ -26,7 +26,7 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import           Data.AbstractSize (HasTypeReps)
 
-import           Ledger.Core (Slot, BlockCount)
+import           Ledger.Core (Slot (Slot), BlockCount)
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
@@ -176,6 +176,8 @@ instance ( Hashable p
                            , Update.participants = participants
                            , Update.stakeDist = stakeDist
                            , Update.apprvsips = apprvsips
+                           , Update.slotsPerEpoch = 0
+                           , Update.epochFirstSlot = Slot 0
                            }
               , Update.St { Update.subsips = subsips
                           , Update.wssips = wssips
@@ -184,6 +186,7 @@ instance ( Hashable p
                           , Update.ballots = ballots
                           , Update.implementationSt = implementationSt
                           , Update.approvalSt = mempty -- TODO: need to pass something here.
+                          , Update.activationSt = undefined
                           }
               , update
               )
@@ -249,6 +252,8 @@ instance ( Hashable p
                              , Update.participants = participants
                              , Update.stakeDist = stakeDist
                              , Update.apprvsips = apprvsips
+                             , Update.slotsPerEpoch = 0
+                             , Update.epochFirstSlot = Slot 0
                              }
                   Update.St { Update.subsips = subsips
                             , Update.wssips = wssips
@@ -257,6 +262,7 @@ instance ( Hashable p
                             , Update.ballots = ballots
                             , Update.implementationSt = implementationSt
                             , Update.approvalSt = mempty
+                            , Update.activationSt = undefined
                             }
               pure $! someUpdatePayload
           )

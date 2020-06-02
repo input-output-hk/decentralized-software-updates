@@ -27,8 +27,8 @@ import qualified Test.QuickCheck as QC
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Ledger.Core (dom, (∈), (∉), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁)
-                             , Slot, SlotCount (SlotCount), BlockCount, (▷>=))
+import           Ledger.Core (dom, (∈), (▷<=), (-.), (*.), (⨃), (⋪), range, (◁), (+.)
+                             , Slot (Slot), SlotCount (SlotCount), BlockCount, (▷>=))
 
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 
@@ -86,6 +86,43 @@ data St p
   deriving Semigroup via GenericSemigroup (St p)
   deriving Monoid via GenericMonoid (St p)
 
+-- | Is the SIP stably revealed?
+--
+-- TODO: 'asips' should be put in the ideation state.
+isStablyRevealed
+  :: Hashable p
+  => Env p
+  -> Ideation.Data.SIPHash p
+  -> Bool
+isStablyRevealed Env { asips } sipHash = sipHash ∈ dom asips
+
+isRevealed
+  :: Hashable p
+  => St p
+  -> Ideation.Data.SIPHash p
+  -> Bool
+isRevealed St { wrsips } sipHash = sipHash ∈ dom wrsips
+
+isStablySubmitted
+  :: Hashable p
+  => Env p
+  -> St p
+  -> Commit p (SIP p)
+  -> Bool
+isStablySubmitted Env { currentSlot, k } St { wssips } sipCommit
+  =  Slot 0 +. 2 *. k <= currentSlot
+  && sipCommit ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
+  -- To make the implementation of this function less awkward we could make
+  -- wssips to record the time at which a submission becomes stable.
+
+isSubmitted
+  :: Hashable p
+  => St p
+  -> Commit p (SIP p)
+  -> Bool
+isSubmitted St { subsips } sipCommit =
+  sipCommit ∈ dom subsips
+
 instance ( Hashable p
          , HasHash p SIPData
          , HasHash p (SIP p)
@@ -105,14 +142,13 @@ instance ( Hashable p
   -- | IDEATION phase failures
   data PredicateFailure (IDEATION p)
     = SIPAlreadySubmitted (Ideation.Data.SIP p)
-   -- | SIPSubmittedAlreadyRevealed (Data.SIP p)
     | NoSIPToReveal (Ideation.Data.SIP p)
     | SIPAlreadyRevealed (Ideation.Data.SIP p)
     | InvalidAuthor (VKey p)
     | NoStableAndCommittedSIP (Ideation.Data.SIP p) (WhenSubmittedSIPs p)
     | InvalidVoter (VKey p)
     | VoteNotForActiveSIP (Ideation.Data.SIPHash p)
-    | VotingPeriodEnded (Ideation.Data.SIPHash p) Slot
+    | VotingPeriodEnded (Ideation.Data.SIPHash p) Slot Slot
     | CommitSignatureDoesNotVerify
     | VoteSignatureDoesNotVerify
     deriving (Eq, Show)
@@ -121,10 +157,9 @@ instance ( Hashable p
 
   transitionRules = [
     do
-      TRC ( Env { k
-                , currentSlot
-                , asips
-                }
+      TRC ( env@Env { currentSlot
+                    , asips
+                    }
           , st@St { subsips
                   , wssips
                   , wrsips
@@ -135,7 +170,7 @@ instance ( Hashable p
           ) <- judgmentContext
       case sig of
         Submit sipc sip -> do
-          Ideation.Data.commit sipc ∉ dom subsips ?! SIPAlreadySubmitted sip
+          not (isSubmitted st (Ideation.Data.commit sipc)) ?! SIPAlreadySubmitted sip
 
           verify (author sipc) (Ideation.Data.commit sipc) (Ideation.Data.upSig sipc) ?!
             CommitSignatureDoesNotVerify
@@ -145,9 +180,9 @@ instance ( Hashable p
                      }
 
         Reveal sip -> do
-          calcCommit sip ∈ dom subsips ?! NoSIPToReveal sip
+          isSubmitted st (calcCommit sip) ?! NoSIPToReveal sip
 
-          sip ∉ range sipdb ?! SIPAlreadyRevealed sip
+          not (isRevealed st (Ideation.Data.sipHash sip)) ?! SIPAlreadyRevealed sip
 
           -- The Revealed SIP must correspond to a stable Commited SIP.
           -- Restrict the range of wssips to values less or equal than
@@ -156,8 +191,7 @@ instance ( Hashable p
           -- TODO: this won't work if the submission slot is < 2k. For instance
           -- if a SIP was submitted at slot 0 this condition ensures that it can
           -- also be revealed at slot 0.
-          calcCommit sip
-            ∈ dom (wssips ▷<= (currentSlot -. (2 *. k)))
+          isStablySubmitted env st (calcCommit sip)
             ?! NoStableAndCommittedSIP sip wssips
 
           pure st { wssips = Set.singleton (calcCommit sip) ⋪ wssips
@@ -178,7 +212,7 @@ instance ( Hashable p
 
             -- SIP must be an active SIP, i.e. it must belong to the set of
             -- stable revealed SIPs.
-            Ideation.Data.votedsipHash voteForSIP ∈ dom asips ?!
+            isStablyRevealed env (Ideation.Data.votedsipHash voteForSIP) ?!
               VoteNotForActiveSIP (Ideation.Data.votedsipHash voteForSIP)
 
             -- The end of the voting period for this SIP must not have been
@@ -186,7 +220,7 @@ instance ( Hashable p
             withValue (asips ! Ideation.Data.votedsipHash voteForSIP) () $
               \asipSlot ->
                 currentSlot <= asipSlot ?!
-                VotingPeriodEnded (Ideation.Data.votedsipHash voteForSIP) currentSlot
+                VotingPeriodEnded (Ideation.Data.votedsipHash voteForSIP) currentSlot asipSlot
 
             pure $ st { ballots = updateBallot ballots voteForSIP }
     ]
@@ -210,8 +244,8 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
 
   sigGen
     _traceGenEnv
-    Env{ k, currentSlot, asips, participants }
-    St{ wssips, wrsips, subsips } =
+    env@Env{ k, currentSlot, asips, participants }
+    st@St{ wssips, subsips } =
       case Set.toList $ range $ stableCommits ◁ subsips of
         [] ->
           -- There are no stable commits
@@ -223,7 +257,7 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
             --, so we can only generate a submission.
             submissionGen
             else
-              -- we can also generate votes
+              -- we can also generate votesp
               QC.frequency [ (10, submissionGen)
                            , (90, voteGen asips currentSlot)
                            ]
@@ -288,17 +322,12 @@ instance STS.Gen.HasTrace (IDEATION Mock) a where
             mkSubmission :: SKey Mock -> SIP Mock -> IdeationPayload Mock
             mkSubmission skey sip = Submit sipCommit sip
               where
-                sipCommit =
-                  Ideation.Data.SIPCommit commit (author sip) sipCommitSignature
-                  where
-                    commit = calcCommit sip
-                    sipCommitSignature = sign commit skey
+                sipCommit = Ideation.Data.mkSIPCommit skey sip
 
       revelationGen subsipsList = do
-        -- Problem! 'QC.suchThat' will loop forever if it cannot find a
-        -- revelation that satisfies the given predicate!
         sip <- QC.elements subsipsList
-        if Ideation.Data.sipHash sip ∉ dom wrsips
+        if    not (isRevealed st (Ideation.Data.sipHash sip))
+           && isStablySubmitted env st (calcCommit sip)
           then pure $! Reveal sip
           else submissionGen
 

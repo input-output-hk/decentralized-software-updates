@@ -13,20 +13,18 @@
 
 module Cardano.Ledger.Spec.STS.Update where
 
-import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
-                     GenericSemigroup (GenericSemigroup))
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 
 import qualified Test.QuickCheck as QC
 
 import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
-import           Control.State.Transition (Embed, Environment, PredicateFailure,
+import           Control.State.Transition (Embed, Environment, PredicateFailure, failBecause,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
 import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
-import           Ledger.Core (Slot, BlockCount)
+import           Ledger.Core (Slot (Slot), BlockCount, (*.), SlotCount)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
@@ -49,6 +47,11 @@ import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
 import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
 import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
+import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
+import           Cardano.Ledger.Spec.State.ActivationState (ActivationState)
+import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime)
+import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime as SlotTime
+import           Cardano.Ledger.Spec.STS.CanExtract (CanExtract, extractAll)
 
 
 data UPDATE p
@@ -66,9 +69,16 @@ data Env p
     , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
     , apprvsips :: !(ApprovedSIPs p)
+    , slotsPerEpoch :: !SlotCount
+    , epochFirstSlot :: !Slot
     }
   deriving (Show, Generic)
 
+instance TracksSlotTime (Env p) where
+  stableAfter    Env { k }              = 2 *. k
+  currentSlot    Env { currentSlot }    = currentSlot
+  slotsPerEpoch  Env { slotsPerEpoch }  = slotsPerEpoch
+  epochFirstSlot Env { epochFirstSlot } = epochFirstSlot
 
 data St p
   = St
@@ -79,26 +89,29 @@ data St p
     , ballots :: !(Ideation.Data.SIPBallot p)
     , implementationSt :: State (IMPLEMENTATION p)
     , approvalSt :: !(State (APPROVAL p))
+    -- TODO: once we get rid of the transitions above this one we can make this
+    -- field strict.
+    , activationSt :: ActivationState p
     }
   deriving (Show, Generic)
-  deriving Semigroup via GenericSemigroup (St p)
-  deriving Monoid via GenericMonoid (St p)
-
 
 data UpdatePayload p
   = Ideation (Ideation.Data.IdeationPayload p)
   | Implementation Data.ImplementationPayload
   | Approval (Approval.Data.Payload p)
+  | Activation (Activation.Endorsement p)
   deriving (Show, Generic)
 
 deriving instance ( Typeable p
                   , HasTypeReps (Ideation.Data.IdeationPayload p)
                   , HasTypeReps (Approval.Data.Payload p)
+                  , HasTypeReps (Activation.Endorsement p)
                   ) => HasTypeReps (UpdatePayload p)
 
 instance ( Typeable p
          , HasTypeReps (Ideation.Data.IdeationPayload p)
          , HasTypeReps (Approval.Data.Payload p)
+         , HasTypeReps (Activation.Endorsement p)
          ) => Sized (UpdatePayload p) where
   costsList _
     =  costsList (undefined :: Ideation.Data.IdeationPayload p)
@@ -120,20 +133,21 @@ instance ( Hashable p
     = IdeationFailure (PredicateFailure (IDEATION p))
     | ImplementationFailure (PredicateFailure (IMPLEMENTATION p))
     | ApprovalFailure (PredicateFailure (APPROVAL p))
+    | ActivationFailure (Activation.EndorsementError p)
     deriving (Eq, Show)
 
   initialRules = []
 
   transitionRules = [
     do
-      TRC ( Env { k
-                , maxVotingPeriods
-                , currentSlot
-                , asips
-                , participants
-                , stakeDist
-                , apprvsips
-                }
+      TRC ( env@Env { k
+                    , maxVotingPeriods
+                    , currentSlot
+                    , asips
+                    , participants
+                    , stakeDist
+                    , apprvsips
+                    }
           , st@St { subsips
                   , wssips
                   , wrsips
@@ -141,6 +155,7 @@ instance ( Hashable p
                   , ballots
                   , implementationSt
                   , approvalSt
+                  , activationSt
                   }
           , update
           ) <- judgmentContext
@@ -190,12 +205,21 @@ instance ( Hashable p
 
         Approval approvalPayload ->
           do
-            let
-              env = Approval.Env k maxVotingPeriods currentSlot apprvsips
             approvalSt' <-
-              trans @(APPROVAL p) $ TRC (env, approvalSt, approvalPayload)
+              trans @(APPROVAL p) $ TRC ( Approval.Env k maxVotingPeriods currentSlot apprvsips
+                                        , approvalSt
+                                        , approvalPayload)
             pure st { approvalSt = approvalSt' }
 
+        Activation endorsement ->
+          either (\activationError -> do
+                     failBecause (ActivationFailure activationError)
+                     pure st
+                 )
+                 (\activationSt'   ->
+                    pure $ st { activationSt = activationSt' }
+                 )
+                 (Activation.endorse endorsement env activationSt)
     ]
 
 instance (STS (IDEATION p), STS (UPDATE p)) => Embed (IDEATION p) (UPDATE p) where
@@ -241,6 +265,14 @@ instance ( Hashable p
 instance (STS (UPDATE p), STS (UPDATES p)) => Embed (UPDATE p) (UPDATES p) where
   wrapFailed = UpdateFailure
 
+instance CanExtract (PredicateFailure (UPDATE p)) (PredicateFailure (APPROVAL p)) where
+  extractAll (ApprovalFailure e) = [e]
+  extractAll _                   = []
+
+instance CanExtract (PredicateFailure (UPDATE p)) (Activation.EndorsementError p) where
+  extractAll (ActivationFailure e) = [e]
+  extractAll _                     = []
+
 --------------------------------------------------------------------------------
 -- Trace generators
 --------------------------------------------------------------------------------
@@ -275,6 +307,8 @@ instance ( Hashable p
           , participants = Ideation.participants env
           , stakeDist = Ideation.stakeDist env
           , apprvsips = mempty
+          , slotsPerEpoch = 10 -- TODO: if needed we can make this arbitrary.
+          , epochFirstSlot = Slot 0
           }
 
   sigGen
@@ -302,5 +336,9 @@ instance ( Hashable p
 
   shrinkSignal (Ideation ideationPayload) =
     Ideation <$> STS.Gen.shrinkSignal @(IDEATION p) @() ideationPayload
-  shrinkSignal (Implementation _) = error "Shrinking of IMPLEMENTATION signals is not defined yet."
-  shrinkSignal (Approval _) = error "Shrinking of APPROVAL signals is not defined yet."
+  shrinkSignal (Implementation {})        =
+    error "Shrinking of IMPLEMENTATION signals is not defined yet."
+  shrinkSignal (Approval {})              =
+    error "Shrinking of APPROVAL signals is not defined yet."
+  shrinkSignal (Activation {})            =
+    error "Shrinking of activation signals is not defined yet."
