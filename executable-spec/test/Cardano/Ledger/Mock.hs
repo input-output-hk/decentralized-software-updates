@@ -6,14 +6,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Ledger.Test.Mock where
+module Cardano.Ledger.Mock where
 
 import           Data.Typeable (typeOf)
 
 import           Cardano.Binary (ToCBOR)
 import           Cardano.Crypto.DSIGN.Class (SignedDSIGN)
 import qualified Cardano.Crypto.DSIGN.Class as Crypto.DSIGN
-import           Cardano.Crypto.DSIGN.Mock (MockDSIGN)
+import           Cardano.Crypto.DSIGN.Mock (MockDSIGN,
+                     SignKeyDSIGN (SignKeyMockDSIGN))
 import qualified Cardano.Crypto.DSIGN.Mock as Crypto.Mock
 import qualified Cardano.Crypto.Hash.Class as Cardano.Crypto
 import           Cardano.Crypto.Hash.Short (ShortHash)
@@ -73,3 +74,6 @@ instance HasSigningScheme Mock where
 
 vkeyFromSkey :: SKey Mock -> VKey Mock
 vkeyFromSkey (Crypto.Mock.SignKeyMockDSIGN i) = Crypto.Mock.VerKeyMockDSIGN i
+
+wordToSKey :: Word -> SKey Mock
+wordToSKey = SignKeyMockDSIGN . fromIntegral

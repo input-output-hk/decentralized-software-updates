@@ -8,6 +8,7 @@ import           Test.Tasty (TestTree)
 
 import           Ledger.Core (SlotCount (SlotCount))
 
+import           Cardano.Ledger.Mock (Mock)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey)
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (stableAfter)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
@@ -22,7 +23,6 @@ import           Cardano.Ledger.Spec.STS.Update.Approval (noApprovedSIP,
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Confidence
-import           Cardano.Ledger.Test.Mock (Mock)
 
 
 import           Cardano.Ledger.Update.Interface
