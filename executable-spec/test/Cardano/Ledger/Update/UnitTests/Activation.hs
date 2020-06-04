@@ -21,7 +21,7 @@ import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import           Cardano.Ledger.Spec.STS.CanExtract (extract)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
 
-import           Cardano.Ledger.Test.Mock (Mock, vkeyFromSkey)
+import           Cardano.Ledger.Mock (Mock, vkeyFromSkey)
 import           Cardano.Ledger.UpdateSpec
 
 import           Cardano.Ledger.Update.Interface hiding (tickTill)

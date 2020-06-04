@@ -13,7 +13,7 @@ import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence (For))
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 
-import           Cardano.Ledger.Test.Mock (Mock)
+import           Cardano.Ledger.Mock (Mock)
 
 import           Cardano.Ledger.Update.Interface
 import           Cardano.Ledger.Update.TestCase

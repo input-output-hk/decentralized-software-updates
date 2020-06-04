@@ -33,7 +33,7 @@ import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as StakeDistribution
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
-import           Cardano.Ledger.Test.Mock (Mock)
+import           Cardano.Ledger.Mock (Mock)
 
 k :: Gen Core.BlockCount
 -- Here we choose a small maximum value of k, since otherwise we need very long

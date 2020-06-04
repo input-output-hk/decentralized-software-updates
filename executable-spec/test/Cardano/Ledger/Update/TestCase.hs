@@ -21,14 +21,12 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey)
 import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as StakeDistribution
-import           Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance
-                     (participantToSKey)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Update.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 
-import           Cardano.Ledger.Test.Mock (Mock, vkeyFromSkey)
+import           Cardano.Ledger.Mock (Mock, vkeyFromSkey, wordToSKey)
 import           Cardano.Ledger.Update.Interface
 
 import qualified Util.TestCase as TestCase
@@ -162,7 +160,7 @@ mkParticipantVotingBehavior
   -> Map (SKey Mock) ParticipantVotingBehavior
 mkParticipantVotingBehavior firstParticipantId nrApprovingKeys nrRejectingKeys
   = Map.fromList
-  $ fmap (first participantToSKey)
+  $ fmap (first wordToSKey)
   $  zip [firstParticipantId .. (n - 1) ]
          (repeat Approves)
   ++ zip [n .. n + nrRejectingKeys - 1]

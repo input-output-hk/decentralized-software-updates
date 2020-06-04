@@ -17,8 +17,6 @@ import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import           Cardano.Ledger.Spec.State.ApprovedSIPs (isSIPApproved,
                      whenSIPApproved)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
-import           Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance
-                     (participantToSKey)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data (ProtocolVersion)
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data (addMajor,
@@ -29,7 +27,7 @@ import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 
-import           Cardano.Ledger.Test.Mock (Mock, vkeyFromSkey)
+import           Cardano.Ledger.Mock (Mock, vkeyFromSkey, wordToSKey)
 import           Cardano.Ledger.Update.Interface
 
 import           Cardano.Ledger.Update.TestCase
@@ -178,8 +176,8 @@ mkUpdate'
   -> VersionChange
   -> UpdateSpec
 mkUpdate' (aProtocolVersion, aVersionHash) i vc =
-  dummyProtocolUpdate (participantToSKey i)
-                      (participantToSKey i + 10)
+  dummyProtocolUpdate (wordToSKey i)
+                      (wordToSKey i + 10)
                       (aProtocolVersion, aVersionHash)
                       (bumpVersion vc aProtocolVersion)
   where

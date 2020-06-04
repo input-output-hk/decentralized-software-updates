@@ -26,8 +26,7 @@ flag pretty
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Cardano.Ledger.Generators.QuickCheck
-                     , Cardano.Ledger.Spec.Classes.Indexed
+  exposed-modules:     Cardano.Ledger.Spec.Classes.Indexed
                      , Cardano.Ledger.Spec.Classes.Hashable
                      , Cardano.Ledger.Spec.Classes.HasAuthor
                      , Cardano.Ledger.Spec.Classes.HasSalt
@@ -49,12 +48,6 @@ library
                      , Cardano.Ledger.Spec.State.WhenRevealedSIPs
                      , Cardano.Ledger.Spec.State.WhenStable
                      , Cardano.Ledger.Spec.State.WhenSubmittedSIPs
-                     , Cardano.Ledger.Spec.STS.Chain.Chain
-                     , Cardano.Ledger.Spec.STS.Chain.Header
-                     , Cardano.Ledger.Spec.STS.Chain.Body
-                     , Cardano.Ledger.Spec.STS.Chain.Data
-                     , Cardano.Ledger.Spec.STS.Chain.Transaction
-                     , Cardano.Ledger.Spec.STS.Dummy.UTxO
                      , Cardano.Ledger.Spec.STS.Sized
                      , Cardano.Ledger.Spec.STS.Update
                      , Cardano.Ledger.Spec.STS.Update.Approval
@@ -68,8 +61,6 @@ library
                      , Cardano.Ledger.Spec.STS.Update.Ideation.Data
                      , Cardano.Ledger.Spec.STS.Update.Implementation
                      , Cardano.Ledger.Spec.STS.Update.Definitions
-                      -- TODO: @Cardano.Ledger.Test.Mock@ this doesn't seem to belong here
-                     , Cardano.Ledger.Test.Mock
                      , Cardano.Ledger.Spec.Classes.TracksSlotTime
                      , Cardano.Ledger.Spec.Classes.HasStakeDistribution
                      , Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
@@ -81,13 +72,12 @@ library
                      , bimap >= 0.4.0
                      , containers
                      , generic-monoid
-                     , QuickCheck
-                     , random
                      , text
                      , newtype-generics
                      , strict-base-types
                      , monad-validate
                      , pretty-simple
+                     , random
                      -- Cardano specific imports
                      , cardano-prelude
                      , cardano-binary
@@ -116,29 +106,24 @@ test-suite ledger-rules-test
   hs-source-dirs:      test
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
-  other-modules:       Cardano.Ledger.Spec.SM.Ideation
-                     , Cardano.Ledger.Spec.SM.Ideation.Full
-                     , Cardano.Ledger.Spec.SM.Vote
-                     , Cardano.Ledger.Spec.STS.Chain.Chain.Properties
-                     , Cardano.Ledger.Spec.STS.Update.Ideation.Properties
-                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties
-                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Full.Properties
-                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Vote.Properties
-                     , Cardano.Ledger.Spec.STS.SM.Update.Ideation.Properties.Conformance
-                     , Cardano.Ledger.Update.Interface
-
-                     , Cardano.Ledger.UpdateSpec
-                     , Cardano.Ledger.Update.TestCase
-
-                     , Cardano.Ledger.Update.UnitTests.Ideation
+  other-modules:
+                       Cardano.Ledger.Update.UnitTests.Ideation
                      , Cardano.Ledger.Update.UnitTests.Approval
                      , Cardano.Ledger.Update.UnitTests.Activation
                      , Cardano.Ledger.Update.UnitTests.Common
 
-                     , Util.TestCase
+                     , Cardano.Ledger.UpdateSpec
+                     , Cardano.Ledger.Update.TestCase
+                     , Cardano.Ledger.Update.Interface
 
+                     -- * General utilities.
+                     , Cardano.Ledger.Mock
+                     -- ** Unit testing
+                     , Util.TestCase
+                     -- ** Property testing
                      , Properties
                      , SUTTest
+                     , Cardano.Ledger.Generators.QuickCheck
   default-language:    Haskell2010
   build-depends:       base
                      , containers
@@ -148,6 +133,7 @@ test-suite ledger-rules-test
                      , tasty-quickcheck
                      , pretty-simple
                      , text
+                     , random
                      -- Cardano specific imports
                      , cardano-crypto-class
                      , cardano-binary
@@ -155,8 +141,6 @@ test-suite ledger-rules-test
                      , cs-ledger
                      , small-steps
                      , deepseq
-                     -- Internal libraries
-                     , datil
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates

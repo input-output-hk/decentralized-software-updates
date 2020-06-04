@@ -9,6 +9,11 @@ flags:
     asserts: true
     pretty:  true
 
+# Needed for weeder
+# For this we need to upgrade to GHC >= 8.8
+# ghc-options:
+#   "$locals": -fwrite-ide-info
+
 extra-deps:
   - git: https://github.com/input-output-hk/cardano-prelude
     commit: 3ac22a2fda11ca7131a011a9ea48fcbfdc26d6b3

@@ -16,15 +16,11 @@ module Cardano.Ledger.Spec.STS.Update where
 import           GHC.Generics (Generic)
 import           Data.Typeable (Typeable)
 
-import qualified Test.QuickCheck as QC
-
-import           Control.State.Transition.Trace (traceSignals, TraceOrder (OldestFirst))
 import           Control.State.Transition (Embed, Environment, PredicateFailure, failBecause,
                      STS, Signal, State, TRC (TRC), initialRules,
                      judgmentContext, trans, transitionRules, wrapFailed)
-import qualified Control.State.Transition.Trace.Generator.QuickCheck as STS.Gen
 import           Data.AbstractSize (HasTypeReps)
-import           Ledger.Core (Slot (Slot), BlockCount, (*.), SlotCount)
+import           Ledger.Core (Slot, BlockCount, (*.), SlotCount)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
@@ -272,73 +268,3 @@ instance CanExtract (PredicateFailure (UPDATE p)) (PredicateFailure (APPROVAL p)
 instance CanExtract (PredicateFailure (UPDATE p)) (Activation.EndorsementError p) where
   extractAll (ActivationFailure e) = [e]
   extractAll _                     = []
-
---------------------------------------------------------------------------------
--- Trace generators
---------------------------------------------------------------------------------
-
-instance ( STS (UPDATES p)
-         , STS.Gen.HasTrace (UPDATE p) a
-         ) => STS.Gen.HasTrace (UPDATES p) a where
-
-  envGen traceGenEnv = STS.Gen.envGen @(UPDATE p) traceGenEnv
-
-  sigGen traceGenEnv env st
-    =   traceSignals OldestFirst
-    <$> STS.Gen.traceFrom @(UPDATE p) () 10 traceGenEnv env st
-    -- We need to determine what is a realistic number of update
-    -- transactions to be expected in a block.
-
-  shrinkSignal =
-    QC.shrinkList (STS.Gen.shrinkSignal @(UPDATE p) @a)
-
-instance ( Hashable p
-         , STS (UPDATE p)
-         , STS.Gen.HasTrace (IDEATION p) ()
-         ) => STS.Gen.HasTrace (UPDATE p) () where
-
-  envGen traceGenEnv = do
-    env <- STS.Gen.envGen @(IDEATION p) traceGenEnv
-    pure $!
-      Env { k = Ideation.k env
-          , maxVotingPeriods = 0 -- TODO: define this if we move on with these generators.
-          , currentSlot = Ideation.currentSlot env
-          , asips = Ideation.asips env
-          , participants = Ideation.participants env
-          , stakeDist = Ideation.stakeDist env
-          , apprvsips = mempty
-          , slotsPerEpoch = 10 -- TODO: if needed we can make this arbitrary.
-          , epochFirstSlot = Slot 0
-          }
-
-  sigGen
-    ()
-    Env { k, currentSlot, asips, participants, stakeDist }
-    St { subsips, wssips, wrsips, sipdb, ballots }
-    = do
-    ideationPayload <-
-      STS.Gen.sigGen
-        @(IDEATION p)
-        ()
-        Ideation.Env { Ideation.k = k
-                     , Ideation.currentSlot = currentSlot
-                     , Ideation.asips = asips
-                     , Ideation.participants = participants
-                     , Ideation.stakeDist = stakeDist
-                     }
-        Ideation.St { Ideation.subsips = subsips
-                    , Ideation.wssips = wssips
-                    , Ideation.wrsips = wrsips
-                    , Ideation.ballots = ballots
-                    , Ideation.sipdb = sipdb
-                    }
-    pure $! Ideation ideationPayload
-
-  shrinkSignal (Ideation ideationPayload) =
-    Ideation <$> STS.Gen.shrinkSignal @(IDEATION p) @() ideationPayload
-  shrinkSignal (Implementation {})        =
-    error "Shrinking of IMPLEMENTATION signals is not defined yet."
-  shrinkSignal (Approval {})              =
-    error "Shrinking of APPROVAL signals is not defined yet."
-  shrinkSignal (Activation {})            =
-    error "Shrinking of activation signals is not defined yet."
