@@ -1,5 +1,4 @@
 # This file is used by nix-shell.
-# It just takes the shell attribute from default.nix.
 { config ? {}
 , sourcesOverride ? {}
 , withHoogle ? true

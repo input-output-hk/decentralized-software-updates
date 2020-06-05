@@ -1,13 +1,13 @@
 # This is the derivation used by "stack --nix".
 # It provides the system dependencies required for a stack build.
-{ decentralizedUpdatesPackages ? import ./.. {}
+{ decentralizedUpdatesPackages ? import ../nix {}
 , pkgs ? decentralizedUpdatesPackages.pkgs
 }:
 with pkgs;
 
 haskell.lib.buildStackProject {
   name = "decentralized-updates-stack-env";
-  ghc = decentralizedUpdatesPackages.haskellPackages._config.ghc.package;
+  ghc =  (import ../shell.nix {inherit pkgs;}).ghc;
 
   buildInputs =
     # Development libraries which may be necessary for the build.
