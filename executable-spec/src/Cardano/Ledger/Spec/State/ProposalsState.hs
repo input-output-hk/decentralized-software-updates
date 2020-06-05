@@ -10,11 +10,11 @@
 module Cardano.Ledger.Spec.State.ProposalsState
   ( ProposalsState
   , tally
-  , revealProposal
+  , reveal
   , updateBallot
   , updateBallot'
-  , votingPeriodStarted
-  , votingPeriodEnded
+  , votingPeriodHasStarted
+  , votingPeriodHasEnded
   , votingPeriodHasNotEnded
   , decision
   , removeApproved
@@ -37,18 +37,21 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
 
-import           Ledger.Core (BlockCount, Slot)
+import           Ledger.Core (Slot)
 
+import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+                     (HasAdversarialStakeRatio)
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
+import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
+                     (HasStakeDistribution)
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
                      isStable)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved),
                      HasVotingPeriod, IsVote, ProposalState, VotingPeriod,
                      newProposalState)
 import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
 
 -- | The @d@ parameter is the type of the proposals. The @p@ parameter
@@ -75,27 +78,21 @@ lookupProposal dHash = Map.lookup dHash . proposalStateMap
 tally
   :: ( Hashable p
      , HasVotingPeriod d
+     , TracksSlotTime env
+     , HasStakeDistribution t env p
+     , HasAdversarialStakeRatio env
      )
-  => BlockCount
-  -- ^ Chain stability parameter.
-  -> Slot
-  -> StakeDistribution p
-  -> Float
-  -- ^ Adversarial stake ratio.
+  => env
+  -> t
   -> ProposalsState p d
   -> ProposalsState p d
-tally k
-      currentSlot
-      stakeDistribution
-      adversarialStakeRatio
-      ProposalsState { proposalStateMap }
+tally env t ProposalsState { proposalStateMap }
   = ProposalsState
-  $ fmap (ProposalState.tally k currentSlot stakeDistribution adversarialStakeRatio)
-         proposalStateMap
+  $ fmap (ProposalState.tally env t) proposalStateMap
 
 -- | Register the revelation of a proposal.
 --
-revealProposal
+reveal
   :: ( Hashable p
      , HasHash p d
      )
@@ -105,7 +102,7 @@ revealProposal
   -- ^ Proposal being revealed.
   -> ProposalsState p d
   -> ProposalsState p d
-revealProposal currentSlot dMaxVotingPeriods d ProposalsState { proposalStateMap }
+reveal currentSlot dMaxVotingPeriods d ProposalsState { proposalStateMap }
   = ProposalsState
   $ Map.insert (hash d) (newProposalState currentSlot dMaxVotingPeriods d) proposalStateMap
 
@@ -162,39 +159,40 @@ updateBallot' dHash voterKeyHash confidence ProposalsState { proposalStateMap }
   $  ProposalsState
   $! Map.adjust (ProposalState.updateBallot' voterKeyHash confidence) dHash proposalStateMap
 
-votingPeriodStarted
-  :: Hashable p
-  => BlockCount
-  -> Slot
+votingPeriodHasStarted
+  :: ( Hashable p
+     , TracksSlotTime env
+     )
+  => env
   -> Hash p d
   -> ProposalsState p d
   -> Bool
-votingPeriodStarted k currentSlot dHash
-  = maybe False (ProposalState.votingPeriodStarted k currentSlot)
+votingPeriodHasStarted env dHash
+  = maybe False (ProposalState.votingPeriodHasStarted env)
   . lookupProposal dHash
 
-votingPeriodEnded
+votingPeriodHasEnded
   :: ( Hashable p
      , HasVotingPeriod d
+     , TracksSlotTime env
      )
-  => BlockCount
-  -> Slot
+  => env
   -> Hash p d
   -> ProposalsState p d -> Bool
-votingPeriodEnded k currentSlot dHash
-  = maybe False (ProposalState.votingPeriodEnded k currentSlot)
+votingPeriodHasEnded env dHash
+  = maybe False (ProposalState.votingPeriodHasEnded env)
   . lookupProposal dHash
 
 votingPeriodHasNotEnded
   :: ( Hashable p
      , HasVotingPeriod d
+     , TracksSlotTime env
      )
-  => BlockCount
-  -> Slot
+  => env
   -> Hash p d
   -> ProposalsState p d -> Bool
-votingPeriodHasNotEnded k currentSlot dHash ps
-  = not $ votingPeriodEnded k currentSlot dHash ps
+votingPeriodHasNotEnded env dHash ps
+  = not $ votingPeriodHasEnded env dHash ps
 
 decision
   :: Hashable p

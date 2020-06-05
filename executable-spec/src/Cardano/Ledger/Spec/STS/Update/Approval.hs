@@ -23,24 +23,24 @@ import           GHC.Generics (Generic)
 import           Data.Monoid.Generic (GenericMonoid (GenericMonoid),
                      GenericSemigroup (GenericSemigroup))
 import           Data.Maybe (isJust)
+import           Data.Map.Strict (Map)
+
+import qualified Data.Map.Strict as Map
 
 import           Control.State.Transition (Environment, PredicateFailure, STS,
                      Signal, State, TRC (TRC), initialRules, judgmentContext,
                      transitionRules, (?!))
-import           Ledger.Core (BlockCount, Slot,
-                     dom,  (*.), (+.), (∈), (∉), (▷<=),
-                     (⨃))
+import           Ledger.Core (BlockCount, Slot, (*.))
+
+import qualified Ledger.Core as Core
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable
                      )
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      Signable, VKey, verify)
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs,
-                     isSIPApproved)
-import           Cardano.Ledger.Spec.State.ProposalsState (revealProposal, isNotRevealed',
-                     updateBallot, votingPeriodHasNotEnded, votingPeriodStarted)
+import           Cardano.Ledger.Spec.State.ProposalsState (reveal, isNotRevealed',
+                     updateBallot, votingPeriodHasNotEnded, votingPeriodHasStarted)
 import qualified Cardano.Ledger.Spec.State.ProposalsState as ProposalsState
-import           Cardano.Ledger.Spec.State.WhenStable (WhenStable)
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data ( Submission (Submission),
                      ImplVote (ImplVote), Implementation, ImplementationData,
                      Payload (Reveal, Submit, Vote), SignedVoteData, commit,
@@ -50,10 +50,14 @@ import           Cardano.Ledger.Spec.STS.Update.Approval.Data (IPSSt)
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit, calcCommit)
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPHash)
 import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod, Decision)
-import           Cardano.Ledger.Spec.Classes.Indexed as Indexed
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime, currentSlot)
+import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime, currentSlot, stableAt)
+import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime
+import qualified Cardano.Ledger.Update.Ideation as Ideation
+import           Cardano.Ledger.Spec.State.ProposalState (Decision(Approved))
+
 
 data APPROVAL p
+
 
 data Env p
   = Env
@@ -61,16 +65,27 @@ data Env p
     , mvps           :: !VotingPeriod
     -- ^ Maximum number of voting periods.
     , envCurrentSlot :: !Slot
-    , apprvsips      :: !(ApprovedSIPs p)
+    , ideationSt     :: !(Ideation.State p)
     }
-  deriving (Show, Generic)
+  deriving (Generic)
+
+-- | TODO: this instance and @Env@ should be removed in favor of a single
+-- unified environment.
+instance TracksSlotTime (Env p) where
+  stableAfter env = 2 *. k env
+
+  currentSlot env = envCurrentSlot env
+
+  epochFirstSlot = undefined
+
+  slotsPerEpoch = undefined
 
 data St p
   = St
-    { wsimpls :: !(WhenStable (Commit p (Implementation p)))
+    { submissionStableAt :: !(Map (Commit p (Implementation p)) Core.Slot)
     -- ^ Submitted commits, along with the timestamp (slot) at which they were
     -- submitted.
-    , ipsst   :: !(IPSSt p)
+    , proposalsState   :: !(IPSSt p)
     -- ^ Implementation-proposals state. See 'ProposalsState'.
     }
     deriving (Show, Generic)
@@ -97,8 +112,8 @@ instance ( Hashable p
     = InvalidAuthor (VKey p)
     | ImplAlreadySubmitted (Commit p (Implementation p))
     | CommitSignatureDoesNotVerify
-    | NoStableAndCommittedImpl (Implementation p) (WhenStable (Commit p (Implementation p)))
-    | NoApprovedSIP (SIPHash p) (ApprovedSIPs p)
+    | NoStableAndCommittedImpl (Implementation p) (Map (Commit p (Implementation p)) Core.Slot)
+    | NoApprovedSIP (SIPHash p)
     | InvalidVoter (VKey p)
     | VoteSignatureDoesNotVerify
     | VotePeriodHasNotStarted
@@ -116,41 +131,46 @@ instance ( Hashable p
 
   transitionRules = [
     do
-      TRC ( Env { k, mvps, envCurrentSlot, apprvsips }
-          , st@St { wsimpls, ipsst }
+      TRC ( env@Env { mvps, envCurrentSlot, ideationSt }
+          , st@St { submissionStableAt, proposalsState }
           , payload
           ) <- judgmentContext
       case payload of
         Submit (Submission { commit, sAuthor, sig }) -> do
-          commit ∉ dom wsimpls ?! ImplAlreadySubmitted commit
+          not (isSubmitted commit st) ?! ImplAlreadySubmitted commit
           verify sAuthor commit sig ?! CommitSignatureDoesNotVerify
-          pure $! st { wsimpls = wsimpls ⨃ [(commit, envCurrentSlot +. (2 *. k))]
+          pure $! st { submissionStableAt =
+                       Map.insert commit (stableAt env (currentSlot env)) submissionStableAt
                      }
         Reveal impl -> do
           -- Check that the corresponding commit is stable.
-          calcCommit impl ∈ dom (wsimpls ▷<= envCurrentSlot)
-            ?! NoStableAndCommittedImpl impl wsimpls
+          isStablySubmitted env (calcCommit impl) st
+            ?! NoStableAndCommittedImpl impl submissionStableAt
           -- Check that this proposal hasn't been revealed before.
-          isNotRevealed' (implPayload impl) ipsst
+          isNotRevealed' (implPayload impl) proposalsState
             ?! ProposalAlreadyRevealed impl
           -- Check whether the referenced SIP in the metadata of the
           -- implementation metadata corresponds to an approved SIP.
-          implSIPHash impl `isSIPApproved` apprvsips
-            ?! NoApprovedSIP (implSIPHash impl) apprvsips
-          pure $! st { ipsst = revealProposal
+
+          -- TODO: use the approved SIPs from the new ideation state. We might
+          -- need to pass the ideation state to the APPROVAL environment
+          Ideation.is (implSIPHash impl) Approved ideationSt
+            ?! NoApprovedSIP (implSIPHash impl)
+
+          pure $! st { proposalsState = reveal
                                  envCurrentSlot
                                  mvps
                                  (implPayload impl)
-                                 ipsst
+                                 proposalsState
                      }
         Vote (vote@ImplVote { vImplHash, confidence, vAuthor, vSig }) -> do
-          votingPeriodStarted k envCurrentSlot vImplHash ipsst
-            ?! VotePeriodHasNotStarted vImplHash envCurrentSlot ipsst
-          votingPeriodHasNotEnded k envCurrentSlot vImplHash ipsst
-            ?! VotePeriodHasEnded vImplHash envCurrentSlot ipsst
           verify vAuthor (vImplHash, confidence, vAuthor) vSig
             ?! VoteSignatureDoesNotVerify
-          pure $! st { ipsst = updateBallot vImplHash vote ipsst }
+          votingPeriodHasStarted env vImplHash proposalsState
+            ?! VotePeriodHasNotStarted vImplHash envCurrentSlot proposalsState
+          votingPeriodHasNotEnded env vImplHash proposalsState
+            ?! VotePeriodHasEnded vImplHash envCurrentSlot proposalsState
+          pure $! st { proposalsState = updateBallot vImplHash vote proposalsState }
     ]
 
 deriving instance ( Hashable p
@@ -162,8 +182,8 @@ deriving instance ( Hashable p
                   ) => Show (PredicateFailure (APPROVAL p))
 
 noApprovedSIP :: PredicateFailure (APPROVAL p) -> Maybe (SIPHash p)
-noApprovedSIP (NoApprovedSIP sipHash _) = Just sipHash
-noApprovedSIP _                         = Nothing
+noApprovedSIP (NoApprovedSIP sipHash ) = Just sipHash
+noApprovedSIP _                        = Nothing
 
 noStableAndCommitedImpl :: PredicateFailure (APPROVAL p) -> Maybe (Implementation p)
 noStableAndCommitedImpl (NoStableAndCommittedImpl impl _) = Just impl
@@ -185,36 +205,37 @@ votePeriodHasEnded _                                 = Nothing
 isSubmitted
   :: Hashable p
   => Commit p (Implementation p) -> St p -> Bool
-isSubmitted commit = isJust . Indexed.lookup commit . wsimpls
+isSubmitted commit = isJust . Map.lookup commit . submissionStableAt
 
 isStablySubmitted
   :: ( Hashable p
-     , TracksSlotTime e
+     , TracksSlotTime env
      )
-  => e -> Commit p (Implementation p) -> St p -> Bool
-isStablySubmitted e commit
-  = maybe False (<= currentSlot e)
-  . Indexed.lookup commit
-  . wsimpls
+  => env -> Commit p (Implementation p) -> St p -> Bool
+isStablySubmitted env commit
+  = maybe False (<= currentSlot env)
+  . Map.lookup commit
+  . submissionStableAt
 
 isRevealed :: Hashable p => Hash p (ImplementationData p) -> St p -> Bool
-isRevealed implHash = ProposalsState.isRevealed implHash . ipsst
+isRevealed implHash = ProposalsState.isRevealed implHash . proposalsState
 
 isStablyRevealed
   :: ( Hashable p
-     , TracksSlotTime e
+     , TracksSlotTime env
      )
-  => e -> Hash p (ImplementationData p) -> St p -> Bool
-isStablyRevealed e implHash = ProposalsState.isStablyRevealed e implHash . ipsst
+  => env -> Hash p (ImplementationData p) -> St p -> Bool
+isStablyRevealed env implHash =
+  ProposalsState.isStablyRevealed env implHash . proposalsState
 
 is
   :: Hashable p
   => Hash p (ImplementationData p) -> Decision -> St p -> Bool
-is implHash d = ProposalsState.is implHash d . ipsst
+is implHash d = ProposalsState.is implHash d . proposalsState
 
 isStably
   :: ( Hashable p
-     , TracksSlotTime e
+     , TracksSlotTime env
      )
-  => e -> Hash p (ImplementationData p) -> Decision -> St p -> Bool
-isStably e implHash d = ProposalsState.isStably e implHash d . ipsst
+  => env -> Hash p (ImplementationData p) -> Decision -> St p -> Bool
+isStably env implHash d = ProposalsState.isStably env implHash d . proposalsState

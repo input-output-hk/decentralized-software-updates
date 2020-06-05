@@ -13,7 +13,6 @@
 
 module Cardano.Ledger.Spec.STS.Update.Hupdate where
 
-import qualified Data.Set as Set
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
@@ -22,32 +21,23 @@ import           Control.State.Transition (Embed, Environment, IRC (IRC),
                      initialRules, judgmentContext, trans, transitionRules,
                      wrapFailed)
 
-import           Ledger.Core (BlockCount, Slot, SlotCount, addSlot, dom, (*.),
-                     (-.), (⋪), (▷<=), (⨃))
+import           Ledger.Core (BlockCount, Slot, SlotCount,  (*.))
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
-                     (HasStakeDistribution, StakePools (StakePools),
+                     (HasStakeDistribution, StakePools (StakePools), SIPExperts (SIPExperts),
                      stakeDistribution)
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime)
 import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime as SlotTime
 import           Cardano.Ledger.Spec.State.ActivationState (ActivationState)
 import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
-import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs,
-                     votingPeriodEnd)
-import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
 import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
-import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
 import           Cardano.Ledger.Spec.STS.Update.TallyImplVotes (TIVOTES)
 import qualified Cardano.Ledger.Spec.STS.Update.TallyImplVotes as TallyImplVotes
-import           Cardano.Ledger.Spec.STS.Update.Tallysip (TALLYSIPS)
-import qualified Cardano.Ledger.Spec.STS.Update.Tallysip as Tallysip
 import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio (HasAdversarialStakeRatio, adversarialStakeRatio)
+import qualified Cardano.Ledger.Update.Ideation as Ideation
 
 -- | The Header Update STS
 -- Incorporates "update logic" processing
@@ -57,11 +47,9 @@ data HUPDATE p
 data Env p
  = Env { k :: !BlockCount
          -- ^ Chain stability parameter.
-       , sipdb :: !(RevealedSIPs p)
-       , ballots :: !(SIPBallot p)
        , r_a :: !Float
          -- ^ adversary stake ratio
-       , stakeDist :: !(StakeDistribution p)
+       , sipExpertsStakeDist :: !(StakeDistribution p)
        , prvNoQuorum :: !Word8
          -- ^ How many times a revoting is allowed due to a no quorum result
        , prvNoMajority :: !Word8
@@ -123,6 +111,9 @@ instance TracksSlotTime (Env p) where
   slotsPerEpoch  Env {slotsPerEpoch }   = slotsPerEpoch
   epochFirstSlot Env { epochFirstSlot } = epochFirstSlot
 
+instance HasStakeDistribution SIPExperts (Env p) p where
+  stakeDistribution SIPExperts = sipExpertsStakeDist
+
 instance HasStakeDistribution StakePools (Env p) p where
   stakeDistribution StakePools = stakepoolsDistribution
 
@@ -131,14 +122,9 @@ instance HasAdversarialStakeRatio (Env p) where
 
 
 data St p
-  = St { wrsips       :: !(WhenRevealedSIPs p)
-       , asips        :: !(ActiveSIPs p)
-       , vresips      :: !(SIPsVoteResults p)
-       , apprvsips    :: !(ApprovedSIPs p)
+  = St { ideationSt   :: !(Ideation.State p)
        , approvalSt   :: !(State (APPROVAL p))
-       -- TODO: we can make this field strict once we get rid of the STS's that
-       -- use this one.
-       , activationSt ::  ActivationState p
+       , activationSt :: !(ActivationState p)
        }
        deriving (Show, Generic)
 
@@ -152,18 +138,14 @@ instance ( Hashable p
   type Signal (HUPDATE p) = Slot
 
   data PredicateFailure (HUPDATE p)
-    = TallySIPsFailure  (PredicateFailure (TALLYSIPS p))
-    | TIVOTESFailure    (PredicateFailure (TIVOTES p))
+    = TIVOTESFailure    (PredicateFailure (TIVOTES p))
     deriving (Eq, Show)
 
 
   initialRules = [
     do
       IRC Env { } <- judgmentContext
-      pure $! St { wrsips       = mempty
-                 , asips        = mempty
-                 , vresips      = mempty
-                 , apprvsips    = mempty
+      pure $! St { ideationSt   = Ideation.initialState
                  , approvalSt   = mempty
                  , activationSt = Activation.initialState undefined undefined
                  -- TODO: I can't conjure initial hashes and implementation data
@@ -174,73 +156,34 @@ instance ( Hashable p
   transitionRules = [
     do
       TRC ( env@Env { k
-                    , sipdb
-                    , ballots
                     , r_a
-                    , stakeDist
-                    , prvNoQuorum, prvNoMajority
+                    , sipExpertsStakeDist
                     }
-          , St  { wrsips
-                , asips
-                , vresips
-                , apprvsips
-                , approvalSt
-                , activationSt
-                }
+          , st@St { ideationSt
+                  , approvalSt
+                  , activationSt
+                  }
           , slot
           ) <- judgmentContext
-
-      let activationSt' = Activation.tick env activationSt
 
       --------------------------------------------------------------------------
       -- Ideation tick
       --------------------------------------------------------------------------
-      let
-          -- Add newly revealed (but stable) SIPs to the active sips.
-          asips' = asips
-                 ⨃ [ (sipHash, votePeriodEnd)
-                   | sipHash <- Set.toList $ dom (wrsips ▷<= (slot -. (2 *. k)))
-                   , let votePeriodEnd = slot `addSlot` votingPeriodEnd sipHash sipdb
-                   ]
-
-          -- exclude old revealed SIPs
-          wrsips' = dom asips' ⋪ wrsips
-
-          -- Calculate SIPHashes to be tallied
-          toTally = dom (asips' ▷<= (slot -. (2 *. k)))
-
-          -- Prune asips, in order to avoid re-tallying of the same SIP
-          asips'' = toTally ⋪ asips'
-
-      -- do the tallying and get the voting results (vresips)
-      Tallysip.St { Tallysip.vresips = vresips'
-                  , Tallysip.asips = asips'''
-                  , Tallysip.apprvsips = apprvsips'
-                  }
-        <- trans @(TALLYSIPS p)
-              $ TRC ( Tallysip.Env { Tallysip.currentSlot = slot
-                                   , Tallysip.sipdb = sipdb
-                                   , Tallysip.ballots = ballots
-                                   , Tallysip.r_a = r_a
-                                   , Tallysip.stakeDist = stakeDist
-                                   , Tallysip.prvNoQuorum = prvNoQuorum
-                                   , Tallysip.prvNoMajority = prvNoMajority
-                                   }
-                    , Tallysip.St { Tallysip.vresips = vresips
-                                  , Tallysip.asips = asips''
-                                  , Tallysip.apprvsips = apprvsips
-                                  }
-                    , Set.toList toTally
-                    )
+      let ideationSt' = Ideation.tick env ideationSt
 
       --------------------------------------------------------------------------
       -- Approval tick
       --------------------------------------------------------------------------
       approvalSt' <- trans @(TIVOTES p)
-                           $ TRC ( TallyImplVotes.Env k stakeDist r_a
+                           $ TRC ( TallyImplVotes.Env k sipExpertsStakeDist r_a
                                  , approvalSt
                                  , slot
                                  )
+
+      --------------------------------------------------------------------------
+      -- Activation tick
+      --------------------------------------------------------------------------
+      let activationSt' = Activation.tick env activationSt
 
       -- Depending on its type, each newly approved proposal has to:
       --
@@ -251,24 +194,16 @@ instance ( Hashable p
       -- - be put in the list of approved application updates.
       -- - cancel a proposal in the activation queue.
       --
-      let (ipsst', activationSt'') =
+      let (proposalsState', activationSt'') =
             Activation.transferApprovals env
-                                         (Approval.ipsst approvalSt')
+                                         (Approval.proposalsState approvalSt')
                                          activationSt'
 
-      pure $! St { wrsips       = wrsips'
-                 , asips        = asips'''
-                 , vresips      = vresips'
-                 , apprvsips    = apprvsips'
-                 , approvalSt   = approvalSt' { Approval.ipsst =  ipsst'}
+      pure $! st { ideationSt   = ideationSt'
+                 , approvalSt   = approvalSt' { Approval.proposalsState =  proposalsState'}
                  , activationSt = activationSt''
                  }
     ]
-
-instance ( STS (TALLYSIPS p)
-         , STS (HUPDATE p)
-         ) => Embed (TALLYSIPS p) (HUPDATE p) where
-  wrapFailed = TallySIPsFailure
 
 instance ( STS (TIVOTES p)
          , STS (HUPDATE p)

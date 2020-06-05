@@ -22,49 +22,32 @@ import           Control.State.Transition (Embed, Environment, PredicateFailure,
 import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (Slot, BlockCount, (*.), SlotCount)
 
-import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme)
-import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
-import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
-import           Cardano.Ledger.Spec.State.Participants (Participants)
-import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
+import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
 import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
-import           Cardano.Ledger.Spec.STS.Update.Ideation (IDEATION)
-import           Cardano.Ledger.Spec.STS.Update.Implementation (IMPLEMENTATION)
 import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
 import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import           Cardano.Ledger.Spec.State.ActivationState (ActivationState)
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime)
 import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime as SlotTime
 import           Cardano.Ledger.Spec.STS.CanExtract (CanExtract, extractAll)
-
+import qualified Cardano.Ledger.Update.Ideation as Ideation
+import           Cardano.Ledger.Spec.Classes.HasVotingPeriodsCap (HasVotingPeriodsCap , maxVotingPeriods)
 
 data UPDATE p
 
--- | As we incorporate more phases, like UP (or IMPLEMENTATION), we will be
--- adding more components to this environment.
---
--- See @Ideation.Env@ for more details on the meaning of each field.
+-- | See @Ideation.Env@ for more details on the meaning of each field.
 data Env p
   = Env
     { k :: !BlockCount
-    , maxVotingPeriods :: !VotingPeriod
+    , envMaxVotingPeriods :: !VotingPeriod
     , currentSlot :: !Slot
-    , asips :: !(ActiveSIPs p)
-    , participants :: !(Participants p)
     , stakeDist :: !(StakeDistribution p)
-    , apprvsips :: !(ApprovedSIPs p)
     , slotsPerEpoch :: !SlotCount
     , epochFirstSlot :: !Slot
     }
@@ -76,47 +59,43 @@ instance TracksSlotTime (Env p) where
   slotsPerEpoch  Env { slotsPerEpoch }  = slotsPerEpoch
   epochFirstSlot Env { epochFirstSlot } = epochFirstSlot
 
+instance HasVotingPeriodsCap (Env p) where
+  maxVotingPeriods = envMaxVotingPeriods
+
 data St p
   = St
-    { subsips :: !(SubmittedSIPs p)
-    , wssips :: !(WhenSubmittedSIPs p)
-    , wrsips :: !(WhenRevealedSIPs p)
-    , sipdb :: !(RevealedSIPs p)
-    , ballots :: !(Ideation.Data.SIPBallot p)
-    , implementationSt :: State (IMPLEMENTATION p)
-    , approvalSt :: !(State (APPROVAL p))
-    -- TODO: once we get rid of the transitions above this one we can make this
-    -- field strict.
-    , activationSt :: ActivationState p
+    { ideationSt   :: !(Ideation.State p)
+    , approvalSt   :: !(State (APPROVAL p))
+    , activationSt :: !(ActivationState p)
     }
   deriving (Show, Generic)
 
 data UpdatePayload p
-  = Ideation (Ideation.Data.IdeationPayload p)
-  | Implementation Data.ImplementationPayload
+  = Ideation (Ideation.Data.Payload p)
   | Approval (Approval.Data.Payload p)
   | Activation (Activation.Endorsement p)
   deriving (Show, Generic)
 
 deriving instance ( Typeable p
-                  , HasTypeReps (Ideation.Data.IdeationPayload p)
+                  , HasTypeReps (Ideation.Data.Payload p)
                   , HasTypeReps (Approval.Data.Payload p)
                   , HasTypeReps (Activation.Endorsement p)
                   ) => HasTypeReps (UpdatePayload p)
 
 instance ( Typeable p
-         , HasTypeReps (Ideation.Data.IdeationPayload p)
+         , HasTypeReps (Ideation.Data.Payload p)
          , HasTypeReps (Approval.Data.Payload p)
          , HasTypeReps (Activation.Endorsement p)
          ) => Sized (UpdatePayload p) where
   costsList _
-    =  costsList (undefined :: Ideation.Data.IdeationPayload p)
-    ++ costsList (undefined :: Data.ImplementationPayload)
+    =  costsList (undefined :: Ideation.Data.Payload p)
 
 instance ( Hashable p
          , HasSigningScheme p
-         , STS (IDEATION p)
          , STS (APPROVAL p)
+
+         -- TODO: we need to think how to bundle these constraints.
+         , Ideation.CanApply (Env p) p
          ) => STS (UPDATE p) where
 
   type Environment (UPDATE p) = Env p
@@ -126,8 +105,7 @@ instance ( Hashable p
   type Signal (UPDATE p) = UpdatePayload p
 
   data PredicateFailure (UPDATE p)
-    = IdeationFailure (PredicateFailure (IDEATION p))
-    | ImplementationFailure (PredicateFailure (IMPLEMENTATION p))
+    = IdeationFailure (Ideation.Error p)
     | ApprovalFailure (PredicateFailure (APPROVAL p))
     | ActivationFailure (Activation.EndorsementError p)
     deriving (Eq, Show)
@@ -137,19 +115,10 @@ instance ( Hashable p
   transitionRules = [
     do
       TRC ( env@Env { k
-                    , maxVotingPeriods
+                    , envMaxVotingPeriods
                     , currentSlot
-                    , asips
-                    , participants
-                    , stakeDist
-                    , apprvsips
                     }
-          , st@St { subsips
-                  , wssips
-                  , wrsips
-                  , sipdb
-                  , ballots
-                  , implementationSt
+          , st@St { ideationSt
                   , approvalSt
                   , activationSt
                   }
@@ -157,52 +126,20 @@ instance ( Hashable p
           ) <- judgmentContext
 
       case update of
-        Ideation ideationPayload ->
-          do
-            Ideation.St { Ideation.subsips = subsips'
-                        , Ideation.wssips = wssips'
-                        , Ideation.wrsips = wrsips'
-                        , Ideation.sipdb = sipdb'
-                        , Ideation.ballots = ballots'
-                        } <-
-              trans @(IDEATION p)
-                $ TRC ( Ideation.Env { Ideation.k = k
-                                     , Ideation.currentSlot = currentSlot
-                                     , Ideation.asips = asips
-                                     , Ideation.participants = participants
-                                     , Ideation.stakeDist = stakeDist
-                                     }
-                      , Ideation.St { Ideation.subsips = subsips
-                                    , Ideation.wssips = wssips
-                                    , Ideation.wrsips = wrsips
-                                    , Ideation.sipdb = sipdb
-                                    , Ideation.ballots = ballots
-                                    }
-                      , ideationPayload
-                      )
-            pure $ st { subsips = subsips'
-                      , wssips = wssips'
-                      , wrsips = wrsips'
-                      , sipdb = sipdb'
-                      , ballots = ballots'
-                      }
-
-        Implementation implementationPayload ->
-          do
-            implementationSt' <-
-              trans @(IMPLEMENTATION p) $
-              TRC ( Implementation.Env
-                      currentSlot
-                      apprvsips
-                  , implementationSt
-                  , implementationPayload
-                  )
-            pure $ st { implementationSt = implementationSt' }
+        Ideation ideationPayload -> do
+          either (\ideationError -> do
+                     failBecause (IdeationFailure ideationError)
+                     pure st
+                 )
+                 (\ideationSt'   ->
+                    pure $ st { ideationSt = ideationSt' }
+                 )
+                 (Ideation.apply env ideationPayload ideationSt)
 
         Approval approvalPayload ->
           do
             approvalSt' <-
-              trans @(APPROVAL p) $ TRC ( Approval.Env k maxVotingPeriods currentSlot apprvsips
+              trans @(APPROVAL p) $ TRC ( Approval.Env k envMaxVotingPeriods currentSlot ideationSt
                                         , approvalSt
                                         , approvalPayload)
             pure st { approvalSt = approvalSt' }
@@ -217,12 +154,6 @@ instance ( Hashable p
                  )
                  (Activation.endorse endorsement env activationSt)
     ]
-
-instance (STS (IDEATION p), STS (UPDATE p)) => Embed (IDEATION p) (UPDATE p) where
-  wrapFailed = IdeationFailure
-
-instance (STS (UPDATE p)) => Embed (IMPLEMENTATION p) (UPDATE p) where
-  wrapFailed = ImplementationFailure
 
 instance (STS (APPROVAL p), STS (UPDATE p)) => Embed (APPROVAL p) (UPDATE p) where
   wrapFailed = ApprovalFailure

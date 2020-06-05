@@ -34,19 +34,10 @@ import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
 import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime as SlotTime
 import           Cardano.Ledger.Spec.State.ActivationState (ActivationState)
 import qualified Cardano.Ledger.Spec.State.ActivationState as ActivationState
-import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Participants
-                     (Participants (Participants))
 import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision)
-import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
-import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as STS.StakeDistribution
-import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
-import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
-import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
 import           Cardano.Ledger.Spec.STS.CanExtract (CanExtract, extractAll)
 import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import qualified Cardano.Ledger.Spec.STS.Update as Update
@@ -55,9 +46,7 @@ import           Cardano.Ledger.Spec.STS.Update.Approval.Data
                      (ImplementationAndHash, ProtocolVersion)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
-import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
+import qualified Cardano.Ledger.Update.Ideation as Ideation
 
 import           Cardano.Ledger.Assert
 
@@ -74,18 +63,13 @@ data IState p =
   , iStateCurrentSlot :: !Core.Slot
   , iStateEpochFirstSlot :: !Core.Slot
   , iStateSlotsPerEpoch :: !Core.SlotCount
-  , iStateSubsips :: !(SubmittedSIPs p)
-  , iStateSipdb :: !(RevealedSIPs p)
-  , iStateBallot :: !(SIPBallot p)
   , iStateR_a :: !Float
-  , iStateWssips :: !(WhenSubmittedSIPs p)
-  , iStateWrsips :: !(WhenRevealedSIPs p)
-  , iStateAsips :: !(ActiveSIPs p)
-  , iStatevresips :: !(SIPsVoteResults p)
-  , iStateApprvsips :: !(ApprovedSIPs p)
-  , iStateApproval :: !(Transition.State (APPROVAL p))
-  , iStateActivation :: !(ActivationState p)
   , iStateStakepoolsDistribution :: !(StakeDistribution p)
+
+  , iStateIdeation   :: !(Ideation.State p)
+  , iStateApproval   :: !(Transition.State (APPROVAL p))
+  , iStateActivation :: !(ActivationState p)
+
   } deriving (Show)
 
 iStateProtocolVersion :: Hashable p => IState p -> ProtocolVersion
@@ -205,8 +189,6 @@ projectToHupdateEnv :: (IState p) -> Hupdate.Env p
 projectToHupdateEnv
   IState { iStateK
          , iStateStakeDist
-         , iStateSipdb
-         , iStateBallot
          , iStateR_a
          , iStateCurrentSlot
          , iStateSlotsPerEpoch
@@ -216,10 +198,8 @@ projectToHupdateEnv
   =
   Hupdate.Env
   { Hupdate.k = iStateK
-  , Hupdate.sipdb = iStateSipdb
-  , Hupdate.ballots = iStateBallot
   , Hupdate.r_a = iStateR_a
-  , Hupdate.stakeDist = iStateStakeDist
+  , Hupdate.sipExpertsStakeDist = iStateStakeDist
   , Hupdate.currentSlot = iStateCurrentSlot
   , Hupdate.slotsPerEpoch = iStateSlotsPerEpoch
   , Hupdate.epochFirstSlot = iStateEpochFirstSlot
@@ -233,20 +213,14 @@ projectToHupdateEnv
 projecTotHupdateSt :: IState p -> Hupdate.St p
 projecTotHupdateSt
   IState
-  { iStateWrsips
-  , iStateAsips
-  , iStatevresips
-  , iStateApprvsips
+  { iStateIdeation
   , iStateApproval
   , iStateActivation
   }
   =
   Hupdate.St
-  { Hupdate.wrsips = iStateWrsips
-  , Hupdate.asips = iStateAsips
-  , Hupdate.vresips = iStatevresips
-  , Hupdate.apprvsips = iStateApprvsips
-  , Hupdate.approvalSt = iStateApproval
+  { Hupdate.ideationSt   = iStateIdeation
+  , Hupdate.approvalSt   = iStateApproval
   , Hupdate.activationSt = iStateActivation
   }
 
@@ -256,21 +230,16 @@ projectToUpdateEnv
   { iStateK
   , iStateMaxVotingPeriods
   , iStateCurrentSlot
-  , iStateAsips
   , iStateStakeDist
-  , iStateApprvsips
   , iStateSlotsPerEpoch
   , iStateEpochFirstSlot
   }
   =
   Update.Env
   { Update.k = iStateK
-  , Update.maxVotingPeriods = iStateMaxVotingPeriods
+  , Update.envMaxVotingPeriods = iStateMaxVotingPeriods
   , Update.currentSlot = iStateCurrentSlot
-  , Update.asips = iStateAsips
-  , Update.participants = Participants [] -- TODO: The participants should be removed from the STS state.
   , Update.stakeDist = iStateStakeDist
-  , Update.apprvsips = iStateApprvsips
   , Update.slotsPerEpoch = iStateSlotsPerEpoch
   , Update.epochFirstSlot = iStateEpochFirstSlot
   }
@@ -278,83 +247,30 @@ projectToUpdateEnv
 projectToUpdateSt :: IState p -> Update.St p
 projectToUpdateSt
   IState
-  { iStateSubsips
-  , iStateWssips
-  , iStateWrsips
-  , iStateSipdb
-  , iStateBallot
+  { iStateIdeation
   , iStateApproval
   , iStateActivation
   }
   =
   Update.St
-  { Update.subsips = iStateSubsips
-  , Update.wssips = iStateWssips
-  , Update.wrsips = iStateWrsips
-  , Update.sipdb = iStateSipdb
-  , Update.ballots = iStateBallot
-  , Update.implementationSt = Implementation.St ()
+  { Update.ideationSt = iStateIdeation
   , Update.approvalSt = iStateApproval
   , Update.activationSt = iStateActivation
-  }
-
-projectToIdeationSt :: IState p -> Ideation.St p
-projectToIdeationSt
-  IState
-  { iStateSubsips
-  , iStateWssips
-  , iStateWrsips
-  , iStateSipdb
-  , iStateBallot
-  }
-  =
-  Ideation.St
-    { Ideation.subsips = iStateSubsips
-    , Ideation.wssips  = iStateWssips
-    , Ideation.wrsips  = iStateWrsips
-    , Ideation.sipdb   = iStateSipdb
-    , Ideation.ballots = iStateBallot
-    }
-
---  TODO: we should remove the need for this projection. We don't want to copy
---  state back and forth unnecessarily.
-projectToIdeationEnv :: IState p -> Ideation.Env p
-projectToIdeationEnv
-  IState
-  { iStateK
-  , iStateCurrentSlot
-  , iStateAsips
-  , iStateStakeDist
-  }
-  =
-  Ideation.Env
-  { Ideation.k            = iStateK
-  , Ideation.currentSlot  = iStateCurrentSlot
-  , Ideation.asips        = iStateAsips
-  , Ideation.participants = Participants [] -- TODO: The participants should be removed from the STS state.
-  , Ideation.stakeDist    = iStateStakeDist
   }
 
 fromHupdateSt :: IState p -> Hupdate.St p -> IState p
 fromHupdateSt iState hState =
   iState
-  { iStateWrsips = Hupdate.wrsips hState
-  , iStateAsips = Hupdate.asips hState
-  , iStatevresips = Hupdate.vresips hState
-  , iStateApprvsips = Hupdate.apprvsips hState
-  , iStateApproval = Hupdate.approvalSt hState
+  { iStateIdeation   = Hupdate.ideationSt hState
+  , iStateApproval   = Hupdate.approvalSt hState
   , iStateActivation = Hupdate.activationSt hState
   }
 
 fromUpdateSt :: IState p -> Update.St p -> IState p
 fromUpdateSt iState uState =
   iState
-  { iStateSubsips = Update.subsips uState
-  , iStateWssips = Update.wssips uState
-  , iStateWrsips = Update.wrsips uState
-  , iStateSipdb = Update.sipdb uState
-  , iStateBallot = Update.ballots uState
-  , iStateApproval = Update.approvalSt uState
+  { iStateIdeation   = Update.ideationSt uState
+  , iStateApproval   = Update.approvalSt uState
   , iStateActivation = Update.activationSt uState
   }
 

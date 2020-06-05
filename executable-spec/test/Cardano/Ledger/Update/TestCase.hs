@@ -4,6 +4,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-} -- TODO: temporary
+
+
 module Cardano.Ledger.Update.TestCase where
 
 import           Control.Arrow (first, left, (&&&))
@@ -31,6 +37,12 @@ import           Cardano.Ledger.Update.Interface
 
 import qualified Util.TestCase as TestCase
 
+
+-- TODO: bundle the constraints somewhere else. Do not break abstraction like this.
+import qualified Cardano.Ledger.Spec.STS.Update as Update
+import qualified Cardano.Ledger.Update.Ideation as Ideation
+
+instance Ideation.CanApply (Update.Env Mock) Mock
 
 -- | A test case carries an read only test-environment, and modifies the
 -- interface state as it performs the test case step. A test case can exit with
@@ -101,15 +113,9 @@ mkIState TestCaseEnv { tcK, tcAdversarialStakeRatio, tcSIPExperts, tcStakePools 
     , iStateCurrentSlot            = currentSlot
     , iStateEpochFirstSlot         = currentSlot
     , iStateSlotsPerEpoch          = 10
-    , iStateSubsips                = mempty
-    , iStateSipdb                  = mempty
-    , iStateBallot                 = mempty
     , iStateR_a                    = tcAdversarialStakeRatio
-    , iStateWssips                 = mempty
-    , iStateWrsips                 = mempty
-    , iStateAsips                  = mempty
-    , iStatevresips                = mempty
-    , iStateApprvsips              = mempty
+
+    , iStateIdeation               = Ideation.initialState
     , iStateApproval               = mempty
     , iStateActivation             =
         Activation.initialState  (hash genesisImplData) genesisImplData
@@ -133,7 +139,7 @@ mkIState TestCaseEnv { tcK, tcAdversarialStakeRatio, tcSIPExperts, tcStakePools 
 
       genesisImplData =
         Approval.Data.ImplementationData
-        { Approval.Data.implDataSIPHash = Ideation.Data.SIPHash $ hash genesisSIPData
+        { Approval.Data.implDataSIPHash = hash genesisSIPData
         , Approval.Data.implDataVPD     = 0
         , Approval.Data.implType        =
             Approval.Data.genesisUpdateType genesisImplURL genesisImplHash

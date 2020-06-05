@@ -33,13 +33,13 @@ import           Data.Monoid (Sum (Sum), getSum)
 import           Data.Set (Set)
 import           GHC.Generics (Generic)
 
+import           Cardano.Ledger.Assert (assert, (==!))
+
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      VKey)
-import           Cardano.Ledger.Spec.Classes.Indexed (Indexed, Key, Value,
-                     lookup)
 
 
 data StakeDistribution p =
@@ -54,24 +54,20 @@ data StakeDistribution p =
     --
   } deriving (Generic)
 
-
 deriving instance (Hashable p, HasSigningScheme p) => Show (StakeDistribution p)
-
 instance NoUnexpectedThunks (Hash p (VKey p)) => NoUnexpectedThunks (StakeDistribution p)
 
+checkInvariants :: StakeDistribution p -> StakeDistribution p
+checkInvariants sd =
+  assert (totalStake sd ==! Map.foldr' (+) (Data.Stake 0) (stakeMap sd))
+         sd
+
 emptyStakeDistribution :: Hashable p => StakeDistribution p
-emptyStakeDistribution =
+emptyStakeDistribution = checkInvariants $
   StakeDistribution
-  { stakeMap = mempty
+  { stakeMap   = mempty
   , totalStake = 0
   }
-
-instance Hashable p => Indexed (StakeDistribution p) where
-  type Key (StakeDistribution p) = Hash p (VKey p)
-
-  type Value (StakeDistribution p) = Data.Stake
-
-  lookup key StakeDistribution { stakeMap } = Map.lookup key stakeMap
 
 -- | Return the sum of the stake associated with each key.
 stakeOfKeys
@@ -106,7 +102,8 @@ addStake
   -> StakeDistribution p
   -> StakeDistribution p
 addStake hashKey stake StakeDistribution { stakeMap, totalStake }
-  = StakeDistribution
+  = checkInvariants
+  $ StakeDistribution
     { stakeMap = updatedStakeMap
     , totalStake = totalStake + stake
     }
@@ -121,7 +118,8 @@ fromList
   => [(Hash p (VKey p), Data.Stake)]
   -> StakeDistribution p
 fromList xs
-  = StakeDistribution
+  = checkInvariants
+  $ StakeDistribution
     { stakeMap   = Map.fromList xs
     , totalStake = foldl' (+) 0 $ fmap snd xs
     }

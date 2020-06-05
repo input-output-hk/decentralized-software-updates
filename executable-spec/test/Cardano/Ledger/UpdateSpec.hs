@@ -14,8 +14,6 @@ import qualified Data.Text as Text
 import           Cardano.Ledger.Spec.Classes.Hashable (Hash, hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey)
 import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (isSIPApproved,
-                     whenSIPApproved)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
 import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data (ProtocolVersion)
@@ -24,8 +22,8 @@ import           Cardano.Ledger.Spec.STS.Update.Approval.Data (addMajor,
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Update.Data
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
+import qualified Cardano.Ledger.Update.Ideation as Ideation
 
 import           Cardano.Ledger.Mock (Mock, vkeyFromSkey, wordToSKey)
 import           Cardano.Ledger.Update.Interface
@@ -123,7 +121,7 @@ dummyProtocolUpdate sipAuthorSKey implAuthorSKey supersedes aProtocolVersion =
         , Ideation.Data.votPeriodDuration = 100 -- TODO: we might want to make this a parameter!
         }
       }
-    theSIPHash = Ideation.Data.SIPHash $ hash theSIPData
+    theSIPHash = hash theSIPData
 
     theImpl =
       Approval.Data.Implementation
@@ -225,28 +223,22 @@ stateOf updateSpec st
     = Implementation StablySubmitted
   | Approval.isSubmitted implCommit (iStateApproval st)
     = Implementation Submitted
-  | isStable' (whenSIPApproved sipHash (iStateApprvsips st))
+  | Ideation.isStably st sipHash Approved (iStateIdeation st)
     = SIP (IsStably Approved)
-  | isSIPApproved sipHash (iStateApprvsips st)
+  | Ideation.is sipHash Approved (iStateIdeation st)
     = SIP (Is Approved)
-  | Ideation.isStablyRevealed (projectToIdeationEnv st) sipHash
+  | Ideation.isStablyRevealed st sipHash (iStateIdeation st)
     = SIP StablyRevealed
-  | Ideation.isRevealed (projectToIdeationSt st) sipHash
+  | Ideation.isRevealed sipHash (iStateIdeation st)
     = SIP  Revealed
-  | Ideation.isStablySubmitted (projectToIdeationEnv st) (projectToIdeationSt st) sipCommit
+  | Ideation.isStablySubmitted st sipCommit (iStateIdeation st)
     = SIP StablySubmitted
-  | Ideation.isSubmitted (projectToIdeationSt st) sipCommit
+  | Ideation.isSubmitted sipCommit (iStateIdeation st)
     = SIP Submitted
   | otherwise
   = Unknown
   where
-    isStable' Nothing     = False
-    isStable' (Just slot) = isStable slot st
-
-    sipHash = getSIPHash updateSpec
-
-    sipCommit = Ideation.Data.commit $ getSIPCommit updateSpec
-
-    implHash = getImplHash updateSpec
-
+    sipHash    = getSIPHash updateSpec
+    sipCommit  = Ideation.Data.commit $ getSIPCommit updateSpec
+    implHash   = getImplHash updateSpec
     implCommit = getImplCommit updateSpec

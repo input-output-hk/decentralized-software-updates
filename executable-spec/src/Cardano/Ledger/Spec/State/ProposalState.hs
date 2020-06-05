@@ -26,8 +26,8 @@ module Cardano.Ledger.Spec.State.ProposalState
   , IsVote
   , getVoter
   , getConfidence
-  , votingPeriodStarted
-  , votingPeriodEnded
+  , votingPeriodHasStarted
+  , votingPeriodHasEnded
   , votingPeriodEnd
   , Decision (Rejected, WithNoQuorum, Expired, Approved, Undecided)
   , VotingPeriod (VotingPeriod)
@@ -41,21 +41,23 @@ where
 import           Cardano.Prelude (NoUnexpectedThunks)
 
 import           Control.Applicative ((<|>))
-import           Data.Coerce (coerce)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
-import           Ledger.Core (BlockCount (BlockCount), Slot,
-                     SlotCount (SlotCount), (*.), (+.))
+import           Ledger.Core (Slot, SlotCount, (+.))
 
+import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+                     (HasAdversarialStakeRatio, adversarialStakeRatio)
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
+import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
+                     (HasStakeDistribution, stakeDistribution)
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
-                     isStable)
+                     currentSlot, isStable, stableAfter)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
                      stakeOfKeys, totalStake)
 import           Cardano.Ledger.Spec.STS.Update.Data
@@ -126,26 +128,18 @@ instance HasVotingPeriod d => HasVotingPeriod (ProposalState p d) where
 tally
   :: ( Hashable p
      , HasVotingPeriod d
+     , TracksSlotTime env
+     , HasStakeDistribution t env p
+     , HasAdversarialStakeRatio env
      )
-  => BlockCount
-  -> Slot
-  -> StakeDistribution p
-  -> Float
+  => env
+  -> t
   -> ProposalState p d
   -> ProposalState p d
-tally k
-      currentSlot
-      stakeDistribution
-      adversarialStakeRatio
-      (ps@ProposalState
-        { votingPeriod
-        , maxVotingPeriods
-        , ballot
-        })
-  =
-  if is Undecided ps  && votingPeriodEnd k ps +. 2 *. k  <= currentSlot
+tally env t ps@ProposalState{ votingPeriod, maxVotingPeriods, ballot} =
+  if is Undecided ps  && isStable env (votingPeriodEnd env ps)
     then ps { decisionInfo = DecisionInfo
-                             { reachedOn   = currentSlot
+                             { reachedOn   = currentSlot env
                              , decisionWas = tallyResult
                              }
             , votingPeriod = if tallyResult /= Expired
@@ -158,9 +152,9 @@ tally k
   where
     tallyResult
       =   fromMaybe expiredOrUndecided
-      $   tallyStake For     Approved     ballot stakeDistribution adversarialStakeRatio
-      <|> tallyStake Against Rejected     ballot stakeDistribution adversarialStakeRatio
-      <|> tallyStake Abstain WithNoQuorum ballot stakeDistribution adversarialStakeRatio
+      $   tallyStake For     Approved     ballot (stakeDistribution t env) (adversarialStakeRatio env)
+      <|> tallyStake Against Rejected     ballot (stakeDistribution t env) (adversarialStakeRatio env)
+      <|> tallyStake Abstain WithNoQuorum ballot (stakeDistribution t env) (adversarialStakeRatio env)
       where
         expiredOrUndecided =
           if maxVotingPeriods <= votingPeriod
@@ -175,10 +169,10 @@ tallyStake
   -> StakeDistribution p
   -> Float
   -> Maybe Decision
-tallyStake confidence result ballot stakeDistribution adversarialStakeRatio =
-  if stakeThreshold adversarialStakeRatio (totalStake stakeDistribution)
+tallyStake confidence result ballot aStakeDistribution anAdversarialStakeRatio =
+  if stakeThreshold anAdversarialStakeRatio (totalStake aStakeDistribution)
      <
-     stakeOfKeys votingKeys stakeDistribution
+     stakeOfKeys votingKeys aStakeDistribution
   then Just result
   else Nothing
   where
@@ -190,15 +184,15 @@ newProposalState
   -> VotingPeriod
   -> d
   -> ProposalState p d
-newProposalState currentSlot dMaxVotingPeriods d =
+newProposalState theCurrentSlot dMaxVotingPeriods d =
   ProposalState
   { proposal             = d
-  , revealedOn           = currentSlot
+  , revealedOn           = theCurrentSlot
   , votingPeriod         = 1
   , maxVotingPeriods     = dMaxVotingPeriods
   , ballot               = mempty
   , decisionInfo         = DecisionInfo
-                           { reachedOn   = currentSlot
+                           { reachedOn   = theCurrentSlot
                            , decisionWas = Undecided
                            }
   }
@@ -230,27 +224,21 @@ class IsVote p v | v -> p where
 
   getConfidence :: v -> Confidence
 
-votingPeriodStarted
-  :: BlockCount
-  -> Slot
+votingPeriodHasStarted
+  :: TracksSlotTime env
+  => env
   -> ProposalState p d
   -> Bool
-votingPeriodStarted
-  k
-  currentSlot
-  ProposalState { revealedOn }
-  =
-  votingPeriodStart <= currentSlot
-  where
-    votingPeriodStart = revealedOn +. 2 * (coerce k)
+votingPeriodHasStarted env ProposalState { revealedOn } = isStable env revealedOn
 
-votingPeriodEnded
-  :: HasVotingPeriod d
-  => BlockCount
-  -> Slot
+votingPeriodHasEnded
+  :: ( HasVotingPeriod d
+     , TracksSlotTime env
+     )
+  => env
   -> ProposalState p d
   -> Bool
-votingPeriodEnded k currentSlot ps = votingPeriodEnd k ps <= currentSlot
+votingPeriodHasEnded env ps = votingPeriodEnd env ps <= currentSlot env
 
 -- | Calculate the slot at which the voting period ends.
 --
@@ -288,13 +276,15 @@ votingPeriodEnded k currentSlot ps = votingPeriodEnd k ps <= currentSlot
 --
 -- TODO: we might want to change `Word` to `Natural`, or check for overflows.
 votingPeriodEnd
-  :: HasVotingPeriod d
-  => BlockCount
+  :: ( HasVotingPeriod d
+     , TracksSlotTime env
+     )
+  => env
   -> ProposalState p d
   -> Slot
-votingPeriodEnd k ps@ProposalState { revealedOn, votingPeriod }
+votingPeriodEnd env ps@ProposalState { revealedOn, votingPeriod }
   =  revealedOn
-  +. votingPeriod' * ( 2 * coerce k + votingPeriodDuration)
+  +. votingPeriod' * ( stableAfter env + votingPeriodDuration)
   where
     votingPeriod'        = fromIntegral (unVotingPeriod votingPeriod)
     votingPeriodDuration = getVotingPeriodDuration ps

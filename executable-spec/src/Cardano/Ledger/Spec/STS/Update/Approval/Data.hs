@@ -26,7 +26,6 @@ import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSalt (HasSalt, salt)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      SKey, Signable, Signature, VKey, sign)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
 import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState)
 import           Cardano.Ledger.Spec.State.ProposalState (HasVotingPeriod,
                      IsVote, getConfidence, getVoter, getVotingPeriodDuration)
@@ -35,8 +34,6 @@ import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit, calcCommit)
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPData, SIPHash)
 import           Ledger.Core (SlotCount)
 
-
-type ImplBallot p = Ballot p (Hash p (ImplementationData p))
 
 type IPSSt p = ProposalsState p (ImplementationData p)
 

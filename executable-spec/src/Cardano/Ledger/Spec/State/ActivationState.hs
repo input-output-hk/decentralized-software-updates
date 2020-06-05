@@ -112,6 +112,10 @@ data ActivationState p =
     -- ^ We require that the 'tick' function is applied without skipping any
     -- slot. Therefore we record the last applied slot to check this
     -- pre-condition in 'tick'.
+    --
+    -- TODO: we might want to move last applied slot and invariant checking to
+    -- the update interface state. Otherwise we'll have to replicate this in all
+    -- the three phases (in which we can't miss a slot tick).
 
   , discarded          :: !(Map (ImplementationAndHash p) Reason)
     -- TODO: the stakepoolsDistribution snapshot should probably go here.

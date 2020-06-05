@@ -10,7 +10,11 @@ import           Ledger.Core (Slot, SlotCount, (+.))
 class TracksSlotTime e where
   -- | Determine whether the given slot is stable in the environment.
   isStable :: e -> Slot ->  Bool
-  isStable e givenSlot = givenSlot +. stableAfter e  <= currentSlot e
+  isStable e givenSlot = stableAt e givenSlot  <= currentSlot e
+
+  -- | Return the slot at which the given slot will become stable.
+  stableAt :: e -> Slot -> Slot
+  stableAt e givenSlot = givenSlot +. stableAfter e
 
   -- | Number of slots after which an event can be considered stable. For
   -- instance, in Byron this was set to:
