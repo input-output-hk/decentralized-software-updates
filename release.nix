@@ -8,12 +8,12 @@
 ############################################################################
 
 # The project sources
-{ decentralized-updates ? { outPath = ./.; rev = "abcdef"; }
+{ decentralized-software-updates ? { outPath = ./.; rev = "abcdef"; }
 
 # Function arguments to pass to the project
 , projectArgs ? {
     config = { allowUnfree = false; inHydra = true; };
-    gitrev = decentralized-updates.rev;
+    gitrev = decentralized-software-updates.rev;
   }
 
 # The systems that the jobset will be built for.
@@ -36,8 +36,8 @@
 with (import pkgs.iohkNix.release-lib) {
   inherit pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
-  packageSet = import decentralized-updates;
-  gitrev = decentralized-updates.rev;
+  packageSet = import decentralized-software-updates;
+  gitrev = decentralized-software-updates.rev;
 };
 
 with pkgs.lib;
@@ -57,7 +57,7 @@ let
       collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
       # Add your project executables to this list if any:
-      [ # jobs.native.decentralized-updates.x86_64-linux
+      [ # jobs.native.decentralized-software-updates.x86_64-linux
       ]
     )
   )
