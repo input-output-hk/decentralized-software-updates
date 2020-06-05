@@ -1,4 +1,19 @@
+env:
+  BUILD_DIR: "/build/decentralized-software-updates"
+  STACK_ROOT: "/build/decentralized-software-updates.stack"
+  CACHE_DIR: "/cache/decentralized-software-updates"
+
 steps:
+  - label: Stack build
+    command:
+      - "nix-build .buildkite/default.nix -o sr"
+      - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
+    agents:
+      system: x86_64-linux
+    timeout_in_minutes: 60
+    artifact_paths:
+      - "/build/decentralized-software-updates/.stack-work/logs/decentralized-software-updates*.log"
+
   - label: 'check-cabal-project'
     command: 'nix-build ./nix -A iohkNix.checkCabalProject -o check-cabal-project.sh && ./check-cabal-project.sh'
     agents:
