@@ -46,7 +46,7 @@ tickTillNextEpoch = do
 tick :: Slot -> TestCase
 tick slot = do
   st  <- get
-  st' <- liftEither $ left (`STSError` st) $ slotTick slot st
+  st' <- liftEither $ left (`UpdateError` st) $ slotTick slot st
   put st'
 
 --------------------------------------------------------------------------------

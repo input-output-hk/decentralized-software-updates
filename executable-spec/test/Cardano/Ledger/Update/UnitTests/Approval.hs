@@ -15,15 +15,10 @@ import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved, Ex
 import           Cardano.Ledger.Spec.State.ProposalState
                      (getVotingPeriodDuration)
 import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
-import           Cardano.Ledger.Spec.STS.CanExtract (extract)
-import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Approval (noApprovedSIP,
-                     noStableAndCommitedImpl, votePeriodHasEnded,
-                     votePeriodHasNotStarted)
+
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Confidence
-
 
 import           Cardano.Ledger.Update.Interface
 import           Cardano.Ledger.Update.TestCase
@@ -31,6 +26,8 @@ import           Cardano.Ledger.Update.UnitTests.Common
 import           Cardano.Ledger.UpdateSpec
 
 import           Cardano.Ledger.Update.UnitTests.Ideation
+
+import qualified Cardano.Ledger.Update as Update
 
 
 runTests :: [TestTree]
@@ -202,7 +199,9 @@ implRevealWithoutApprovedSIP = do
   submit `implementation` update
   tickTillStable
   (reveal  `implementation` update)
-    `throwsErrorWhere` (extract noApprovedSIP >>> (== [getSIPHash update]))
+    `throwsErrorWhere` ( Update.noApprovedSIP
+                         >>> (== Just (getSIPHash update))
+                       )
 
 revealOfAnUnstableImplSubmission :: TestCase
 revealOfAnUnstableImplSubmission = do
@@ -212,7 +211,9 @@ revealOfAnUnstableImplSubmission = do
   submit `implementation` update
   -- We reveal immediately, without waiting for stability.
   (reveal  `implementation` update)
-    `throwsErrorWhere` (extract noStableAndCommitedImpl >>> (== [getImpl update]))
+    `throwsErrorWhere` ( Update.noStableImplementationCommit
+                        >>> (== Just (getImpl update))
+                       )
 
 voteBeforeTheStartOfVotingPeriod :: TestCase
 voteBeforeTheStartOfVotingPeriod = do
@@ -225,7 +226,9 @@ voteBeforeTheStartOfVotingPeriod = do
   -- Here we don't want for the stabilization of the reveal message to start
   -- voting.
   (approve `implementation` update)
-    `throwsErrorWhere` (extract votePeriodHasNotStarted >>> (== [getImplHash update]))
+    `throwsErrorWhere` ( Update.implementationVotePeriodHasNotStarted
+                         >>> (== Just (getImplHash update))
+                       )
 
 voteAfterTheEndOfVotingPeriod :: TestCase
 voteAfterTheEndOfVotingPeriod = do
@@ -238,7 +241,9 @@ voteAfterTheEndOfVotingPeriod = do
   tickTillStable                                     -- Here the voting period starts
   tickFor $ getVotingPeriodDuration (getImpl update) -- Here the voting period ends
   (approve `implementation` update)
-    `throwsErrorWhere` (extract votePeriodHasEnded >>> (== [getImplHash update]))
+    `throwsErrorWhere` ( Update.implementationVotePeriodHasEnded
+                        >>> (== Just (getImplHash update))
+                       )
 
 
 -- Precondition: the update SIP should be stably approved

@@ -1,4 +1,8 @@
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Generators.QuickCheck
   ( bounded
@@ -13,7 +17,7 @@ module Cardano.Ledger.Generators.QuickCheck
   )
 where
 
-import           GHC.Exts (fromList)
+import           GHC.Exts (IsList, fromList, toList)
 
 import           Control.Arrow ((&&&))
 import           Data.Word (Word8)
@@ -27,13 +31,38 @@ import           Cardano.Crypto.DSIGN.Mock (SignKeyDSIGN (SignKeyMockDSIGN),
 
 import qualified Ledger.Core as Core
 
-import           Cardano.Ledger.Spec.State.Participants
-                     (Participants (Participants), vkeyHashes)
+import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
+                     hash)
+import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
+                     SKey, VKey)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as StakeDistribution
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Data
 
 import           Cardano.Ledger.Mock (Mock)
+
+-- | The set of stakeholders (i.e., participants), identified by their signing
+-- and verifying keys.
+--
+-- There should be a one-to-one correspondence between the signing and verifying
+-- keys.
+--
+-- TODO: introduce a smart constructor to check uniqueness of signing and
+-- verification keys.
+--
+newtype Participants p =
+  Participants [(VKey p, SKey p)]
+  deriving newtype (IsList)
+
+deriving instance (Hashable p, HasSigningScheme p) => Show (Participants p)
+
+vkeyHashes
+  :: ( Hashable p
+     , HasHash p (VKey p)
+     )
+  => Participants p -> [Hash p (VKey p)]
+vkeyHashes = fmap (hash . fst) . toList
+
 
 k :: Gen Core.BlockCount
 -- Here we choose a small maximum value of k, since otherwise we need very long

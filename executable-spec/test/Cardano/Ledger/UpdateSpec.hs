@@ -13,19 +13,17 @@ import qualified Data.Text as Text
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hash, hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey)
-import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (isSIPApproved,
-                     whenSIPApproved)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
-import qualified Cardano.Ledger.Spec.STS.Update.Approval as Approval
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data (ProtocolVersion)
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data (addMajor,
                      addMinor)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Update.Data
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
+
+import qualified Cardano.Ledger.Update as Update
+import qualified Cardano.Ledger.Update.Ideation as Ideation
 
 import           Cardano.Ledger.Mock (Mock, vkeyFromSkey, wordToSKey)
 import           Cardano.Ledger.Update.Interface
@@ -123,7 +121,7 @@ dummyProtocolUpdate sipAuthorSKey implAuthorSKey supersedes aProtocolVersion =
         , Ideation.Data.votPeriodDuration = 100 -- TODO: we might want to make this a parameter!
         }
       }
-    theSIPHash = Ideation.Data.SIPHash $ hash theSIPData
+    theSIPHash = hash theSIPData
 
     theImpl =
       Approval.Data.Implementation
@@ -191,62 +189,56 @@ mkUpdate' (aProtocolVersion, aVersionHash) i vc =
 -- should make sure this doesn't happen.
 stateOf :: UpdateSpec -> IState Mock -> UpdateState
 stateOf updateSpec st
-  | Activation.isTheCurrentVersion implHash (iStateActivation st)
+  | Update.isTheCurrentVersion implHash st
     = Activated
-  | Activation.isScheduled implHash (iStateActivation st)
+  | Update.isScheduled implHash st
     = Scheduled
-  | Activation.isBeingEndorsed implHash (iStateActivation st)
+  | Update.isBeingEndorsed implHash st
     = BeingEndorsed
-  | Activation.isQueued implHash (iStateActivation st)
+  | Update.isQueued implHash st
     = Queued
-  | Activation.isDiscardedDueToBeing implHash Activation.Expired (iStateActivation st)
+  | Update.isDiscardedDueToBeing implHash Update.Expired st
     = ActivationExpired
-  | Activation.isDiscardedDueToBeing implHash Activation.Canceled (iStateActivation st)
+  | Update.isDiscardedDueToBeing implHash Update.Canceled st
     = ActivationCanceled
-  | Activation.isDiscardedDueToBeing implHash Activation.Unsupported (iStateActivation st)
+  | Update.isDiscardedDueToBeing implHash Update.Unsupported st
     = ActivationUnsupported
-  | Approval.isStably st implHash Approved (iStateApproval st)
+  | Update.isImplementationStably st implHash Approved st
     = error "A stably approved implementation goes to the activation phase."
-  | Approval.is implHash Approved (iStateApproval st)
+  | Update.isImplementation implHash Approved st
     = error "An approved implementation goes to the activation phase."
-  | Approval.is implHash Rejected (iStateApproval st)
+  | Update.isImplementation implHash Rejected st
     = Implementation (Is Rejected)
-  | Approval.is implHash WithNoQuorum (iStateApproval st)
+  | Update.isImplementation implHash WithNoQuorum st
     = Implementation (Is WithNoQuorum)
-  | Approval.is implHash Expired (iStateApproval st)
+  | Update.isImplementation implHash Expired st
     = Implementation (Is Expired)
-  | Approval.is implHash Undecided (iStateApproval st)
+  | Update.isImplementation implHash Undecided st
     = Implementation (Is Undecided)
-  | Approval.isStablyRevealed st implHash (iStateApproval st)
+  | Update.isImplementationStablyRevealed st implHash st
     = Implementation StablyRevealed
-  | Approval.isRevealed implHash (iStateApproval st)
+  | Update.isImplementationRevealed implHash st
     = Implementation Revealed
-  | Approval.isStablySubmitted st implCommit (iStateApproval st)
+  | Update.isImplementationStablySubmitted st implCommit st
     = Implementation StablySubmitted
-  | Approval.isSubmitted implCommit (iStateApproval st)
+  | Update.isImplementationSubmitted implCommit st
     = Implementation Submitted
-  | isStable' (whenSIPApproved sipHash (iStateApprvsips st))
+  | Update.isSIPStably st sipHash Approved st
     = SIP (IsStably Approved)
-  | isSIPApproved sipHash (iStateApprvsips st)
+  | Ideation.isSIP sipHash Approved st
     = SIP (Is Approved)
-  | Ideation.isStablyRevealed (projectToIdeationEnv st) sipHash
+  | Ideation.isSIPStablyRevealed st sipHash st
     = SIP StablyRevealed
-  | Ideation.isRevealed (projectToIdeationSt st) sipHash
+  | Ideation.isSIPRevealed sipHash st
     = SIP  Revealed
-  | Ideation.isStablySubmitted (projectToIdeationEnv st) (projectToIdeationSt st) sipCommit
+  | Ideation.isSIPStablySubmitted st sipCommit st
     = SIP StablySubmitted
-  | Ideation.isSubmitted (projectToIdeationSt st) sipCommit
+  | Update.isSIPSubmitted sipCommit (updateSt st)
     = SIP Submitted
   | otherwise
   = Unknown
   where
-    isStable' Nothing     = False
-    isStable' (Just slot) = isStable slot st
-
-    sipHash = getSIPHash updateSpec
-
-    sipCommit = Ideation.Data.commit $ getSIPCommit updateSpec
-
-    implHash = getImplHash updateSpec
-
+    sipHash    = getSIPHash updateSpec
+    sipCommit  = Ideation.Data.commit $ getSIPCommit updateSpec
+    implHash   = getImplHash updateSpec
     implCommit = getImplCommit updateSpec

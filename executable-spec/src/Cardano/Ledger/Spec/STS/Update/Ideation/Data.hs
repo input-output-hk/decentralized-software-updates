@@ -7,39 +7,44 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# LANGUAGE TypeFamilies #-}
+
 module Cardano.Ledger.Spec.STS.Update.Ideation.Data where
 
-import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
-import           Data.Typeable (Typeable, typeOf)
+import           Data.Typeable (Typeable)
 import           Data.Word (Word64)
 import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt, encodeListLen)
-import           Data.AbstractSize (HasTypeReps)
 import           Ledger.Core (SlotCount)
+
+import           Cardano.Ledger.Assert (assert, orElseShow)
 
 import           Cardano.Ledger.Spec.Classes.HasAuthor (HasAuthor, author)
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
 import           Cardano.Ledger.Spec.Classes.HasSalt (HasSalt, salt)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
-                     SKey, Signable, Signature, VKey, sign)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot, Vote)
-import qualified Cardano.Ledger.Spec.State.Ballot as Ballot
+                     SKey, Signable, Signature, Signed, SignedPayload, VKey,
+                     payloadSignature, sign, signatureVerifies, signedBy,
+                     signedPayload)
 import           Cardano.Ledger.Spec.State.ProposalState (HasVotingPeriod,
                      getVotingPeriodDuration)
+import           Cardano.Ledger.Spec.State.ProposalState (IsVote, getConfidence,
+                     getVoter)
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence, URL)
 import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit, calcCommit)
 
 -- | Ideation signals.
 --
 -- TODO: consider renaming this to simply @Payload@ and using it qualified.
-data IdeationPayload p
+data Payload p
   = Submit (SIPCommit p) (SIP p)
   | Reveal (SIP p)
   | Vote (VoteForSIP p) -- TODO: make this consistent with
@@ -48,24 +53,44 @@ data IdeationPayload p
                         -- command.
   deriving (Show, Generic)
 
-isSubmit :: IdeationPayload p -> Bool
+isSubmit :: Payload p -> Bool
 isSubmit (Submit {}) = True
 isSubmit _ = False
 
-isReveal :: IdeationPayload p -> Bool
+isReveal :: Payload p -> Bool
 isReveal (Reveal {}) = True
 isReveal _ = False
 
 data VoteForSIP p =
   VoteForSIP { votedsipHash :: !(SIPHash p)
                -- ^ SIP id that this ballot is for
-             , confidence :: !Confidence
+             , confidence   :: !Confidence
                -- ^ The ballot outcome
-             , voter :: !(VKey p)
+             , voter        :: !(VKey p)
                -- ^ The voter
-             , voterSig :: !(Signature p (SIPHash p, Confidence, VKey p))
+             , voteSig      :: !(Signature p (SIPHash p, Confidence, VKey p))
              }
   deriving (Generic)
+
+deriving instance (Hashable p, HasSigningScheme p) => Eq (VoteForSIP p)
+deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSIP p)
+
+instance ( HasSigningScheme p
+         , Signable p (SIPHash p, Confidence, VKey p)
+         ) => Signed p (VoteForSIP p) where
+  type SignedPayload (VoteForSIP p) = (SIPHash p, Confidence, VKey p)
+
+  signedPayload VoteForSIP { votedsipHash, confidence, voter } =
+    (votedsipHash, confidence, voter)
+
+  signedBy = voter
+
+  payloadSignature = voteSig
+
+instance IsVote p (VoteForSIP p) where
+  getVoter = voter
+
+  getConfidence = confidence
 
 mkVoteForSIP
   :: ( HasSigningScheme p
@@ -77,26 +102,16 @@ mkVoteForSIP
   -> SIPHash p
   -> VoteForSIP p
 mkVoteForSIP voterSKey voterVKey confidence' sipHash =
-  VoteForSIP
-  { votedsipHash = sipHash
-  , confidence   = confidence'
-  , voter        = voterVKey
-  , voterSig     = sign (sipHash, confidence', voterVKey) voterSKey
-  }
-
-
-deriving instance (Hashable p, HasSigningScheme p) => Show (VoteForSIP p)
-
-instance Vote (VoteForSIP p) (SIPHash p) p where
-  candidate = votedsipHash
-
-  confidence = confidence
-
-  voter = voter
-
--- | Type alias to make it more convenient to instantiate 'Ballot' to
--- 'SIPHash'es as candidates.
-type SIPBallot p = Ballot p (SIPHash p)
+  assert (signatureVerifies vote `orElseShow` "Created signature does not verify")
+         vote
+  where
+    vote =
+      VoteForSIP
+      { votedsipHash = sipHash
+      , confidence   = confidence'
+      , voter        = voterVKey
+      , voteSig      = sign (sipHash, confidence', voterVKey) voterSKey
+      }
 
 -- | Protocol version
 --
@@ -105,13 +120,11 @@ type SIPBallot p = Ballot p (SIPHash p)
 newtype ProtVer = ProtVer Word64
   deriving (Eq, Ord, Show)
   deriving stock (Generic)
-  deriving newtype (HasTypeReps)
 
 -- | Application version
 newtype ApVer = ApVer Word64
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Num, ToCBOR)
-  deriving anyclass (HasTypeReps)
 
 -- | Consensus Protocol Parameter Name
 data ParamName
@@ -119,12 +132,12 @@ data ParamName
   | TxSizeMax
   | SlotSize
   | EpochSize
-  deriving (Eq, Enum, Generic, Ord, Show, HasTypeReps)
+  deriving (Eq, Enum, Generic, Ord, Show)
 
 -- | Flag to distinguish between `SIP`s that impact or not the
 -- underlying consensus protocol
 data ConcensusImpact = Impact | NoImpact
-  deriving (Eq, Enum, Generic, Ord, Show, HasTypeReps)
+  deriving (Eq, Enum, Generic, Ord, Show)
 
 -- | Metadata structure for SIP
 data SIPMetadata =
@@ -144,7 +157,7 @@ data SIPMetadata =
     , votPeriodDuration :: !SlotCount
       -- ^ Voting Period duration for this SIP
     }
-  deriving (Eq, Generic, Ord, Show, HasTypeReps)
+  deriving (Eq, Generic, Ord, Show)
 
 instance HasVotingPeriod SIPMetadata where
   getVotingPeriodDuration = votPeriodDuration
@@ -158,19 +171,14 @@ data SIPData =
       -- ^ SIP Metadata (only core metadata, the rest are on the server pointed
       -- by the url)
     }
-  deriving (Eq, Generic, Ord, Show, HasTypeReps)
+  deriving (Eq, Generic, Ord, Show)
 
 instance HasVotingPeriod SIPData where
   getVotingPeriodDuration = getVotingPeriodDuration . metadata
 
 -- | Hash of the SIP contents (`SIPData`) also plays the role of a SIP
 -- unique id
-data SIPHash p = SIPHash (Hash p SIPData)
-  deriving (Generic)
-
-deriving instance Hashable p => Eq (SIPHash p)
-deriving instance Hashable p => Ord (SIPHash p)
-deriving instance Hashable p => Show (SIPHash p)
+type SIPHash p = Hash p SIPData
 
 -- | System improvement proposal
 data SIP p =
@@ -220,11 +228,23 @@ data SIPCommit p =
     }
   deriving (Generic)
 
+deriving instance (Hashable p, HasSigningScheme p) => Eq (SIPCommit p)
 deriving instance (Hashable p, HasSigningScheme p) => Show (SIPCommit p)
 
 instance HasAuthor (SIPCommit p) p where
   author = sipCommitAuthor
 
+instance ( HasSigningScheme p
+         , Signable p (Commit p (SIP p))
+         ) => Signed p (SIPCommit p) where
+
+  type SignedPayload (SIPCommit p) = Commit p (SIP p)
+
+  signedPayload = commit
+
+  signedBy = sipCommitAuthor
+
+  payloadSignature = upSig
 
 mkSIPCommit
   :: ( Hashable p
@@ -234,47 +254,13 @@ mkSIPCommit
      , Signable p (Commit p (SIP p))
      )
   => SKey p -> SIP p -> SIPCommit p
-mkSIPCommit skey sip = SIPCommit commit (author sip) sipCommitSignature
+mkSIPCommit skey sip =
+  assert (signatureVerifies sipc `orElseShow` "Created signature does not verify")
+         sipc
   where
+    sipc               = SIPCommit commit (author sip) sipCommitSignature
     commit             = calcCommit sip
     sipCommitSignature = sign commit skey
-
---------------------------------------------------------------------------------
--- HasTypeReps instances
---------------------------------------------------------------------------------
-
-deriving instance ( Typeable p
-                  , HasTypeReps p
-                  , HasTypeReps (SIP p)
-                  , HasTypeReps (SIPHash p)
-                  , HasTypeReps (SIPCommit p)
-                  , HasTypeReps (VoteForSIP p)
-                  ) => HasTypeReps (IdeationPayload p)
-
-deriving instance ( Typeable p
-                  , HasTypeReps (SIPHash p)
-                  , HasTypeReps (VKey p)
-                  ) => HasTypeReps (SIP p)
-
-deriving instance ( Typeable p
-                  , HasTypeReps p
-                  , HasTypeReps (Signature p (Commit p (SIP p)))
-                  , HasTypeReps (VKey p)
-                  ) => HasTypeReps (SIPCommit p)
-
-
-deriving instance ( Typeable p
-                  , HasTypeReps (SIPHash p)
-                  , HasTypeReps (VKey p)
-                  , HasTypeReps (Signature p (SIPHash p, Confidence, VKey p))
-                  ) => HasTypeReps (VoteForSIP p)
-
-deriving instance ( Typeable p
-                  , HasTypeReps (Hash p SIPData)
-                  ) => HasTypeReps (SIPHash p)
-
-instance (Typeable p, HasTypeReps (IdeationPayload p)) => Sized (IdeationPayload p) where
-  costsList ideationPayload = [(typeOf ideationPayload, 10)]
 
 --------------------------------------------------------------------------------
 -- ToCBOR instances
@@ -289,11 +275,6 @@ instance (SIPHasCBORRep p, ToCBOR (VKey p)) => ToCBOR (SIP p) where
     <> toCBOR sipAuthor
     <> toCBOR sipSalt
     <> toCBOR sipPayload
-
-instance (SIPHasCBORRep p) =>ToCBOR (SIPHash p) where
-  toCBOR (SIPHash sipHash)
-    =  encodeListLen 1
-    <> toCBOR sipHash
 
 instance ToCBOR SIPData where
   toCBOR SIPData { url, metadata }

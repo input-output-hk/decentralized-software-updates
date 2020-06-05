@@ -16,48 +16,36 @@ module Cardano.Ledger.Update.Interface
 where
 
 import           Data.Bifunctor (bimap)
-import           Data.Data (Data)
 import           GHC.Generics (Generic)
-
-import           Control.State.Transition (PredicateFailure (PredicateFailure),
-                     STS, TRC (TRC), applySTS)
-import qualified Control.State.Transition as Transition
-
 
 import           Ledger.Core (BlockCount, (*.), (+.))
 import qualified Ledger.Core as Core
 
+import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+                     (HasAdversarialStakeRatio, adversarialStakeRatio)
 import           Cardano.Ledger.Spec.Classes.Hashable (Hashable)
+import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
+                     (HasStakeDistribution, SIPExperts (SIPExperts),
+                     StakePools (StakePools),
+                     TechnicalExperts (TechnicalExperts), stakeDistribution)
+import           Cardano.Ledger.Spec.Classes.HasVotingPeriodsCap
+                     (HasVotingPeriodsCap, maxVotingPeriods)
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
                      currentSlot, epochFirstSlot, nextEpochFirstSlot,
                      stableAfter)
 import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime as SlotTime
-import           Cardano.Ledger.Spec.State.ActivationState (ActivationState)
-import qualified Cardano.Ledger.Spec.State.ActivationState as ActivationState
-import           Cardano.Ledger.Spec.State.ActiveSIPs (ActiveSIPs)
-import           Cardano.Ledger.Spec.State.ApprovedSIPs (ApprovedSIPs)
-import           Cardano.Ledger.Spec.State.Participants
-                     (Participants (Participants))
 import           Cardano.Ledger.Spec.State.ProposalState (VotingPeriod)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision)
-import           Cardano.Ledger.Spec.State.RevealedSIPs (RevealedSIPs)
-import           Cardano.Ledger.Spec.State.SIPsVoteResults (SIPsVoteResults)
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as STS.StakeDistribution
-import           Cardano.Ledger.Spec.State.SubmittedSIPs (SubmittedSIPs)
-import           Cardano.Ledger.Spec.State.WhenRevealedSIPs (WhenRevealedSIPs)
-import           Cardano.Ledger.Spec.State.WhenSubmittedSIPs (WhenSubmittedSIPs)
-import           Cardano.Ledger.Spec.STS.CanExtract (CanExtract, extractAll)
-import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
-import qualified Cardano.Ledger.Spec.STS.Update as Update
-import           Cardano.Ledger.Spec.STS.Update.Approval (APPROVAL)
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data
                      (ImplementationAndHash, ProtocolVersion)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
-import qualified Cardano.Ledger.Spec.STS.Update.Hupdate as Hupdate
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation as Ideation
-import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPBallot)
-import qualified Cardano.Ledger.Spec.STS.Update.Implementation as Implementation
+
+import qualified Cardano.Ledger.Update as Update
+-- TODO: we shouldn't need to import the modules below:
+import qualified Cardano.Ledger.Update.Approval as Approval
+import qualified Cardano.Ledger.Update.Ideation as Ideation
 
 import           Cardano.Ledger.Assert
 
@@ -74,25 +62,17 @@ data IState p =
   , iStateCurrentSlot :: !Core.Slot
   , iStateEpochFirstSlot :: !Core.Slot
   , iStateSlotsPerEpoch :: !Core.SlotCount
-  , iStateSubsips :: !(SubmittedSIPs p)
-  , iStateSipdb :: !(RevealedSIPs p)
-  , iStateBallot :: !(SIPBallot p)
   , iStateR_a :: !Float
-  , iStateWssips :: !(WhenSubmittedSIPs p)
-  , iStateWrsips :: !(WhenRevealedSIPs p)
-  , iStateAsips :: !(ActiveSIPs p)
-  , iStatevresips :: !(SIPsVoteResults p)
-  , iStateApprvsips :: !(ApprovedSIPs p)
-  , iStateApproval :: !(Transition.State (APPROVAL p))
-  , iStateActivation :: !(ActivationState p)
   , iStateStakepoolsDistribution :: !(StakeDistribution p)
+
+  , updateSt :: !(Update.State p)
   } deriving (Show)
 
 iStateProtocolVersion :: Hashable p => IState p -> ProtocolVersion
 iStateProtocolVersion = Approval.Data.version . iStateCurrentVersion
 
 iStateCurrentVersion :: IState p -> ImplementationAndHash p
-iStateCurrentVersion = ActivationState.currentVersion . iStateActivation
+iStateCurrentVersion = Update.getCurrentVersion . updateSt
 
 -- | At which slot is will the current slot (according to the given state)
 -- become stable.
@@ -117,10 +97,34 @@ instance TracksSlotTime (IState p) where
 
   epochFirstSlot = iStateEpochFirstSlot
 
+instance HasStakeDistribution SIPExperts (IState p) p where
+  stakeDistribution SIPExperts = iStateStakeDist
+
+-- | TODO: we need to introduce a stake distribution for experts in the
+-- environment. For now we're using the SIP experts stake distribution.
+instance HasStakeDistribution TechnicalExperts (IState p) p where
+  stakeDistribution TechnicalExperts = iStateStakeDist
+
+instance HasStakeDistribution StakePools (IState p) p where
+  stakeDistribution StakePools = iStateStakepoolsDistribution
+
+instance HasAdversarialStakeRatio (IState p) where
+  adversarialStakeRatio = iStateR_a
+
+instance HasVotingPeriodsCap (IState p) where
+  maxVotingPeriods = iStateMaxVotingPeriods
+
+instance Update.HasIdeationState (IState p) p where
+  getIdeationState = Update.getIdeationState . updateSt
+
+instance Update.HasActivationState (IState p) p where
+  getActivationState = Update.getActivationState . updateSt
+
+instance Update.HasApprovalState (IState p) p where
+  getApprovalState = Update.getApprovalState . updateSt
+
 slotTick
-  :: forall p
-   . STS (Hupdate.HUPDATE p)
-  => Core.Slot -> IState p -> Either (UIError p) (IState p)
+  :: Hashable p => Core.Slot -> IState p -> Either (UIError p) (IState p)
 slotTick slot iState
   -- TODO: with the addition of a @iStateEpochFirstSlot@ and
   -- @iStateSlotsPerEpoch@ we have to ensure we don't go back in time.
@@ -135,228 +139,52 @@ slotTick slot iState
 
 
 tickTill
-  :: forall p
-   . STS (Hupdate.HUPDATE p)
-  => Core.Slot -> IState p -> Either (UIError p) (IState p)
-tickTill desiredSlot iState
-  | iStateCurrentSlot iState == desiredSlot =
-      pure iState
-  | iStateCurrentSlot iState <  desiredSlot = do
-     st' <- bimap
-              HupdateError
-              (fromHupdateSt iState')
-               $ applySTS @(Hupdate.HUPDATE p) (TRC (env, st, nextSlot))
-     tickTill desiredSlot st'
+  :: Hashable p => Core.Slot -> IState p -> Either (UIError p) (IState p)
+tickTill desiredSlot st
+  | iStateCurrentSlot st == desiredSlot =
+      pure st
+  | iStateCurrentSlot st <  desiredSlot =
+      tickTill desiredSlot
+      $ modifyUpdateSt st'
+      $ Update.tick st' (updateSt st')
   | otherwise                               =
-    error "desired slot should be less or equal than the current slot"
+    error "target slot should be less or equal than the current slot"
   where
-    nextSlot = iStateCurrentSlot iState +. 1
-    iState'  = SlotTime.checkInvariants
-             $ iState { iStateCurrentSlot    = nextSlot
-                      , iStateEpochFirstSlot =
-                          if nextEpochFirstSlot iState <= nextSlot
-                          then nextEpochFirstSlot iState
-                          else epochFirstSlot iState
-                      }
-    env = projectToHupdateEnv iState'
-    st  = projecTotHupdateSt iState'
+    nextSlot = iStateCurrentSlot st +. 1
+    st'  = SlotTime.checkInvariants
+             $ st { iStateCurrentSlot    = nextSlot
+                  , iStateEpochFirstSlot =
+                      if nextEpochFirstSlot st <= nextSlot
+                      then nextEpochFirstSlot st
+                      else epochFirstSlot st
+                  }
+
 
 
 -- TODO: the payload parameter might be named 'payload' by the client, so we
 -- might as well omit 'Payload' from the function name.
 applyUpdatePayload
-  :: forall p
-  .  STS (Update.UPDATE p)
-  => UpdatePayload p -> IState p -> Either (UIError p) (IState p)
-applyUpdatePayload updatePayload iState =
-  bimap
-    UpdateError
-    (fromUpdateSt iState)
-    $ applySTS @(Update.UPDATE p) (TRC (env, st, updatePayload))
-  where
-    env = projectToUpdateEnv iState
-    st = projectToUpdateSt iState
+  :: ( Ideation.CanApply (IState p) p -- TODO: it'd be nice if we could only use
+                                      -- Update constraints, without looking two
+                                      -- levels down the hierarchy.
+     , Approval.CanApply (IState p) p
+     )
+   => Update.Payload p -> IState p -> Either (UIError p) (IState p)
+applyUpdatePayload payload st =
+  bimap ApplyError (modifyUpdateSt st) $ Update.apply st payload (updateSt st)
 
--- | Sum type used to aggregate errors of the header and body update interfaces.
+modifyUpdateSt :: IState p -> Update.State p -> IState p
+modifyUpdateSt st updateSt' = st { updateSt = updateSt' }
+
 data UIError p
-  = HupdateError [[PredicateFailure (Hupdate.HUPDATE p)]]
-  | UpdateError [[PredicateFailure (Update.UPDATE p)]]
+  = ApplyError { getUpdateError :: Update.Error p }
   deriving (Show)
 
-getUpdateErrors :: UIError p -> [[PredicateFailure (Update.UPDATE p)]]
-getUpdateErrors (HupdateError _)  = []
-getUpdateErrors (UpdateError ess) = ess
+instance Update.HasApprovalError (UIError p) p where
+  getApprovalError = Update.getApprovalError . getUpdateError
 
-deriving instance (Hashable p
-                  , Data p
-                  , Data (PredicateFailure (Hupdate.HUPDATE p))
-                  , Data (PredicateFailure (Update.UPDATE p))
-                  ) => Data (UIError p)
-
-instance CanExtract (UIError p) (PredicateFailure (APPROVAL p)) where
-  extractAll (UpdateError ess) = concatMap (concatMap extractAll) ess
-  extractAll _                 = []
-
-instance CanExtract (UIError p) (ActivationState.EndorsementError p) where
-  extractAll (UpdateError ess) = concatMap (concatMap extractAll) ess
-  extractAll _                 = []
-
-projectToHupdateEnv :: (IState p) -> Hupdate.Env p
-projectToHupdateEnv
-  IState { iStateK
-         , iStateStakeDist
-         , iStateSipdb
-         , iStateBallot
-         , iStateR_a
-         , iStateCurrentSlot
-         , iStateSlotsPerEpoch
-         , iStateEpochFirstSlot
-         , iStateStakepoolsDistribution
-         }
-  =
-  Hupdate.Env
-  { Hupdate.k = iStateK
-  , Hupdate.sipdb = iStateSipdb
-  , Hupdate.ballots = iStateBallot
-  , Hupdate.r_a = iStateR_a
-  , Hupdate.stakeDist = iStateStakeDist
-  , Hupdate.currentSlot = iStateCurrentSlot
-  , Hupdate.slotsPerEpoch = iStateSlotsPerEpoch
-  , Hupdate.epochFirstSlot = iStateEpochFirstSlot
-  , Hupdate.stakepoolsDistribution = iStateStakepoolsDistribution
-   -- TODO: for now we're not allowing re-voting.
-   --
-  , Hupdate.prvNoQuorum = 0
-  , Hupdate.prvNoMajority = 0
-  }
-
-projecTotHupdateSt :: IState p -> Hupdate.St p
-projecTotHupdateSt
-  IState
-  { iStateWrsips
-  , iStateAsips
-  , iStatevresips
-  , iStateApprvsips
-  , iStateApproval
-  , iStateActivation
-  }
-  =
-  Hupdate.St
-  { Hupdate.wrsips = iStateWrsips
-  , Hupdate.asips = iStateAsips
-  , Hupdate.vresips = iStatevresips
-  , Hupdate.apprvsips = iStateApprvsips
-  , Hupdate.approvalSt = iStateApproval
-  , Hupdate.activationSt = iStateActivation
-  }
-
-projectToUpdateEnv :: IState p -> Update.Env p
-projectToUpdateEnv
-  IState
-  { iStateK
-  , iStateMaxVotingPeriods
-  , iStateCurrentSlot
-  , iStateAsips
-  , iStateStakeDist
-  , iStateApprvsips
-  , iStateSlotsPerEpoch
-  , iStateEpochFirstSlot
-  }
-  =
-  Update.Env
-  { Update.k = iStateK
-  , Update.maxVotingPeriods = iStateMaxVotingPeriods
-  , Update.currentSlot = iStateCurrentSlot
-  , Update.asips = iStateAsips
-  , Update.participants = Participants [] -- TODO: The participants should be removed from the STS state.
-  , Update.stakeDist = iStateStakeDist
-  , Update.apprvsips = iStateApprvsips
-  , Update.slotsPerEpoch = iStateSlotsPerEpoch
-  , Update.epochFirstSlot = iStateEpochFirstSlot
-  }
-
-projectToUpdateSt :: IState p -> Update.St p
-projectToUpdateSt
-  IState
-  { iStateSubsips
-  , iStateWssips
-  , iStateWrsips
-  , iStateSipdb
-  , iStateBallot
-  , iStateApproval
-  , iStateActivation
-  }
-  =
-  Update.St
-  { Update.subsips = iStateSubsips
-  , Update.wssips = iStateWssips
-  , Update.wrsips = iStateWrsips
-  , Update.sipdb = iStateSipdb
-  , Update.ballots = iStateBallot
-  , Update.implementationSt = Implementation.St ()
-  , Update.approvalSt = iStateApproval
-  , Update.activationSt = iStateActivation
-  }
-
-projectToIdeationSt :: IState p -> Ideation.St p
-projectToIdeationSt
-  IState
-  { iStateSubsips
-  , iStateWssips
-  , iStateWrsips
-  , iStateSipdb
-  , iStateBallot
-  }
-  =
-  Ideation.St
-    { Ideation.subsips = iStateSubsips
-    , Ideation.wssips  = iStateWssips
-    , Ideation.wrsips  = iStateWrsips
-    , Ideation.sipdb   = iStateSipdb
-    , Ideation.ballots = iStateBallot
-    }
-
---  TODO: we should remove the need for this projection. We don't want to copy
---  state back and forth unnecessarily.
-projectToIdeationEnv :: IState p -> Ideation.Env p
-projectToIdeationEnv
-  IState
-  { iStateK
-  , iStateCurrentSlot
-  , iStateAsips
-  , iStateStakeDist
-  }
-  =
-  Ideation.Env
-  { Ideation.k            = iStateK
-  , Ideation.currentSlot  = iStateCurrentSlot
-  , Ideation.asips        = iStateAsips
-  , Ideation.participants = Participants [] -- TODO: The participants should be removed from the STS state.
-  , Ideation.stakeDist    = iStateStakeDist
-  }
-
-fromHupdateSt :: IState p -> Hupdate.St p -> IState p
-fromHupdateSt iState hState =
-  iState
-  { iStateWrsips = Hupdate.wrsips hState
-  , iStateAsips = Hupdate.asips hState
-  , iStatevresips = Hupdate.vresips hState
-  , iStateApprvsips = Hupdate.apprvsips hState
-  , iStateApproval = Hupdate.approvalSt hState
-  , iStateActivation = Hupdate.activationSt hState
-  }
-
-fromUpdateSt :: IState p -> Update.St p -> IState p
-fromUpdateSt iState uState =
-  iState
-  { iStateSubsips = Update.subsips uState
-  , iStateWssips = Update.wssips uState
-  , iStateWrsips = Update.wrsips uState
-  , iStateSipdb = Update.sipdb uState
-  , iStateBallot = Update.ballots uState
-  , iStateApproval = Update.approvalSt uState
-  , iStateActivation = Update.activationSt uState
-  }
+instance Update.HasActivationError (UIError p) p where
+  getActivationError = Update.getActivationError . getUpdateError
 
 --------------------------------------------------------------------------------
 -- Update state
