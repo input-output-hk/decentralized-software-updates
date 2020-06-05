@@ -19,26 +19,20 @@ module Cardano.Ledger.Spec.STS.Update.Data where
 
 import           Cardano.Prelude (NoUnexpectedThunks)
 
-import qualified Data.Sequence as Seq
 import           Data.Text (Text)
-import qualified Data.Text as T
-import           Data.Typeable (typeOf)
 import           Data.Word (Word64, Word8)
 import           GHC.Generics (Generic)
 import           System.Random (Random)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeInt)
 
-import           Data.AbstractSize (HasTypeReps, typeReps)
-
-import           Cardano.Ledger.Spec.STS.Sized (Sized, costsList)
 
 data ImplementationPayload = ImplementationPayload
-  deriving (Eq, Show, Generic, HasTypeReps, NoUnexpectedThunks)
+  deriving (Eq, Show, Generic, NoUnexpectedThunks)
 
 -- | Vote Confidence with a 3-valued logic
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Enum, Generic, HasTypeReps, NoUnexpectedThunks)
+  deriving (Eq, Ord, Show, Enum, Generic, NoUnexpectedThunks)
 
 -- | Records the voting result for a specific software update (SIP/UP)
 data VotingResult =
@@ -95,24 +89,6 @@ newtype URL = URL { getText :: Text }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (ToCBOR)
   deriving anyclass (NoUnexpectedThunks)
-
---------------------------------------------------------------------------------
--- HasTypeReps instances
---------------------------------------------------------------------------------
-
--- | This instance returns one 'Char' per-each character in the URL.
-instance HasTypeReps URL where
-  typeReps (URL text)
-    = Seq.fromList
-    $ typeOf (undefined :: URL)
-      : replicate (T.length text) (typeOf (undefined :: Char))
-
---------------------------------------------------------------------------------
--- Sized instances
---------------------------------------------------------------------------------
-
-instance Sized ImplementationPayload where
-  costsList implementationPayload = [(typeOf implementationPayload, 10)]
 
 --------------------------------------------------------------------------------
 -- ToCBOR instances

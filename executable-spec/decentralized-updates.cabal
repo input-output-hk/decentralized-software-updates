@@ -26,46 +26,33 @@ flag pretty
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Cardano.Ledger.Spec.Classes.Indexed
+  exposed-modules:     Cardano.Ledger.Update
+                     , Cardano.Ledger.Update.Ideation
+                     , Cardano.Ledger.Update.Approval
+                     , Cardano.Ledger.Update.Activation
+
                      , Cardano.Ledger.Spec.Classes.Hashable
                      , Cardano.Ledger.Spec.Classes.HasAuthor
                      , Cardano.Ledger.Spec.Classes.HasSalt
                      , Cardano.Ledger.Spec.Classes.HasSigningScheme
-                     , Cardano.Ledger.Spec.Classes.Sizeable
-                     , Cardano.Ledger.Spec.State.ActivationState
-                     , Cardano.Ledger.Spec.State.ActiveSIPs
-                     , Cardano.Ledger.Spec.State.ApprovedSIPs
-                     , Cardano.Ledger.Spec.State.Ballot
-                     , Cardano.Ledger.Spec.State.Participants
-                     , Cardano.Ledger.Spec.State.ProposalState
-                     , Cardano.Ledger.Spec.State.ProposalsState
-                     , Cardano.Ledger.Spec.State.RevealedSIPs
-                     , Cardano.Ledger.Spec.State.SIPsVoteResults
-                     , Cardano.Ledger.Spec.State.StakeDistribution
-                     , Cardano.Ledger.Spec.State.SubmittedSIPs
-                     , Cardano.Ledger.Spec.State.WhenActive
-                     , Cardano.Ledger.Spec.State.WhenEnded
-                     , Cardano.Ledger.Spec.State.WhenRevealedSIPs
-                     , Cardano.Ledger.Spec.State.WhenStable
-                     , Cardano.Ledger.Spec.State.WhenSubmittedSIPs
-                     , Cardano.Ledger.Spec.STS.Sized
-                     , Cardano.Ledger.Spec.STS.Update
-                     , Cardano.Ledger.Spec.STS.Update.Approval
-                     , Cardano.Ledger.Spec.STS.Update.Approval.Data
-                     , Cardano.Ledger.Spec.STS.Update.Hupdate
-                     , Cardano.Ledger.Spec.STS.Update.Tallysip
-                     , Cardano.Ledger.Spec.STS.Update.TallyImplVotes
-                     , Cardano.Ledger.Spec.STS.Update.Data
-                     , Cardano.Ledger.Spec.STS.Update.Data.Commit
-                     , Cardano.Ledger.Spec.STS.Update.Ideation
-                     , Cardano.Ledger.Spec.STS.Update.Ideation.Data
-                     , Cardano.Ledger.Spec.STS.Update.Implementation
-                     , Cardano.Ledger.Spec.STS.Update.Definitions
                      , Cardano.Ledger.Spec.Classes.TracksSlotTime
                      , Cardano.Ledger.Spec.Classes.HasStakeDistribution
                      , Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
-                     , Cardano.Ledger.Spec.STS.CanExtract
-                     -- Non-update specific modules. Can be extracted to a library if needed somewhere else.
+                     , Cardano.Ledger.Spec.Classes.HasVotingPeriodsCap
+
+                     , Cardano.Ledger.Spec.State.StakeDistribution
+
+                     , Cardano.Ledger.Spec.State.ProposalState
+                     , Cardano.Ledger.Spec.State.ProposalsState
+
+                     , Cardano.Ledger.Spec.STS.Update.Approval.Data
+                     , Cardano.Ledger.Spec.STS.Update.Data
+                     , Cardano.Ledger.Spec.STS.Update.Data.Commit
+                     , Cardano.Ledger.Spec.STS.Update.Ideation.Data
+                     , Cardano.Ledger.Spec.STS.Update.Definitions
+
+                     -- Non-update specific modules. Can be extracted to a
+                     -- library if needed somewhere else.
                      , Cardano.Ledger.Assert
                      , Cardano.Ledger.Debug
   build-depends:       base >=4.11 && <5

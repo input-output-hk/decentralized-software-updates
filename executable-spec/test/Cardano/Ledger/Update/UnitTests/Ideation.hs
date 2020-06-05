@@ -9,7 +9,6 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey)
 import           Cardano.Ledger.Spec.State.ProposalState
                      (getVotingPeriodDuration)
 import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved))
-import qualified Cardano.Ledger.Spec.STS.Update as Update
 import           Cardano.Ledger.Spec.STS.Update.Data (Confidence (For))
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
 
@@ -19,6 +18,8 @@ import           Cardano.Ledger.Update.Interface
 import           Cardano.Ledger.Update.TestCase
 import           Cardano.Ledger.Update.UnitTests.Common
 import           Cardano.Ledger.UpdateSpec
+
+import qualified Cardano.Ledger.Update as Update
 
 
 runTests :: [TestTree]

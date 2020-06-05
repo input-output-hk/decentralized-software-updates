@@ -6,9 +6,12 @@
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Ledger.Spec.STS.Update.Approval.Data where
 
@@ -19,14 +22,14 @@ import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR (toCBOR), encodeListLen, encodeWord)
 
-import           Data.AbstractSize (HasTypeReps)
-
+import           Cardano.Ledger.Assert (assert, orElseShow)
 import           Cardano.Ledger.Spec.Classes.HasAuthor (HasAuthor, author)
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable)
 import           Cardano.Ledger.Spec.Classes.HasSalt (HasSalt, salt)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
-                     SKey, Signable, Signature, VKey, sign)
-import           Cardano.Ledger.Spec.State.Ballot (Ballot)
+                     SKey, Signable, Signature, Signed, SignedPayload, VKey,
+                     payloadSignature, sign, signatureVerifies, signedBy,
+                     signedPayload)
 import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState)
 import           Cardano.Ledger.Spec.State.ProposalState (HasVotingPeriod,
                      IsVote, getConfidence, getVoter, getVotingPeriodDuration)
@@ -35,8 +38,6 @@ import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit, calcCommit)
 import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPData, SIPHash)
 import           Ledger.Core (SlotCount)
 
-
-type ImplBallot p = Ballot p (Hash p (ImplementationData p))
 
 type IPSSt p = ProposalsState p (ImplementationData p)
 
@@ -50,11 +51,6 @@ data Payload p
   | Vote (ImplVote p)
   deriving (Generic, Typeable)
 
-type SignedVoteData p = ( Hash p (ImplementationData p)
-                        , Confidence
-                        , VKey p
-                        )
-
 data Submission p =
   Submission
   { commit  :: !(Commit p (Implementation p))
@@ -64,6 +60,19 @@ data Submission p =
   deriving (Generic, Typeable)
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (Submission p)
+
+instance ( HasSigningScheme p
+         , Signable p (SignedPayload (Submission p))
+         ) => Signed p (Submission p) where
+
+  type SignedPayload (Submission p) =
+    Commit p (Implementation p)
+
+  signedPayload = commit
+
+  signedBy = sAuthor
+
+  payloadSignature = sig
 
 mkSubmission
   :: ( Hashable p
@@ -77,12 +86,15 @@ mkSubmission
   -> Implementation p
   -> Submission p
 mkSubmission submitterSKey implementation =
-  Submission
-  { commit  = commit'
-  , sAuthor = implAuthor implementation
-  , sig     = sign commit' submitterSKey
-  }
+  assert (signatureVerifies submission `orElseShow` "Created signature does not verify")
+         submission
   where
+    submission =
+      Submission
+      { commit  = commit'
+      , sAuthor = implAuthor implementation
+      , sig     = sign commit' submitterSKey
+      }
     commit' = calcCommit implementation
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (Payload p)
@@ -193,11 +205,11 @@ data ProtocolUpdateType
     { spuURL  :: !URL
     , spuHash :: !ImplHash
     }
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | TODO: we need to define how to describe this
 data ParametersUpdate = ParametersUpdate
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | Get the protocol version that the implementation supersedes.
 --
@@ -227,7 +239,7 @@ data ProtocolVersion =
   { major :: !Word16
   , minor :: !Word16
   }
-  deriving (Eq, Ord, Show, Generic, HasTypeReps)
+  deriving (Eq, Ord, Show, Generic)
 
 addMajor :: ProtocolVersion -> Word16 -> ProtocolVersion
 addMajor pv@ProtocolVersion{ major } inc = pv { major = major + inc }
@@ -256,6 +268,11 @@ data ImplVote p =
     }
   deriving (Generic, Typeable)
 
+type SignedVoteData p = ( Hash p (ImplementationData p)
+                        , Confidence
+                        , VKey p
+                        )
+
 mkImplVote
   :: ( HasSigningScheme p
      , Signable p (Hash p (ImplementationData p), Confidence, VKey p)
@@ -266,12 +283,16 @@ mkImplVote
   -> Hash p (ImplementationData p)
   -> ImplVote p
 mkImplVote voterSKey voterVKey confidence' implDataHash =
-  ImplVote
-  { vImplHash  = implDataHash
-  , confidence = confidence'
-  , vAuthor    = voterVKey
-  , vSig       = sign (implDataHash, confidence', voterVKey) voterSKey
-  }
+  assert (signatureVerifies vote `orElseShow` "Created signature does not verify")
+         vote
+  where
+    vote =
+      ImplVote
+      { vImplHash  = implDataHash
+      , confidence = confidence'
+      , vAuthor    = voterVKey
+      , vSig       = sign (implDataHash, confidence', voterVKey) voterSKey
+      }
 
 deriving instance (Hashable p, HasSigningScheme p) => Show (ImplVote p)
 
@@ -280,52 +301,21 @@ instance IsVote p (ImplVote p) where
 
   getConfidence = confidence
 
---------------------------------------------------------------------------------
--- HasTypeReps instances
---------------------------------------------------------------------------------
+instance ( HasSigningScheme p
+         , Signable p (SignedPayload (ImplVote p))
+         ) => Signed p (ImplVote p) where
 
-deriving instance
-  ( Typeable p
-  , HasTypeReps p
-  , HasTypeReps (Submission p)
-  , HasTypeReps (Implementation p)
-  , HasTypeReps (ImplVote p)
-  ) => HasTypeReps (Payload p)
+  type SignedPayload (ImplVote p) = ( Hash p (ImplementationData p)
+                                    , Confidence
+                                    , VKey p
+                                    )
 
-deriving instance
-  ( Typeable p
-  , HasTypeReps p
-  , HasTypeReps (VKey p)
-  , HasTypeReps (Signature p (Commit p (Implementation p)))
-  ) => HasTypeReps (Submission p)
+  signedPayload  ImplVote { vImplHash, confidence, vAuthor } =
+    (vImplHash, confidence, vAuthor)
 
+  signedBy ImplVote { vAuthor } = vAuthor
 
-deriving instance ( Typeable p
-         , HasTypeReps (VKey p)
-         , HasTypeReps (ImplementationData p)
-         ) => HasTypeReps (Implementation p)
-
-deriving instance ( Typeable p
-         , HasTypeReps (Hash p SIPData)
-         , HasTypeReps (UpdateType p)
-         ) => HasTypeReps (ImplementationData p)
-
-deriving instance
-  ( Typeable p
-  , HasTypeReps (ImplementationData p)
-  , HasTypeReps (Hash p (ImplementationData p))
-  ) => HasTypeReps (ImplementationAndHash p)
-
-deriving instance ( Typeable p
-         , HasTypeReps (Hash p (ImplementationData p))
-         , HasTypeReps (ImplementationAndHash p)
-         ) => HasTypeReps (UpdateType p)
-
-deriving instance ( Typeable p
-         , HasTypeReps (VKey p)
-         , HasTypeReps (Hash p (ImplementationData p))
-         , HasTypeReps (Signature p (SignedVoteData p))
-         ) => HasTypeReps (ImplVote p)
+  payloadSignature ImplVote { vSig } = vSig
 
 --------------------------------------------------------------------------------
 -- ToCBOR instances

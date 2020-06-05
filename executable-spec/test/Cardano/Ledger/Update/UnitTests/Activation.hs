@@ -17,9 +17,10 @@ import           Test.Tasty (TestTree)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (Hash, hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
-import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
-import           Cardano.Ledger.Spec.STS.CanExtract (extract)
-import qualified Cardano.Ledger.Spec.STS.Update as Update
+
+import qualified Cardano.Ledger.Update as Update
+import qualified Cardano.Ledger.Update.Activation as Activation
+
 
 import           Cardano.Ledger.Mock (Mock, vkeyFromSkey)
 import           Cardano.Ledger.UpdateSpec
@@ -170,7 +171,7 @@ queuedProposal = do
   -- Bear in mind that approving an implementation causes time to pass, and
   -- therefore it might cause a candidate proposal to be expired (depending on
   -- the values of parameters such as the stability-window and number of slots
-  -- per-epcoh)..
+  -- per-epoch)..
   tickTillStable
   stateOf update1 `shouldBe` Queued
 
@@ -200,10 +201,9 @@ expiredCandidate = do
   approveImplementation update
   tickTillStable
   stateOf update `shouldBe` BeingEndorsed
-  let err = error "The update should be a candidate"
-  endOfSafetyLag <- gets ( fromMaybe err
-                         . Activation.candidateEndOfSafetyLag
-                         . iStateActivation)
+  endOfSafetyLag <- gets ( fromMaybe (error "The update should be a candidate")
+                         . Update.candidateEndOfSafetyLag
+                         )
   tickTill endOfSafetyLag
   stateOf update `shouldBe` ActivationExpired
 
@@ -211,10 +211,8 @@ nonCandidateEndorsement :: TestCase
 nonCandidateEndorsement = do
   update <- mkUpdate 0 IncreaseMajor
   (endorseTillApproval update)
-    `throwsErrorWhere` ( extract @(UIError Mock)
-                                 @(Activation.EndorsementError Mock)
-                                 Activation.endorsedVersionError
-                        >>> (== [protocolVersion update])
+    `throwsErrorWhere` ( Update.endorsedVersionError
+                        >>> (== Just (protocolVersion update))
                        )
 
 --------------------------------------------------------------------------------

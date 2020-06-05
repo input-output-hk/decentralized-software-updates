@@ -42,10 +42,19 @@ import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
                      SKey, Signable, Signature, VKey, sign, verify)
 import           Ledger.Core (BlockCount, Slot, SlotCount, (*.), (+.))
 
+import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+                     (HasAdversarialStakeRatio)
+import qualified Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
+import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
+                     (HasStakeDistribution,
+                     TechnicalExperts (TechnicalExperts))
+import qualified Cardano.Ledger.Spec.Classes.HasStakeDistribution
+import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime)
+import qualified Cardano.Ledger.Spec.Classes.TracksSlotTime
 import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState,
-                     decision, revealProposal, tally, updateBallot')
+                     decision, reveal, tally, updateBallot')
 import           Cardano.Ledger.Spec.State.ProposalState (Decision,
                      HasVotingPeriod, IsVote, VotingPeriod (VotingPeriod),
                      getConfidence, getVoter, getVotingPeriodDuration)
@@ -122,11 +131,11 @@ revealProposals
   -> TallyData BenchCrypto Proposal
   -> ProposalsState BenchCrypto Proposal
 revealProposals BenchmarkConstants { revelationSlot } TallyData { proposals } =
-  foldl' reveal mempty proposals
+  foldl' revealProposal mempty proposals
   where
    -- For the purposes of benchmarking the tally process we only need a single
    -- voting period.
-    reveal st i = revealProposal revelationSlot (VotingPeriod 1) i st
+    revealProposal st i = reveal revelationSlot (VotingPeriod 1) i st
 
 -- | Vote on all the proposals in the state.
 voteOnProposals
@@ -152,16 +161,48 @@ runTally
   (TallyData { stakeDist, proposalHashes }, proposalsState)
   = fmap (`decision` proposalsStateAfterTally) proposalHashes
   where
-    proposalsStateAfterTally = tally k stableAt stakeDist r_a proposalsState
+    proposalsStateAfterTally = tally env TechnicalExperts proposalsState
       where
+        env = TallyEnv
+              { envK = k
+              , envCurrentSlot = currentSlot
+              , envStakeDist = stakeDist
+              , envAdversarialStakeRatio = r_a
+              }
+        -- The current slot should be set to a value that causes tally to take
+        -- place without the voting period to become expired.
+        --
         -- Here we're assuming a vote period duration of 1, as defined in the
         -- 'HasVotingPeriod' instance of 'Vote'.
-        stableAt = revelationSlot
-                 +. 2 *. k                         -- Revelation is stable
-                 +. benchmarksVotingPeriodDuration -- Voting period ended
-                 +. 2 *. k                         -- End of the voting period
-                                                   -- is stable: tally can take
-                                                   -- place.
+        currentSlot = revelationSlot
+                    +. 2 *. k                         -- Revelation is stable
+                    +. benchmarksVotingPeriodDuration -- Voting period ended
+                    +. 2 *. k                         -- End of the voting
+                                                      -- period is stable: tally
+                                                      -- can take place.
+
+data TallyEnv =
+  TallyEnv
+  { envK :: BlockCount
+  , envCurrentSlot :: Slot
+  , envStakeDist :: StakeDistribution BenchCrypto
+  , envAdversarialStakeRatio :: Float
+  }
+
+instance TracksSlotTime TallyEnv where
+  stableAfter = (2 *. ) . envK
+
+  currentSlot = envCurrentSlot
+
+  slotsPerEpoch = error "Benchmarks should not use this"
+
+  epochFirstSlot = error "Benchmarks should not use this"
+
+instance HasStakeDistribution TechnicalExperts TallyEnv BenchCrypto where
+  stakeDistribution TechnicalExperts = envStakeDist
+
+instance HasAdversarialStakeRatio TallyEnv where
+  adversarialStakeRatio = envAdversarialStakeRatio
 
 newtype NumberOfParticipants = NumberOfParticipants Word
 

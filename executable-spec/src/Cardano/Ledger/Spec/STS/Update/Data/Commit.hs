@@ -12,7 +12,6 @@ import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 
 import           Cardano.Binary (ToCBOR)
-import           Data.AbstractSize (HasTypeReps, typeReps)
 
 import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
                      hash)
@@ -41,12 +40,6 @@ calcCommit
      )
   => d -> Commit p d
 calcCommit d = Commit $ hash (salt d, author d, hash d)
-
--- | A commit is basically wrapping the hash of some salt, owner verification
--- key, and SIP. The size of the hash is determined by the type of hash
--- algorithm
-instance HasTypeReps p => HasTypeReps (Commit p d) where
-  typeReps _ = typeReps (undefined :: p)
 
 deriving newtype instance ( Typeable p
                           , Typeable d

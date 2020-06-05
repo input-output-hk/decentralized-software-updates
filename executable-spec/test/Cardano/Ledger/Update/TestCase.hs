@@ -4,6 +4,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-} -- TODO: temporary
+
+
 module Cardano.Ledger.Update.TestCase where
 
 import           Control.Arrow (first, left, (&&&))
@@ -18,10 +24,8 @@ import           Ledger.Core (BlockCount, Slot (Slot))
 
 import           Cardano.Ledger.Spec.Classes.Hashable (hash)
 import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey)
-import qualified Cardano.Ledger.Spec.State.ActivationState as Activation
 import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Spec.State.StakeDistribution as StakeDistribution
-import           Cardano.Ledger.Spec.STS.Update (UpdatePayload)
 import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Data as Update.Data
 import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
@@ -31,6 +35,13 @@ import           Cardano.Ledger.Update.Interface
 
 import qualified Util.TestCase as TestCase
 
+import qualified Cardano.Ledger.Update as Update
+import qualified Cardano.Ledger.Update.Approval as Approval
+import qualified Cardano.Ledger.Update.Ideation as Ideation
+
+-- TODO: bundle the constraints somewhere else. Do not break abstraction like this.
+instance Ideation.CanApply (IState Mock) Mock
+instance Approval.CanApply (IState Mock) Mock
 
 -- | A test case carries an read only test-environment, and modifies the
 -- interface state as it performs the test case step. A test case can exit with
@@ -47,11 +58,11 @@ with :: TestCaseEnv -> [(String, TestCase)] -> [TestTree]
 with initialEnv = TestCase.with initialEnv (mkIState initialEnv)
 
 apply
-  :: UpdatePayload Mock
+  :: Update.Payload Mock
   -> TestCase
 apply payload = do
   st  <- get
-  st' <- liftEither $ left (`STSError` st) $ applyUpdatePayload payload st
+  st' <- liftEither $ left (`UpdateError` st) $ applyUpdatePayload payload st
   put st'
 
 --------------------------------------------------------------------------------
@@ -101,18 +112,10 @@ mkIState TestCaseEnv { tcK, tcAdversarialStakeRatio, tcSIPExperts, tcStakePools 
     , iStateCurrentSlot            = currentSlot
     , iStateEpochFirstSlot         = currentSlot
     , iStateSlotsPerEpoch          = 10
-    , iStateSubsips                = mempty
-    , iStateSipdb                  = mempty
-    , iStateBallot                 = mempty
     , iStateR_a                    = tcAdversarialStakeRatio
-    , iStateWssips                 = mempty
-    , iStateWrsips                 = mempty
-    , iStateAsips                  = mempty
-    , iStatevresips                = mempty
-    , iStateApprvsips              = mempty
-    , iStateApproval               = mempty
-    , iStateActivation             =
-        Activation.initialState  (hash genesisImplData) genesisImplData
+
+    , updateSt             =
+        Update.initialState  (hash genesisImplData) genesisImplData
     , iStateStakepoolsDistribution = elaborateStakeDist tcStakePools
     }
     where
@@ -133,7 +136,7 @@ mkIState TestCaseEnv { tcK, tcAdversarialStakeRatio, tcSIPExperts, tcStakePools 
 
       genesisImplData =
         Approval.Data.ImplementationData
-        { Approval.Data.implDataSIPHash = Ideation.Data.SIPHash $ hash genesisSIPData
+        { Approval.Data.implDataSIPHash = hash genesisSIPData
         , Approval.Data.implDataVPD     = 0
         , Approval.Data.implType        =
             Approval.Data.genesisUpdateType genesisImplURL genesisImplHash
@@ -179,8 +182,8 @@ data TestError
   | CannotFastForwardTo UpdateState
   -- ^ It is not possible to fast-forward to the current state (the current
   -- state was not found in the lifecycle).
-  | STSError (UIError Mock) (IState Mock)
-  | UnexpectedSTSError TestError
+  | UpdateError (UIError Mock) (IState Mock)
+  | UnexpectedUpdateError TestError
   -- ^ A test case can declare certain errors to be expected. This error can be
   -- thrown when an unexpected error occurs.
   | UnexpectedSuccess
@@ -211,8 +214,8 @@ throwsErrorWhere :: TestAction a -> (UIError Mock -> Bool) -> TestAction ()
 throwsErrorWhere act checkUIError = do
   TestCase.throwsError act checkTestError UnexpectedSuccess
   where
-    checkTestError err@(STSError e _) =
+    checkTestError err@(UpdateError e _) =
       unless (checkUIError e) $
-        throwError $ UnexpectedSTSError err
+        throwError $ UnexpectedUpdateError err
     checkTestError err             =
-      throwError $ UnexpectedSTSError err
+      throwError $ UnexpectedUpdateError err

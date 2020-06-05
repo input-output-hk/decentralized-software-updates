@@ -1,13 +1,16 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Ledger.Spec.State.ActivationState
-  ( ActivationState
+module Cardano.Ledger.Update.Activation
+  ( State
     -- * Interface functions
   , initialState
   , tick
@@ -16,11 +19,14 @@ module Cardano.Ledger.Spec.State.ActivationState
     -- ** Endorsement construction
   , Endorsement (Endorsement)
     -- ** Error reporting
-  , EndorsementError
+  , Error
+  , HasActivationError (getActivationError)
   , endorsementErrorGivenProtocolVersion
   , endorsementErrorEndorsedProposal
   , endorsedVersionError
     -- * Update state query operations
+  , HasActivationState (getActivationState)
+  , getCurrentVersion
   , currentVersion
   , isQueued
   , isBeingEndorsed
@@ -39,10 +45,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
 import           Data.Set (Set)
 import qualified Data.Set as Set
-import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
-
-import           Data.AbstractSize (HasTypeReps)
 
 import           Ledger.Core (Slot, addSlot, minusSlot)
 
@@ -56,8 +59,6 @@ import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
 import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
                      currentSlot, epochFirstSlot, nextEpochFirstSlot,
                      slotsPerEpoch, stableAfter)
-import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState,
-                     removeApproved)
 import           Cardano.Ledger.Spec.State.StakeDistribution (stakeOfKeys')
 import           Cardano.Ledger.Spec.STS.Update.Approval.Data
                      (ImplementationAndHash (ImplementationAndHash),
@@ -68,6 +69,8 @@ import           Cardano.Ledger.Spec.STS.Update.Approval.Data
                      toCancel, version)
 import           Cardano.Ledger.Spec.STS.Update.Data (Stake)
 import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold)
+
+import qualified Cardano.Ledger.Update.Approval as Approval
 
 import           Cardano.Ledger.Assert
 
@@ -91,8 +94,8 @@ import           Cardano.Ledger.Assert
 -- 7. All the proposals in the queue have a version higher than the potential
 -- endorsed version.
 --
-data ActivationState p =
-  ActivationState
+data State p =
+  State
   { endorsedProposal   :: !(MaybeAnEndorsedProposal p)
   , currentVersion     :: !(ImplementationAndHash p)
   , activationQueue    :: !(Map ProtocolVersion (ImplementationAndHash p))
@@ -112,6 +115,10 @@ data ActivationState p =
     -- ^ We require that the 'tick' function is applied without skipping any
     -- slot. Therefore we record the last applied slot to check this
     -- pre-condition in 'tick'.
+    --
+    -- TODO: we might want to move last applied slot and invariant checking to
+    -- the update interface state. Otherwise we'll have to replicate this in all
+    -- the three phases (in which we can't miss a slot tick).
 
   , discarded          :: !(Map (ImplementationAndHash p) Reason)
     -- TODO: the stakepoolsDistribution snapshot should probably go here.
@@ -130,13 +137,13 @@ data Reason
   -- ^ If the version that the implementation supersedes can never be adopted.
   deriving (Eq, Show, Generic)
 
--- | Check 'ActivationState' invariants. Note that invariants 0 and 1 are
+-- | Check 'State' invariants. Note that invariants 0 and 1 are
 -- satisfied by construction.
 --
 checkInvariants
   :: Hashable p
-  => ActivationState p
-  -> ActivationState p
+  => State p
+  -> State p
 checkInvariants st = assert checks st
   where
     checks = do
@@ -154,43 +161,6 @@ checkInvariants st = assert checks st
       --
       -- Versions are adopted in the first slot of a new epoch.
       lastAppliedSlot st ?<=?! candidateEndOfSafetyLag st
-
-endorsedImplementation :: ActivationState p -> Maybe (ImplementationAndHash p)
-endorsedImplementation st =
-  case endorsedProposal st of
-    Candidate { cImplementation } -> Just cImplementation
-    Scheduled { sImplementation } -> Just sImplementation
-    _                             -> Nothing
-
-candidateEndOfSafetyLag :: ActivationState p -> Maybe Slot
-candidateEndOfSafetyLag st =
-  case endorsedProposal st of
-    Candidate { cEndOfSafetyLag } -> Just cEndOfSafetyLag
-    _                             -> Nothing
-
-scheduledImplementation :: ActivationState p -> Maybe (ImplementationAndHash p)
-scheduledImplementation st =
-  case endorsedProposal st of
-    Scheduled { sImplementation } -> Just sImplementation
-    _                             -> Nothing
-
-endorsedProtocolVersion :: Hashable p => ActivationState p -> Maybe ProtocolVersion
-endorsedProtocolVersion =
-  fmap (implementationVersion . implData) . endorsedImplementation
-
-endorsedImplementationHash :: ActivationState p -> Maybe (Hash p (ImplementationData p))
-endorsedImplementationHash =
-    fmap implHash . endorsedImplementation
-
-endorsedSupersedes :: Hashable p => ActivationState p -> Maybe ProtocolVersion
-endorsedSupersedes =
-  fmap (implementationSupersedes . implData) . endorsedImplementation
-
-currentProtocolVersion :: Hashable p => ActivationState p -> ProtocolVersion
-currentProtocolVersion = implementationVersion . implData  . currentVersion
-
-scheduledImplementationHash :: ActivationState p -> Maybe (Hash p (ImplementationData p))
-scheduledImplementationHash = fmap implHash . scheduledImplementation
 
 -- | Proposal (if any) in the endorsement period.
 data MaybeAnEndorsedProposal p
@@ -283,10 +253,10 @@ initialState
   => Hash p (ImplementationData p)
   -> ImplementationData p
   -- ^ Initial implementation. This determines the current version.
-  -> ActivationState p
+  -> State p
 initialState initialHash initialImplData
   = checkInvariants
-  $ ActivationState
+  $ State
     { activationQueue    = mempty
     , endorsedProposal   = NoProposal
     , currentVersion     = initialImplAndHash
@@ -332,8 +302,8 @@ tick
      , HasAdversarialStakeRatio e
      )
   => e
-  -> ActivationState p
-  -> ActivationState p
+  -> State p
+  -> State p
 tick env st
   = checkPreCondition st
   & tryTransferEndorsements
@@ -460,28 +430,28 @@ transferApprovals
      , TracksSlotTime e
      )
   => e
-  -> ProposalsState p (ImplementationData p)
-  -> ActivationState p
-  -> (ProposalsState p (ImplementationData p), ActivationState p)
-transferApprovals env pstate astate = (pstate', astate')
+  -> Approval.State p
+  -> State p
+  -> (Approval.State p, State p)
+transferApprovals env approvalSt st = (approvalSt', st')
   where
-    (approved, pstate') = removeApproved pstate
+    (approved, approvalSt') = Approval.removeApproved approvalSt
     -- Cancellations are applied at the end, in case a proposal gets approved
     -- and canceled in the same slot. This shouldn't happen in practice, since
     -- the experts should decide on one or the other instead of a approving the
     -- update and its cancellation at the same time.
-    astate'             = foldl dispatch astate approved
-                        & checkInvariants
+    st'                     = foldl dispatch st approved
+                            & checkInvariants
 
     -- TODO: Cancel the proposals in the end.
     --
     -- TODO: the order in which we transfer the approvals might alter the resulting
     -- state. We should think whether this is a problem.
-    dispatch st (iHash, i) =
+    dispatch st'' (iHash, i) =
       case implType i of
-        Cancellation { toCancel } -> foldl' cancel st toCancel
-        Protocol {}               -> addProtocolUpdateProposal env st (iHash, i)
-        Application {}            -> updateApplication st i
+        Cancellation { toCancel } -> foldl' cancel st'' toCancel
+        Protocol {}               -> addProtocolUpdateProposal env st'' (iHash, i)
+        Application {}            -> updateApplication st'' i
 
 
 -- TODO: if the endorsements come in transactions we need to prevent endorsement
@@ -497,29 +467,22 @@ data Endorsement p =
 
 deriving instance Hashable p => Show (Endorsement p)
 
-deriving instance ( Typeable p
-                  , HasTypeReps (Hash p (VKey p))
-                  ) => HasTypeReps (Endorsement p)
-
-data EndorsementError p =
+data Error p =
   ProtocolVersionIsNotACandidate
   { endorsementErrorGivenProtocolVersion :: !ProtocolVersion
   , endorsementErrorEndorsedProposal     :: !(MaybeAnEndorsedProposal p)
   } deriving (Eq, Show, Generic)
 
-endorsedVersionError :: EndorsementError p -> Maybe ProtocolVersion
-endorsedVersionError = Just . endorsementErrorGivenProtocolVersion
-
 -- | Register an endorsement.
 endorse
   :: ( Hashable p
-     , TracksSlotTime e
+     , TracksSlotTime env
      )
-  => Endorsement p
-  -> e
-  -> ActivationState p
-  -> Either (EndorsementError p) (ActivationState p)
-endorse Endorsement {endorsingKeyHash, endorsedVersion}  env st =
+  => env
+  -> Endorsement p
+  -> State p
+  -> Either (Error p) (State p)
+endorse env Endorsement {endorsingKeyHash, endorsedVersion} st =
   case endorsedProposal st of
     Candidate { cImplementation }
       | version cImplementation == endorsedVersion
@@ -535,8 +498,8 @@ endorseUnchecked
      )
   => Hash p (VKey p)
   -> e
-  -> ActivationState p
-  -> ActivationState p
+  -> State p
+  -> State p
 endorseUnchecked keyHash env st
   = checkInvariants
   $ case endorsedProposal st of
@@ -600,9 +563,9 @@ addProtocolUpdateProposal
      , TracksSlotTime e
      )
   => e
-  -> ActivationState p
+  -> State p
   -> (Hash p (ImplementationData p), ImplementationData p)
-  -> ActivationState p
+  -> State p
 addProtocolUpdateProposal env st (newImplHash, newImpl)
   | cannotFollowCurrentVersion || cannotFollowScheduledProposal = st
   | otherwise
@@ -653,8 +616,8 @@ tryFindNewCandidate
      , TracksSlotTime e
      )
   => e
-  -> ActivationState p
-  -> ActivationState p
+  -> State p
+  -> State p
 tryFindNewCandidate env st =
   case (endorsedProposal st, maybeNextProposal) of
     (NoProposal, Just (nextVersion, nextImplAndHash)) -> makeCandidate (nextVersion, nextImplAndHash)
@@ -680,9 +643,9 @@ tryFindNewCandidate env st =
 -- Only scheduled proposals cannot be canceled.
 cancel
   :: Hashable p
-  => ActivationState p
+  => State p
   -> Hash p (ImplementationData p)
-  -> ActivationState p
+  -> State p
 cancel st toCancel
   = discardProposalsThatDoNotSatisfy ((/= toCancel) . implHash) Canceled st
   & cancelEventualCandidate
@@ -701,9 +664,9 @@ cancel st toCancel
 
 updateApplication
   :: Hashable p
-  => ActivationState p
+  => State p
   -> ImplementationData p
-  -> ActivationState p
+  -> State p
 updateApplication st implementation
   = checkPreconditions
   $ st { applicationUpdates = implementation : (applicationUpdates st) }
@@ -719,8 +682,8 @@ discardProposalsThatDoNotSatisfy
   :: Hashable p
   => (ImplementationAndHash p -> Bool)
   -> Reason
-  -> ActivationState p
-  -> ActivationState p
+  -> State p
+  -> State p
 discardProposalsThatDoNotSatisfy predicate reason st =
   st { activationQueue = keep
      , discarded       = foldl' (\m implAndHash -> Map.insert implAndHash reason m)
@@ -737,7 +700,7 @@ discardProposalsThatDoNotSatisfy predicate reason st =
 -- | Find the proposal with the lowest version that supersedes the given current
 -- version.
 nextCandidate
-  :: Hashable p => ActivationState p
+  :: Hashable p => State p
   -> Maybe (ProtocolVersion, ImplementationAndHash p)
 nextCandidate st =
   case Map.lookupMin (activationQueue st) of
@@ -749,8 +712,8 @@ nextCandidate st =
 -- | Delete those proposals that cannot follow the current version.
 deleteProposalsThatCannotFollow
   :: Hashable p
-  => ActivationState p
-  -> ActivationState p
+  => State p
+  -> State p
 deleteProposalsThatCannotFollow st =
   discardProposalsThatDoNotSatisfy canFollow Unsupported st
   where
@@ -762,6 +725,15 @@ deleteProposalsThatCannotFollow st =
 -- Update state query operations
 --------------------------------------------------------------------------------
 
+class HasActivationState st p | st -> p where
+  getActivationState :: st -> State p
+
+instance HasActivationState (State p) p where
+  getActivationState = id
+
+getCurrentVersion :: HasActivationState st p => st -> ImplementationAndHash p
+getCurrentVersion = currentVersion . getActivationState
+
 -- | Was the given protocol update implementation activated?
 --
 -- In this context, the fact that an update is "activated" means that it is the
@@ -770,35 +742,100 @@ deleteProposalsThatCannotFollow st =
 -- For software and cancellation updates this function will always return
 -- 'False'.
 isTheCurrentVersion
-  :: Hashable p
-  => Hash p (ImplementationData p) -> ActivationState p -> Bool
-isTheCurrentVersion h = (== h) . implHash . currentVersion
+  :: (Hashable p, HasActivationState st p)
+  => Hash p (ImplementationData p) -> st -> Bool
+isTheCurrentVersion h = (== h) . implHash . currentVersion . getActivationState
 
 isScheduled
-  :: Hashable p
-  => Hash p (ImplementationData p) -> ActivationState p -> Bool
-isScheduled h = fromMaybe False . fmap (== h) . scheduledImplementationHash
+  :: (Hashable p, HasActivationState st p)
+  => Hash p (ImplementationData p) -> st -> Bool
+isScheduled h =
+  fromMaybe False . fmap (== h) . scheduledImplementationHash . getActivationState
 
 isBeingEndorsed
-  :: Hashable p
-  => Hash p (ImplementationData p) -> ActivationState p -> Bool
-isBeingEndorsed h = fromMaybe False . fmap (== h) . endorsedImplementationHash
+  :: (Hashable p, HasActivationState st p)
+  => Hash p (ImplementationData p) -> st -> Bool
+isBeingEndorsed h =
+  fromMaybe False . fmap (== h) . endorsedImplementationHash . getActivationState
 
 isQueued
-  :: Hashable p
-  => Hash p (ImplementationData p) -> ActivationState p -> Bool
+  :: (Hashable p, HasActivationState st p)
+  => Hash p (ImplementationData p) -> st -> Bool
 isQueued h st = h `elem` fmap implHash queuedImplementations
   where
-    queuedImplementations = Map.elems (activationQueue st)
+    queuedImplementations = Map.elems $ activationQueue $ getActivationState st
 
 isDiscardedDueToBeing
-  :: Hashable p
-  => Hash p (ImplementationData p) -> Reason -> ActivationState p -> Bool
-isDiscardedDueToBeing h reason st = h `elem` discardedHashesDueTo reason st
+  :: (Hashable p, HasActivationState st p)
+  => Hash p (ImplementationData p) -> Reason -> st -> Bool
+isDiscardedDueToBeing h reason =
+  (h `elem`) . discardedHashesDueTo reason
 
 discardedHashesDueTo
-  :: Reason -> ActivationState p -> [Hash p (ImplementationData p)]
-discardedHashesDueTo reason st
+  :: HasActivationState st p
+  => Reason -> st -> [Hash p (ImplementationData p)]
+discardedHashesDueTo reason
   = fmap implHash
-  $ Map.keys
-  $ Map.filter (== reason) (discarded st)
+  . Map.keys
+  . Map.filter (== reason)
+  . discarded
+  . getActivationState
+
+endorsedImplementation
+  :: HasActivationState st p => st -> Maybe (ImplementationAndHash p)
+endorsedImplementation st =
+  case endorsedProposal (getActivationState st) of
+    Candidate { cImplementation } -> Just cImplementation
+    Scheduled { sImplementation } -> Just sImplementation
+    _                             -> Nothing
+
+candidateEndOfSafetyLag
+  :: HasActivationState st p => st -> Maybe Slot
+candidateEndOfSafetyLag st =
+  case endorsedProposal (getActivationState st) of
+    Candidate { cEndOfSafetyLag } -> Just cEndOfSafetyLag
+    _                             -> Nothing
+
+scheduledImplementation
+  :: HasActivationState st p => st -> Maybe (ImplementationAndHash p)
+scheduledImplementation st =
+  case endorsedProposal (getActivationState st) of
+    Scheduled { sImplementation } -> Just sImplementation
+    _                             -> Nothing
+
+endorsedProtocolVersion
+  :: (Hashable p, HasActivationState st p) => st -> Maybe ProtocolVersion
+endorsedProtocolVersion
+  = fmap (implementationVersion . implData) . endorsedImplementation
+
+endorsedImplementationHash
+  :: HasActivationState st p => st -> Maybe (Hash p (ImplementationData p))
+endorsedImplementationHash =
+    fmap implHash . endorsedImplementation
+
+endorsedSupersedes
+  :: (Hashable p, HasActivationState st p) => st -> Maybe ProtocolVersion
+endorsedSupersedes =
+  fmap (implementationSupersedes . implData) . endorsedImplementation
+
+currentProtocolVersion
+  :: (Hashable p, HasActivationState st p) => st -> ProtocolVersion
+currentProtocolVersion =
+  implementationVersion . implData  . currentVersion . getActivationState
+
+scheduledImplementationHash
+  :: HasActivationState st p => st -> Maybe (Hash p (ImplementationData p))
+scheduledImplementationHash
+  = fmap implHash . scheduledImplementation . getActivationState
+
+
+class HasActivationError err p | err -> p where
+  getActivationError :: err -> Maybe (Error p)
+
+instance HasActivationError (Error p) p where
+  getActivationError = Just . id
+
+endorsedVersionError
+  :: HasActivationError err p => err  -> Maybe ProtocolVersion
+endorsedVersionError
+  = fmap endorsementErrorGivenProtocolVersion . getActivationError
