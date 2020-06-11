@@ -10,15 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# LANGUAGE TypeApplications #-}
-
--- Required by CanApply
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
-
-{-# LANGUAGE MonoLocalBinds #-}
 
 -- | Approval phase interface
 --
@@ -29,8 +21,6 @@ module Cardano.Ledger.Update.Approval
   , initialState
   , tick
   , apply
-    -- ** Function constraints
-  , CanApply
     -- * State query functions
   , HasApprovalState (getApprovalState)
   , removeApproved
@@ -57,71 +47,65 @@ import           Data.Maybe (isJust)
 
 import qualified Data.Map.Strict as Map
 
-import qualified Ledger.Core as Core
+import Cardano.Slotting.Slot (SlotNo)
 
-
-import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
                      (HasAdversarialStakeRatio)
-import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
-                     hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
-                     Signed, VKey, signatureVerifies)
-import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
-                     (HasStakeDistribution,
-                     TechnicalExperts (TechnicalExperts))
-import           Cardano.Ledger.Spec.Classes.HasVotingPeriodsCap
+import           Cardano.Ledger.Update.Env.HasStakeDistribution
+                     (HasStakeDistribution)
+import           Cardano.Ledger.Update.Env.HasVotingPeriodsCap
                      (HasVotingPeriodsCap, maxVotingPeriods)
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
+import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
                      currentSlot, stableAt)
-import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState)
-import qualified Cardano.Ledger.Spec.State.ProposalsState as Proposals
-import           Cardano.Ledger.Spec.State.ProposalState (Decision)
-import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved))
-import           Cardano.Ledger.Spec.STS.Update.Approval.Data (ImplVote,
-                     Implementation, ImplementationData, Submission)
-import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Data
-import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
-import qualified Cardano.Ledger.Spec.STS.Update.Data.Commit as Commit
-import           Cardano.Ledger.Spec.STS.Update.Ideation.Data (SIPHash)
+
 import qualified Cardano.Ledger.Update.Ideation as Ideation
 
-data State p =
+import           Cardano.Ledger.Update.ProposalsState (ProposalsState)
+import qualified Cardano.Ledger.Update.ProposalsState as Proposals
+import           Cardano.Ledger.Update.ProposalState (Decision)
+import           Cardano.Ledger.Update.ProposalState (Decision (Approved))
+
+import           Cardano.Ledger.Update.Proposal hiding (commit)
+import qualified Cardano.Ledger.Update.Proposal as Proposal
+
+data State impl =
   State
-  { submissionStableAt :: !(Map (Commit p (Implementation p)) Core.Slot)
+  { submissionStableAt :: !(Map (Commit (Revelation impl)) SlotNo)
     -- ^ Submitted commits, along with the timestamp (slot) at which they were
     -- submitted.
-  , proposalsState   :: !(ProposalsState p (ImplementationData p))
+  , proposalsState   :: !(ProposalsState impl)
     -- ^ Implementation-proposals state. See 'ProposalsState'.
   }
 
-deriving instance Hashable p => Show (State p)
+deriving instance Proposal impl => Show (State impl)
 
-data Error p
-  = ImplementationCommitAlreadySubmitted (Commit p (Implementation p))
-  | CommitSignatureDoesNotVerify
-  | NoCorrespondingCommit (Implementation p)
-  | NoStableCommit (Implementation p)
-  | ImplementationAlreadyRevealed (Implementation p)
-  | NoApprovedSIP (SIPHash p)
-  | VoteSignatureDoesNotVerify (Hash p (ImplementationData p))
-  | VotePeriodHasNotStarted Core.Slot
-                            (Hash p (ImplementationData p))
-                            (ProposalsState p (ImplementationData p))
-  | VotePeriodHasEnded Core.Slot
-                       (Hash p (ImplementationData p))
-                       (ProposalsState p (ImplementationData p))
+data Error sip impl
+  = ImplementationCommitAlreadySubmitted (Commit (Revelation impl))
+  | CommitSignatureDoesNotVerify (Commit (Revelation impl))
+  | NoCorrespondingCommit (Revelation impl)
+  | NoStableCommit (Revelation impl)
+  | ImplementationAlreadyRevealed (Revelation impl)
+  | NoApprovedSIP (Id sip)
+  | VoteSignatureDoesNotVerify (Vote impl)
+  | VotePeriodHasNotStarted SlotNo
+                            (Id impl)
+                            (ProposalsState impl)
+  | VotePeriodHasEnded SlotNo
+                       (Id impl)
+                       (ProposalsState impl)
 
-deriving instance (Hashable p, HasSigningScheme p) => Eq (Error p)
-deriving instance (Hashable p, HasSigningScheme p) => Show (Error p)
+deriving instance Implementation sip impl
+                  => Show (Error sip impl)
 
-class HasApprovalError err p where
-  getApprovalError :: err -> Maybe (Error p)
+class HasApprovalError err sip impl
+     | err -> sip, err -> impl      where
+  getApprovalError :: err -> Maybe (Error sip impl)
 
-instance HasApprovalError (Error p) p where
+instance HasApprovalError (Error sip impl) sip impl where
   getApprovalError = Just . id
 
 noImplementationCommit
-  :: HasApprovalError err p => err -> Maybe (Implementation p)
+  :: HasApprovalError err sip impl => err -> Maybe (Revelation impl)
 noImplementationCommit err = do
   apprvErr <- getApprovalError err
   case apprvErr of
@@ -129,7 +113,7 @@ noImplementationCommit err = do
     _                          -> Nothing
 
 noStableImplementationCommit
-  :: HasApprovalError err p => err -> Maybe (Implementation p)
+  :: HasApprovalError err sip impl => err -> Maybe (Revelation impl)
 noStableImplementationCommit err = do
   apprvErr <- getApprovalError err
   case apprvErr of
@@ -137,7 +121,7 @@ noStableImplementationCommit err = do
     _                   -> Nothing
 
 noApprovedSIP
-  :: HasApprovalError err p => err -> Maybe (SIPHash p)
+  :: HasApprovalError err sip impl => err -> Maybe (Id sip)
 noApprovedSIP err = do
   apprvErr <- getApprovalError err
   case apprvErr of
@@ -145,7 +129,7 @@ noApprovedSIP err = do
     _                     -> Nothing
 
 implementationVotePeriodHasNotStarted
-  :: HasApprovalError err p => err -> Maybe (Hash p (ImplementationData p))
+  :: HasApprovalError err sip impl => err -> Maybe (Id impl)
 implementationVotePeriodHasNotStarted err = do
   apprvErr <- getApprovalError err
   case apprvErr of
@@ -153,7 +137,7 @@ implementationVotePeriodHasNotStarted err = do
     _                                              -> Nothing
 
 implementationVotePeriodHasEnded
-  :: HasApprovalError err p => err -> Maybe (Hash p (ImplementationData p))
+  :: HasApprovalError err sip impl => err -> Maybe (Id impl)
 implementationVotePeriodHasEnded err = do
   apprvErr <- getApprovalError err
   case apprvErr of
@@ -164,123 +148,111 @@ implementationVotePeriodHasEnded err = do
 -- State update functions
 --------------------------------------------------------------------------------
 
-initialState :: Hashable p => State p
+initialState :: Proposal impl => State impl
 initialState =
   State
   { submissionStableAt = mempty
-  , proposalsState     = mempty
+  , proposalsState     = Proposals.initialState
   }
 
 tick
-  :: ( Hashable p
-     , HasAdversarialStakeRatio env
-     , HasStakeDistribution TechnicalExperts env p
+  :: ( HasAdversarialStakeRatio env
+     , HasStakeDistribution  env (Id (Voter impl))
      , TracksSlotTime env
+     , Proposal impl
      )
-   => env -> State p -> State p
+   => env -> State impl -> State impl
 tick env st =
-  st { proposalsState = Proposals.tally env TechnicalExperts (proposalsState st) }
+  st { proposalsState = Proposals.tally env (proposalsState st) }
 
 apply
-  :: ( CanApply env p
+  :: ( HasVotingPeriodsCap env
+     , TracksSlotTime env
+
+     , Proposal sip
+     , Implementation sip impl
      )
   => env
-  -> Ideation.State p
-  -> Data.Payload p
-  -> State p
-  -> Either (Error p) (State p)
-apply env _ideationSt (Data.Submit submission) st    = do
-  let commit = Data.commit submission
+  -> Ideation.State sip
+  -> Payload impl
+  -> State impl
+  -> Either (Error sip impl) (State impl)
+apply env _ideationSt (Submit submission) st = do
+  let commit = revelationCommit submission
   when (isImplementationSubmitted commit st)
     $ throwError (ImplementationCommitAlreadySubmitted commit)
   unless (signatureVerifies submission)
-    $ throwError (CommitSignatureDoesNotVerify)
+    $ throwError (CommitSignatureDoesNotVerify commit)
   pure $ st { submissionStableAt =
                 Map.insert commit (stableAt env (currentSlot env)) (submissionStableAt st)
             }
-apply env ideationSt (Data.Reveal implementation) st = do
+apply env ideationSt (Reveal revelation) st  = do
+  let commit = Proposal.commit revelation
   unless (isImplementationSubmitted commit st)
-    $ throwError (NoCorrespondingCommit implementation)
+    $ throwError (NoCorrespondingCommit revelation)
   unless (isImplementationStablySubmitted env commit st)
-    $ throwError (NoStableCommit implementation)
-  when (isImplementationRevealed implementationHash st)
-    $ throwError (ImplementationAlreadyRevealed implementation)
-  unless (Ideation.isSIP implementedSIPHash Approved ideationSt)
-    $ throwError (NoApprovedSIP implementedSIPHash)
+    $ throwError (NoStableCommit revelation)
+  let implementationId = _id (proposal revelation)
+      implementedSIPId = preProposalId (proposal revelation)
+  when (isImplementationRevealed implementationId st)
+    $ throwError (ImplementationAlreadyRevealed revelation)
+  unless (Ideation.isSIP implementedSIPId Approved ideationSt)
+    $ throwError (NoApprovedSIP implementedSIPId)
   pure $ st { proposalsState =
                 Proposals.reveal (currentSlot env)
                                  (maxVotingPeriods env)
-                                 implementationData
+                                 (proposal revelation)
                                  (proposalsState st)
             }
-
-  where
-    commit             = Commit.calcCommit implementation
-    implementationHash = hash implementationData
-    implementationData = Data.implPayload implementation
-    implementedSIPHash = Data.implSIPHash implementation
-apply env _ideationSt (Data.Vote vote) st            = do
-  let implementationHash = Data.vImplHash vote
+apply env _ideationSt (Cast vote) st         = do
   unless (signatureVerifies vote)
-    $ throwError (VoteSignatureDoesNotVerify implementationHash)
-  unless (Proposals.votingPeriodHasStarted env implementationHash (proposalsState st))
+    $ throwError (VoteSignatureDoesNotVerify vote)
+  let implementationId = candidate vote
+  unless (Proposals.votingPeriodHasStarted env implementationId (proposalsState st))
     $ throwError (VotePeriodHasNotStarted (currentSlot env)
-                                          implementationHash
+                                          implementationId
                                           (proposalsState st)
                  )
-  when (Proposals.votingPeriodHasEnded env implementationHash (proposalsState st))
+  when (Proposals.votingPeriodHasEnded env implementationId (proposalsState st))
     $ throwError (VotePeriodHasEnded (currentSlot env)
-                                     implementationHash
+                                     implementationId
                                      (proposalsState st)
                  )
   pure $ st { proposalsState =
-              Proposals.updateBallot implementationHash vote (proposalsState st)
+              Proposals.updateBallot implementationId vote (proposalsState st)
             }
 
-class ( TracksSlotTime env
-      , HasVotingPeriodsCap env
-
-      , Hashable p
-      , Signed p (Submission p)
-      , Signed p (ImplVote p)
-
-      , HasHash p (VKey p)
-      , HasHash p (Implementation p)
-      , HasHash p (Int, VKey p, Hash p (Implementation p))
-      , HasHash p (ImplementationData p)
-      ) => CanApply env p where
-
 removeApproved
-  :: State p
-  -> ([(Hash p (ImplementationData p), (ImplementationData p))], State p)
+  :: State impl
+  -> ([impl], State impl)
 removeApproved st =
-  (approvedHashesAndProposals, st { proposalsState = proposalState'})
+  (approvedIdsAndProposals, st { proposalsState = proposalState'})
   where
-    (approvedHashesAndProposals, proposalState') =
+    (approvedIdsAndProposals, proposalState') =
       Proposals.removeApproved (proposalsState st)
 
 --------------------------------------------------------------------------------
 -- State query functions
 --------------------------------------------------------------------------------
 
-class HasApprovalState st p where
-  getApprovalState :: st -> State p
+class HasApprovalState st impl | st -> impl where
+  getApprovalState :: st -> State impl
 
-instance HasApprovalState (State p) p where
+instance HasApprovalState (State impl) impl where
   getApprovalState = id
 
 isImplementationSubmitted
-  :: (Hashable p, HasApprovalState st p)
-  => Commit p (Implementation p) -> st -> Bool
+  :: (Proposal impl, HasApprovalState st impl)
+  => Commit (Revelation impl) -> st -> Bool
 isImplementationSubmitted commit =
   isJust . Map.lookup commit . submissionStableAt . getApprovalState
 
 isImplementationStablySubmitted
-  :: ( Hashable p
+  :: ( Proposal impl
      , TracksSlotTime env
-     , HasApprovalState st p
+     , HasApprovalState st impl
      )
-  => env -> Commit p (Implementation p) -> st -> Bool
+  => env -> Commit (Revelation impl) -> st -> Bool
 isImplementationStablySubmitted env commit
   = maybe False (<= currentSlot env)
   . Map.lookup commit
@@ -288,31 +260,31 @@ isImplementationStablySubmitted env commit
   . getApprovalState
 
 isImplementationRevealed
-  :: (Hashable p, HasApprovalState st p)
-  => Hash p (ImplementationData p) -> st -> Bool
-isImplementationRevealed implHash =
-  Proposals.isRevealed implHash . proposalsState . getApprovalState
+  :: (Proposal impl, HasApprovalState st impl)
+  => Id impl -> st -> Bool
+isImplementationRevealed implementationId =
+  Proposals.isRevealed implementationId . proposalsState . getApprovalState
 
 isImplementationStablyRevealed
-  :: ( Hashable p
+  :: ( Proposal impl
      , TracksSlotTime env
-     , HasApprovalState st p
+     , HasApprovalState st impl
      )
-  => env -> Hash p (ImplementationData p) -> st -> Bool
-isImplementationStablyRevealed env implHash =
-  Proposals.isStablyRevealed env implHash . proposalsState . getApprovalState
+  => env -> Id impl -> st -> Bool
+isImplementationStablyRevealed env implementationId =
+  Proposals.isStablyRevealed env implementationId . proposalsState . getApprovalState
 
 isImplementation
-  :: (Hashable p, HasApprovalState st p)
-  => Hash p (ImplementationData p) -> Decision -> st -> Bool
-isImplementation implHash d =
-  Proposals.is implHash d . proposalsState . getApprovalState
+  :: (Proposal impl, HasApprovalState st impl)
+  => Id impl -> Decision -> st -> Bool
+isImplementation implementationId d =
+  Proposals.is implementationId d . proposalsState . getApprovalState
 
 isImplementationStably
-  :: ( Hashable p
+  :: ( Proposal impl
      , TracksSlotTime env
-     , HasApprovalState st p
+     , HasApprovalState st impl
      )
-  => env -> Hash p (ImplementationData p) -> Decision -> st -> Bool
-isImplementationStably env implHash d =
-  Proposals.isStably env implHash d . proposalsState . getApprovalState
+  => env -> Id impl -> Decision -> st -> Bool
+isImplementationStably env implementationId d =
+  Proposals.isStably env implementationId d . proposalsState . getApprovalState

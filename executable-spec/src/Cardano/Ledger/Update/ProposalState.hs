@@ -12,20 +12,15 @@
 -- | Information about the state of a proposal of the update-system
 -- (improvement, implementation, etc).
 --
-module Cardano.Ledger.Spec.State.ProposalState
+module Cardano.Ledger.Update.ProposalState
   ( ProposalState
   , proposal
   , revealedOn
   , decision
   , tally
-  , HasVotingPeriod
-  , getVotingPeriodDuration
   , newProposalState
   , updateBallot
   , updateBallot'
-  , IsVote
-  , getVoter
-  , getConfidence
   , votingPeriodHasStarted
   , votingPeriodHasEnded
   , votingPeriodEnd
@@ -44,39 +39,37 @@ import           Control.Applicative ((<|>))
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
-import           Data.Word (Word8)
 import           GHC.Generics (Generic)
 
-import           Ledger.Core (Slot, SlotCount, (+.))
+import           Cardano.Slotting.Slot (SlotNo)
 
-import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
                      (HasAdversarialStakeRatio, adversarialStakeRatio)
-import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable,
-                     hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
-import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
+import           Cardano.Ledger.Update.Env.HasStakeDistribution
                      (HasStakeDistribution, stakeDistribution)
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
+import           Cardano.Ledger.Update.Env.HasVotingPeriodsCap
+                     (VotingPeriod (VotingPeriod, unVotingPeriod))
+import           Cardano.Ledger.Update.Env.StakeDistribution (StakeDistribution,
+                     stakeOfKeys, stakeThreshold, totalStake)
+import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
                      currentSlot, isStable, stableAfter)
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution,
-                     stakeOfKeys, totalStake)
-import           Cardano.Ledger.Spec.STS.Update.Data
-                     (Confidence (Abstain, Against, For))
-import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold)
 
+-- TODO: import explicitly
+import           Cardano.Ledger.Update.Proposal hiding (confidence, proposal)
+import qualified Cardano.Ledger.Update.Proposal as Proposal
 
-data ProposalState p d =
+data ProposalState p =
   ProposalState
-  { proposal             :: !d
-  , revealedOn           :: !Slot
+  { proposal             :: !p
+  , revealedOn           :: !SlotNo
     -- ^ Proposals enter the system when they are revealed.
   , votingPeriod         :: !VotingPeriod
     -- ^ Voting period number. To calculate the end of voting period we take the use the formula:
     --
-    -- > revealedOn + votingPeriod * (2k + votingPeriodDuration)
+    -- > revealedOn + votingPeriod * (stableAfter + votingPeriodDuration)
     --
   , maxVotingPeriods     :: !VotingPeriod
-  , ballot               :: !(Map (Hash p (VKey p)) Confidence)
+  , ballot               :: !(Map (Id (Voter p)) Confidence)
     -- ^ Votes cast for this proposal.
   , decisionInfo         :: !DecisionInfo
     -- ^ Decision on the proposal. Before the voting period this is set to
@@ -84,22 +77,16 @@ data ProposalState p d =
   }
   deriving (Generic)
 
-deriving instance (Hashable p, Eq d) => Eq (ProposalState p d)
-deriving instance (Hashable p, Show d) => Show (ProposalState p d)
+deriving instance (Proposal p) => Show (ProposalState p)
 
-instance ( NoUnexpectedThunks (Hash p (VKey p))
-         , NoUnexpectedThunks d
-         ) => NoUnexpectedThunks (ProposalState p d)
-
--- | A voting period number.
-newtype VotingPeriod = VotingPeriod { unVotingPeriod :: Word8 }
-  deriving stock    (Eq, Show, Generic)
-  deriving newtype  (Num, Ord)
-  deriving anyclass (NoUnexpectedThunks)
+instance ( NoUnexpectedThunks p
+         , NoUnexpectedThunks (Voter p)
+         , NoUnexpectedThunks (Id (Voter p))
+         ) => NoUnexpectedThunks (ProposalState p)
 
 data DecisionInfo =
   DecisionInfo
-  { reachedOn   :: !Slot
+  { reachedOn   :: !SlotNo
   , decisionWas :: !Decision
   } deriving (Eq, Show, Generic, NoUnexpectedThunks)
 
@@ -114,29 +101,21 @@ data Decision
   | Undecided
   deriving (Eq, Show, Generic, NoUnexpectedThunks)
 
-class HasVotingPeriod d where
-  getVotingPeriodDuration :: d -> SlotCount
-
-instance HasVotingPeriod d => HasVotingPeriod (ProposalState p d) where
-  getVotingPeriodDuration = getVotingPeriodDuration . proposal
-
 -- | Tally the votes if the end of the voting period is stable. After tallying
 -- the decision state will be changed according to the result of the tallying
 -- process. If a the voting period can be extended, then the voting period
 -- counter is increased by one.
 --
 tally
-  :: ( Hashable p
-     , HasVotingPeriod d
-     , TracksSlotTime env
-     , HasStakeDistribution t env p
+  :: ( TracksSlotTime env
+     , HasStakeDistribution env (Id (Voter p))
      , HasAdversarialStakeRatio env
+     , Proposal p
      )
   => env
-  -> t
-  -> ProposalState p d
-  -> ProposalState p d
-tally env t ps@ProposalState{ votingPeriod, maxVotingPeriods, ballot} =
+  -> ProposalState p
+  -> ProposalState p
+tally env ps@ProposalState{ votingPeriod, maxVotingPeriods, ballot} =
   if is Undecided ps  && isStable env (votingPeriodEnd env ps)
     then ps { decisionInfo = DecisionInfo
                              { reachedOn   = currentSlot env
@@ -152,9 +131,9 @@ tally env t ps@ProposalState{ votingPeriod, maxVotingPeriods, ballot} =
   where
     tallyResult
       =   fromMaybe expiredOrUndecided
-      $   tallyStake For     Approved     ballot (stakeDistribution t env) (adversarialStakeRatio env)
-      <|> tallyStake Against Rejected     ballot (stakeDistribution t env) (adversarialStakeRatio env)
-      <|> tallyStake Abstain WithNoQuorum ballot (stakeDistribution t env) (adversarialStakeRatio env)
+      $   tallyStake For     Approved     ballot (stakeDistribution env) (adversarialStakeRatio env)
+      <|> tallyStake Against Rejected     ballot (stakeDistribution env) (adversarialStakeRatio env)
+      <|> tallyStake Abstain WithNoQuorum ballot (stakeDistribution env) (adversarialStakeRatio env)
       where
         expiredOrUndecided =
           if maxVotingPeriods <= votingPeriod
@@ -162,11 +141,11 @@ tally env t ps@ProposalState{ votingPeriod, maxVotingPeriods, ballot} =
           else Undecided
 
 tallyStake
-  :: Hashable p
+  :: Proposal p
   => Confidence
   -> Decision
-  -> Map (Hash p (VKey p)) Confidence
-  -> StakeDistribution p
+  -> Map (Id (Voter p)) Confidence
+  -> StakeDistribution (Id (Voter p))
   -> Float
   -> Maybe Decision
 tallyStake confidence result ballot aStakeDistribution anAdversarialStakeRatio =
@@ -179,14 +158,14 @@ tallyStake confidence result ballot aStakeDistribution anAdversarialStakeRatio =
     votingKeys = Map.filter (== confidence) ballot
 
 newProposalState
-  :: Ord (Hash p (VKey p))
-  => Slot
+  :: Proposal p
+  => SlotNo
   -> VotingPeriod
-  -> d
-  -> ProposalState p d
-newProposalState theCurrentSlot dMaxVotingPeriods d =
+  -> p
+  -> ProposalState p
+newProposalState theCurrentSlot dMaxVotingPeriods p =
   ProposalState
-  { proposal             = d
+  { proposal             = p
   , revealedOn           = theCurrentSlot
   , votingPeriod         = 1
   , maxVotingPeriods     = dMaxVotingPeriods
@@ -198,117 +177,99 @@ newProposalState theCurrentSlot dMaxVotingPeriods d =
   }
 
 updateBallot
-  :: ( Hashable p
-     , IsVote p v
-     , HasHash p (VKey p)
-     )
-  => v
-  -> ProposalState p d
-  -> ProposalState p d
+  :: Proposal p
+  => (Vote p)
+  -> ProposalState p
+  -> ProposalState p
 updateBallot v ps =
-  updateBallot' (hash $ getVoter v) (getConfidence v) ps
+  updateBallot' (voter v) (Proposal.confidence v) ps
 
 updateBallot'
-  :: ( Hashable p
-     )
-  => Hash p (VKey p)
+  :: Proposal p
+  => Id (Voter p)
   -> Confidence
-  -> ProposalState p d
-  -> ProposalState p d
-updateBallot' voterKeyHash confidence ps =
-  ps { ballot = Map.insert voterKeyHash confidence (ballot ps) }
-
-
-class IsVote p v | v -> p where
-  getVoter :: v -> VKey p
-
-  getConfidence :: v -> Confidence
+  -> ProposalState p
+  -> ProposalState p
+updateBallot' voterId confidence ps =
+  ps { ballot = Map.insert voterId confidence (ballot ps) }
 
 votingPeriodHasStarted
   :: TracksSlotTime env
   => env
-  -> ProposalState p d
+  -> ProposalState p
   -> Bool
 votingPeriodHasStarted env ProposalState { revealedOn } = isStable env revealedOn
 
 votingPeriodHasEnded
-  :: ( HasVotingPeriod d
-     , TracksSlotTime env
+  :: ( TracksSlotTime env
+     , Proposal p
      )
   => env
-  -> ProposalState p d
+  -> ProposalState p
   -> Bool
 votingPeriodHasEnded env ps = votingPeriodEnd env ps <= currentSlot env
 
 -- | Calculate the slot at which the voting period ends.
 --
--- The voting period starts @2k@ slots after the revelation, and lasts for
+-- The voting period starts @stableAfter@ slots after the revelation, and lasts for
 -- 'votingPeriodDuration' slots. When tallying, a voting period can be extended.
--- Tallying takes place @2k@ slots after the end of the voting period.
+-- Tallying takes place @stableAfter@ slots after the end of the voting period.
 --
 --
 -- In general the end of the i-th voting period is calculated as:
 --
--- > revealedOn + i * (2k + votingPeriodDuration)
+-- > revealedOn + i * (stableAfter + votingPeriodDuration)
 --
 -- To see why we use this formula consider the following example: if we run 3
 -- voting periods we have the following time-line:
 --
 -- - revelation slot
--- ... [ 2k slots ]
+-- ... [ stableAfter slots have passed ]
 -- - voting period 1 starts
 -- ... [ voting period duration ]
 -- - voting period 1 ends
--- ... [ 2k slots ]
+-- ... [ stableAfter slots have passed ]
 -- - tallying / voting period 2 starts
 -- ... [ voting period duration]
 -- - voting period 2 ends
--- ... [ 2k slots ]
+-- ... [ stableAfter slots have passed ]
 -- - tallying / voting period 2 starts
 -- ... [ voting period duration ]
 -- - voting period 3 ends
 --
--- So in general it takes @2k@ slots till the voting period starts: the first
+-- So in general it takes @stableAfter@ slots till the voting period starts: the first
 -- voting period requires the stabilization of the revelation, and the
 -- subsequent voting periods require the stabilization of the precedent voting
 -- period. After the voting period starts it lasts for @votingPeriodDuration@.
--- So one voting period lasts for @2k + votingPeriodDuration@.
+-- So one voting period lasts for @stableAfter + votingPeriodDuration@.
 --
--- TODO: we might want to change `Word` to `Natural`, or check for overflows.
 votingPeriodEnd
-  :: ( HasVotingPeriod d
-     , TracksSlotTime env
-     )
+  :: (Proposal p, TracksSlotTime env)
   => env
-  -> ProposalState p d
-  -> Slot
-votingPeriodEnd env ps@ProposalState { revealedOn, votingPeriod }
-  =  revealedOn
-  +. votingPeriod' * ( stableAfter env + votingPeriodDuration)
+  -> ProposalState p
+  -> SlotNo
+votingPeriodEnd env ProposalState { proposal, revealedOn, votingPeriod }
+  = revealedOn
+  + votingPeriod' * ( stableAfter env + votingPeriodDuration proposal)
   where
     votingPeriod'        = fromIntegral (unVotingPeriod votingPeriod)
-    votingPeriodDuration = getVotingPeriodDuration ps
 
 --------------------------------------------------------------------------------
 -- State query operations
 --------------------------------------------------------------------------------
 
-is :: Decision -> ProposalState p d -> Bool
+is :: Decision -> ProposalState p -> Bool
 is d = (== d) . decision
 
-decision :: ProposalState p d -> Decision
+decision :: ProposalState p -> Decision
 decision = decisionWas . decisionInfo
 
 isStably
   :: TracksSlotTime e
   => e
   -> Decision
-  -> ProposalState p d
+  -> ProposalState p
   -> Bool
 isStably e d st
   =  (isStable e . reachedOn . decisionInfo) st
   && is d st
-
---------------------------------------------------------------------------------
---
---------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-module Cardano.Ledger.Update.UnitTests.Approval where
+module Test.Cardano.Ledger.Update.UnitTests.Approval where
 
 import           Control.Arrow ((>>>))
 import           Control.Monad.Reader (asks)
@@ -6,26 +6,21 @@ import           Control.Monad.State (gets, modify')
 import           Data.Foldable (traverse_)
 import           Test.Tasty (TestTree)
 
-import           Ledger.Core (SlotCount (SlotCount))
+import           Cardano.Ledger.Update.Env.TracksSlotTime (stableAfter)
+import           Cardano.Ledger.Update.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
+import qualified Cardano.Ledger.Update.ProposalState as ProposalState
 
-import           Cardano.Ledger.Mock (Mock)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey)
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (stableAfter)
-import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
-import           Cardano.Ledger.Spec.State.ProposalState
-                     (getVotingPeriodDuration)
-import qualified Cardano.Ledger.Spec.State.ProposalState as ProposalState
+import           Test.Cardano.Ledger.Update.Interface
+import           Test.Cardano.Ledger.Update.TestCase
+import           Test.Cardano.Ledger.Update.UnitTests.Common
+import           Test.Cardano.Ledger.UpdateSpec
 
-import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
-import           Cardano.Ledger.Spec.STS.Update.Data (Confidence)
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Confidence
+import           Test.Cardano.Ledger.Update.UnitTests.Ideation
 
-import           Cardano.Ledger.Update.Interface
-import           Cardano.Ledger.Update.TestCase
-import           Cardano.Ledger.Update.UnitTests.Common
-import           Cardano.Ledger.UpdateSpec
+import           Cardano.Ledger.Update.Proposal (Confidence, Voter, _id)
+import qualified Cardano.Ledger.Update.Proposal as Proposal
 
-import           Cardano.Ledger.Update.UnitTests.Ideation
+import           Test.Cardano.Ledger.Update.Data
 
 import qualified Cardano.Ledger.Update as Update
 
@@ -70,15 +65,18 @@ runTests =
     TestCaseEnv
     { tcK                     = 3
     , tcAdversarialStakeRatio = 0.3
-    , tcSIPExperts            = mkParticipantVotingBehavior 0  8 2
-    , tcImplExperts           = mkParticipantVotingBehavior 10 8 2
-    , tcStakePools            = mkParticipantVotingBehavior 20 8 2
+    , tcSIPExperts            =
+        mkVotingBehavior 0  8 2 (MockVoter . mkParticipant)
+    , tcImplExperts           =
+        mkVotingBehavior 10 8 2 (MockVoter . mkParticipant)
+    , tcStakePools            =
+        mkVotingBehavior 20 8 2 (MockEndorser . mkParticipant)
     }
 
 
 simpleImplApproval :: TestCase
 simpleImplApproval = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   approveImplementation update
@@ -91,7 +89,7 @@ simpleImplApproval = do
 
 simpleRejection :: TestCase
 simpleRejection = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)
@@ -100,13 +98,13 @@ simpleRejection = do
   reveal  `implementation` update
   tickTillStable
   reject `implementation` update
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` Implementation (Is Rejected)
 
 simpleNoQuorum :: TestCase
 simpleNoQuorum = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 88 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)
@@ -115,13 +113,13 @@ simpleNoQuorum = do
   reveal  `implementation` update
   tickTillStable
   abstain `implementation` update
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` Implementation (Is WithNoQuorum)
 
 simpleExpiration :: TestCase
 simpleExpiration = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)
@@ -136,14 +134,15 @@ tickTillExpired update = do
   tickTillStable -- We position the slot at the beginning of the voting period.
   votingPeriods <- gets iStateMaxVotingPeriods
   stableAfterSt <- gets stableAfter
-  let votingPeriodDuration = getVotingPeriodDuration (getImpl update)
-      votingPeriods' = SlotCount $ fromIntegral $ ProposalState.unVotingPeriod votingPeriods
+  let votingPeriodDuration = Proposal.votingPeriodDuration (getImpl update)
+      votingPeriods' =  fromIntegral
+                      $ ProposalState.unVotingPeriod votingPeriods
   tickFor $ votingPeriods' * (votingPeriodDuration + stableAfterSt)
   stateOf update `shouldBe` Implementation (Is Expired)
 
 implApprovalInSecondVotingRound :: TestCase
 implApprovalInSecondVotingRound = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -155,15 +154,15 @@ implApprovalInSecondVotingRound = do
   let
     (approvers0, _) = splitAt mid approvers
     mid             = length approvers `div` 2
-  vote approvers0 update Confidence.For
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  vote approvers0 update Proposal.For
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   -- The tally point is reached. The implementation should not have enough
   -- votes.
   stateOf update `shouldBe` (Implementation (Is Undecided))
   approve `implementation` update
   stateOf update `shouldBe` Implementation (Is Undecided)
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` BeingEndorsed
 
@@ -172,7 +171,7 @@ implVotesAreNotCarriedOver = do
   -- We make sure that we have two voting periods, so that the proposal is
   -- expired at the end of the second voting period.
   modify' (\st -> st { iStateMaxVotingPeriods = 2})
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -184,40 +183,40 @@ implVotesAreNotCarriedOver = do
   let
     (approvers0, approvers1) = splitAt mid approvers
     mid             = length approvers `div` 2
-  vote approvers0 update Confidence.For
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  vote approvers0 update Proposal.For
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` (Implementation (Is Undecided))
-  vote approvers1 update Confidence.For
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  vote approvers1 update Proposal.For
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` (Implementation (Is Expired))
 
 implRevealWithoutApprovedSIP :: TestCase
 implRevealWithoutApprovedSIP = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   submit `implementation` update
   tickTillStable
   (reveal  `implementation` update)
     `throwsErrorWhere` ( Update.noApprovedSIP
-                         >>> (== Just (getSIPHash update))
+                         >>> (== Just (getSIPId update))
                        )
 
 revealOfAnUnstableImplSubmission :: TestCase
 revealOfAnUnstableImplSubmission = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
   -- We reveal immediately, without waiting for stability.
   (reveal  `implementation` update)
     `throwsErrorWhere` ( Update.noStableImplementationCommit
-                        >>> (== Just (getImpl update))
+                        >>> (== Just (getImplRevelation update))
                        )
 
 voteBeforeTheStartOfVotingPeriod :: TestCase
 voteBeforeTheStartOfVotingPeriod = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -227,22 +226,24 @@ voteBeforeTheStartOfVotingPeriod = do
   -- voting.
   (approve `implementation` update)
     `throwsErrorWhere` ( Update.implementationVotePeriodHasNotStarted
-                         >>> (== Just (getImplHash update))
+                         >>> (== Just (getImplId update))
                        )
 
 voteAfterTheEndOfVotingPeriod :: TestCase
 voteAfterTheEndOfVotingPeriod = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
   tickTillStable
   reveal  `implementation` update
-  tickTillStable                                     -- Here the voting period starts
-  tickFor $ getVotingPeriodDuration (getImpl update) -- Here the voting period ends
+  tickTillStable
+  -- Now the voting period starts.
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
+  -- Now the voting period ends.
   (approve `implementation` update)
     `throwsErrorWhere` ( Update.implementationVotePeriodHasEnded
-                        >>> (== Just (getImplHash update))
+                        >>> (== Just (getImplId update))
                        )
 
 
@@ -257,7 +258,7 @@ approveImplementation update = do
   tickTillStable
   approve `implementation` update
   stateOf update `shouldBe` Implementation (Is Undecided)
-  tickFor $ getVotingPeriodDuration (getImpl update)
+  tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
 
 
@@ -266,40 +267,27 @@ implementation :: UpdateAction -> UpdateSpec -> TestCase
 implementation Submit updateSpec
   = apply
   $ Update.Approval
-  $ Approval.Data.Submit
-  $ Approval.Data.mkSubmission (getImplAuthorSKey updateSpec)
-                               (getImpl updateSpec)
+  $ Proposal.Submit (getImplSubmission updateSpec)
 implementation Reveal updateSpec
   = apply
   $ Update.Approval
-  $ Approval.Data.Reveal (getImpl updateSpec)
-implementation Approve updateSpec = updateSpec `approversVote` Confidence.For
-implementation Reject updateSpec = updateSpec `approversVote` Confidence.Against
-implementation Abstain updateSpec = updateSpec `approversVote` Confidence.Abstain
+  $ Proposal.Reveal (getImplRevelation updateSpec)
+implementation Approve updateSpec = updateSpec `approversVote` Proposal.For
+implementation Reject updateSpec = updateSpec `approversVote` Proposal.Against
+implementation Abstain updateSpec = updateSpec `approversVote` Proposal.Abstain
 
 approversVote :: UpdateSpec -> Confidence -> TestCase
-approversVote updateSpec confidence
-  = do
+approversVote updateSpec confidence = do
   approvers <- asks getImplApprovers
-  traverse_ applyVote $ fmap mkVote approvers
-  where
-    applyVote = apply . Update.Approval . Approval.Data.Vote
-    mkVote (voterSKey, voterVKey)
-      = Approval.Data.mkImplVote voterSKey voterVKey confidence (getImplHash updateSpec)
+  vote approvers updateSpec confidence
 
-vote :: [(SKey Mock, VKey Mock)] -> UpdateSpec -> Confidence -> TestCase
+vote :: [Voter MockImpl] -> UpdateSpec -> Confidence -> TestCase
 vote voters updateSpec confidence =
   traverse_ applyVote $ fmap mkVote voters
   where
-    applyVote = apply . Update.Approval . Approval.Data.Vote
-    mkVote (voterSKey, voterVKey)
-      = Approval.Data.mkImplVote voterSKey voterVKey confidence (getImplHash updateSpec)
+    applyVote = apply . Update.Approval . Proposal.Cast
+    mkVote voter =
+      MockVote (_id voter) (_id (getImpl updateSpec)) confidence True
 
-
-getImplApprovers :: TestCaseEnv -> [(SKey Mock, VKey Mock)]
-getImplApprovers = getApprovers . tcSIPExperts -- TODO: this should be
-                                               -- 'tcImplExperts' once we
-                                               -- separate the stake
-                                               -- distribution into the SIP
-                                               -- experts stake and the
-                                               -- implementation experts stake.
+getImplApprovers :: TestCaseEnv -> [Voter MockImpl]
+getImplApprovers = getApprovers . tcImplExperts

@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Ledger.Update.UnitTests.Activation where
+module Test.Cardano.Ledger.Update.UnitTests.Activation where
 
 import           Control.Arrow ((>>>))
 import           Control.Monad.Reader (asks)
@@ -15,21 +15,20 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
 import           Test.Tasty (TestTree)
 
-import           Cardano.Ledger.Spec.Classes.Hashable (Hash, hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
-
 import qualified Cardano.Ledger.Update as Update
-import qualified Cardano.Ledger.Update.Activation as Activation
 
+import           Test.Cardano.Ledger.UpdateSpec
 
-import           Cardano.Ledger.Mock (Mock, vkeyFromSkey)
-import           Cardano.Ledger.UpdateSpec
+import           Test.Cardano.Ledger.Update.Interface hiding (tickTill)
+import           Test.Cardano.Ledger.Update.TestCase
+import           Test.Cardano.Ledger.Update.UnitTests.Approval
+import           Test.Cardano.Ledger.Update.UnitTests.Common
+import           Test.Cardano.Ledger.Update.UnitTests.Ideation
 
-import           Cardano.Ledger.Update.Interface hiding (tickTill)
-import           Cardano.Ledger.Update.TestCase
-import           Cardano.Ledger.Update.UnitTests.Approval
-import           Cardano.Ledger.Update.UnitTests.Common
-import           Cardano.Ledger.Update.UnitTests.Ideation
+import           Cardano.Ledger.Update.Proposal (Protocol, _id)
+import qualified Cardano.Ledger.Update.Proposal as Proposal
+
+import           Test.Cardano.Ledger.Update.Data
 
 runTests :: [TestTree]
 runTests =
@@ -66,9 +65,12 @@ runTests =
       TestCaseEnv
       { tcK                     = 2
       , tcAdversarialStakeRatio = 0.3
-      , tcSIPExperts            = mkParticipantVotingBehavior 0  8 2
-      , tcImplExperts           = mkParticipantVotingBehavior 10 8 2
-      , tcStakePools            = mkParticipantVotingBehavior 20 8 2
+      , tcSIPExperts            =
+          mkVotingBehavior 0  8 2 (MockVoter . mkParticipant)
+      , tcImplExperts           =
+          mkVotingBehavior 10 8 2 (MockVoter . mkParticipant)
+      , tcStakePools            =
+          mkVotingBehavior 20 8 2 (MockEndorser . mkParticipant)
       }
 
 
@@ -81,7 +83,7 @@ runTests =
 -- after going through all the update phases.
 simpleVersionChange :: TestCase
 simpleVersionChange = do
-  update <- mkUpdate 0 IncreaseMinor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   approveImplementation update
@@ -104,13 +106,13 @@ activate update = do
 
 changeVersionTwice :: TestCase
 changeVersionTwice = do
-  update0 <- mkUpdate 0 IncreaseMinor
+  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update0
   tickTillStable
   approveImplementation update0
   activate update0
   iStateProtocolVersion `shouldBe` protocolVersion update0
-  update1 <- mkUpdate 1 IncreaseMinor
+  update1 <- mkUpdate 2 (mkParticipant 1) (`increaseVersion` 1)
   approveSIP update1
   tickTillStable
   approveImplementation update1
@@ -122,12 +124,14 @@ changeVersionTwice = do
 -- that the latter gets activated.
 versionChangePreemption :: TestCase
 versionChangePreemption = do
-  update0 <- mkUpdate 0 IncreaseMajor
+  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 2)
   approveSIP update0
   tickTillStable
   approveImplementation update0
   stateOf update0 `shouldBe` BeingEndorsed
-  update1 <- mkUpdate 1 IncreaseMinor
+  -- @update1@ has higher priority than @update0@ since it increases the current
+  -- version by @1@ instead of @2@.
+  update1 <- mkUpdate 2 (mkParticipant 1) (`increaseVersion` 1)
   approveSIP update1
   tickTillStable
   approveImplementation update1
@@ -142,8 +146,8 @@ versionChangePreemption = do
 -- being endorsed causes the former to be canceled.
 competingProposals :: TestCase
 competingProposals = do
-  update0 <- mkUpdate 0 IncreaseMajor
-  update1 <- mkUpdate 1 IncreaseMajor
+  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update1 <- mkUpdate 2 (mkParticipant 1) (`increaseVersion` 1)
   -- @update0@ and @update1@ have the same protocol version, therefore they
   -- conflict.
   approveSIP update0
@@ -159,8 +163,8 @@ competingProposals = do
 
 queuedProposal :: TestCase
 queuedProposal = do
-  update0 <- mkUpdate 0 IncreaseMajor
-  let update1 = mkUpdateThatDependsOn update0 1 IncreaseMinor
+  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  let update1 = mkUpdateThatDependsOn update0 (mkParticipant 1) (`increaseVersion` 3)
   approveSIP update0
   approveSIP update1
   tickTillStable
@@ -180,8 +184,8 @@ queuedProposal = do
 -- been adopted yet.
 queuedProposal' :: TestCase
 queuedProposal' = do
-  update0 <- mkUpdate 0 IncreaseMajor
-  let update1 = mkUpdateThatDependsOn update0 1 IncreaseMinor
+  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  let update1 = mkUpdateThatDependsOn update0 (mkParticipant 1) (`increaseVersion` 3)
   approveSIP update0
   tickTillStable
   approveSIP update1
@@ -195,7 +199,7 @@ queuedProposal' = do
 
 expiredCandidate :: TestCase
 expiredCandidate = do
-  update <- mkUpdate 0 IncreaseMajor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   approveImplementation update
@@ -209,7 +213,7 @@ expiredCandidate = do
 
 nonCandidateEndorsement :: TestCase
 nonCandidateEndorsement = do
-  update <- mkUpdate 0 IncreaseMajor
+  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
   (endorseTillApproval update)
     `throwsErrorWhere` ( Update.endorsedVersionError
                         >>> (== Just (protocolVersion update))
@@ -225,13 +229,14 @@ endorseTillApproval updateSpec = do
   traverse_ applyEndorsement $ fmap mkEndorsement endorsers
   where
     applyEndorsement = apply . Update.Activation
-    mkEndorsement endorserVKey
-      = Activation.Endorsement endorserVKey (protocolVersion updateSpec)
+    mkEndorsement endorser
+      = Update.Endorsement
+        { Update.endorserId       = _id endorser
+        , Update.endorsedVersion = Proposal.version (getProtocol updateSpec)
+        }
 
-getEndorsersForApproval :: TestCaseEnv -> [Hash Mock (VKey Mock)]
+getEndorsersForApproval :: TestCaseEnv -> [Endorser (Protocol MockImpl)]
 getEndorsersForApproval
-  = fmap hash
-  . fmap vkeyFromSkey
-  . Map.keys
+  = Map.keys
   . Map.filter participantApproves
   . tcStakePools

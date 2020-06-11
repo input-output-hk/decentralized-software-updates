@@ -23,25 +23,8 @@ extra-deps:
     subdirs:
       - binary
       - cardano-crypto-class
+      - slotting
 
-  - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: c006b101b699b7b54a96d077fdbad07005b8da77
-    subdirs:
-      - byron/semantics/executable-spec
-      - byron/ledger/executable-spec
-
-  # Needed for cardano-ledger-specs
-  - Unique-0.4.7.6
-
-  # Needed for goblins, which is in turn needed for cardano-ledger-specs :(
-  - git: https://github.com/input-output-hk/goblins
-    commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
-  - moo-1.2
-  - gray-code-0.3.1
-
-  - tasty-hedgehog-1.0.0.1
-  - bimap-0.4.0@sha256:d56712c094d40b4666e30d35fb0dad4058a2b753c5af4574f062237b2f7d5b67,1619
-  - generic-monoid-0.1.0.0@sha256:00d1a7b7ff0890a3e3cba4032be24fe377c26e5e45d73afcacd42c98abb3b7e3,818
   # Needed for lentil
   - terminal-progress-bar-0.4.1@sha256:ba857f3424ddb1034125163a9a384e9baab22e55de968259b046892c20ec0526,2257
 

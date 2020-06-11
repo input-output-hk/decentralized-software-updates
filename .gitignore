@@ -35,10 +35,15 @@ stack.yaml.lock
 stack-local.yaml
 stack-local.yaml.lock
 
+# Modules dependencies visualizasions
+executable-spec/*.dot
+executable-spec/*.svg
+executable-spec/*.png
 
 # Editors
 TAGS
 *.temp
+.idea
 
 # Emacs auto-generated Emacs-lisp code
 auto/

@@ -6,7 +6,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Update.Activation
@@ -17,7 +20,7 @@ module Cardano.Ledger.Update.Activation
   , transferApprovals
   , endorse
     -- ** Endorsement construction
-  , Endorsement (Endorsement)
+  , Endorsement (Endorsement, endorserId, endorsedVersion)
     -- ** Error reporting
   , Error
   , HasActivationError (getActivationError)
@@ -47,30 +50,21 @@ import           Data.Set (Set)
 import qualified Data.Set as Set
 import           GHC.Generics (Generic)
 
-import           Ledger.Core (Slot, addSlot, minusSlot)
+import           Cardano.Slotting.Slot (SlotNo)
 
-import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
                      (HasAdversarialStakeRatio, adversarialStakeRatio)
-import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (VKey)
-import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
-                     (HasStakeDistribution, StakePools (StakePools),
-                     stakeDistribution, totalStake)
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
+import           Cardano.Ledger.Update.Env.HasStakeDistribution
+                     (HasStakeDistribution, stakeDistribution, totalStake)
+import           Cardano.Ledger.Update.Env.StakeDistribution (Stake,
+                     stakeOfKeys', stakeThreshold)
+import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
                      currentSlot, epochFirstSlot, nextEpochFirstSlot,
                      slotsPerEpoch, stableAfter)
-import           Cardano.Ledger.Spec.State.StakeDistribution (stakeOfKeys')
-import           Cardano.Ledger.Spec.STS.Update.Approval.Data
-                     (ImplementationAndHash (ImplementationAndHash),
-                     ImplementationData, ProtocolVersion,
-                     UpdateType (Application, Cancellation, Protocol),
-                     implData, implHash, implType, implementationSupersedes,
-                     implementationVersion, isApplicationUpdate, supersedes,
-                     toCancel, version)
-import           Cardano.Ledger.Spec.STS.Update.Data (Stake)
-import           Cardano.Ledger.Spec.STS.Update.Definitions (stakeThreshold)
 
 import qualified Cardano.Ledger.Update.Approval as Approval
+
+import           Cardano.Ledger.Update.Proposal
 
 import           Cardano.Ledger.Assert
 
@@ -94,24 +88,21 @@ import           Cardano.Ledger.Assert
 -- 7. All the proposals in the queue have a version higher than the potential
 -- endorsed version.
 --
-data State p =
+data State sip impl =
   State
-  { endorsedProposal   :: !(MaybeAnEndorsedProposal p)
-  , currentVersion     :: !(ImplementationAndHash p)
-  , activationQueue    :: !(Map ProtocolVersion (ImplementationAndHash p))
+  { endorsedProposal   :: !(MaybeAnEndorsedProposal sip impl)
+  , currentVersion     :: !(Protocol impl)
+  , activationQueue    :: !(Map (Version (Protocol impl)) (Protocol impl))
     -- ^ The activation queue maintains a priority queue of protocol versions.
     -- The lower the version the higher the priority. Duplicated versions are
     -- not allowed. Inserting a duplicated version replaces the (implementation
     -- and hash of the) older version.
-  , applicationUpdates :: ![ImplementationData p]
+  , applicationUpdates :: ![Application impl]
     -- ^ Approved application updates.
     --
     -- TODO: this is a list for now. If needed this can be turned into a set, or
     -- a map indexed by application names.
-    --
-    -- TODO: the application updates are not part of the 'proposalsMap', but we
-    -- can add them if needed.
-  , lastAppliedSlot    :: !(Maybe Slot)
+  , lastAppliedSlot    :: !(Maybe SlotNo)
     -- ^ We require that the 'tick' function is applied without skipping any
     -- slot. Therefore we record the last applied slot to check this
     -- pre-condition in 'tick'.
@@ -120,9 +111,11 @@ data State p =
     -- the update interface state. Otherwise we'll have to replicate this in all
     -- the three phases (in which we can't miss a slot tick).
 
-  , discarded          :: !(Map (ImplementationAndHash p) Reason)
+  , discarded          :: !(Map (Protocol impl) Reason)
     -- TODO: the stakepoolsDistribution snapshot should probably go here.
-  } deriving (Show, Generic)
+  } deriving (Generic)
+
+deriving instance Implementation sip impl => Show (State sip impl)
 
 -- | Reason why an implementation did not get adopted and was discarded.
 data Reason
@@ -141,9 +134,9 @@ data Reason
 -- satisfied by construction.
 --
 checkInvariants
-  :: Hashable p
-  => State p
-  -> State p
+  :: Implementation sip impl
+  => State sip impl
+  -> State sip impl
 checkInvariants st = assert checks st
   where
     checks = do
@@ -151,10 +144,12 @@ checkInvariants st = assert checks st
       activationQueue st `doesNotContainMaybeKey` endorsedProtocolVersion st
 
       currentProtocolVersion st <?!  endorsedProtocolVersion st
-      currentProtocolVersion st ==?! endorsedSupersedes st
+      currentProtocolVersion st ==?! endorsedSupersedesVersion st
 
-      ((currentProtocolVersion st <=) . supersedes) `holdsForAllElementsIn` activationQueue st
-      ((endorsedProtocolVersion st ?<) . version)   `holdsForAllElementsIn` activationQueue st
+      ((currentProtocolVersion st <=) . supersedesVersion)
+        `holdsForAllElementsIn` activationQueue st
+      ((endorsedProtocolVersion st ?<) . version)
+        `holdsForAllElementsIn` activationQueue st
 
       -- If the last applied slot is greater than the end of the safety lag the
       -- candidate is either expired or adopted.
@@ -163,33 +158,34 @@ checkInvariants st = assert checks st
       lastAppliedSlot st ?<=?! candidateEndOfSafetyLag st
 
 -- | Proposal (if any) in the endorsement period.
-data MaybeAnEndorsedProposal p
+data MaybeAnEndorsedProposal sip impl
   = NoProposal
   | Candidate
-    { cImplementation :: !(ImplementationAndHash p)
-    , cEndorsements   :: !(Endorsements p)
-    , cEndOfSafetyLag :: !Slot
+    { cProtocol       :: !(Protocol impl)
+    , cEndorsements   :: !(Endorsements impl)
+    , cEndOfSafetyLag :: !SlotNo
       -- ^ Slot at which the safety lag expires. This __should be__ the
       -- __first__ slot of some epoch.
     }
-  | Scheduled { sImplementation :: !(ImplementationAndHash p) }
+  | Scheduled { sProtocol :: !(Protocol impl) }
     -- ^ Once the candidate receives enough endorsements it becomes scheduled.
-  deriving (Eq, Show, Generic)
+  deriving (Generic)
+
+deriving instance Implementation sip impl => Show (MaybeAnEndorsedProposal sip impl)
 
 -- | The reason why we have two sets of endorsements is that endorsements that
 -- come after the cut-off point should not be considered when tallying, which
 -- will take place __after__ the cut-off point.
-data Endorsements p =
+data Endorsements impl =
   Endorsements
-  { thisEpochEndorsements :: !(Set (Hash p (VKey p)))
-  , nextEpochEndorsements :: !(Set (Hash p (VKey p)))
+  { thisEpochEndorsements :: !(Set (EndorserId (Protocol impl)))
+  , nextEpochEndorsements :: !(Set (EndorserId (Protocol impl)))
     -- ^ Endorsements that come past the cut-off point are put in this set.
   } deriving (Generic)
 
-deriving instance Hashable p => Show (Endorsements p)
-deriving instance Hashable p => Eq (Endorsements p)
+deriving instance Activable (Protocol impl) => Show (Endorsements impl)
 
-noEndorsements :: Hashable p => Endorsements p
+noEndorsements :: Activable (Protocol impl) => Endorsements impl
 noEndorsements =
   Endorsements
   { thisEpochEndorsements = mempty
@@ -197,19 +193,19 @@ noEndorsements =
   }
 
 endorseInThisEpoch
-  :: Hashable p
-  => Endorsements p
-  -> Hash p (VKey p)
-  -> Endorsements p
-endorseInThisEpoch endorsements keyHash =
+  :: Activable (Protocol impl)
+  => Endorsements impl
+  -> EndorserId (Protocol impl)
+  -> Endorsements impl
+endorseInThisEpoch endorsements endorserId =
   endorsements
   { thisEpochEndorsements =
-      Set.insert keyHash (thisEpochEndorsements endorsements)
+      Set.insert endorserId (thisEpochEndorsements endorsements)
   }
 
 changeEpoch
-  :: Hashable p
-  => Endorsements p -> Endorsements p
+  :: Activable (Protocol impl)
+  => Endorsements impl -> Endorsements impl
 changeEpoch endorsements =
   endorsements
   { thisEpochEndorsements = thisEpochEndorsements endorsements
@@ -220,57 +216,45 @@ changeEpoch endorsements =
 
 
 endorseInNextEpoch
-  :: Hashable p
-  => Endorsements p
-  -> Hash p (VKey p)
-  -> Endorsements p
-endorseInNextEpoch endorsements keyHash =
+  :: Activable (Protocol impl)
+  => Endorsements impl
+  -> EndorserId (Protocol impl)
+  -> Endorsements impl
+endorseInNextEpoch endorsements endorserId =
   endorsements { nextEpochEndorsements =
-                   Set.insert keyHash (nextEpochEndorsements endorsements)
+                   Set.insert endorserId (nextEpochEndorsements endorsements)
                }
 
--- | We use total stake for counting endorsements.
-type EndorsementCount = Stake
-
 totalEndorsements
-  :: ( Hashable p
-     , HasStakeDistribution StakePools e p
+  :: ( HasStakeDistribution env (EndorserId (Protocol impl))
+     , Implementation sip impl
      )
-  => e
-  -> Endorsements p
-  -> EndorsementCount
+  => env
+  -> Endorsements impl
+  -> Stake
 totalEndorsements env endorsements =
   stakeOfKeys' (thisEpochEndorsements endorsements)
-               (stakeDistribution StakePools env)
-
+               (stakeDistribution env)
 
 --------------------------------------------------------------------------------
 -- Interface functions
 --------------------------------------------------------------------------------
 
 initialState
-  :: Hashable p
-  => Hash p (ImplementationData p)
-  -> ImplementationData p
-  -- ^ Initial implementation. This determines the current version.
-  -> State p
-initialState initialHash initialImplData
+  :: Implementation sip impl
+  => Protocol impl
+  -- ^ Initial protocol. This determines the current version.
+  -> State sip impl
+initialState initialProtocol
   = checkInvariants
   $ State
     { activationQueue    = mempty
     , endorsedProposal   = NoProposal
-    , currentVersion     = initialImplAndHash
+    , currentVersion     = initialProtocol
     , applicationUpdates = mempty
     , lastAppliedSlot    = Nothing
     , discarded          = mempty
     }
-  where
-    initialImplAndHash =
-      ImplementationAndHash
-      { implHash = initialHash
-      , implData = initialImplData
-      }
-
 
 -- | Register a slot tick. A slot tick might cause several changes in the
 -- activation state. These changes are described below.
@@ -296,14 +280,15 @@ initialState initialHash initialImplData
 -- happen, proposal @j@ must supersede the (new) current version.
 --
 tick
-  :: ( Hashable p
-     , TracksSlotTime e
-     , HasStakeDistribution StakePools e p
-     , HasAdversarialStakeRatio e
+  :: forall env sip impl
+   . ( TracksSlotTime env
+     , HasStakeDistribution env (EndorserId (Protocol impl))
+     , HasAdversarialStakeRatio env
+     , Implementation sip impl
      )
-  => e
-  -> State p
-  -> State p
+  => env
+  -> State sip impl
+  -> State sip impl
 tick env st
   = checkPreCondition st
   & tryTransferEndorsements
@@ -312,23 +297,24 @@ tick env st
   & tryFindNewCandidate env -- We do this at the end, since activation or
                             -- expiration cause the next proposal to be put in the
                             -- queue.
---  & tryToTakeStakeDistributionSnapshot
+  -- TODO: we might want to take a stake distribution snapshot.
+  --  & tryToTakeStakeDistributionSnapshot
   & tickLastAppliedSlot
   & checkInvariants
 
   where
     checkPreCondition =
-      assert $ currentSlot env `minusSlot` 1 ==?! lastAppliedSlot st
+      assert $ (currentSlot env - 1) ==?! lastAppliedSlot st
 
     tickLastAppliedSlot st' = st' { lastAppliedSlot = Just (currentSlot env) }
 
     tryTransferEndorsements st' =
       case endorsedProposal st' of
-        Candidate { cImplementation, cEndorsements, cEndOfSafetyLag }
+        Candidate { cProtocol, cEndorsements, cEndOfSafetyLag }
           | currentSlot env == epochFirstSlot env
             -> st { endorsedProposal =
                       Candidate
-                      { cImplementation = cImplementation
+                      { cProtocol = cProtocol
                       , cEndorsements   = changeEpoch cEndorsements
                       , cEndOfSafetyLag = cEndOfSafetyLag
                       }
@@ -340,19 +326,19 @@ tick env st
     -- TODO: discuss this with Edsko.
     tryActivate st' =
       case endorsedProposal st' of
-        Scheduled { sImplementation }
+        Scheduled { sProtocol }
           | currentSlot env == epochFirstSlot env ->
             deleteProposalsThatCannotFollow
             $ st' { endorsedProposal = NoProposal
-                  , currentVersion   = sImplementation
+                  , currentVersion   = sProtocol
                   }
         _                                         -> st'
 
     tryTally st' =
       case endorsedProposal st' of
-        Candidate { cImplementation, cEndorsements, cEndOfSafetyLag }
+        Candidate { cProtocol, cEndorsements, cEndOfSafetyLag }
           | atTallyPoint && candidateHasEnough cEndorsements cEndOfSafetyLag
-            -> scheduleCandidate cImplementation
+            -> scheduleCandidate cProtocol
           | (atTallyPoint || pastTallyPoint)
             && noNextEndorsementPeriod cEndOfSafetyLag env
             ->
@@ -360,7 +346,7 @@ tick env st
              -- has no next endorsement period it should be expired, since no
              -- endorsements can be considered in the epoch, and there is no
              -- next endorsement period.
-             expireCandidate cImplementation
+             expireCandidate cProtocol
         _   -> st'
       where
         atTallyPoint = currentSlot env == tallySlot env
@@ -372,24 +358,29 @@ tick env st
           where
             adjustedAdoptionThreshold
               | noNextEndorsementPeriod endOfSafetyLag env
-              = round $ 0.51 * (fromIntegral $ totalStake StakePools env :: Double)
+              = round $ 0.51 * (fromIntegral endorsersTotalStake :: Double)
               | otherwise
               = stakeThreshold (adversarialStakeRatio env)
-                               (totalStake StakePools env)
-        expireCandidate cImplementation                =
+                               endorsersTotalStake
+
+              where
+                endorsersTotalStake =
+                  totalStake @env @(EndorserId (Protocol impl)) env
+
+        expireCandidate cProtocol                =
           st' { endorsedProposal = NoProposal
               , discarded        =
-                  Map.insert cImplementation
+                  Map.insert cProtocol
                              Expired
                              (discarded st')
               }
         scheduleCandidate implAndHash                  =
-          st' { endorsedProposal = Scheduled { sImplementation = implAndHash } }
+          st' { endorsedProposal = Scheduled { sProtocol = implAndHash } }
 
 noNextEndorsementPeriod
-  :: TracksSlotTime e
-  => Slot
-  -> e
+  :: TracksSlotTime env
+  => SlotNo
+  -> env
   -> Bool
 noNextEndorsementPeriod endOfSafetyLag env =
   endOfSafetyLag <= nextEpochFirstSlot env
@@ -426,13 +417,13 @@ noNextEndorsementPeriod endOfSafetyLag env =
 -- state
 --
 transferApprovals
-  :: ( Hashable p
-     , TracksSlotTime e
+  :: ( TracksSlotTime env
+     , Implementation sip impl
      )
-  => e
-  -> Approval.State p
-  -> State p
-  -> (Approval.State p, State p)
+  => env
+  -> Approval.State impl
+  -> State sip impl
+  -> (Approval.State impl, State sip impl)
 transferApprovals env approvalSt st = (approvalSt', st')
   where
     (approved, approvalSt') = Approval.removeApproved approvalSt
@@ -447,11 +438,11 @@ transferApprovals env approvalSt st = (approvalSt', st')
     --
     -- TODO: the order in which we transfer the approvals might alter the resulting
     -- state. We should think whether this is a problem.
-    dispatch st'' (iHash, i) =
-      case implType i of
+    dispatch st'' aProposal =
+      case implementationType aProposal of
         Cancellation { toCancel } -> foldl' cancel st'' toCancel
-        Protocol {}               -> addProtocolUpdateProposal env st'' (iHash, i)
-        Application {}            -> updateApplication st'' i
+        Protocol protocol         -> addProtocolUpdateProposal env st'' protocol
+        Application application   -> updateApplication st'' application
 
 
 -- TODO: if the endorsements come in transactions we need to prevent endorsement
@@ -459,79 +450,81 @@ transferApprovals env approvalSt st = (approvalSt', st')
 --
 -- TODO: check: if endorsements come into blocks, since only block issuers can
 -- endorse, then we shouldn't worry about replay attacks and forgery.
-data Endorsement p =
+data Endorsement sip impl =
   Endorsement
-  { endorsingKeyHash :: !(Hash p (VKey p))
-  , endorsedVersion  :: !ProtocolVersion
+  { endorserId       :: !(EndorserId (Protocol impl))
+  , endorsedVersion  :: !(Version (Protocol impl))
   } deriving (Generic)
 
-deriving instance Hashable p => Show (Endorsement p)
+deriving instance Implementation sip impl => Show (Endorsement sip impl)
 
-data Error p =
+data Error sip impl =
   ProtocolVersionIsNotACandidate
-  { endorsementErrorGivenProtocolVersion :: !ProtocolVersion
-  , endorsementErrorEndorsedProposal     :: !(MaybeAnEndorsedProposal p)
-  } deriving (Eq, Show, Generic)
+  { endorsementErrorGivenProtocolVersion :: !(Version (Protocol impl))
+  , endorsementErrorEndorsedProposal     :: !(MaybeAnEndorsedProposal sip impl)
+  } deriving (Generic)
+
+deriving instance Implementation sip impl => Show (Error sip impl)
 
 -- | Register an endorsement.
 endorse
-  :: ( Hashable p
-     , TracksSlotTime env
+  :: ( TracksSlotTime env
+     , Implementation sip impl
      )
   => env
-  -> Endorsement p
-  -> State p
-  -> Either (Error p) (State p)
-endorse env Endorsement {endorsingKeyHash, endorsedVersion} st =
+  -> Endorsement sip impl
+  -> State sip impl
+  -> Either (Error sip impl) (State sip impl)
+endorse env Endorsement {endorserId, endorsedVersion} st =
   case endorsedProposal st of
-    Candidate { cImplementation }
-      | version cImplementation == endorsedVersion
-        -> Right $ endorseUnchecked endorsingKeyHash env st
+    Candidate { cProtocol }
+      | version cProtocol == endorsedVersion
+        -> Right $ endorseUnchecked endorserId env st
     _   -> Left  $ ProtocolVersionIsNotACandidate
                    { endorsementErrorGivenProtocolVersion = endorsedVersion
                    , endorsementErrorEndorsedProposal     = endorsedProposal st
                    }
 
 endorseUnchecked
-  :: ( Hashable p
-     , TracksSlotTime e
+  :: ( TracksSlotTime env
+     , Implementation sip impl
      )
-  => Hash p (VKey p)
-  -> e
-  -> State p
-  -> State p
-endorseUnchecked keyHash env st
+  => EndorserId (Protocol impl)
+  -> env
+  -> State sip impl
+  -> State sip impl
+endorseUnchecked endorserId env st
   = checkInvariants
   $ case endorsedProposal st of
-      Candidate { cImplementation, cEndorsements, cEndOfSafetyLag }
+      Candidate { cProtocol, cEndorsements, cEndOfSafetyLag }
         | beforeCutoffPeriod env
           -> st { endorsedProposal =
                     Candidate
-                    { cImplementation = cImplementation
-                    , cEndorsements   = cEndorsements `endorseInThisEpoch` keyHash
+                    { cProtocol = cProtocol
+                    , cEndorsements   = cEndorsements `endorseInThisEpoch` endorserId
                     , cEndOfSafetyLag = cEndOfSafetyLag
                     }
                 }
         | otherwise
           -> st { endorsedProposal =
                     Candidate
-                    { cImplementation = cImplementation
-                    , cEndorsements   = cEndorsements `endorseInNextEpoch` keyHash
+                    { cProtocol = cProtocol
+                    , cEndorsements   = cEndorsements `endorseInNextEpoch` endorserId
                     , cEndOfSafetyLag = cEndOfSafetyLag
                     }
                 }
       _ -> error "No candidate to endorse"
 
 -- | Is the current slot before the cut-off slot?
-beforeCutoffPeriod :: TracksSlotTime e => e -> Bool
+beforeCutoffPeriod :: TracksSlotTime env => env -> Bool
 beforeCutoffPeriod env =
   currentSlot env < cutOffSlot env
 
-cutOffSlot :: TracksSlotTime e => e -> Slot
-cutOffSlot env = nextEpochFirstSlot env `minusSlot` (2 * (stableAfter env))
+cutOffSlot :: TracksSlotTime env => env -> SlotNo
+cutOffSlot env = nextEpochFirstSlot env - (2 * (stableAfter env))
 
-tallySlot :: TracksSlotTime e => e -> Slot
-tallySlot env = nextEpochFirstSlot env `minusSlot` (stableAfter env)
+tallySlot :: TracksSlotTime env => env -> SlotNo
+tallySlot env = nextEpochFirstSlot env - (stableAfter env)
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions
@@ -559,50 +552,44 @@ tallySlot env = nextEpochFirstSlot env `minusSlot` (stableAfter env)
 --   is because the version the new proposal supersedes will never be adopted.
 --
 addProtocolUpdateProposal
-  :: ( Hashable p
-     , TracksSlotTime e
+  :: ( TracksSlotTime env
+     , Implementation sip impl
      )
-  => e
-  -> State p
-  -> (Hash p (ImplementationData p), ImplementationData p)
-  -> State p
-addProtocolUpdateProposal env st (newImplHash, newImpl)
+  => env
+  -> State sip impl
+  -> Protocol impl
+  -> State sip impl
+addProtocolUpdateProposal env st protocol
   | cannotFollowCurrentVersion || cannotFollowScheduledProposal = st
   | otherwise
-  = st { activationQueue = Map.insert newImplVersion newImplAndHash (activationQueue st)
+  = st { activationQueue = Map.insert protocolVersion protocol (activationQueue st)
        }
   & resolveConflictWithCandidate
   & tryFindNewCandidate env
   where
-    newImplVersion                     =
-      implementationVersion newImpl
-    newImplAndHash                     =
-      ImplementationAndHash
-      { implHash = newImplHash
-      , implData = newImpl
-      }
-    newImplSupersedes                  =
-      implementationSupersedes newImpl
-    cannotFollowCurrentVersion         =
-      newImplSupersedes < currentProtocolVersion st
-    cannotFollowScheduledProposal      =
+    protocolVersion                  = version protocol
+    protocolSupersedesVersion        =
+      supersedesVersion protocol
+    cannotFollowCurrentVersion       =
+      protocolSupersedesVersion < currentProtocolVersion st
+    cannotFollowScheduledProposal    =
       case endorsedProposal st of
-        Scheduled { sImplementation } ->
-          newImplSupersedes < version sImplementation
+        Scheduled { sProtocol } ->
+          protocolSupersedesVersion < version sProtocol
         _           ->
           False
     resolveConflictWithCandidate st' =
       case endorsedProposal st' of
-        Candidate { cImplementation }
-          | newImplVersion == version cImplementation
+        Candidate { cProtocol }
+          | protocolVersion == version cProtocol
             -> st' { endorsedProposal = NoProposal
                    , discarded        =
-                       Map.insert cImplementation Obsoleted (discarded st')
+                       Map.insert cProtocol Obsoleted (discarded st')
                    }
-          | newImplVersion < version cImplementation
+          | protocolVersion < version cProtocol
             -> st' { activationQueue  =
-                       Map.insert (version cImplementation)
-                                  cImplementation
+                       Map.insert (version cProtocol)
+                                  cProtocol
                                   (activationQueue st')
                    , endorsedProposal = NoProposal
                    }
@@ -612,29 +599,29 @@ addProtocolUpdateProposal env st (newImplHash, newImpl)
 -- | If there is candidate or scheduled proposal, determine whether there is a
 -- proposal in the queue that should become the next candidate.
 tryFindNewCandidate
-  :: ( Hashable p
-     , TracksSlotTime e
+  :: ( TracksSlotTime env
+     , Implementation sip impl
      )
-  => e
-  -> State p
-  -> State p
+  => env
+  -> State sip impl
+  -> State sip impl
 tryFindNewCandidate env st =
   case (endorsedProposal st, maybeNextProposal) of
-    (NoProposal, Just (nextVersion, nextImplAndHash)) -> makeCandidate (nextVersion, nextImplAndHash)
-    (_         , _                                  ) -> st
+    (NoProposal, Just nextProtocol) -> makeCandidate nextProtocol
+    (_         , _                ) -> st
   where
     maybeNextProposal = nextCandidate st
-    makeCandidate (nextVersion, nextImplAndHash)
+    makeCandidate nextProtocol
       = st { activationQueue  =
-               Map.delete nextVersion (activationQueue st)
+               Map.delete (version nextProtocol) (activationQueue st)
            , endorsedProposal =
                Candidate
-               { cImplementation = nextImplAndHash
+               { cProtocol       = nextProtocol
                , cEndorsements   = noEndorsements
                , cEndOfSafetyLag =
                  -- TODO: we need to make the safety lag configurable in
                  -- 'ImplementationData'.
-                   nextEpochFirstSlot env `addSlot` slotsPerEpoch env
+                   nextEpochFirstSlot env + slotsPerEpoch env
                }
            }
 
@@ -642,20 +629,20 @@ tryFindNewCandidate env st =
 --
 -- Only scheduled proposals cannot be canceled.
 cancel
-  :: Hashable p
-  => State p
-  -> Hash p (ImplementationData p)
-  -> State p
+  :: (Implementation sip impl)
+  => State sip impl
+  -> ProtocolId impl
+  -> State sip impl
 cancel st toCancel
-  = discardProposalsThatDoNotSatisfy ((/= toCancel) . implHash) Canceled st
+  = discardProposalsThatDoNotSatisfy ((/= toCancel) . _id) Canceled st
   & cancelEventualCandidate
   where
     cancelEventualCandidate st' =
       case endorsedProposal st' of
-        Candidate { cImplementation }
-          | implHash cImplementation == toCancel
+        Candidate { cProtocol }
+          | _id cProtocol == toCancel
             -> st' { endorsedProposal = NoProposal
-                   , discarded        = Map.insert cImplementation
+                   , discarded        = Map.insert cProtocol
                                                    Canceled
                                                    (discarded st')
                    }
@@ -663,27 +650,23 @@ cancel st toCancel
         _   -> st'
 
 updateApplication
-  :: Hashable p
-  => State p
-  -> ImplementationData p
-  -> State p
+  :: (Implementation sip impl)
+  => State sip impl
+  -> Application impl
+  -> State sip impl
 updateApplication st implementation
   = checkPreconditions
   $ st { applicationUpdates = implementation : (applicationUpdates st) }
   where
     checkPreconditions = assert $ do
-      isApplicationUpdate implementation
-        `orElseShow` ("Expecting an application, instead we got: "
-                      <> cShow implementation
-                     )
-      applicationUpdates st `doesNotContain` implementation
+      fmap _id (applicationUpdates st) `doesNotContain` _id implementation
 
 discardProposalsThatDoNotSatisfy
-  :: Hashable p
-  => (ImplementationAndHash p -> Bool)
+  :: (Implementation sip impl)
+  => (Protocol impl -> Bool)
   -> Reason
-  -> State p
-  -> State p
+  -> State sip impl
+  -> State sip impl
 discardProposalsThatDoNotSatisfy predicate reason st =
   st { activationQueue = keep
      , discarded       = foldl' (\m implAndHash -> Map.insert implAndHash reason m)
@@ -700,38 +683,40 @@ discardProposalsThatDoNotSatisfy predicate reason st =
 -- | Find the proposal with the lowest version that supersedes the given current
 -- version.
 nextCandidate
-  :: Hashable p => State p
-  -> Maybe (ProtocolVersion, ImplementationAndHash p)
+  :: (Implementation sip impl)
+  => State sip impl
+  -> Maybe (Protocol impl)
 nextCandidate st =
   case Map.lookupMin (activationQueue st) of
-    Just (minVersion, minImplAndHash)
-      | currentProtocolVersion st == supersedes minImplAndHash
-        -> Just (minVersion, minImplAndHash)
+    Just (_, minProtocol)
+      | currentProtocolVersion st == supersedesVersion minProtocol
+        -> Just minProtocol
     _ -> Nothing
 
 -- | Delete those proposals that cannot follow the current version.
 deleteProposalsThatCannotFollow
-  :: Hashable p
-  => State p
-  -> State p
+  :: (Implementation sip impl)
+  => State sip impl
+  -> State sip impl
 deleteProposalsThatCannotFollow st =
   discardProposalsThatDoNotSatisfy canFollow Unsupported st
   where
     canFollow = (currentProtocolVersion st <=)
-              . implementationSupersedes
-              . implData
+              . supersedesVersion
 
 --------------------------------------------------------------------------------
 -- Update state query operations
 --------------------------------------------------------------------------------
 
-class HasActivationState st p | st -> p where
-  getActivationState :: st -> State p
+class Implementation sip impl
+      => HasActivationState st sip impl | st -> sip, st -> impl  where
+  getActivationState :: st -> State sip impl
 
-instance HasActivationState (State p) p where
+instance Implementation sip impl
+         => HasActivationState (State sip impl) sip impl where
   getActivationState = id
 
-getCurrentVersion :: HasActivationState st p => st -> ImplementationAndHash p
+getCurrentVersion :: HasActivationState st sip impl => st -> (Protocol impl)
 getCurrentVersion = currentVersion . getActivationState
 
 -- | Was the given protocol update implementation activated?
@@ -742,100 +727,99 @@ getCurrentVersion = currentVersion . getActivationState
 -- For software and cancellation updates this function will always return
 -- 'False'.
 isTheCurrentVersion
-  :: (Hashable p, HasActivationState st p)
-  => Hash p (ImplementationData p) -> st -> Bool
-isTheCurrentVersion h = (== h) . implHash . currentVersion . getActivationState
+  :: (HasActivationState st sip impl)
+  => ProtocolId impl -> st -> Bool
+isTheCurrentVersion h = (== h) . _id . currentVersion . getActivationState
 
 isScheduled
-  :: (Hashable p, HasActivationState st p)
-  => Hash p (ImplementationData p) -> st -> Bool
+  :: (HasActivationState st sip impl)
+  => ProtocolId impl -> st -> Bool
 isScheduled h =
-  fromMaybe False . fmap (== h) . scheduledImplementationHash . getActivationState
+  fromMaybe False . fmap (== h) . scheduledProtocolId . getActivationState
 
 isBeingEndorsed
-  :: (Hashable p, HasActivationState st p)
-  => Hash p (ImplementationData p) -> st -> Bool
+  :: (HasActivationState st sip impl)
+  => ProtocolId impl -> st -> Bool
 isBeingEndorsed h =
-  fromMaybe False . fmap (== h) . endorsedImplementationHash . getActivationState
+  fromMaybe False . fmap (== h) . endorsedProtocolId . getActivationState
 
 isQueued
-  :: (Hashable p, HasActivationState st p)
-  => Hash p (ImplementationData p) -> st -> Bool
-isQueued h st = h `elem` fmap implHash queuedImplementations
+  :: (HasActivationState st sip impl)
+  => ProtocolId impl -> st -> Bool
+isQueued h st = h `elem` fmap _id queuedImplementations
   where
     queuedImplementations = Map.elems $ activationQueue $ getActivationState st
 
 isDiscardedDueToBeing
-  :: (Hashable p, HasActivationState st p)
-  => Hash p (ImplementationData p) -> Reason -> st -> Bool
+  :: (HasActivationState st sip impl)
+  => ProtocolId impl -> Reason -> st -> Bool
 isDiscardedDueToBeing h reason =
   (h `elem`) . discardedHashesDueTo reason
 
 discardedHashesDueTo
-  :: HasActivationState st p
-  => Reason -> st -> [Hash p (ImplementationData p)]
+  :: HasActivationState st sip impl
+  => Reason -> st -> [ProtocolId impl]
 discardedHashesDueTo reason
-  = fmap implHash
+  = fmap _id
   . Map.keys
   . Map.filter (== reason)
   . discarded
   . getActivationState
 
-endorsedImplementation
-  :: HasActivationState st p => st -> Maybe (ImplementationAndHash p)
-endorsedImplementation st =
+endorsedProtocol
+  :: HasActivationState st sip impl => st -> Maybe (Protocol impl)
+endorsedProtocol st =
   case endorsedProposal (getActivationState st) of
-    Candidate { cImplementation } -> Just cImplementation
-    Scheduled { sImplementation } -> Just sImplementation
-    _                             -> Nothing
+    Candidate { cProtocol } -> Just cProtocol
+    Scheduled { sProtocol } -> Just sProtocol
+    _                       -> Nothing
 
 candidateEndOfSafetyLag
-  :: HasActivationState st p => st -> Maybe Slot
+  :: HasActivationState st sip impl => st -> Maybe SlotNo
 candidateEndOfSafetyLag st =
   case endorsedProposal (getActivationState st) of
     Candidate { cEndOfSafetyLag } -> Just cEndOfSafetyLag
     _                             -> Nothing
 
-scheduledImplementation
-  :: HasActivationState st p => st -> Maybe (ImplementationAndHash p)
-scheduledImplementation st =
+scheduledProtocol
+  :: HasActivationState st sip impl => st -> Maybe (Protocol impl)
+scheduledProtocol st =
   case endorsedProposal (getActivationState st) of
-    Scheduled { sImplementation } -> Just sImplementation
-    _                             -> Nothing
+    Scheduled { sProtocol } -> Just sProtocol
+    _                       -> Nothing
 
 endorsedProtocolVersion
-  :: (Hashable p, HasActivationState st p) => st -> Maybe ProtocolVersion
+  :: (HasActivationState st sip impl) => st -> Maybe (Version (Protocol impl))
 endorsedProtocolVersion
-  = fmap (implementationVersion . implData) . endorsedImplementation
+  = fmap version . endorsedProtocol
 
-endorsedImplementationHash
-  :: HasActivationState st p => st -> Maybe (Hash p (ImplementationData p))
-endorsedImplementationHash =
-    fmap implHash . endorsedImplementation
+endorsedProtocolId
+  :: HasActivationState st sip impl => st -> Maybe (ProtocolId impl)
+endorsedProtocolId =
+    fmap _id . endorsedProtocol
 
-endorsedSupersedes
-  :: (Hashable p, HasActivationState st p) => st -> Maybe ProtocolVersion
-endorsedSupersedes =
-  fmap (implementationSupersedes . implData) . endorsedImplementation
+endorsedSupersedesVersion
+  :: (HasActivationState st sip impl) => st -> Maybe (Version (Protocol impl))
+endorsedSupersedesVersion =
+  fmap supersedesVersion . endorsedProtocol
 
 currentProtocolVersion
-  :: (Hashable p, HasActivationState st p) => st -> ProtocolVersion
+  :: (HasActivationState st sip impl) => st -> Version (Protocol impl)
 currentProtocolVersion =
-  implementationVersion . implData  . currentVersion . getActivationState
+  version  . currentVersion . getActivationState
 
-scheduledImplementationHash
-  :: HasActivationState st p => st -> Maybe (Hash p (ImplementationData p))
-scheduledImplementationHash
-  = fmap implHash . scheduledImplementation . getActivationState
+scheduledProtocolId
+  :: HasActivationState st sip impl => st -> Maybe (ProtocolId impl)
+scheduledProtocolId
+  = fmap _id . scheduledProtocol . getActivationState
 
+class HasActivationError err sip impl | err -> sip, err -> impl where
+  getActivationError :: err -> Maybe (Error sip impl)
 
-class HasActivationError err p | err -> p where
-  getActivationError :: err -> Maybe (Error p)
-
-instance HasActivationError (Error p) p where
+instance HasActivationError (Error sip impl) sip impl where
   getActivationError = Just . id
 
 endorsedVersionError
-  :: HasActivationError err p => err  -> Maybe ProtocolVersion
+  :: HasActivationError err sip impl => err -> Maybe (Version (Protocol impl))
 endorsedVersionError
   = fmap endorsementErrorGivenProtocolVersion . getActivationError

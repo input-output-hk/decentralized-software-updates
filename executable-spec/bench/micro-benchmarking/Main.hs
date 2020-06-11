@@ -7,10 +7,8 @@ import           Cardano.Prelude (noUnexpectedThunks, thunkInfoToIsNF)
 import           Control.Monad (unless)
 import           Text.Pretty.Simple (pPrint)
 
-import           Ledger.Core (Slot (Slot))
-
 import           Cardano.Ledger.Benchmarks.Update.Tally
-import           Cardano.Ledger.Spec.State.ProposalState (Decision (Approved))
+import           Cardano.Ledger.Update.ProposalState (Decision (Approved))
 
 import qualified Criterion.Main as Cr
 
@@ -53,7 +51,7 @@ main = do
       BenchmarkConstants
       { k              = 1
       , r_a            = 0.49
-      , revelationSlot = Slot 0
+      , revelationSlot = 0
       }
     allApproved tallyData
       = if all (== Approved) $ runTally constants tallyData
