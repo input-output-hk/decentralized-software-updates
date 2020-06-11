@@ -27,53 +27,38 @@ flag pretty
 library
   hs-source-dirs:      src
   exposed-modules:     Cardano.Ledger.Update
+                     -- Data
+                     , Cardano.Ledger.Update.Proposal
+                     -- Phases
                      , Cardano.Ledger.Update.Ideation
                      , Cardano.Ledger.Update.Approval
                      , Cardano.Ledger.Update.Activation
-
-                     , Cardano.Ledger.Spec.Classes.Hashable
-                     , Cardano.Ledger.Spec.Classes.HasAuthor
-                     , Cardano.Ledger.Spec.Classes.HasSalt
-                     , Cardano.Ledger.Spec.Classes.HasSigningScheme
-                     , Cardano.Ledger.Spec.Classes.TracksSlotTime
-                     , Cardano.Ledger.Spec.Classes.HasStakeDistribution
-                     , Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
-                     , Cardano.Ledger.Spec.Classes.HasVotingPeriodsCap
-
-                     , Cardano.Ledger.Spec.State.StakeDistribution
-
-                     , Cardano.Ledger.Spec.State.ProposalState
-                     , Cardano.Ledger.Spec.State.ProposalsState
-
-                     , Cardano.Ledger.Spec.STS.Update.Approval.Data
-                     , Cardano.Ledger.Spec.STS.Update.Data
-                     , Cardano.Ledger.Spec.STS.Update.Data.Commit
-                     , Cardano.Ledger.Spec.STS.Update.Ideation.Data
-                     , Cardano.Ledger.Spec.STS.Update.Definitions
-
+                     -- Proposals state
+                     , Cardano.Ledger.Update.ProposalState
+                     , Cardano.Ledger.Update.ProposalsState
+                     -- Environment constraints
+                     , Cardano.Ledger.Update.Env.TracksSlotTime
+                     , Cardano.Ledger.Update.Env.HasStakeDistribution
+                     , Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
+                     , Cardano.Ledger.Update.Env.HasVotingPeriodsCap
+                     , Cardano.Ledger.Update.Env.StakeDistribution
                      -- Non-update specific modules. Can be extracted to a
                      -- library if needed somewhere else.
                      , Cardano.Ledger.Assert
                      , Cardano.Ledger.Debug
   build-depends:       base >=4.11 && <5
-                     , bimap >= 0.4.0
                      , containers
-                     , generic-monoid
                      , text
-                     , newtype-generics
                      , strict-base-types
-                     , monad-validate
                      , pretty-simple
                      , random
                      -- Cardano specific imports
                      , cardano-prelude
-                     , cardano-binary
-                     , cardano-crypto-class
-                     , small-steps
-                     , cs-ledger
-                     , deepseq
-                     -- Needed for 'Cardano.Ledger.Debug' only. We might want to
-                     -- put this module on our test section.
+                     , cardano-slotting
+                     -- Needed for 'Cardano.Ledger.Assert' only. We might want
+                     -- to put this module on our test section.
+                     , monad-validate
+                     -- Needed for 'Cardano.Ledger.Debug' only.
                      , mtl
   default-language:    Haskell2010
   ghc-options:        -Wall
@@ -93,24 +78,22 @@ test-suite ledger-rules-test
   hs-source-dirs:      test
   main-is:             Main.hs
   type:                exitcode-stdio-1.0
-  other-modules:
-                       Cardano.Ledger.Update.UnitTests.Ideation
-                     , Cardano.Ledger.Update.UnitTests.Approval
-                     , Cardano.Ledger.Update.UnitTests.Activation
-                     , Cardano.Ledger.Update.UnitTests.Common
-
-                     , Cardano.Ledger.UpdateSpec
-                     , Cardano.Ledger.Update.TestCase
-                     , Cardano.Ledger.Update.Interface
-
-                     -- * General utilities.
-                     , Cardano.Ledger.Mock
-                     -- ** Unit testing
+  other-modules:       Test.Cardano.Ledger.Update.Data
+                     , Test.Cardano.Ledger.Update.Data.MockProposal
+                     -- Unit tests
+                     , Test.Cardano.Ledger.Update.UnitTests.Ideation
+                     , Test.Cardano.Ledger.Update.UnitTests.Approval
+                     , Test.Cardano.Ledger.Update.UnitTests.Activation
+                     , Test.Cardano.Ledger.Update.UnitTests.Common
+                     -- Test case specification
+                     , Test.Cardano.Ledger.UpdateSpec
+                     , Test.Cardano.Ledger.Update.TestCase
+                     , Test.Cardano.Ledger.Update.Interface
+                     -- Unit testing
                      , Util.TestCase
-                     -- ** Property testing
+                     -- Property testing
                      , Properties
                      , SUTTest
-                     , Cardano.Ledger.Generators.QuickCheck
   default-language:    Haskell2010
   build-depends:       base
                      , containers
@@ -122,12 +105,8 @@ test-suite ledger-rules-test
                      , text
                      , random
                      -- Cardano specific imports
-                     , cardano-crypto-class
-                     , cardano-binary
+                     , cardano-slotting
                      , decentralized-updates
-                     , cs-ledger
-                     , small-steps
-                     , deepseq
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates
@@ -171,22 +150,20 @@ benchmark update-benchmarking
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
   build-depends:       base
-                     , cereal
                      , containers
                      , criterion
                      , cryptonite
-                     , deepseq
                      , pretty-simple
                        -- Dependencies needed for defining the bench hashing
                      , cborg
                      , bytestring
                      , memory
                        -- Cardano deps
-                     , cs-ledger
-                     , cardano-binary
-                     , cardano-crypto-class
-                     , decentralized-updates
                      , cardano-prelude
+                     , cardano-slotting
+                     , cardano-binary
+                     , decentralized-updates
+
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates

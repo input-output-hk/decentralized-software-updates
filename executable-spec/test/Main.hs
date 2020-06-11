@@ -8,9 +8,9 @@ where
 import           Test.Tasty (TestTree, defaultMain, localOption, testGroup)
 import           Test.Tasty.Ingredients.ConsoleReporter (UseColor (Auto))
 
-import qualified Cardano.Ledger.Update.UnitTests.Activation as UnitTests.Activation
-import qualified Cardano.Ledger.Update.UnitTests.Approval as UnitTests.Approval
-import qualified Cardano.Ledger.Update.UnitTests.Ideation as UnitTests.Ideation
+import qualified Test.Cardano.Ledger.Update.UnitTests.Activation as UnitTests.Activation
+import qualified Test.Cardano.Ledger.Update.UnitTests.Approval as UnitTests.Approval
+import qualified Test.Cardano.Ledger.Update.UnitTests.Ideation as UnitTests.Ideation
 
 main :: IO ()
 main = defaultMain tests

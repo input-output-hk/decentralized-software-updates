@@ -1,5 +1,5 @@
 
-module Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio where
+module Cardano.Ledger.Update.Env.HasAdversarialStakeRatio where
 
 class HasAdversarialStakeRatio e where
 

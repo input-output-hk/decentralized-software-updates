@@ -1,17 +1,16 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Cardano.Ledger.Update.UnitTests.Common where
+module Test.Cardano.Ledger.Update.UnitTests.Common where
 
 import           Control.Arrow (left)
 import           Control.Monad.Except (liftEither)
 import           Control.Monad.State (get, gets, put)
 import           GHC.Generics (Generic)
 
-import           Ledger.Core (Slot, SlotCount, (+.))
+import           Cardano.Slotting.Slot (SlotNo)
 
-import           Cardano.Ledger.Update.Interface hiding (tickTill)
-
-import           Cardano.Ledger.Update.TestCase
+import           Test.Cardano.Ledger.Update.Interface hiding (tickTill)
+import           Test.Cardano.Ledger.Update.TestCase
 
 
 --------------------------------------------------------------------------------
@@ -22,28 +21,28 @@ tickTillStable :: TestCase
 tickTillStable =
   gets currentSlotStableAt >>= tickTill
 
-tickFor :: SlotCount -> TestCase
+tickFor :: SlotNo -> TestCase
 tickFor numberOfSlots = do
   currentSlot <- gets iStateCurrentSlot
-  tickTill (currentSlot +. numberOfSlots)
+  tickTill (currentSlot + numberOfSlots)
 
-tickTill :: Slot -> TestCase
+tickTill :: SlotNo -> TestCase
 tickTill endAt = do
   currentSlot <- gets iStateCurrentSlot
   if endAt <= currentSlot
     then pure ()
     else do
-      tick (currentSlot +. 1)
+      tick (currentSlot + 1)
       tickTill endAt
 
 tickTillNextEpoch :: TestCase
 tickTillNextEpoch = do
   epochFirstSlot <- gets iStateEpochFirstSlot
   slotsPerEpoch  <- gets iStateSlotsPerEpoch
-  let nextEpochBegins = epochFirstSlot +. slotsPerEpoch
+  let nextEpochBegins = epochFirstSlot + slotsPerEpoch
   tickTill nextEpochBegins
 
-tick :: Slot -> TestCase
+tick :: SlotNo -> TestCase
 tick slot = do
   st  <- get
   st' <- liftEither $ left (`UpdateError` st) $ slotTick slot st

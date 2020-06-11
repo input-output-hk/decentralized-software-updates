@@ -58,21 +58,14 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."bimap" or (buildDepError "bimap"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."generic-monoid" or (buildDepError "generic-monoid"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."newtype-generics" or (buildDepError "newtype-generics"))
           (hsPkgs."strict-base-types" or (buildDepError "strict-base-types"))
-          (hsPkgs."monad-validate" or (buildDepError "monad-validate"))
           (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
           (hsPkgs."random" or (buildDepError "random"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-          (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-          (hsPkgs."small-steps" or (buildDepError "small-steps"))
-          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
-          (hsPkgs."deepseq" or (buildDepError "deepseq"))
+          (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
+          (hsPkgs."monad-validate" or (buildDepError "monad-validate"))
           (hsPkgs."mtl" or (buildDepError "mtl"))
           ];
         buildable = true;
@@ -89,12 +82,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."random" or (buildDepError "random"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
-            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
-            (hsPkgs."small-steps" or (buildDepError "small-steps"))
-            (hsPkgs."deepseq" or (buildDepError "deepseq"))
             ];
           buildable = true;
           };
@@ -107,20 +96,17 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "update-benchmarking" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."cereal" or (buildDepError "cereal"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."criterion" or (buildDepError "criterion"))
             (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-            (hsPkgs."deepseq" or (buildDepError "deepseq"))
             (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."memory" or (buildDepError "memory"))
-            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
+            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+            (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             ];
           buildable = true;
           };

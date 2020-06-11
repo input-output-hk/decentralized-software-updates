@@ -5,7 +5,14 @@
 
 -- | Utilities for specifying and running test cases.
 module Util.TestCase
-  -- TODO: export explicitly
+  ( TestCaseM
+  , runTestCase
+  , run
+  , shouldBeRight
+  , with
+  , withTestCase
+  , throwsError
+  )
 where
 
 import           Control.Monad (unless)

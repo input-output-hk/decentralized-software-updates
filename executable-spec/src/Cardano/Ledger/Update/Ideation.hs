@@ -1,14 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
-
-{-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
 
 -- | Ideation phase interface.
 --
@@ -21,8 +19,6 @@ module Cardano.Ledger.Update.Ideation
   , initialState
   , tick
   , apply
-    -- ** Function constraints
-  , CanApply
     -- * State query functions
   , HasIdeationState (getIdeationState)
   , isSIPSubmitted
@@ -39,58 +35,56 @@ import           Control.Monad.Except (throwError)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 
-import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+import           Cardano.Slotting.Slot (SlotNo)
+
+import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
                      (HasAdversarialStakeRatio)
-import           Cardano.Ledger.Spec.Classes.Hashable (HasHash, Hash, Hashable)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (HasSigningScheme,
-                     Signed, VKey, signatureVerifies)
-import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
-                     (HasStakeDistribution, SIPExperts (SIPExperts))
-import           Cardano.Ledger.Spec.Classes.HasVotingPeriodsCap
+import           Cardano.Ledger.Update.Env.HasStakeDistribution
+                     (HasStakeDistribution)
+import           Cardano.Ledger.Update.Env.HasVotingPeriodsCap
                      (HasVotingPeriodsCap, maxVotingPeriods)
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime,
+import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
                      currentSlot, stableAt)
-import           Cardano.Ledger.Spec.State.ProposalsState (ProposalsState)
-import           Cardano.Ledger.Spec.State.ProposalState (Decision)
-import           Cardano.Ledger.Spec.STS.Update.Data.Commit (Commit)
+import           Cardano.Ledger.Update.ProposalState (Decision)
 
-import qualified Cardano.Ledger.Spec.State.ProposalsState as Proposals
-import qualified Cardano.Ledger.Spec.STS.Update.Data.Commit as Commit
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Data
-import qualified Ledger.Core as Core
+import           Cardano.Ledger.Update.ProposalsState (ProposalsState)
+import qualified Cardano.Ledger.Update.ProposalsState as Proposals
 
 
--- | Ideation state parameterized over the hashing and cryptographic functions.
+-- TODO: import qualified
+import           Cardano.Ledger.Update.Proposal hiding (commit)
+import qualified Cardano.Ledger.Update.Proposal as Proposal
+
+-- | Ideation state parameterized over the ideation payload.
 data State p =
   State
-  { submissionStableAt :: !(Map (Commit p (Data.SIP p)) Core.Slot)
-  , proposalsState     :: !(ProposalsState p Data.SIPData)
+  { submissionStableAt :: !(Map (Commit (Revelation p)) SlotNo)
+  , proposalsState     :: !(ProposalsState p)
   }
 
-deriving instance Hashable p => Show (State p)
+deriving instance Proposal p => Show (State p)
 
 data Error p
-  = SIPCommitAlreadySubmitted (Data.SIPCommit p)
-  | CommitSignatureDoesNotVerify (Data.SIPCommit p)
-  | NoCorrespondingCommit (Data.SIP p)
-  | NoStableCommit (Data.SIP p)
-  | AlreadyRevealed (Data.SIP p)
-  | VoteSignatureDoesNotVerify (Data.VoteForSIP p)
-  | VotePeriodHasNotStarted Core.Slot (Data.VoteForSIP p) (ProposalsState p Data.SIPData)
-  | VotePeriodHasEnded Core.Slot (Data.VoteForSIP p) (ProposalsState p Data.SIPData)
+  = SIPCommitAlreadySubmitted (Submission p)
+  | CommitSignatureDoesNotVerify (Submission p)
+  | NoCorrespondingCommit (Revelation p)
+  | NoStableCommit (Revelation p)
+  | AlreadyRevealed (Revelation p)
+  | VoteSignatureDoesNotVerify (Vote p)
+  | VotePeriodHasNotStarted SlotNo (Vote p) (ProposalsState p)
+  | VotePeriodHasEnded SlotNo (Vote p) (ProposalsState p)
 
-deriving instance (Hashable p, HasSigningScheme p) => Eq (Error p)
-deriving instance (Hashable p, HasSigningScheme p) => Show (Error p)
+deriving instance Proposal p => Show (Error p)
 
 --------------------------------------------------------------------------------
 -- State update functions
 --------------------------------------------------------------------------------
 
-initialState :: Hashable p => State p
+initialState :: Proposal p => State p
 initialState =
   State
   { submissionStableAt = mempty
-  , proposalsState     = mempty
+  , proposalsState     = Proposals.initialState
   }
 
 -- | Tick to a target slot. The environment contains the slot we're ticking to.
@@ -100,95 +94,85 @@ initialState =
 -- duplicate state and checks. It is not clear right not if this is a compromise
 -- worth doing.
 tick
-  :: ( Hashable p
-     , TracksSlotTime env
+  :: ( TracksSlotTime env
      , HasAdversarialStakeRatio env
-     , HasStakeDistribution SIPExperts env p
+     , HasStakeDistribution env (VoterId p)
+     , Proposal p
      )
   => env -> State p -> State p
 tick env st =
-  st { proposalsState = Proposals.tally env SIPExperts (proposalsState st) }
+  st { proposalsState = Proposals.tally env (proposalsState st) }
 
 apply
-  :: ( CanApply env p
+  :: ( TracksSlotTime env
+     , HasVotingPeriodsCap env
+
+     , Proposal p
      )
-  => env -> Data.Payload p -> State p -> Either (Error p) (State p)
-apply env (Data.Submit sipc _) st = do
+  => env -> Payload p -> State p -> Either (Error p) (State p)
+apply env (Submit submission) st = do
+  let commit = revelationCommit submission
   when (isSIPSubmitted commit st)
-    $ throwError (SIPCommitAlreadySubmitted sipc)
-  unless (signatureVerifies sipc)
-    $ throwError (CommitSignatureDoesNotVerify sipc)
+    $ throwError (SIPCommitAlreadySubmitted submission)
+  unless (signatureVerifies submission)
+    $ throwError (CommitSignatureDoesNotVerify submission)
   pure $ st { submissionStableAt =
-              Map.insert commit (stableAt env (currentSlot env)) (submissionStableAt st)
+              Map.insert commit
+                         (stableAt env (currentSlot env))
+                         (submissionStableAt st)
             }
-  where
-    commit = Data.commit sipc
-apply env (Data.Reveal sip) st    = do
+apply env (Reveal revelation) st  = do
+  let commit = Proposal.commit revelation
   unless (isSIPSubmitted commit st)
-    $ throwError (NoCorrespondingCommit sip)
+    $ throwError (NoCorrespondingCommit revelation)
   unless (isSIPStablySubmitted env commit st)
-    $ throwError (NoStableCommit sip)
-  when (isSIPRevealed sipDataHash st)
-    $ throwError (AlreadyRevealed sip)
+    $ throwError (NoStableCommit revelation)
+  let sipId  = _id (proposal revelation)
+  when (isSIPRevealed sipId st)
+    $ throwError (AlreadyRevealed revelation)
   pure $ st { proposalsState =
-                Proposals.reveal (currentSlot env) (maxVotingPeriods env) sipData (proposalsState st)
+                Proposals.reveal (currentSlot env)
+                                 (maxVotingPeriods env)
+                                 (proposal revelation)
+                                 (proposalsState st)
             }
-  where
-    commit      = Commit.calcCommit sip
-    sipData     = Data.sipPayload sip
-    sipDataHash = Data.sipHash sip
-apply env (Data.Vote vote) st     = do
+apply env (Cast vote) st   = do
   unless (signatureVerifies vote)
     $ throwError (VoteSignatureDoesNotVerify vote)
-  let
-    sipHash = Data.votedsipHash vote
-  unless (Proposals.votingPeriodHasStarted env sipHash (proposalsState st))
+  let sipId = candidate vote
+  unless (Proposals.votingPeriodHasStarted env sipId (proposalsState st))
     $ throwError (VotePeriodHasNotStarted (currentSlot env) vote (proposalsState st))
-  when (Proposals.votingPeriodHasEnded env sipHash (proposalsState st))
+  when (Proposals.votingPeriodHasEnded env sipId (proposalsState st))
     $ throwError (VotePeriodHasEnded (currentSlot env) vote (proposalsState st))
   pure $ st { proposalsState =
-              Proposals.updateBallot sipHash vote (proposalsState st)
+              Proposals.updateBallot sipId vote (proposalsState st)
             }
-
-
--- | Constraints required for applying the ideation payload.
-class (TracksSlotTime env
-     , HasVotingPeriodsCap env
-     , Hashable p
-     , HasHash p (Data.SIP p)
-     , HasHash p Data.SIPData
-     , HasHash p (Int, VKey p, Hash p (Data.SIP p))
-     , HasHash p (VKey p) -- needed for 'updateBallot'
-
-     , Signed p (Data.SIPCommit p)
-     , Signed p (Data.VoteForSIP p)
-     ) => CanApply env p where
 
 --------------------------------------------------------------------------------
 -- State query functions
 --------------------------------------------------------------------------------
 
-class HasIdeationState st p where
+class HasIdeationState st p | st -> p where
   getIdeationState :: st -> State p
 
 instance HasIdeationState (State p) p where
   getIdeationState = id
 
 isSIPSubmitted
-  :: (Hashable p, HasIdeationState st p)
-  => Commit p (Data.SIP p)
+  :: (Proposal p, HasIdeationState st p)
+  => Commit (Revelation p)
   -> st
   -> Bool
 isSIPSubmitted sipCommit =
   Map.member sipCommit . submissionStableAt . getIdeationState
 
 isSIPStablySubmitted
-  :: ( Hashable p
+  :: ( Proposal p
      , TracksSlotTime env
      , HasIdeationState st p
      )
   => env
-  -> Commit p (Data.SIP p)
+  -> Commit (Revelation p)
   -> st
   -> Bool
 isSIPStablySubmitted env sipCommit
@@ -198,35 +182,35 @@ isSIPStablySubmitted env sipCommit
   . getIdeationState
 
 isSIPRevealed
-  :: ( Hashable p
+  :: ( Proposal p
      , HasIdeationState st p
      )
-  => Hash p Data.SIPData -> st -> Bool
+  => Id p -> st -> Bool
 isSIPRevealed sipDataHash =
   Proposals.isRevealed sipDataHash . proposalsState . getIdeationState
 
 isSIPStablyRevealed
-  :: ( Hashable p
+  :: ( Proposal p
      , TracksSlotTime env
      , HasIdeationState st p
      )
-  => env -> Hash p Data.SIPData -> st -> Bool
+  => env -> Id p -> st -> Bool
 isSIPStablyRevealed env sipDataHash =
   Proposals.isStablyRevealed env sipDataHash . proposalsState . getIdeationState
 
 isSIP
-  :: ( Hashable p
+  :: ( Proposal p
      , HasIdeationState st p
      )
-  => Hash p Data.SIPData -> Decision -> st -> Bool
+  => Id p -> Decision -> st -> Bool
 isSIP sipDataHash d =
   Proposals.is sipDataHash d . proposalsState . getIdeationState
 
 isSIPStably
-  :: ( Hashable p
+  :: ( Proposal p
      , TracksSlotTime env
      , HasIdeationState st p
      )
-  => env -> Hash p Data.SIPData -> Decision -> st -> Bool
+  => env -> Id p -> Decision -> st -> Bool
 isSIPStably env sipDataHash d =
   Proposals.isStably env sipDataHash d . proposalsState . getIdeationState

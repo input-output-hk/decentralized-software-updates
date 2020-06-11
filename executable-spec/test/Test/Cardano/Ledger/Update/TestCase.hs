@@ -7,10 +7,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-} -- TODO: temporary
+-- TODO: see TODO note in 'HasStakeDistribution' instances of 'IState'.
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
-
-module Cardano.Ledger.Update.TestCase where
+module Test.Cardano.Ledger.Update.TestCase where
 
 import           Control.Arrow (first, left, (&&&))
 import           Control.Monad (unless)
@@ -18,37 +18,46 @@ import           Control.Monad.Except (liftEither, throwError)
 import           Control.Monad.State (get, gets, put)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Word (Word64)
 import           Test.Tasty (TestTree)
 
-import           Ledger.Core (BlockCount, Slot (Slot))
+import           Cardano.Slotting.Block (BlockNo)
 
-import           Cardano.Ledger.Spec.Classes.Hashable (hash)
-import           Cardano.Ledger.Spec.Classes.HasSigningScheme (SKey, VKey)
-import           Cardano.Ledger.Spec.State.StakeDistribution (StakeDistribution)
-import qualified Cardano.Ledger.Spec.State.StakeDistribution as StakeDistribution
-import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
-import qualified Cardano.Ledger.Spec.STS.Update.Data as Update.Data
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
+import           Cardano.Ledger.Update.Env.HasStakeDistribution
+                     (HasStakeDistribution, stakeDistribution)
+import           Cardano.Ledger.Update.Env.StakeDistribution (StakeDistribution)
+import qualified Cardano.Ledger.Update.Env.StakeDistribution as StakeDistribution
 
-import           Cardano.Ledger.Mock (Mock, vkeyFromSkey, wordToSKey)
-import           Cardano.Ledger.Update.Interface
+import           Test.Cardano.Ledger.Update.Interface
 
 import qualified Util.TestCase as TestCase
 
 import qualified Cardano.Ledger.Update as Update
-import qualified Cardano.Ledger.Update.Approval as Approval
-import qualified Cardano.Ledger.Update.Ideation as Ideation
 
--- TODO: bundle the constraints somewhere else. Do not break abstraction like this.
-instance Ideation.CanApply (IState Mock) Mock
-instance Approval.CanApply (IState Mock) Mock
+import           Cardano.Ledger.Update.Proposal hiding (Implementation)
+
+import           Test.Cardano.Ledger.Update.Data
+
 
 -- | A test case carries an read only test-environment, and modifies the
 -- interface state as it performs the test case step. A test case can exit with
 -- a 'TestError'.
 type TestCase = TestAction ()
 
-type TestAction a = TestCase.TestCaseM TestError TestCaseEnv (IState Mock) a
+type MockUIState = IState MockSIP MockImpl
+type MockUIError = UIError MockSIP MockImpl
+
+-- TODO: This is an orphan instance. We have to consider whether it makes sense
+-- to avoid it. This might require making IState non-polymorphic on the sip's
+-- and implementation payload, which might make sense.
+instance HasStakeDistribution (IState MockSIP MockImpl) (VoterId MockSIP) where
+  stakeDistribution = iStateSIPStakeDist
+
+instance HasStakeDistribution (IState MockSIP MockImpl) (VoterId MockImpl) where
+  stakeDistribution = iStateImplStakeDist
+
+type TestAction a =
+  TestCase.TestCaseM TestError TestCaseEnv MockUIState a
 
 -- | Run a test case in the given initial state.
 run :: TestCaseEnv -> TestCase -> Either TestError ()
@@ -58,11 +67,11 @@ with :: TestCaseEnv -> [(String, TestCase)] -> [TestTree]
 with initialEnv = TestCase.with initialEnv (mkIState initialEnv)
 
 apply
-  :: Update.Payload Mock
+  :: Update.Payload MockSIP MockImpl
   -> TestCase
 apply payload = do
   st  <- get
-  st' <- liftEither $ left (`UpdateError` st) $ applyUpdatePayload payload st
+  st' <- liftEither $ left (`UpdateError` st) $ applyUpdate payload st
   put st'
 
 --------------------------------------------------------------------------------
@@ -71,28 +80,26 @@ apply payload = do
 
 data TestCaseEnv =
   TestCaseEnv
-  { tcK                     :: !BlockCount
+  { tcK                     :: !BlockNo
     -- ^ Stability parameter, defined in terms of number of slots. This should
     -- be replaced by a parameter defined in terms of number of slots (something
     -- like @stableAfter@).
   , tcAdversarialStakeRatio :: !Float
-  , tcSIPExperts            :: !(Map (SKey Mock) ParticipantVotingBehavior)
-  , tcImplExperts           :: !(Map (SKey Mock) ParticipantVotingBehavior)
-  , tcStakePools            :: !(Map (SKey Mock) ParticipantVotingBehavior)
+  , tcSIPExperts            :: !(Map (Voter MockSIP) VotingBehavior)
+  , tcImplExperts           :: !(Map (Voter MockImpl) VotingBehavior)
+  , tcStakePools            :: !(Map (Endorser (Protocol MockImpl)) VotingBehavior)
   }
 
-data ParticipantVotingBehavior = Approves | Rejects
+data VotingBehavior = Approves | Rejects
 
-participantApproves :: ParticipantVotingBehavior -> Bool
+participantApproves :: VotingBehavior -> Bool
 participantApproves Approves = True
 participantApproves _        = False
 
 getApprovers
-  :: Map (SKey Mock) ParticipantVotingBehavior -> [(SKey Mock, VKey Mock)]
+  :: Map d VotingBehavior -> [d]
 getApprovers participants =
-  fmap (id &&& vkeyFromSkey) approvers
-  where
-    approvers = Map.keys $ Map.filter participantApproves participants
+  Map.keys $ Map.filter participantApproves participants
 
 --------------------------------------------------------------------------------
 -- Initial state elaboration from test case environment
@@ -100,70 +107,55 @@ getApprovers participants =
 
 -- | Create an initial state from the given test case environment.
 --
--- TODO: we need to use the implementation-experts stake distribution
--- (tcImplExperts). This requires that we use a different stake distribution in
--- the approval phase.
-mkIState :: TestCaseEnv -> IState Mock
-mkIState TestCaseEnv { tcK, tcAdversarialStakeRatio, tcSIPExperts, tcStakePools } =
+mkIState :: TestCaseEnv -> MockUIState
+mkIState env =
   IState
-    { iStateK                      = tcK
+    { iStateK                      = tcK env
     , iStateMaxVotingPeriods       = 2
-    , iStateStakeDist              = elaborateStakeDist tcSIPExperts
+    , iStateSIPStakeDist           = elaborateStakeDist (tcSIPExperts env)
+    , iStateImplStakeDist          = elaborateStakeDist (tcImplExperts env)
     , iStateCurrentSlot            = currentSlot
     , iStateEpochFirstSlot         = currentSlot
     , iStateSlotsPerEpoch          = 10
-    , iStateR_a                    = tcAdversarialStakeRatio
+    , iStateR_a                    = tcAdversarialStakeRatio env
 
-    , updateSt             =
-        Update.initialState  (hash genesisImplData) genesisImplData
-    , iStateStakepoolsDistribution = elaborateStakeDist tcStakePools
+    , updateSt                     = Update.initialState genesisProtocol
+
+    , iStateStakepoolsDistribution = elaborateStakeDist (tcStakePools env)
     }
     where
-      currentSlot = Slot 0
-
-      genesisSIPData =
-        Ideation.Data.SIPData
-        { Ideation.Data.url = Update.Data.URL "foo"
-        , Ideation.Data.metadata =
-          Ideation.Data.SIPMetadata
-          { Ideation.Data.versionFrom       = (Ideation.Data.ProtVer 0, Ideation.Data.ApVer 0)
-          , Ideation.Data.versionTo         = (Ideation.Data.ProtVer 0, Ideation.Data.ApVer 0)
-          , Ideation.Data.impactsConsensus  = Ideation.Data.Impact
-          , Ideation.Data.impactsParameters = []
-          , Ideation.Data.votPeriodDuration = 0
-          }
+      currentSlot     =  0
+      genesisProtocol =
+        MockProtocol
+        { mpProtocolId        = ProtocolId 0
+        , mpProtocolVersion   = Version 0
+        , mpSupersedesId      = ProtocolId 0
+        , mpSupersedesVersion = Version 0
         }
-
-      genesisImplData =
-        Approval.Data.ImplementationData
-        { Approval.Data.implDataSIPHash = hash genesisSIPData
-        , Approval.Data.implDataVPD     = 0
-        , Approval.Data.implType        =
-            Approval.Data.genesisUpdateType genesisImplURL genesisImplHash
-        }
-        where
-          genesisImplURL  = Update.Data.URL "foo"
-          genesisImplHash = 0 -- TODO: for now we have not defined a type for this
 
 -- | All the stakeholders are assigned a stake of @1@.
 elaborateStakeDist
-  :: Map (SKey Mock) ParticipantVotingBehavior -> StakeDistribution Mock
+  :: Identifiable d => Map d VotingBehavior -> StakeDistribution (Id d)
 elaborateStakeDist
   = StakeDistribution.fromList
-  . fmap (hash . vkeyFromSkey &&& const 1)
+  . fmap (_id &&& const 1)
   . Map.keys
 
-mkParticipantVotingBehavior
-  :: Word
+-- | Create a map from a certain participant type to its voting behavior.
+mkVotingBehavior
+  :: Ord participant
+  => Word64
   -- ^ Id of the first participant
-  -> Word
+  -> Word64
   -- ^ Number of approving keys (i.e. keys that will approve any proposal).
-  -> Word
+  -> Word64
   -- ^ Number of rejecting keys (i.e. keys that will reject any proposal).
-  -> Map (SKey Mock) ParticipantVotingBehavior
-mkParticipantVotingBehavior firstParticipantId nrApprovingKeys nrRejectingKeys
+  -> (Word64 -> participant)
+  -- ^ Participant elaboration function.
+  -> Map participant VotingBehavior
+mkVotingBehavior firstParticipantId nrApprovingKeys nrRejectingKeys elaborate
   = Map.fromList
-  $ fmap (first wordToSKey)
+  $ fmap (first elaborate)
   $  zip [firstParticipantId .. (n - 1) ]
          (repeat Approves)
   ++ zip [n .. n + nrRejectingKeys - 1]
@@ -176,13 +168,13 @@ mkParticipantVotingBehavior firstParticipantId nrApprovingKeys nrRejectingKeys
 --------------------------------------------------------------------------------
 
 data TestError
-  = StateMismatch (Actual UpdateState) (Expected UpdateState) (IState Mock)
-  | StateValueMismatch (Actual String) (Expected String) (IState Mock)
-  | CannotMoveTo (Actual UpdateState) (Expected UpdateState) (IState Mock)
+  = StateMismatch (Actual UpdateState) (Expected UpdateState) MockUIState
+  | StateValueMismatch (Actual String) (Expected String) MockUIState
+  | CannotMoveTo (Actual UpdateState) (Expected UpdateState) MockUIState
   | CannotFastForwardTo UpdateState
   -- ^ It is not possible to fast-forward to the current state (the current
   -- state was not found in the lifecycle).
-  | UpdateError (UIError Mock) (IState Mock)
+  | UpdateError MockUIError MockUIState
   | UnexpectedUpdateError TestError
   -- ^ A test case can declare certain errors to be expected. This error can be
   -- thrown when an unexpected error occurs.
@@ -200,7 +192,7 @@ newtype Expected a = Expected a
 --------------------------------------------------------------------------------
 
 -- | Assert that the state component has the expected value.
-shouldBe :: (Show a, Eq a) => (IState Mock -> a) -> a -> TestCase
+shouldBe :: (Show a, Eq a) => (MockUIState -> a) -> a -> TestCase
 shouldBe f expectedValue = do
   actualValue <- gets f
   st          <- get
@@ -210,7 +202,7 @@ shouldBe f expectedValue = do
                                     st
 
 
-throwsErrorWhere :: TestAction a -> (UIError Mock -> Bool) -> TestAction ()
+throwsErrorWhere :: TestAction a -> (MockUIError -> Bool) -> TestAction ()
 throwsErrorWhere act checkUIError = do
   TestCase.throwsError act checkTestError UnexpectedSuccess
   where

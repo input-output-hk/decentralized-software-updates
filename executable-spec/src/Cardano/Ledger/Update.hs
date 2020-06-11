@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Update
   ( State
@@ -29,6 +31,7 @@ module Cardano.Ledger.Update
   , Approval.isImplementation
   , Approval.isImplementationStably
     -- ** Activation-state query functions
+  , Activation.Endorsement (Endorsement, endorserId, endorsedVersion)
   , Activation.HasActivationState (getActivationState)
   , Activation.getCurrentVersion
   , Activation.isQueued
@@ -54,74 +57,76 @@ where
 import           Control.Arrow (left)
 import           GHC.Generics (Generic)
 
--- TODO: this data is too concrete and should be removed. The test module might
--- define a simpler version of these modules (for instance without using hashes
--- or keys).
-import qualified Cardano.Ledger.Spec.STS.Update.Approval.Data as Approval.Data
-import qualified Cardano.Ledger.Spec.STS.Update.Ideation.Data as Ideation.Data
--- TODO: the Hashable class should be removed as well.
-import           Cardano.Ledger.Spec.Classes.Hashable (Hash, Hashable)
-
 -- Environment constraints
-import           Cardano.Ledger.Spec.Classes.HasAdversarialStakeRatio
+import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
                      (HasAdversarialStakeRatio)
-import           Cardano.Ledger.Spec.Classes.HasStakeDistribution
-                     (HasStakeDistribution, SIPExperts, StakePools,
-                     TechnicalExperts)
-import           Cardano.Ledger.Spec.Classes.TracksSlotTime (TracksSlotTime)
+import           Cardano.Ledger.Update.Env.HasStakeDistribution
+                     (HasStakeDistribution)
+import           Cardano.Ledger.Update.Env.HasVotingPeriodsCap
+                     (HasVotingPeriodsCap)
+import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime)
 
-
-
+-- Update phases.
 import qualified Cardano.Ledger.Update.Activation as Activation
 import qualified Cardano.Ledger.Update.Approval as Approval
 import qualified Cardano.Ledger.Update.Ideation as Ideation
 
-data State p =
+import           Cardano.Ledger.Update.Proposal hiding (Payload)
+import qualified Cardano.Ledger.Update.Proposal as Proposal
+
+data State sip impl =
   State
-  { ideationSt   :: !(Ideation.State p)
-  , approvalSt   :: !(Approval.State p)
-  , activationSt :: !(Activation.State p)
+  { ideationSt   :: !(Ideation.State sip)
+  , approvalSt   :: !(Approval.State impl)
+  , activationSt :: !(Activation.State sip impl)
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
-data Error p
-  = IdeationError (Ideation.Error p)
-  | ApprovalError (Approval.Error p)
-  | ActivationError (Activation.Error p)
-  deriving (Generic, Show)
+deriving instance (Proposal sip, Implementation sip impl) => Show (State sip impl)
 
-data Payload p
-  = Ideation (Ideation.Data.Payload p)
-  | Approval (Approval.Data.Payload p)
-  | Activation (Activation.Endorsement p)
+data Error sip impl
+  = IdeationError (Ideation.Error sip)
+  | ApprovalError (Approval.Error sip impl)
+  | ActivationError (Activation.Error sip impl)
+  deriving (Generic)
+
+deriving instance (Proposal sip, Implementation sip impl) => Show (Error sip impl)
+
+data Payload sip impl
+  = Ideation (Proposal.Payload sip)
+  | Approval (Proposal.Payload impl)
+  | Activation (Activation.Endorsement sip impl)
+
+deriving instance (Proposal sip, Implementation sip impl)
+                  => Show (Payload sip impl)
 
 --------------------------------------------------------------------------------
 -- State update functions
 --------------------------------------------------------------------------------
 
 initialState
-  :: Hashable p
-  => Hash p (Approval.Data.ImplementationData p)
-  -> Approval.Data.ImplementationData p
-  -- ^ Initial implementation. This determines the current version.
-  -> State p
-initialState initialHash initialImplData  =
+  :: (Proposal sip, Implementation sip impl)
+  => Protocol impl
+  -- ^ Initial protocol. This determines the current version.
+  -> State sip impl
+initialState initialProtocol =
   State
   { ideationSt = Ideation.initialState
   , approvalSt = Approval.initialState
-  , activationSt = Activation.initialState initialHash initialImplData
+  , activationSt = Activation.initialState initialProtocol
   }
 
 tick
   :: ( TracksSlotTime env
-     , HasStakeDistribution SIPExperts env p
-     , HasStakeDistribution TechnicalExperts env p
-     , HasStakeDistribution StakePools env p
+     , HasStakeDistribution env (VoterId sip)
+     , HasStakeDistribution env (VoterId impl)
+     , HasStakeDistribution env (EndorserId (Protocol impl))
      , HasAdversarialStakeRatio env
 
-     , Hashable p
+     , Proposal sip
+     , Implementation sip impl
      )
-  => env -> State p -> State p
+  => env -> State sip impl -> State sip impl
 tick env st =
   let
     ideationSt'   = Ideation.tick env (ideationSt st)
@@ -137,13 +142,15 @@ tick env st =
        }
 
 apply
-  :: ( Ideation.CanApply env p
-     , Approval.CanApply env p
+  :: ( TracksSlotTime env
+     , HasVotingPeriodsCap env
+     , Proposal sip
+     , Implementation sip impl
      )
   => env
-  -> Payload p
-  -> State p
-  -> Either (Error p) (State p)
+  -> Payload sip impl
+  -> State sip impl
+  -> Either (Error sip impl) (State sip impl)
 apply env (Ideation payload) st = do
   ideationSt' <- left IdeationError
                  $ Ideation.apply env payload (ideationSt st)
@@ -161,19 +168,20 @@ apply env (Activation payload) st = do
 -- State query functions
 --------------------------------------------------------------------------------
 
-instance Ideation.HasIdeationState (State p) p where
+instance Ideation.HasIdeationState (State sip impl) sip where
   getIdeationState = ideationSt
 
-instance Approval.HasApprovalState (State p) p where
+instance Approval.HasApprovalState (State sip impl) impl where
   getApprovalState = approvalSt
 
-instance Activation.HasActivationState (State p) p where
+instance Implementation sip impl
+         => Activation.HasActivationState (State sip impl) sip impl where
   getActivationState = activationSt
 
-instance Approval.HasApprovalError (Error p) p where
+instance Approval.HasApprovalError (Error sip impl) sip impl where
   getApprovalError (ApprovalError err) = Just err
   getApprovalError _                   = Nothing
 
-instance Activation.HasActivationError (Error p) p where
+instance Activation.HasActivationError (Error sip impl) sip impl where
   getActivationError (ActivationError err) = Just err
   getActivationError _                     = Nothing
