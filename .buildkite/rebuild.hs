@@ -11,26 +11,49 @@
 -- > nix-shell .buildkite --run "ghci .buildkite/rebuild.hs"
 --
 
-import           Build (LibraryName (LibraryName), Optimizations (Standard),
-                     ShouldUploadCoverage (ShouldUploadCoverage),
-                     StackExtraTestArgs (StackExtraTestArgs),
-                     TestRun (TestRun), doBuild)
-import           CommonBuild (Bool (True), CoverallsConfig (CoverallsConfig),
-                     CoverallsTokenEnvVar (CoverallsTokenEnvVar),
-                     ExtraShcArgs (ExtraShcArgs),
-                     ExtraTixFilesDirectory (ExtraTixFilesDirectory), IO,
-                     const, ($))
+import Build
+    ( LibraryName (LibraryName)
+    , Optimizations (Fast)
+    , StackExtraTestArgs (StackExtraTestArgs)
+    , TestRun (TestRun)
+    , doBuild
+    , Timeout (Timeout)
+    , uploadCoverageIfBors
+    )
+import BuildArgs
+    ( BuildArgs (BuildArgs, command, options)
+    , Command (Build, CleanupCache, PurgeCache)
+    , RebuildOpts (RebuildOpts, optBuildDirectory, optCacheDirectory, optDryRun)
+    , parseArgs
+    )
+import CommonBuild
+    ( CoverallsConfig (CoverallsConfig)
+    , CoverallsTokenEnvVar (CoverallsTokenEnvVar)
+    , ExtraShcArgs (ExtraShcArgs)
+    , ExtraTixFilesDirectory (ExtraTixFilesDirectory)
+    , IO
+    , const
+    , ($)
+    )
+
+import Data.Maybe
+    ( fromMaybe )
+import System.Exit
+    ( exitWith )
+
+import qualified Data.Text as T
 
 
 main :: IO ()
 main =
   doBuild
     (LibraryName "decentralized-software-updates")
-    Standard
-    (ShouldUploadCoverage $ const True)
+    Fast
+    uploadCoverageIfBors
     [TestRun $ StackExtraTestArgs $ const []]
     (CoverallsConfig
        (CoverallsTokenEnvVar "DSU_COVERALLS_TOKEN")
        (ExtraShcArgs [])
-       (ExtraTixFilesDirectory ".")
+       (ExtraTixFilesDirectory "lib")
     )
+    (Timeout 100)

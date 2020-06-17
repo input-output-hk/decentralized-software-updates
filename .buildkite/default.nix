@@ -1,9 +1,10 @@
 { pkgs ? import ../nix {}
+, haskellBuildUtils ? pkgs.haskellBuildUtils
 }:
 
-pkgs.haskellBuildUtils.stackRebuild {
+haskellBuildUtils.stackRebuild {
   script = ./rebuild.hs;
   buildTools = [];
   libs = ps: [];
-  shell = import ../nix/stack-shell.nix {};
+  shell = import ../nix/stack-shell.nix;
 }
