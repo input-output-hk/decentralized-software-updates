@@ -4,7 +4,7 @@ with import ./. {};
 
 haskell.lib.buildStackProject {
   name = "decentralised-software-updates-stack-env";
-  ghc = (import ../shell.nix { inherit pkgs; }).ghc;
+  ghc = (import ../shell.nix { inherit pkgs; }).ghc.baseGhc;
 
   buildInputs =
     # Development libraries which may be necessary for the build.
