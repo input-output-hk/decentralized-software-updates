@@ -20,7 +20,7 @@ let
       name = "decentralized-software-updates";
       src = ../.;
     };
-    ghc = buildPackages.haskell-nix.compiler.${compiler};
+    compiler-nix-name = compiler;
     modules = [
 
       # Allow reinstallation of Win32
