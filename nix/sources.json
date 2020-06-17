@@ -34,5 +34,17 @@
         "type": "tarball",
         "url": "https://github.com/input-output-hk/niv/archive/89da7b2e7ae0779fd351618fc74df1b1da5e6214.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "stack2nix": {
+        "branch": "master",
+        "description": "Generate nix expressions for Haskell projects",
+        "homepage": null,
+        "owner": "input-output-hk",
+        "repo": "stack2nix",
+        "rev": "66520d94c47e702cd4f13cd5c0ef06b5b8f413e3",
+        "sha256": "0xjmvjqdkzzczkqympryvmam63fijdv5bzllqck45mqwsmm8bd05",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/stack2nix/archive/66520d94c47e702cd4f13cd5c0ef06b5b8f413e3.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
