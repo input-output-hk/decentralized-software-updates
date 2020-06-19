@@ -44,8 +44,10 @@ import           Control.Monad (unless, when)
 import           Control.Monad.Except (throwError)
 import           Data.Map.Strict (Map)
 import           Data.Maybe (isJust)
+import           Data.Set (Set)
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 import Cardano.Slotting.Slot (SlotNo)
 
@@ -73,8 +75,12 @@ data State impl =
   { submissionStableAt :: !(Map (Commit (Revelation impl)) SlotNo)
     -- ^ Submitted commits, along with the timestamp (slot) at which they were
     -- submitted.
-  , proposalsState   :: !(ProposalsState impl)
+  , proposalsState     :: !(ProposalsState impl)
     -- ^ Implementation-proposals state. See 'ProposalsState'.
+  , movedAway          :: !(Set (Id impl))
+    -- ^ Implementations that moved away from this phase. We keep track of this
+    -- to detect duplicated revelations of proposals that already moved away
+    -- from this phase.
   }
 
 deriving instance Proposal impl => Show (State impl)
@@ -153,6 +159,7 @@ initialState =
   State
   { submissionStableAt = mempty
   , proposalsState     = Proposals.initialState
+  , movedAway          = mempty
   }
 
 tick
@@ -194,7 +201,9 @@ apply env ideationSt (Reveal revelation) st  = do
     $ throwError (NoStableCommit revelation)
   let implementationId = _id (proposal revelation)
       implementedSIPId = preProposalId (proposal revelation)
-  when (isImplementationRevealed implementationId st)
+  when (  isImplementationRevealed implementationId st
+       || implementationId `Set.member` movedAway st
+       )
     $ throwError (ImplementationAlreadyRevealed revelation)
   unless (Ideation.isSIP implementedSIPId Approved ideationSt)
     $ throwError (NoApprovedSIP implementedSIPId)
@@ -223,12 +232,19 @@ apply env _ideationSt (Cast vote) st         = do
             }
 
 removeApproved
-  :: State impl
+  :: Identifiable impl
+  => State impl
   -> ([impl], State impl)
 removeApproved st =
-  (approvedIdsAndProposals, st { proposalsState = proposalState'})
+  ( approvedImpls
+  , st { proposalsState = proposalState'
+       , movedAway      = Set.fromList (fmap _id approvedImpls)
+                          `Set.union`
+                          movedAway st
+       }
+  )
   where
-    (approvedIdsAndProposals, proposalState') =
+    (approvedImpls, proposalState') =
       Proposals.removeApproved (proposalsState st)
 
 --------------------------------------------------------------------------------

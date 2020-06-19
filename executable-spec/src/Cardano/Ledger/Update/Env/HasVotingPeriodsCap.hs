@@ -18,5 +18,5 @@ class HasVotingPeriodsCap env where
 -- | A voting period number.
 newtype VotingPeriod = VotingPeriod { unVotingPeriod :: Word8 }
   deriving stock    (Eq, Show, Generic)
-  deriving newtype  (Num, Ord)
+  deriving newtype  (Num, Integral, Real, Enum, Ord)
   deriving anyclass (NoUnexpectedThunks)

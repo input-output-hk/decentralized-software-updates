@@ -26,7 +26,6 @@ import           Test.Cardano.Ledger.Update.UnitTests.Common
 import           Test.Cardano.Ledger.Update.UnitTests.Ideation
 
 import           Cardano.Ledger.Update.Proposal (Protocol, _id)
-import qualified Cardano.Ledger.Update.Proposal as Proposal
 
 import           Test.Cardano.Ledger.Update.Data
 
@@ -83,7 +82,7 @@ runTests =
 -- after going through all the update phases.
 simpleVersionChange :: TestCase
 simpleVersionChange = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   approveImplementation update
@@ -106,13 +105,13 @@ activate update = do
 
 changeVersionTwice :: TestCase
 changeVersionTwice = do
-  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update0 <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update0
   tickTillStable
   approveImplementation update0
   activate update0
   iStateProtocolVersion `shouldBe` protocolVersion update0
-  update1 <- mkUpdate 2 (mkParticipant 1) (`increaseVersion` 1)
+  update1 <- mkUpdate (SpecId 2) (mkParticipant 1) (`increaseVersion` 1)
   approveSIP update1
   tickTillStable
   approveImplementation update1
@@ -124,14 +123,14 @@ changeVersionTwice = do
 -- that the latter gets activated.
 versionChangePreemption :: TestCase
 versionChangePreemption = do
-  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 2)
+  update0 <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 2)
   approveSIP update0
   tickTillStable
   approveImplementation update0
   stateOf update0 `shouldBe` BeingEndorsed
   -- @update1@ has higher priority than @update0@ since it increases the current
   -- version by @1@ instead of @2@.
-  update1 <- mkUpdate 2 (mkParticipant 1) (`increaseVersion` 1)
+  update1 <- mkUpdate (SpecId 2) (mkParticipant 1) (`increaseVersion` 1)
   approveSIP update1
   tickTillStable
   approveImplementation update1
@@ -146,8 +145,8 @@ versionChangePreemption = do
 -- being endorsed causes the former to be canceled.
 competingProposals :: TestCase
 competingProposals = do
-  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
-  update1 <- mkUpdate 2 (mkParticipant 1) (`increaseVersion` 1)
+  update0 <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
+  update1 <- mkUpdate (SpecId 2) (mkParticipant 1) (`increaseVersion` 1)
   -- @update0@ and @update1@ have the same protocol version, therefore they
   -- conflict.
   approveSIP update0
@@ -160,10 +159,11 @@ competingProposals = do
   approveImplementation update1
   stateOf update1 `shouldBe` BeingEndorsed
   activate update1
+  iStateProtocolVersion `shouldBe` protocolVersion update1
 
 queuedProposal :: TestCase
 queuedProposal = do
-  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update0 <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   let update1 = mkUpdateThatDependsOn update0 (mkParticipant 1) (`increaseVersion` 3)
   approveSIP update0
   approveSIP update1
@@ -184,7 +184,7 @@ queuedProposal = do
 -- been adopted yet.
 queuedProposal' :: TestCase
 queuedProposal' = do
-  update0 <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update0 <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   let update1 = mkUpdateThatDependsOn update0 (mkParticipant 1) (`increaseVersion` 3)
   approveSIP update0
   tickTillStable
@@ -199,7 +199,7 @@ queuedProposal' = do
 
 expiredCandidate :: TestCase
 expiredCandidate = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   approveImplementation update
@@ -213,7 +213,7 @@ expiredCandidate = do
 
 nonCandidateEndorsement :: TestCase
 nonCandidateEndorsement = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   (endorseTillApproval update)
     `throwsErrorWhere` ( Update.endorsedVersionError
                         >>> (== Just (protocolVersion update))
@@ -232,7 +232,7 @@ endorseTillApproval updateSpec = do
     mkEndorsement endorser
       = Update.Endorsement
         { Update.endorserId       = _id endorser
-        , Update.endorsedVersion = Proposal.version (getProtocol updateSpec)
+        , Update.endorsedVersion = protocolVersion updateSpec
         }
 
 getEndorsersForApproval :: TestCaseEnv -> [Endorser (Protocol MockImpl)]

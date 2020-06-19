@@ -10,6 +10,7 @@
 module Cardano.Ledger.Update.Proposal where
 
 import           Cardano.Prelude (NoUnexpectedThunks)
+import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
 
 import           Cardano.Slotting.Slot (SlotNo)
@@ -100,6 +101,18 @@ class ( Proposal impl
   data Protocol impl :: *
   -- | Type of applications the implementation implements.
   data Application impl :: *
+
+-- | Extract the proposed protocol update, if any.
+proposedProtocolUpdate
+  :: Implementation sip impl => impl -> Maybe (Protocol impl)
+proposedProtocolUpdate impl =
+  case implementationType impl of
+    Protocol protocol -> Just protocol
+    _                 -> Nothing
+
+containsAProtocolUpdate
+  :: Implementation sip impl => impl -> Bool
+containsAProtocolUpdate = isJust . proposedProtocolUpdate
 
 data ImplementationType impl
   = Cancellation { toCancel :: ![ProtocolId impl] }

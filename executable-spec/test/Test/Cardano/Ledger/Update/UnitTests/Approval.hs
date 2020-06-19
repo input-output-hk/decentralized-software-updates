@@ -7,7 +7,8 @@ import           Data.Foldable (traverse_)
 import           Test.Tasty (TestTree)
 
 import           Cardano.Ledger.Update.Env.TracksSlotTime (stableAfter)
-import           Cardano.Ledger.Update.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
+import           Cardano.Ledger.Update.ProposalState
+                     (Decision (Approved, Expired, Rejected, WithNoQuorum))
 import qualified Cardano.Ledger.Update.ProposalState as ProposalState
 
 import           Test.Cardano.Ledger.Update.Interface
@@ -76,7 +77,7 @@ runTests =
 
 simpleImplApproval :: TestCase
 simpleImplApproval = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   approveImplementation update
@@ -89,7 +90,7 @@ simpleImplApproval = do
 
 simpleRejection :: TestCase
 simpleRejection = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)
@@ -104,7 +105,7 @@ simpleRejection = do
 
 simpleNoQuorum :: TestCase
 simpleNoQuorum = do
-  update <- mkUpdate 88 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 88) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)
@@ -119,7 +120,7 @@ simpleNoQuorum = do
 
 simpleExpiration :: TestCase
 simpleExpiration = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)
@@ -142,7 +143,7 @@ tickTillExpired update = do
 
 implApprovalInSecondVotingRound :: TestCase
 implApprovalInSecondVotingRound = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -159,9 +160,9 @@ implApprovalInSecondVotingRound = do
   tickTillStable
   -- The tally point is reached. The implementation should not have enough
   -- votes.
-  stateOf update `shouldBe` (Implementation (Is Undecided))
+  stateOf update `shouldBe` Implementation StablyRevealed
   approve `implementation` update
-  stateOf update `shouldBe` Implementation (Is Undecided)
+  stateOf update `shouldBe` Implementation StablyRevealed
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` BeingEndorsed
@@ -171,7 +172,7 @@ implVotesAreNotCarriedOver = do
   -- We make sure that we have two voting periods, so that the proposal is
   -- expired at the end of the second voting period.
   modify' (\st -> st { iStateMaxVotingPeriods = 2})
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -186,7 +187,7 @@ implVotesAreNotCarriedOver = do
   vote approvers0 update Proposal.For
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
-  stateOf update `shouldBe` (Implementation (Is Undecided))
+  stateOf update `shouldBe` Implementation StablyRevealed
   vote approvers1 update Proposal.For
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
@@ -194,7 +195,7 @@ implVotesAreNotCarriedOver = do
 
 implRevealWithoutApprovedSIP :: TestCase
 implRevealWithoutApprovedSIP = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   submit `implementation` update
   tickTillStable
   (reveal  `implementation` update)
@@ -204,7 +205,7 @@ implRevealWithoutApprovedSIP = do
 
 revealOfAnUnstableImplSubmission :: TestCase
 revealOfAnUnstableImplSubmission = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -216,7 +217,7 @@ revealOfAnUnstableImplSubmission = do
 
 voteBeforeTheStartOfVotingPeriod :: TestCase
 voteBeforeTheStartOfVotingPeriod = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -231,7 +232,7 @@ voteBeforeTheStartOfVotingPeriod = do
 
 voteAfterTheEndOfVotingPeriod :: TestCase
 voteAfterTheEndOfVotingPeriod = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   submit `implementation` update
@@ -254,10 +255,10 @@ approveImplementation update = do
   submit `implementation` update
   tickTillStable
   reveal  `implementation` update
-  stateOf update `shouldBe` Implementation (Is Undecided)
+  stateOf update `shouldBe` Implementation Revealed
   tickTillStable
   approve `implementation` update
-  stateOf update `shouldBe` Implementation (Is Undecided)
+  stateOf update `shouldBe` Implementation StablyRevealed
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
 

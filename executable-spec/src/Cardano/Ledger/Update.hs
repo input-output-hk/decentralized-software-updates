@@ -33,14 +33,21 @@ module Cardano.Ledger.Update
     -- ** Activation-state query functions
   , Activation.Endorsement (Endorsement, endorserId, endorsedVersion)
   , Activation.HasActivationState (getActivationState)
-  , Activation.getCurrentVersion
+  , Activation.getCurrentProtocol
+  , Activation.getCurrentProtocolId
+  , Activation.getCurrentProtocolVersion
   , Activation.isQueued
+  , Activation.queuedProtocols
+  , Activation.candidateProtocols
   , Activation.isBeingEndorsed
   , Activation.isScheduled
+  , Activation.scheduledProtocol
+  , Activation.scheduledProtocolVersion
   , Activation.isTheCurrentVersion
   , Activation.candidateEndOfSafetyLag
   , Activation.isDiscardedDueToBeing
-  , Activation.Reason (Expired, Canceled, Obsoleted, Unsupported)
+  , Activation.endOfSafetyLag
+  , Activation.Reason (Expired, Canceled, Unsupported)
   -- ** Approval-error query functions
   , Approval.HasApprovalError (getApprovalError)
   , Approval.noApprovedSIP
@@ -116,6 +123,12 @@ initialState initialProtocol =
   , activationSt = Activation.initialState initialProtocol
   }
 
+-- | Register the passage of time. The last applied slot of the activation state
+-- is set to the slot provided in the environment.
+--
+-- The activation rules require that we do not miss a slot, so the slot given in
+-- the environment should be equal to the last applied slot (which is stored in
+-- the state) plus one.
 tick
   :: ( TracksSlotTime env
      , HasStakeDistribution env (VoterId sip)

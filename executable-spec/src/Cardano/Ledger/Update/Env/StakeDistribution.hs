@@ -12,9 +12,11 @@
 module Cardano.Ledger.Update.Env.StakeDistribution
   ( StakeDistribution
   , Stake (Stake)
+  , getStake
   , stakeMap
   , emptyStakeDistribution
   , fromList
+  , fromMap
   , totalStake
   , stakeOfKeys
   , stakeOfKeys'
@@ -114,18 +116,23 @@ fromList
   :: Ord k
   => [(k, Stake)]
   -> StakeDistribution k
-fromList xs
+fromList = fromMap . Map.fromList
+
+fromMap
+  :: Map k Stake
+  -> StakeDistribution k
+fromMap aStakeMap
   = checkInvariants
   $ StakeDistribution
-    { stakeMap   = Map.fromList xs
-    , totalStake = foldl' (+) 0 $ fmap snd xs
+    { stakeMap   = aStakeMap
+    , totalStake = foldl' (+) 0 $ Map.elems aStakeMap
     }
 
 --------------------------------------------------------------------------------
 -- Definitions
 --------------------------------------------------------------------------------
 
--- | Given a total stake and the adversary stake ratio, compute the how much
+-- | Given the adversary stake ratio and the total stake, compute the how much
 -- stake of this total stake is needed to meet the voting threshold.
 --
 -- This definition is based on 'vThreshold'. We have that the total stake needed
@@ -140,7 +147,9 @@ fromList xs
 stakeThreshold
   :: (RealFrac a)
   => a
+  -- ^ Adversary stake ratio
   -> Stake
+  -- ^ Total stake
   -> Stake
 stakeThreshold r_a totalStake =
-  round $ 1/2 * (r_a + 1) * fromIntegral totalStake
+  ceiling $ 1/2 * (r_a + 1) * fromIntegral totalStake

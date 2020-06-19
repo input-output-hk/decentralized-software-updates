@@ -11,9 +11,12 @@ module Test.Cardano.Ledger.UpdateSpec where
 import           Control.Monad.State (gets)
 import           Data.Word (Word64)
 
+import           Cardano.Slotting.Slot (SlotNo)
+
 import qualified Cardano.Ledger.Update as Update
 import           Cardano.Ledger.Update.Proposal
-import           Cardano.Ledger.Update.ProposalsState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
+import           Cardano.Ledger.Update.ProposalsState
+                     (Decision (Approved, Expired, Rejected, WithNoQuorum))
 
 import           Test.Cardano.Ledger.Update.Interface
 
@@ -31,19 +34,28 @@ import           Test.Cardano.Ledger.Update.Data
 --
 data UpdateSpec =
   UpdateSpec
-  { getUpdateSpecId   :: !Word64
+  { getUpdateSpecId   :: !SpecId
     -- ^ This should uniquely identify the update spec.
   , getSIPSubmission  :: !(Submission MockSIP)
   , getSIPRevelation  :: !(Revelation MockSIP)
   , getImplSubmission :: !(Submission MockImpl)
   , getImplRevelation :: !(Revelation MockImpl)
-  } deriving Show
+  } deriving (Eq, Show)
+
+newtype SpecId = SpecId { unSpecId :: Word64 }
+  deriving (Eq, Ord, Show)
+
+nextSpecId :: SpecId -> SpecId
+nextSpecId (SpecId i) = SpecId (i + 1)
 
 getProtocol :: UpdateSpec -> Protocol MockImpl
 getProtocol updateSpec =
   case implementationType (getImpl updateSpec) of
     Protocol p -> p
     x          -> error $ "UpdateSpec does not contain a protocol: " ++ show x
+
+getProtocolId :: UpdateSpec -> Id (Protocol MockImpl)
+getProtocolId = _id . getProtocol
 
 getSIP :: UpdateSpec -> MockSIP
 getSIP = reveals . getSIPRevelation
@@ -60,7 +72,7 @@ getImplId = _id . getImpl
 -- | Given protocol-update specification get its protocol version (the version
 -- the system will upgrade to if it is applied).
 --
--- Preconditions:
+-- PRECONDITION:
 --
 -- The update specification must refer to a protocol update, otherwise an error
 -- will be thrown.
@@ -72,18 +84,20 @@ protocolVersion updateSpec =
                                ++ show someOtherImplType
 
 dummyProtocolUpdateSpec
-  :: Word64
+  :: SpecId
   -- ^ Update spec id. See 'mkUpdate'.
   -> Participant
   -- ^ SIP author
   -> Participant
-  -- ^ Implementation author signing key
+  -- ^ Implementation author
   -> Protocol MockImpl
   -- ^ Protocol version that the update supersedes.
   -> Version (Protocol MockImpl)
   -- ^ New protocol version
+  -> SlotNo
+  -- ^ Voting period duration for SIP and implementation proposal.
   -> UpdateSpec
-dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion =
+dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion vpd =
   UpdateSpec
   { getUpdateSpecId   = uId
   , getSIPSubmission  = MockSubmission
@@ -104,17 +118,15 @@ dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion
                         }
   }
   where
-    updateSpecCommit = MockCommit uId
+    updateSpecCommit = MockCommit $ unSpecId uId
     theSIP           = MockProposal
-                       { mpId                   = MPId uId
-                       -- TODO: we might want to make this configurable.
-                       , mpVotingPeriodDuration = 10
+                       { mpId                   = MPId $ unSpecId uId
+                       , mpVotingPeriodDuration = vpd
                        , mpPayload              = ()
                        }
     theImpl          = MockProposal
-                       { mpId                   = MPId uId
-                       -- TODO: we might want to make this configurable.
-                       , mpVotingPeriodDuration = 10
+                       { mpId                   = MPId $ unSpecId uId
+                       , mpVotingPeriodDuration = vpd
                        , mpPayload              = implInfo
                        }
     implInfo         =  ImplInfo
@@ -122,14 +134,14 @@ dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion
                         , mockImplType   = Protocol theProtocol
                         }
     theProtocol      = MockProtocol
-                       { mpProtocolId        = ProtocolId uId
+                       { mpProtocolId        = ProtocolId $ unSpecId uId
                        , mpProtocolVersion   = newVersion
                        , mpSupersedesId      = _id supersedesProtocol
                        , mpSupersedesVersion = version supersedesProtocol
                        }
 
 mkUpdate
-  :: Word64
+  :: SpecId
   -- ^ Update spec id. This should uniquely identify the update spec. The number
   -- will be used to identify the SIP and implementation commits.
   -> Participant
@@ -150,12 +162,12 @@ mkUpdateThatDependsOn
 mkUpdateThatDependsOn update participant versionChange =
   mkUpdate' newId (getProtocol update) participant newVersion
   where
-    -- The way of getting a new is is brittle, but keeps the unit tests simple.
-    newId      = getUpdateSpecId update + 1
+    -- The way of getting a new id is brittle, but keeps the unit tests simple.
+    newId      = nextSpecId $ getUpdateSpecId update
     newVersion = versionChange $ version $ getProtocol update
 
 mkUpdate'
-  :: Word64
+  :: SpecId
   -- ^ Update spec id. See 'mkUpdate'.
   -> Protocol MockImpl
   -- ^ Protocol that the update supersedes
@@ -168,13 +180,10 @@ mkUpdate' uId supersedes sipAuthor newVersion =
                           (sipAuthor `addToId` 10)
                           supersedes
                           newVersion
+                          4
 
 -- | Get the state of an update specification.
---
--- TODO: as the SIP's are removed from one state variable and placed into
--- another, this function might return an old state (e.g. SIP Submitted). We
--- should make sure this doesn't happen.
-stateOf :: UpdateSpec -> IState MockSIP MockImpl -> UpdateState
+stateOf :: UpdateSpec -> IState -> UpdateState
 stateOf updateSpec st
   | Update.isTheCurrentVersion protocolId st
     = Activated
@@ -194,24 +203,53 @@ stateOf updateSpec st
     = error "A stably approved implementation goes to the activation phase."
   | Update.isImplementation implId Approved st
     = error "An approved implementation goes to the activation phase."
+  | Update.isImplementationStably st implId Rejected st
+    = Implementation (IsStably Rejected)
+  | Update.isImplementationStably st implId WithNoQuorum st
+    = Implementation (IsStably WithNoQuorum)
+  | Update.isImplementationStably st implId Expired st
+    = Implementation (IsStably Expired)
   | Update.isImplementation implId Rejected st
     = Implementation (Is Rejected)
   | Update.isImplementation implId WithNoQuorum st
     = Implementation (Is WithNoQuorum)
   | Update.isImplementation implId Expired st
     = Implementation (Is Expired)
-  | Update.isImplementation implId Undecided st
-    = Implementation (Is Undecided)
+  -- TODO: it is important that we do not return the undecided state since,
+  -- since the property test rely on detecting the proposal state as being
+  -- revealed. We need to find a more robust way to encode these state changes,
+  -- or lay out the principles of this function in the comments.
+  --
   | Update.isImplementationStablyRevealed st implId st
     = Implementation StablyRevealed
   | Update.isImplementationRevealed implId st
     = Implementation Revealed
   | Update.isImplementationStablySubmitted st implCommit st
+  && Update.isSIP sipId Approved st
+  -- It is possible for an implementation commit to be submitted without its
+  -- corresponding SIP to be approved. In such case we should not return
+  -- @Implementation StablySubmitted@ since such submission does not have a
+  -- corresponding SIP associated to it.
     = Implementation StablySubmitted
   | Update.isImplementationSubmitted implCommit st
+  && Update.isSIP sipId Approved st
+  -- As in the previous case, returning @Implementation Submitted@ is incorrect
+  -- since there is no corresponding approved SIP in this state.
     = Implementation Submitted
   | Update.isSIPStably st sipId Approved st
     = SIP (IsStably Approved)
+  | Update.isSIPStably st sipId Rejected st
+    = SIP (IsStably Rejected)
+  | Update.isSIPStably st sipId WithNoQuorum st
+    = SIP (IsStably WithNoQuorum)
+  | Update.isSIPStably st sipId Expired st
+    = SIP (IsStably Expired)
+  | Update.isSIP sipId Expired st
+    = SIP (Is Expired)
+  | Update.isSIP sipId WithNoQuorum st
+    = SIP (Is WithNoQuorum)
+  | Update.isSIP sipId Rejected st
+    = SIP (Is Rejected)
   | Update.isSIP sipId Approved st
     = SIP (Is Approved)
   | Update.isSIPStablyRevealed st sipId st
