@@ -7,9 +7,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
--- TODO: see TODO note in 'HasStakeDistribution' instances of 'IState'.
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Test.Cardano.Ledger.Update.TestCase where
 
 import           Control.Arrow (first, left, (&&&))
@@ -23,8 +20,6 @@ import           Test.Tasty (TestTree)
 
 import           Cardano.Slotting.Block (BlockNo)
 
-import           Cardano.Ledger.Update.Env.HasStakeDistribution
-                     (HasStakeDistribution, stakeDistribution)
 import           Cardano.Ledger.Update.Env.StakeDistribution (StakeDistribution)
 import qualified Cardano.Ledger.Update.Env.StakeDistribution as StakeDistribution
 
@@ -44,17 +39,8 @@ import           Test.Cardano.Ledger.Update.Data
 -- a 'TestError'.
 type TestCase = TestAction ()
 
-type MockUIState = IState MockSIP MockImpl
-type MockUIError = UIError MockSIP MockImpl
-
--- TODO: This is an orphan instance. We have to consider whether it makes sense
--- to avoid it. This might require making IState non-polymorphic on the sip's
--- and implementation payload, which might make sense.
-instance HasStakeDistribution (IState MockSIP MockImpl) (VoterId MockSIP) where
-  stakeDistribution = iStateSIPStakeDist
-
-instance HasStakeDistribution (IState MockSIP MockImpl) (VoterId MockImpl) where
-  stakeDistribution = iStateImplStakeDist
+type MockUIState = IState
+type MockUIError = UIError
 
 type TestAction a =
   TestCase.TestCaseM TestError TestCaseEnv MockUIState a

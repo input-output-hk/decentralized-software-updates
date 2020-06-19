@@ -48,13 +48,13 @@ instance Show payload => Proposal (MockProposal prop payload) where
     MockSubmission
     { mpSubmissionCommit            :: MockCommit
     , mpSubmissionSignatureVerifies :: Bool
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
   data Revelation (MockProposal prop payload) =
     MockRevelation
     { refersTo :: MockCommit
     , reveals  :: MockProposal prop payload
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
   revelationCommit = mpSubmissionCommit
 
@@ -82,13 +82,14 @@ instance Show payload => Proposal (MockProposal prop payload) where
 --------------------------------------------------------------------------------
 
 instance Identifiable Participant where
-  newtype Id Participant = ParticipantId Word64
+  newtype Id Participant = ParticipantId { unParticipantId :: Word64 }
     deriving (Eq, Ord, Show)
 
   _id (Participant pId) = pId
 
-instance Identifiable  (Voter (MockProposal prop payload)) where
-  newtype Id (Voter (MockProposal prop payload)) = MockVoterId (Id Participant)
+instance Identifiable (Voter (MockProposal prop payload)) where
+  newtype Id (Voter (MockProposal prop payload))
+    = MockVoterId { unMockVoterId :: (Id Participant) }
     deriving (Ord, Eq, Show)
 
   _id (MockVoter participant) = MockVoterId (_id participant)

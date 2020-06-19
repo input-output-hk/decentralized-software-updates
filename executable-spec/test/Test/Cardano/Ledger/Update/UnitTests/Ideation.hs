@@ -41,7 +41,7 @@ runTests =
 
 simpleSIPApproval :: TestCase
 simpleSIPApproval = do
-  update <- mkUpdate 1 (mkParticipant 0) (`increaseVersion` 1)
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
   approveSIP update
   tickTillStable
   stateOf update `shouldBe` SIP (IsStably Approved)

@@ -33,14 +33,15 @@ import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
                      currentSlot, epochFirstSlot, nextEpochFirstSlot,
                      stableAfter, stableAt)
 import qualified Cardano.Ledger.Update.Env.TracksSlotTime as SlotTime
-import           Cardano.Ledger.Update.ProposalState (VotingPeriod)
-import           Cardano.Ledger.Update.ProposalState (Decision)
+import           Cardano.Ledger.Update.Proposal
+import           Cardano.Ledger.Update.ProposalsState (Decision, VotingPeriod)
 
 import qualified Cardano.Ledger.Update as Update
 
-import           Cardano.Ledger.Update.Proposal
-
 import           Cardano.Ledger.Assert
+
+import           Test.Cardano.Ledger.Update.Data
+
 
 -- So the first thing we need to do is to define data for test case.
 --
@@ -63,40 +64,39 @@ import           Cardano.Ledger.Assert
 -- - it contains values needed by the environment and state of the SOS rules.
 -- - it is modified either by the application of the SOS rules.
 --
--- @impl@ is the implementation.
-data IState sip impl =
+data IState =
   IState
   { iStateK                :: !BlockNo
   , iStateMaxVotingPeriods :: !VotingPeriod
-  , iStateSIPStakeDist     :: !(StakeDistribution (VoterId sip))
-  , iStateImplStakeDist    :: !(StakeDistribution (VoterId impl))
+  , iStateSIPStakeDist     :: !(StakeDistribution (VoterId MockSIP))
+  , iStateImplStakeDist    :: !(StakeDistribution (VoterId MockImpl))
   , iStateCurrentSlot      :: !SlotNo
   , iStateEpochFirstSlot   :: !SlotNo
   , iStateSlotsPerEpoch    :: !SlotNo
   , iStateR_a              :: !Float
   , iStateStakepoolsDistribution
-                           :: !(StakeDistribution (EndorserId (Protocol impl)))
-  , updateSt :: !(Update.State sip impl)
+                           :: !(StakeDistribution (EndorserId (Protocol MockImpl)))
+  , updateSt :: !(Update.State MockSIP MockImpl)
   }
 
-deriving instance (Proposal sip, Implementation sip impl) => Show (IState sip impl)
+deriving instance (Proposal MockSIP, Implementation MockSIP MockImpl) => Show IState
 
-iStateProtocolVersion :: (Implementation sip impl) => IState sip impl -> Version (Protocol impl)
+iStateProtocolVersion :: IState -> Version (Protocol MockImpl)
 iStateProtocolVersion = version . iStateCurrentVersion
 
-iStateCurrentVersion :: Implementation sip impl => IState sip impl -> Protocol impl
-iStateCurrentVersion = Update.getCurrentVersion . updateSt
+iStateCurrentVersion :: IState -> Protocol MockImpl
+iStateCurrentVersion = Update.getCurrentProtocol . updateSt
 
 -- | At which slot is will the current slot (according to the given state)
 -- become stable.
-currentSlotStableAt :: IState sip impl -> SlotNo
+currentSlotStableAt :: IState -> SlotNo
 currentSlotStableAt st = stableAt st (iStateCurrentSlot st)
 
 -- | Is the given slot stable?
-isStable :: SlotNo -> IState sip impl -> Bool
+isStable :: SlotNo -> IState -> Bool
 isStable slot st = stableAt st slot <= iStateCurrentSlot st
 
-instance TracksSlotTime (IState sip impl) where
+instance TracksSlotTime IState where
   currentSlot = iStateCurrentSlot
 
   stableAfter = (2 *) . fromIntegral . unBlockNo . iStateK
@@ -105,66 +105,40 @@ instance TracksSlotTime (IState sip impl) where
 
   epochFirstSlot = iStateEpochFirstSlot
 
-{-
-
--- TODO: We can't define these instances here since we'll get an overlapping
--- instances error :( So a possible solution might be to make IState monomorphic
--- if the polymorphism is not needed.
-
-instance HasStakeDistribution (IState sip impl) (VoterId sip) where
+instance HasStakeDistribution IState (VoterId MockSIP) where
   stakeDistribution = iStateSIPStakeDist
 
-instance HasStakeDistribution (IState sip impl) (VoterId impl) where
+instance HasStakeDistribution IState (VoterId MockImpl) where
   stakeDistribution = iStateImplStakeDist
 
--}
-
-instance HasStakeDistribution (IState sip impl) (Id (Endorser (Protocol impl))) where
+instance HasStakeDistribution IState (Id (Endorser (Protocol MockImpl))) where
   stakeDistribution = iStateStakepoolsDistribution
 
-instance HasAdversarialStakeRatio (IState sip impl) where
+instance HasAdversarialStakeRatio IState where
   adversarialStakeRatio = iStateR_a
 
-instance HasVotingPeriodsCap (IState sip impl) where
+instance HasVotingPeriodsCap IState where
   maxVotingPeriods = iStateMaxVotingPeriods
 
-instance Update.HasIdeationState (IState sip impl) sip where
+instance Update.HasIdeationState IState MockSIP where
   getIdeationState = Update.getIdeationState . updateSt
 
-instance Update.HasApprovalState (IState sip impl) impl where
+instance Update.HasApprovalState IState MockImpl where
   getApprovalState = Update.getApprovalState . updateSt
 
-instance Implementation sip impl
-         => Update.HasActivationState (IState sip impl) sip impl where
+instance Implementation MockSIP MockImpl
+         => Update.HasActivationState IState MockSIP MockImpl where
   getActivationState = Update.getActivationState . updateSt
 
-slotTick
-  :: ( HasStakeDistribution (IState sip impl) (VoterId sip)
-     , HasStakeDistribution (IState sip impl) (VoterId impl)
-     , Proposal sip
-     , Implementation sip impl
-     )
-  => SlotNo -> IState sip impl -> Either (UIError sip impl) (IState sip impl)
+slotTick :: SlotNo -> IState -> Either UIError IState
 slotTick slot iState
-  -- TODO: with the addition of a @iStateEpochFirstSlot@ and
-  -- @iStateSlotsPerEpoch@ we have to ensure we don't go back in time.
-  --
-  -- So the Hupdate rule (or probably a rule above it) should make sure we don't
-  -- go back in time, and the invariants are satisfied.
   = assert preconditionsHold
   $ tickTill slot iState
   where
     preconditionsHold = do
       currentSlot iState <=! slot
 
-
-tickTill
-  :: ( HasStakeDistribution (IState sip impl) (VoterId sip)
-     , HasStakeDistribution (IState sip impl) (VoterId impl)
-     , Proposal sip
-     , Implementation sip impl
-     )
-  => SlotNo -> IState sip impl -> Either (UIError sip impl) (IState sip impl)
+tickTill :: SlotNo -> IState -> Either UIError IState
 tickTill desiredSlot st
   | iStateCurrentSlot st == desiredSlot =
       pure st
@@ -176,7 +150,7 @@ tickTill desiredSlot st
     error "target slot should be less or equal than the current slot"
   where
     nextSlot = iStateCurrentSlot st + 1
-    st'  = SlotTime.checkInvariants
+    st'      = SlotTime.checkInvariants
              $ st { iStateCurrentSlot    = nextSlot
                   , iStateEpochFirstSlot =
                       if nextEpochFirstSlot st <= nextSlot
@@ -185,28 +159,22 @@ tickTill desiredSlot st
                   }
 
 applyUpdate
-  :: ( Proposal sip
-     , Implementation sip impl
-     )
-  => Update.Payload sip impl
-  -> IState sip impl
-  -> Either (UIError sip impl) (IState sip impl)
+  :: Update.Payload MockSIP MockImpl -> IState -> Either UIError IState
 applyUpdate payload st =
   bimap ApplyError (modifyUpdateSt st) $ Update.apply st payload (updateSt st)
 
 modifyUpdateSt
-  :: IState sip impl -> Update.State sip impl -> IState sip impl
+  :: IState -> Update.State MockSIP MockImpl -> IState
 modifyUpdateSt st updateSt' = st { updateSt = updateSt' }
 
-data UIError sip impl
-  = ApplyError { getUpdateError :: Update.Error sip impl }
+data UIError
+  = ApplyError { getUpdateError :: Update.Error MockSIP MockImpl }
+  deriving (Show)
 
-deriving instance (Proposal sip, Implementation sip impl) => Show (UIError sip impl)
-
-instance Update.HasApprovalError (UIError sip impl) sip impl where
+instance Update.HasApprovalError UIError MockSIP MockImpl where
   getApprovalError = Update.getApprovalError . getUpdateError
 
-instance Update.HasActivationError (UIError sip impl) sip impl where
+instance Update.HasActivationError UIError MockSIP MockImpl where
   getActivationError = Update.getActivationError . getUpdateError
 
 --------------------------------------------------------------------------------
@@ -226,10 +194,7 @@ data UpdateState
   | HasEnoughEndorsements
   | Scheduled
   | Activated
-  | Canceled
-  deriving (Eq, Show, Generic)
-
-
+  deriving (Eq, Ord, Show, Generic)
 
 data PhaseState
   = Submitted
@@ -238,4 +203,4 @@ data PhaseState
   | StablyRevealed
   | Is Decision
   | IsStably Decision
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)

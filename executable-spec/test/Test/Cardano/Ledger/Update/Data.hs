@@ -10,9 +10,11 @@ module Test.Cardano.Ledger.Update.Data
   , MockImpl
   , increaseVersion
   , Endorser (MockEndorser)
+  , unEndorserId
   , Protocol (MockProtocol, mpProtocolId, mpProtocolVersion, mpSupersedesId, mpSupersedesVersion)
   , Id (ProtocolId, AppId, EndorserId, MPId)
-  , Version (Version)
+  , nextId
+  , Version (Version, getVersion)
   , ImplInfo (ImplInfo, mockImplements, mockImplType)
     -- * Re-exports from @MockProposal@
   , MockProposal.MockProposal (MockProposal, mpId, mpVotingPeriodDuration, mpPayload)
@@ -23,6 +25,8 @@ module Test.Cardano.Ledger.Update.Data
   , MockProposal.addToId
   , MockProposal.Vote (MockVote)
   , MockProposal.Voter (MockVoter)
+  , MockProposal.unMockVoterId
+  , MockProposal.unParticipantId
   , MockProposal.mkParticipant
   )
 where
@@ -98,6 +102,11 @@ instance Identifiable (Protocol MockImpl) where
 
   _id = mpProtocolId
 
+nextId :: Id (Protocol MockImpl) -> Id (Protocol MockImpl)
+nextId (ProtocolId i)
+  | i == maxBound = error "Maximum number of id's was reached."
+  | otherwise     = ProtocolId (i + 1)
+
 instance Identifiable (Application MockImpl) where
   data Id (Application MockImpl) = AppId Word64
     deriving (Eq, Ord, Show)
@@ -105,7 +114,8 @@ instance Identifiable (Application MockImpl) where
   _id = AppId . appId
 
 instance Identifiable (Endorser (Protocol MockImpl)) where
-  newtype Id (Endorser (Protocol MockImpl)) = EndorserId (Id Participant)
+  newtype Id (Endorser (Protocol MockImpl)) =
+    EndorserId { unEndorserId :: Id Participant }
     deriving (Eq, Ord, Show)
 
   _id (MockEndorser participant) = EndorserId (_id participant)

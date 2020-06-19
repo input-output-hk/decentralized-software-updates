@@ -34,7 +34,7 @@ module Cardano.Ledger.Update.ProposalsState
                            , Undecided
                            , WithNoQuorum
                            )
-  , ProposalState.VotingPeriod (VotingPeriod)
+  , ProposalState.VotingPeriod (VotingPeriod, unVotingPeriod)
   )
 where
 

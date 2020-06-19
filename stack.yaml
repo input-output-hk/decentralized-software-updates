@@ -30,6 +30,11 @@ extra-deps:
 
   # Needed for the assertions library
   - monad-validate-1.2.0.0@sha256:9850f408431098b28806dd464b6825a88a0b56c84f380d7fe0454c1df9d6f881,3505
+  - Unique-0.4.7.7@sha256:2269d3528271e25d34542e7c24a4e541e27ec33460e1ea00845da95b82eec6fa,2777
+
+  # Needed for shrinking of products
+  - git: https://github.com/nomeata/haskell-successors
+    commit: 6f9f60eb3232b83cbffdc46301054c85983cf207
 
 nix:
   shell-file: nix/stack-shell.nix

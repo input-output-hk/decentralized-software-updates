@@ -99,7 +99,7 @@ data Decision
   | Expired
   | Approved
   | Undecided
-  deriving (Eq, Show, Generic, NoUnexpectedThunks)
+  deriving (Eq, Ord, Show, Generic, NoUnexpectedThunks)
 
 -- | Tally the votes if the end of the voting period is stable. After tallying
 -- the decision state will be changed according to the result of the tallying
@@ -198,7 +198,8 @@ votingPeriodHasStarted
   => env
   -> ProposalState p
   -> Bool
-votingPeriodHasStarted env ProposalState { revealedOn } = isStable env revealedOn
+votingPeriodHasStarted env ProposalState { revealedOn } =
+  isStable env revealedOn
 
 votingPeriodHasEnded
   :: ( TracksSlotTime env
@@ -207,7 +208,9 @@ votingPeriodHasEnded
   => env
   -> ProposalState p
   -> Bool
-votingPeriodHasEnded env ps = votingPeriodEnd env ps <= currentSlot env
+votingPeriodHasEnded env ps
+  =  votingPeriodEnd env ps <= currentSlot env
+  || decisionWas (decisionInfo ps) /= Undecided
 
 -- | Calculate the slot at which the voting period ends.
 --
