@@ -11,9 +11,12 @@ module Test.Cardano.Ledger.UpdateSpec where
 import           Control.Monad.State (gets)
 import           Data.Word (Word64)
 
+import           Cardano.Slotting.Slot (SlotNo)
+
 import qualified Cardano.Ledger.Update as Update
 import           Cardano.Ledger.Update.Proposal
-import           Cardano.Ledger.Update.ProposalsState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
+import           Cardano.Ledger.Update.ProposalsState
+                     (Decision (Approved, Expired, Rejected, WithNoQuorum))
 
 import           Test.Cardano.Ledger.Update.Interface
 
@@ -37,13 +40,16 @@ data UpdateSpec =
   , getSIPRevelation  :: !(Revelation MockSIP)
   , getImplSubmission :: !(Submission MockImpl)
   , getImplRevelation :: !(Revelation MockImpl)
-  } deriving Show
+  } deriving (Eq, Show)
 
 getProtocol :: UpdateSpec -> Protocol MockImpl
 getProtocol updateSpec =
   case implementationType (getImpl updateSpec) of
     Protocol p -> p
     x          -> error $ "UpdateSpec does not contain a protocol: " ++ show x
+
+getProtocolId :: UpdateSpec -> Id (Protocol MockImpl)
+getProtocolId = _id . getProtocol
 
 getSIP :: UpdateSpec -> MockSIP
 getSIP = reveals . getSIPRevelation
@@ -77,13 +83,15 @@ dummyProtocolUpdateSpec
   -> Participant
   -- ^ SIP author
   -> Participant
-  -- ^ Implementation author signing key
+  -- ^ Implementation author
   -> Protocol MockImpl
   -- ^ Protocol version that the update supersedes.
   -> Version (Protocol MockImpl)
   -- ^ New protocol version
+  -> SlotNo
+  -- ^ Voting period duration for SIP and implementation proposal.
   -> UpdateSpec
-dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion =
+dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion vpd =
   UpdateSpec
   { getUpdateSpecId   = uId
   , getSIPSubmission  = MockSubmission
@@ -107,14 +115,12 @@ dummyProtocolUpdateSpec uId _sipAuthor _implAuthor supersedesProtocol newVersion
     updateSpecCommit = MockCommit uId
     theSIP           = MockProposal
                        { mpId                   = MPId uId
-                       -- TODO: we might want to make this configurable.
-                       , mpVotingPeriodDuration = 10
+                       , mpVotingPeriodDuration = vpd
                        , mpPayload              = ()
                        }
     theImpl          = MockProposal
                        { mpId                   = MPId uId
-                       -- TODO: we might want to make this configurable.
-                       , mpVotingPeriodDuration = 10
+                       , mpVotingPeriodDuration = vpd
                        , mpPayload              = implInfo
                        }
     implInfo         =  ImplInfo
@@ -168,6 +174,7 @@ mkUpdate' uId supersedes sipAuthor newVersion =
                           (sipAuthor `addToId` 10)
                           supersedes
                           newVersion
+                          4
 
 -- | Get the state of an update specification.
 --
@@ -190,18 +197,29 @@ stateOf updateSpec st
     = ActivationCanceled
   | Update.isDiscardedDueToBeing protocolId Update.Unsupported st
     = ActivationUnsupported
+  | Update.isDiscardedDueToBeing protocolId Update.Obsoleted st
+    = Obsoleted
   | Update.isImplementationStably st implId Approved st
     = error "A stably approved implementation goes to the activation phase."
   | Update.isImplementation implId Approved st
     = error "An approved implementation goes to the activation phase."
+  | Update.isImplementationStably st implId Rejected st
+    = Implementation (IsStably Rejected)
+  | Update.isImplementationStably st implId WithNoQuorum st
+    = Implementation (IsStably WithNoQuorum)
+  | Update.isImplementationStably st implId Expired st
+    = Implementation (IsStably Expired)
   | Update.isImplementation implId Rejected st
     = Implementation (Is Rejected)
   | Update.isImplementation implId WithNoQuorum st
     = Implementation (Is WithNoQuorum)
   | Update.isImplementation implId Expired st
     = Implementation (Is Expired)
-  | Update.isImplementation implId Undecided st
-    = Implementation (Is Undecided)
+  -- TODO: it is important that we do not return the undecided state since,
+  -- since the property test rely on detecting the proposal state as being
+  -- revealed. We need to find a more robust way to encode these state changes,
+  -- or lay out the principles of this function in the comments.
+  --
   | Update.isImplementationStablyRevealed st implId st
     = Implementation StablyRevealed
   | Update.isImplementationRevealed implId st
@@ -212,6 +230,12 @@ stateOf updateSpec st
     = Implementation Submitted
   | Update.isSIPStably st sipId Approved st
     = SIP (IsStably Approved)
+  | Update.isSIPStably st sipId Rejected st
+    = SIP (IsStably Rejected)
+  | Update.isSIPStably st sipId WithNoQuorum st
+    = SIP (IsStably WithNoQuorum)
+  | Update.isSIPStably st sipId Expired st
+    = SIP (IsStably Expired)
   | Update.isSIP sipId Approved st
     = SIP (Is Approved)
   | Update.isSIPStablyRevealed st sipId st

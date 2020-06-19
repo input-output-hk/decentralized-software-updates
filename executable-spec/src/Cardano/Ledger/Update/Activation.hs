@@ -29,8 +29,9 @@ module Cardano.Ledger.Update.Activation
   , endorsedVersionError
     -- * Update state query operations
   , HasActivationState (getActivationState)
-  , getCurrentVersion
-  , currentVersion
+  , getCurrentProtocol
+  , getCurrentProtocolVersion
+  , currentProtocol
   , isQueued
   , isBeingEndorsed
   , isScheduled
@@ -91,7 +92,7 @@ import           Cardano.Ledger.Assert
 data State sip impl =
   State
   { endorsedProposal   :: !(MaybeAnEndorsedProposal sip impl)
-  , currentVersion     :: !(Protocol impl)
+  , currentProtocol    :: !(Protocol impl)
   , activationQueue    :: !(Map (Version (Protocol impl)) (Protocol impl))
     -- ^ The activation queue maintains a priority queue of protocol versions.
     -- The lower the version the higher the priority. Duplicated versions are
@@ -250,7 +251,7 @@ initialState initialProtocol
   $ State
     { activationQueue    = mempty
     , endorsedProposal   = NoProposal
-    , currentVersion     = initialProtocol
+    , currentProtocol    = initialProtocol
     , applicationUpdates = mempty
     , lastAppliedSlot    = Nothing
     , discarded          = mempty
@@ -330,7 +331,7 @@ tick env st
           | currentSlot env == epochFirstSlot env ->
             deleteProposalsThatCannotFollow
             $ st' { endorsedProposal = NoProposal
-                  , currentVersion   = sProtocol
+                  , currentProtocol   = sProtocol
                   }
         _                                         -> st'
 
@@ -716,8 +717,12 @@ instance Implementation sip impl
          => HasActivationState (State sip impl) sip impl where
   getActivationState = id
 
-getCurrentVersion :: HasActivationState st sip impl => st -> (Protocol impl)
-getCurrentVersion = currentVersion . getActivationState
+getCurrentProtocol :: HasActivationState st sip impl => st -> (Protocol impl)
+getCurrentProtocol = currentProtocol . getActivationState
+
+getCurrentProtocolVersion
+  :: HasActivationState st sip impl => st -> Version (Protocol impl)
+getCurrentProtocolVersion = version . getCurrentProtocol
 
 -- | Was the given protocol update implementation activated?
 --
@@ -729,7 +734,7 @@ getCurrentVersion = currentVersion . getActivationState
 isTheCurrentVersion
   :: (HasActivationState st sip impl)
   => ProtocolId impl -> st -> Bool
-isTheCurrentVersion h = (== h) . _id . currentVersion . getActivationState
+isTheCurrentVersion h = (== h) . _id . currentProtocol . getActivationState
 
 isScheduled
   :: (HasActivationState st sip impl)
@@ -806,7 +811,7 @@ endorsedSupersedesVersion =
 currentProtocolVersion
   :: (HasActivationState st sip impl) => st -> Version (Protocol impl)
 currentProtocolVersion =
-  version  . currentVersion . getActivationState
+  version  . currentProtocol . getActivationState
 
 scheduledProtocolId
   :: HasActivationState st sip impl => st -> Maybe (ProtocolId impl)

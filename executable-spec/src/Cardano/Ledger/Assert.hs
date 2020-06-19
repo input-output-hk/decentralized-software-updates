@@ -3,6 +3,7 @@
 
 module Cardano.Ledger.Assert
   ( assert
+  , assertAndReturn
   -- * Comparison assertions
   , (<!)
   , (<=!)
@@ -38,9 +39,14 @@ module Cardano.Ledger.Assert
   , doesNotContain
   , doesNotContainKey
   , doesNotContainMaybeKey
+  -- ** Assertions on lists
+  , allUnique
   -- * Show utilities
   , cShow
   , orElseShow
+#if PRETTY_PRINT
+  , prettyShow
+#endif
   )
 where
 
@@ -50,6 +56,7 @@ import           Control.Monad.Validate (Validate, dispute, runValidate)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as  Map
 import           Data.Foldable (traverse_)
+import           Data.List.Unique (repeated)
 
 #if PRETTY_PRINT
 import qualified Text.Pretty.Simple as Pretty
@@ -67,6 +74,10 @@ assert assertion a =
 #else
   a
 #endif
+
+assertAndReturn
+  :: HasCallStack => (a -> Assertion) -> a -> a
+assertAndReturn p x = assert (p x) x
 
 failBecause :: Text.Lazy.Text -> Assertion
 failBecause = dispute . pure
@@ -153,6 +164,11 @@ cShow =
   Text.Lazy.pack . show
 #endif
 
+#if PRETTY_PRINT
+prettyShow :: Show a => a -> String
+prettyShow = Text.Lazy.unpack . Pretty.pShow
+#endif
+
 orElseShow :: Bool -> Text.Lazy.Text -> Assertion
 orElseShow False reason = failBecause reason
 orElseShow True  _      = pass
@@ -177,6 +193,14 @@ holdsForAllElementsIn
   :: (Show a, Foldable f) => (a -> Bool) -> f a -> Assertion
 holdsForAllElementsIn p fa =
   traverse_ (p `holdsFor`) fa
+
+allUnique :: (Show a, Ord a) => [a] -> Assertion
+allUnique xs =
+  case repeated xs of
+    [] -> pass
+    ys -> failBecause $  "The list should contain unique elements,"
+                      <> " however these elements are repeated: "
+                      <> cShow ys
 
 holdsFor :: Show a => (a -> Bool) -> a -> Assertion
 holdsFor p a

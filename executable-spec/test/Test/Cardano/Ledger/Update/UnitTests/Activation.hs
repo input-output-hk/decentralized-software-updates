@@ -26,7 +26,6 @@ import           Test.Cardano.Ledger.Update.UnitTests.Common
 import           Test.Cardano.Ledger.Update.UnitTests.Ideation
 
 import           Cardano.Ledger.Update.Proposal (Protocol, _id)
-import qualified Cardano.Ledger.Update.Proposal as Proposal
 
 import           Test.Cardano.Ledger.Update.Data
 
@@ -160,6 +159,7 @@ competingProposals = do
   approveImplementation update1
   stateOf update1 `shouldBe` BeingEndorsed
   activate update1
+  iStateProtocolVersion `shouldBe` protocolVersion update1
 
 queuedProposal :: TestCase
 queuedProposal = do
@@ -232,7 +232,7 @@ endorseTillApproval updateSpec = do
     mkEndorsement endorser
       = Update.Endorsement
         { Update.endorserId       = _id endorser
-        , Update.endorsedVersion = Proposal.version (getProtocol updateSpec)
+        , Update.endorsedVersion = protocolVersion updateSpec
         }
 
 getEndorsersForApproval :: TestCaseEnv -> [Endorser (Protocol MockImpl)]

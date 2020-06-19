@@ -1,7 +1,7 @@
 module Cardano.Ledger.Update.Env.TracksSlotTime where
 
 import           GHC.Stack (HasCallStack)
-import           Control.Exception (assert)
+import Cardano.Ledger.Assert (assertAndReturn, (<=!), (<!))
 
 import Cardano.Slotting.Slot (SlotNo)
 
@@ -33,7 +33,6 @@ class TracksSlotTime e where
     epochFirstSlot e + slotsPerEpoch e
 
   checkInvariants :: HasCallStack => e -> e
-  checkInvariants e
-    = assert (epochFirstSlot e <= currentSlot e)
-    $ assert (currentSlot e < nextEpochFirstSlot e)
-    $ e
+  checkInvariants = assertAndReturn $ \e -> do
+    epochFirstSlot e <=! currentSlot e
+    currentSlot e <! nextEpochFirstSlot e

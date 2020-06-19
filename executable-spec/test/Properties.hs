@@ -13,6 +13,7 @@
 module Properties where
 
 import           Data.List (foldl')
+import           Data.Maybe (fromMaybe)
 import           Data.Sequence (Seq ((:|>), Empty), (|>))
 import           GHC.Exts (toList)
 import           GHC.Generics (Generic)
@@ -20,9 +21,12 @@ import           GHC.Generics (Generic)
 import           Data.Tree
 import           Test.QuickCheck
 
+import           Cardano.Ledger.Assert (prettyShow)
+
 import           SUTTest
 
 
+-- | Given a test setup, generate a tree of traces based on that test setup.
 genTraceTree
   :: (TestGen s t)
   => TestSetup t -> Gen (Tree (Trace s t))
@@ -30,9 +34,7 @@ genTraceTree testSetup = do
   trace <- genTrace testSetup
   pure $ unfoldTree (\trace' -> (trace', shrinkTrace trace')) trace
 
--- |
---
--- TODO: Constraint @Arbitrary (SUTAct s)@ is needed for shrinking the trace. If
+-- | TODO: Constraint @Arbitrary (SUTAct s)@ is needed for shrinking the trace. If
 -- we would only shrink the list of actions and not the actions we wouldn't need
 -- it. Shrinking the action might not make much sense, since we're shrinking the
 -- test setup, which should constrain which actions are possible.
@@ -52,18 +54,32 @@ instance ( Arbitrary (TestSetup t)
 traceProp
   :: forall s t
    . ( Arbitrary (TestSetup t)
+     , Show (TestSetup t)
      , Show (SUTSt s)
      , Show (SUTAct s)
      , TestGen s t
      )
   => (Trace s t -> Bool) -> Property
-traceProp prop =
-  property $ \(Node trace _) -> prop trace
+traceProp prop = tracePropShow prop prettyShow
 
--- NOTE: this will require the use @TypeApplications@ to disambiguate @t@.
+tracePropShow
+  :: forall s t
+   . ( Arbitrary (TestSetup t)
+     , TestGen s t
+     )
+  => (Trace s t -> Bool) -> (Trace s t -> String) -> Property
+tracePropShow prop customShow =
+  forAllShrinkShow
+    arbitrary
+    shrink
+    (\(Node trace _) -> customShow trace)
+    (\(Node trace _) -> prop trace)
+
 forAllSequencesOfActions
   :: forall s t
    . ( Arbitrary (TestSetup t)
+     -- TODO: we might want to bundle these constraints in the @TestGen@ class.
+     , Show (TestSetup t)
      , Show (SUTSt s)
      , Show (SUTAct s)
      , TestGen s t
@@ -82,7 +98,6 @@ forAllSequencesOfActions prop
   -- impose heavy restrictions on the action generators, but on the other hand
   -- we want to prevent generators from masking off errors!
  .&&. expectFailure (property $ traceProp @s @t (prop . allActions))
-
 
 --------------------------------------------------------------------------------
 -- Tree generators
@@ -116,37 +131,27 @@ genTrace
   => TestSetup t -> Gen (Trace s t)
 genTrace testSetup = do
   let (initGenSt, initSUTSt) = mkInitStates testSetup
-  go initGenSt (bootstrap initSUTSt)
+  go initGenSt (bootstrap testSetup initSUTSt)
   where
     go :: GenSt t -> Trace s t -> Gen (Trace s t)
     go genSt trace
       | canTerminate @s genSt = pure trace
       | otherwise             = do
-          mNextAct <- genAct genSt
-          case mNextAct of
-            Nothing      ->
-              -- TODO: here we have to determine whether we should retry the
-              -- action generator. I think the simplest design is to assume that
-              -- if the action generator could not generate a valid action in
-              -- the given SUT state, then no valid actions can be generated in
-              -- that state.
-              pure trace
-            Just nextAct ->
-              let trace'    = extend trace nextAct
-                  nextGenSt = update genSt (latestState trace')
-              in  go nextGenSt trace'
+          nextAct <- genAct testSetup genSt
+          let trace'    = extend trace nextAct
+              nextGenSt = update genSt (latestState trace')
+          go nextGenSt trace'
 
 --------------------------------------------------------------------------------
 -- Trace shrinking
 --------------------------------------------------------------------------------
 
--- |
---
--- NOTE: we do not shrink the actions inside the trace.
+-- | NOTE: we do not shrink the actions inside the trace.
 shrinkTrace
   :: SUT s => Trace s t -> [Trace s t]
-shrinkTrace trace =
-  fmap (reconstruct (initialState trace)) $ shrinkList shrinkNothing (allActions trace)
+shrinkTrace trace
+  = fmap (reconstruct (testSetup trace) (initialState trace))
+  $ shrinkList shrinkNothing (allActions trace)
 
 --------------------------------------------------------------------------------
 -- Trace
@@ -155,12 +160,17 @@ shrinkTrace trace =
 -- | Trace for SUT @s@ generated using test generator @t@.
 data Trace s t =
   Trace
-  { initialState :: !(SUTSt s)
+  { testSetup    :: !(TestSetup t)
+  , initialState :: !(SUTSt s)
   , transitions  :: !(Seq (TraceEvent s))
+    -- ^ Trace events. They appear in an oldest-first order. This is: the events
+    -- appear in the order they occurred.
   } deriving (Generic)
 
-deriving instance (Eq (SUTSt s), Eq (TraceEvent s))     => Eq (Trace s t)
-deriving instance (Show (SUTSt s), Show (TraceEvent s)) => Show (Trace s t)
+deriving instance
+  (Eq (SUTSt s), Eq (TraceEvent s), Eq (TestSetup t))       => Eq (Trace s t)
+deriving instance
+  (Show (SUTSt s), Show (TraceEvent s), Show (TestSetup t)) => Show (Trace s t)
 
 -- | Trace events.
 data TraceEvent s
@@ -173,41 +183,69 @@ data TraceEvent s
 deriving instance (Eq (SUTAct s), Eq (SUTSt s))     => Eq (TraceEvent s)
 deriving instance (Show (SUTAct s), Show (SUTSt s)) => Show (TraceEvent s)
 
-validAction :: TraceEvent s -> Bool
-validAction (Invalid {}) = False
-validAction (Valid {})   = True
+validEvent :: TraceEvent s -> Bool
+validEvent (Invalid {}) = False
+validEvent (Valid {})   = True
 
 extractAction :: TraceEvent s -> SUTAct s
 extractAction (Invalid act)    = act
 extractAction (Valid { action }) = action
 
+extractState :: TraceEvent s -> SUTSt s
+extractState (Invalid {})               = error "Cannot extract an invalid state"
+extractState (Valid   { ensuingState }) = ensuingState
+
+validTransitions :: Trace s t -> [(SUTAct s, SUTSt s)]
+validTransitions Trace { transitions } =
+  fmap asPair $ filter validEvent $ toList transitions
+  where
+    asPair Invalid {}  = error "This function should be called with valid events only."
+    asPair (Valid a s) = (a, s)
+
 -- | Initialize the trace with an initial state.
-bootstrap :: SUTSt s -> Trace s t
-bootstrap st =
+bootstrap :: TestSetup t -> SUTSt s -> Trace s t
+bootstrap setup st =
   Trace
-  { initialState = st
+  { testSetup    = setup
+  , initialState = st
   , transitions  = Empty
   }
 
+-- | Return the latest valid state of a trace.
 latestState :: Trace s t -> SUTSt s
-latestState (Trace st Empty                )   = st
-latestState (Trace st (ts :|> (Invalid _ )))   = latestState (Trace st ts)
-latestState (Trace _  (_  :|> (Valid _ st' ))) = st'
+latestState Trace { initialState, transitions } =
+  fromMaybe initialState (latestStateOf transitions)
+  where
+    latestStateOf Empty                   = Nothing
+    latestStateOf (ts :|> (Invalid _ ))   = latestStateOf ts
+    latestStateOf (_  :|> (Valid _ st' )) = Just st'
 
 -- | Return all the __valid__ actions in the trace, where the oldest action is
 -- returned first.
 validActions :: forall s t . Trace s t -> [SUTAct s]
 validActions Trace { transitions } =
-  fmap extractAction $ filter validAction $ toList transitions
+  fmap extractAction $ filter validEvent $ toList transitions
 
 -- | Return __all__ the actions in the trace, both __valid__ and __invalid__.
 allActions :: Trace s t -> [SUTAct s]
 allActions Trace { transitions }=
   fmap extractAction $ toList transitions
 
+validStates :: Trace s t -> [SUTSt s]
+validStates Trace { initialState, transitions } =
+  initialState : (fmap extractState $ filter validEvent  $ toList transitions)
+
 -- | Try to reconstruct a trace using the initial state and provided actions.
-reconstruct :: SUT s => SUTSt s -> [SUTAct s] -> Trace s t
-reconstruct st0 acts = foldl' extend (bootstrap st0) acts
+reconstruct
+  :: SUT s
+  => TestSetup t
+  -- ^ Test setup that originated the trace.
+  -> SUTSt s
+  -- ^ Initial state.
+  -> [SUTAct s]
+  -- ^ Actions to apply to the initial state.
+  -> Trace s t
+reconstruct setup st0 acts = foldl' extend (bootstrap setup st0) acts
 
 extend :: SUT s => Trace s t -> SUTAct s -> Trace s t
 extend trace act =

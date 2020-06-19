@@ -33,7 +33,8 @@ module Cardano.Ledger.Update
     -- ** Activation-state query functions
   , Activation.Endorsement (Endorsement, endorserId, endorsedVersion)
   , Activation.HasActivationState (getActivationState)
-  , Activation.getCurrentVersion
+  , Activation.getCurrentProtocol
+  , Activation.getCurrentProtocolVersion
   , Activation.isQueued
   , Activation.isBeingEndorsed
   , Activation.isScheduled

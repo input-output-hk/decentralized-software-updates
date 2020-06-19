@@ -66,6 +66,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
           (hsPkgs."monad-validate" or (buildDepError "monad-validate"))
+          (hsPkgs."Unique" or (buildDepError "Unique"))
           (hsPkgs."mtl" or (buildDepError "mtl"))
           ];
         buildable = true;
@@ -82,6 +83,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."pretty-simple" or (buildDepError "pretty-simple"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."random" or (buildDepError "random"))
+            (hsPkgs."successors" or (buildDepError "successors"))
             (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
             (hsPkgs."decentralized-updates" or (buildDepError "decentralized-updates"))
             ];

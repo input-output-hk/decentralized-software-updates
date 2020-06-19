@@ -22,3 +22,4 @@ https://github.com/input-output-hk/cardano-prelude 3ac22a2fda11ca7131a011a9ea48f
 https://github.com/input-output-hk/cardano-ledger-specs c006b101b699b7b54a96d077fdbad07005b8da77 byron/semantics/executable-spec 1m2xs2z9bq83k65l2hx41zbj1akyl83cdlxhdxssd8nbmb723qar small-steps small-steps.nix
 https://github.com/input-output-hk/cardano-ledger-specs c006b101b699b7b54a96d077fdbad07005b8da77 byron/ledger/executable-spec 1m2xs2z9bq83k65l2hx41zbj1akyl83cdlxhdxssd8nbmb723qar cs-ledger cs-ledger.nix
 https://github.com/input-output-hk/cardano-base 0fcb3a306e96ce36fca75d62792c55ab1de871ea slotting 0fbcf3iim4fh8m647ilw02ybbxiqna3zpny0w7rlqjgd4skfqvjr cardano-slotting cardano-slotting.nix
+https://github.com/nomeata/haskell-successors 6f9f60eb3232b83cbffdc46301054c85983cf207 . 03jbs0730nyjhi01wqgmn6848pklvnzja7dv4nlhs1s6zb43gznx successors successors.nix

@@ -33,8 +33,7 @@ import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
                      currentSlot, epochFirstSlot, nextEpochFirstSlot,
                      stableAfter, stableAt)
 import qualified Cardano.Ledger.Update.Env.TracksSlotTime as SlotTime
-import           Cardano.Ledger.Update.ProposalState (VotingPeriod)
-import           Cardano.Ledger.Update.ProposalState (Decision)
+import           Cardano.Ledger.Update.ProposalsState (Decision, VotingPeriod)
 
 import qualified Cardano.Ledger.Update as Update
 
@@ -85,7 +84,7 @@ iStateProtocolVersion :: (Implementation sip impl) => IState sip impl -> Version
 iStateProtocolVersion = version . iStateCurrentVersion
 
 iStateCurrentVersion :: Implementation sip impl => IState sip impl -> Protocol impl
-iStateCurrentVersion = Update.getCurrentVersion . updateSt
+iStateCurrentVersion = Update.getCurrentProtocol . updateSt
 
 -- | At which slot is will the current slot (according to the given state)
 -- become stable.
@@ -176,7 +175,7 @@ tickTill desiredSlot st
     error "target slot should be less or equal than the current slot"
   where
     nextSlot = iStateCurrentSlot st + 1
-    st'  = SlotTime.checkInvariants
+    st'      = SlotTime.checkInvariants
              $ st { iStateCurrentSlot    = nextSlot
                   , iStateEpochFirstSlot =
                       if nextEpochFirstSlot st <= nextSlot
@@ -222,14 +221,13 @@ data UpdateState
   | ActivationExpired
   | ActivationCanceled
   | ActivationUnsupported
+  | Obsoleted
   | BeingEndorsed
   | HasEnoughEndorsements
   | Scheduled
   | Activated
   | Canceled
   deriving (Eq, Show, Generic)
-
-
 
 data PhaseState
   = Submitted

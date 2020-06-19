@@ -7,7 +7,8 @@ import           Data.Foldable (traverse_)
 import           Test.Tasty (TestTree)
 
 import           Cardano.Ledger.Update.Env.TracksSlotTime (stableAfter)
-import           Cardano.Ledger.Update.ProposalState (Decision (Approved, Expired, Rejected, Undecided, WithNoQuorum))
+import           Cardano.Ledger.Update.ProposalState
+                     (Decision (Approved, Expired, Rejected, WithNoQuorum))
 import qualified Cardano.Ledger.Update.ProposalState as ProposalState
 
 import           Test.Cardano.Ledger.Update.Interface
@@ -159,9 +160,9 @@ implApprovalInSecondVotingRound = do
   tickTillStable
   -- The tally point is reached. The implementation should not have enough
   -- votes.
-  stateOf update `shouldBe` (Implementation (Is Undecided))
+  stateOf update `shouldBe` Implementation StablyRevealed
   approve `implementation` update
-  stateOf update `shouldBe` Implementation (Is Undecided)
+  stateOf update `shouldBe` Implementation StablyRevealed
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
   stateOf update `shouldBe` BeingEndorsed
@@ -186,7 +187,7 @@ implVotesAreNotCarriedOver = do
   vote approvers0 update Proposal.For
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
-  stateOf update `shouldBe` (Implementation (Is Undecided))
+  stateOf update `shouldBe` Implementation StablyRevealed
   vote approvers1 update Proposal.For
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
@@ -254,10 +255,10 @@ approveImplementation update = do
   submit `implementation` update
   tickTillStable
   reveal  `implementation` update
-  stateOf update `shouldBe` Implementation (Is Undecided)
+  stateOf update `shouldBe` Implementation Revealed
   tickTillStable
   approve `implementation` update
-  stateOf update `shouldBe` Implementation (Is Undecided)
+  stateOf update `shouldBe` Implementation StablyRevealed
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
 

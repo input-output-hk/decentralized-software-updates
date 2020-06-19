@@ -42,10 +42,16 @@ class SUT s => TestGen s t where
   -- initial generator and SUT state.
   mkInitStates :: TestSetup t -> (GenSt t, SUTSt s)
 
-  -- | Try to generate an action based on the current state.
+  -- | Determine whether we can terminate the generation of action.
+  canTerminate :: GenSt t -> Bool
+
+  -- | Generate an action based on the current state. This generator should
+  -- always be able to return an action based on the given generator state.
+  -- Before calling 'genAct' the trace generation algorithm will call
+  -- 'canTerminate'. If no further actions can be generated in a given state
+  -- @st@, then @canTerminate st@ should hold.
   --
-  -- If an action cannot be generated 'Nothing' is returned.
-  genAct :: GenSt t -> Gen (Maybe (SUTAct s))
+  genAct :: TestSetup t -> GenSt t -> Gen (SUTAct s)
 
   -- | Update the generator state with the given SUT state.
   --
@@ -54,6 +60,3 @@ class SUT s => TestGen s t where
   -- > update (update genSt sutSt) sutSt == update genSt sutSt
   --
   update :: GenSt t -> SUTSt s -> GenSt t
-
-  -- | Determine whether we can terminate the generation of action.
-  canTerminate :: GenSt t -> Bool
