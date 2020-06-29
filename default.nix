@@ -4,7 +4,7 @@
 , config ? {}
 # allows to override dependencies of the project without modifications,
 # eg. to test build against local checkout of nixpkgs and iohk-nix:
-# nix build -f default.nix decentralized-software-updates --arg sourcesOverride '{
+# nix build -f default.nix decentralizedUpdatesSpec --arg sourcesOverride '{
 #   iohk-nix = ../iohk-nix;
 # }'
 , sourcesOverride ? {}
@@ -21,6 +21,10 @@ let
 
   self = {
     inherit haskellPackages hydraEvalErrors;
+    #datil = import ./datil { inherit pkgs; };
+    #decentralized-updates = import ./executable-spec { inherit pkgs; };
+    datil = haskellPackages.datil;
+    decentralized-updates = haskellPackages.decentralized-updates;
     # Attributes of PDF builds of LaTeX documentation.
     decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
 

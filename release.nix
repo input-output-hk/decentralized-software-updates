@@ -46,9 +46,11 @@ let
   testsSupportedSystems = [ "x86_64-linux" ];
   collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
-  inherit (project) decentralizedUpdatesSpec;
-
   jobs = {
+    inherit (project) datil;
+    inherit (project) decentralized-updates;
+    inherit (project) decentralizedUpdatesSpec;
+
     native = mapTestOn (packagePlatforms project);
   } // (
     # This aggregate job is what IOHK Hydra uses to update
@@ -57,7 +59,10 @@ let
       collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
       # Add your project executables to this list if any:
-      [ decentralizedUpdatesSpec
+      [
+        jobs.datil
+        jobs.decentralized-updates
+        jobs.decentralizedUpdatesSpec
       ]
     )
   )
