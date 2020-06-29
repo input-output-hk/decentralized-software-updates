@@ -17,7 +17,7 @@
   }
 
 # The systems that the jobset will be built for.
-, supportedSystems ? [ "x86_64-linux" "x86_64-darwin" ]
+, supportedSystems ? [ "x86_64-linux" ]
 
 # The systems used for cross-compiling
 , supportedCrossSystems ? [ "x86_64-linux" ]
@@ -46,7 +46,7 @@ let
   testsSupportedSystems = [ "x86_64-linux" ];
   collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
-  inherit (systems.examples) musl64;
+  inherit (project) decentralizedUpdatesSpec;
 
   jobs = {
     native = mapTestOn (packagePlatforms project);
@@ -57,14 +57,14 @@ let
       collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
       # Add your project executables to this list if any:
-      [ # jobs.native.decentralized-software-updates.x86_64-linux
+      [ decentralizedUpdatesSpec
       ]
     )
   )
   # Collect all spec PDFs, without system suffix
-  // { inherit (project)
-         decentralizedUpdatesSpec;
-     }
+  #// { inherit (project)
+  #       decentralizedUpdatesSpec;
+  #   }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
   // mapTestOn (packagePlatforms { inherit (project) shell; });
