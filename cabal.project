@@ -1,4 +1,4 @@
-index-state: 2020-01-31T00:00:00Z
+index-state: 2020-04-01T00:00:00Z
 
 packages:
     executable-spec
@@ -29,6 +29,13 @@ source-repository-package
   tag: 0fcb3a306e96ce36fca75d62792c55ab1de871ea
   --sha256: 0fbcf3iim4fh8m647ilw02ybbxiqna3zpny0w7rlqjgd4skfqvjr
   subdir: cardano-crypto-class
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-base
+  tag: 0fcb3a306e96ce36fca75d62792c55ab1de871ea
+  --sha256: 0fbcf3iim4fh8m647ilw02ybbxiqna3zpny0w7rlqjgd4skfqvjr
+  subdir: slotting
 
 source-repository-package
   type: git
