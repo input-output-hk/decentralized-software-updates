@@ -60,9 +60,9 @@ let
       collectTests jobs.native.benchmarks ++
       # Add your project executables to this list if any:
       [
-        jobs.datil
-        jobs.decentralized-updates
-        jobs.decentralizedUpdatesSpec
+        datil
+        decentralized-updates
+        decentralizedUpdatesSpec
       ]
     )
   )
