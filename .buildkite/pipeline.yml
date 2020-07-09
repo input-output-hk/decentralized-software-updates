@@ -4,6 +4,12 @@ env:
   CACHE_DIR: "/cache/decentralized-software-updates"
 
 steps:
+  - label: 'stack coveralls coverage'
+    command:
+      - 'nix-shell -A runCoveralls'
+    agents:
+      system: x86_64-linux
+
   - label: Stack build
     command:
       - "nix-build .buildkite/default.nix -o sr"
@@ -29,3 +35,9 @@ steps:
     command: 'nix-shell ./nix -A iohkNix.stack-cabal-sync-shell --run scripts/buildkite/stack-cabal-sync.sh'
     agents:
       system: x86_64-linux
+
+  - label: 'stack2nix'
+    command: 'ci/check-regenerate-nix.sh'
+    agents:
+      system: x86_64-linux
+

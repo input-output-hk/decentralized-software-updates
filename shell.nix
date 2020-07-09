@@ -79,6 +79,8 @@ let
     '';
   };
 
+  localPkgs = import ./. { };
+
 in
 
- shell // { inherit devops; }
+ shell // { inherit devops; }  // { inherit (localPkgs) runCoveralls; }

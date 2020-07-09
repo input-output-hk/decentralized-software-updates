@@ -12,15 +12,16 @@
 , profiling ? config.haskellNix.profiling or false
 }:
 let
+  src = haskell-nix.haskellLib.cleanGit {
+    name = "decentralized-software-updates";
+    src = ../.;
+  };
 
   # This creates the Haskell package set.
   # https://input-output-hk.github.io/haskell.nix/user-guide/projects/
   pkgSet = haskell-nix.cabalProject {
-    src = haskell-nix.haskellLib.cleanGit {
-      name = "decentralized-software-updates";
-      src = ../.;
-    };
     compiler-nix-name = compiler;
+    inherit src;
     modules = [
 
       # Allow reinstallation of Win32
@@ -47,18 +48,8 @@ let
 
         # split data output for ekg to reduce closure size
         packages.ekg.components.library.enableSeparateDataOutput = true;
-        packages.cardano-node.configureFlags = [ "--ghc-option=-Werror" ];
-        packages.cardano-config.configureFlags = [ "--ghc-option=-Werror" ];
-        enableLibraryProfiling = profiling;
       }
       (lib.optionalAttrs stdenv.hostPlatform.isWindows {
-        # Disable cabal-doctest tests by turning off custom setups
-        packages.comonad.package.buildType = lib.mkForce "Simple";
-        packages.distributive.package.buildType = lib.mkForce "Simple";
-        packages.lens.package.buildType = lib.mkForce "Simple";
-        packages.nonempty-vector.package.buildType = lib.mkForce "Simple";
-        packages.semigroupoids.package.buildType = lib.mkForce "Simple";
-
         # Make sure we use a buildPackages version of happy
         packages.pretty-show.components.library.build-tools = [ buildPackages.haskell-nix.haskellPackages.happy ];
 
@@ -66,6 +57,14 @@ let
         packages.Win32.components.library.build-tools = lib.mkForce [];
         packages.terminal-size.components.library.build-tools = lib.mkForce [];
         packages.network.components.library.build-tools = lib.mkForce [];
+
+
+        # Disable cabal-doctest tests by turning off custom setups
+        packages.comonad.package.buildType = lib.mkForce "Simple";
+        packages.distributive.package.buildType = lib.mkForce "Simple";
+        packages.lens.package.buildType = lib.mkForce "Simple";
+        packages.nonempty-vector.package.buildType = lib.mkForce "Simple";
+        packages.semigroupoids.package.buildType = lib.mkForce "Simple";
       })
     ];
     # TODO add flags to packages (like cs-ledger) so we can turn off tests that will

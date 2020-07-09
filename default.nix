@@ -20,9 +20,10 @@ let
     (selectProjectPackages decentralizedUpdatesHaskellPackages);
 
   self = {
+    inherit decentralizedUpdatesHaskellPackages;
     inherit haskellPackages hydraEvalErrors;
-    datil = haskellPackages.datil;
-    decentralized-updates = haskellPackages.decentralized-updates;
+    datil = decentralizedUpdatesHaskellPackages.datil;
+    decentralized-updates = decentralizedUpdateshaskellPackages.decentralized-updates;
     # Attributes of PDF builds of LaTeX documentation.
     decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
 
@@ -36,6 +37,20 @@ let
     checks = recurseIntoAttrs {
       # `checks.tests` collect results of executing the tests:
       tests = collectChecks haskellPackages;
+    };
+
+    runCoveralls = pkgs.stdenv.mkDerivation {
+      name = "run-coveralls";
+      buildInputs = [ commonLib.stack-hpc-coveralls stack_1_9_3 nix ];
+      shellHook = ''
+        export GIT_SSL_CAINFO="${cacert}/etc/ssl/certs/ca-bundle.crt"
+
+        echo '~~~ stack nix test'
+        stack test --nix --coverage
+        echo '~~~ shc'
+        shc --repo-token=$COVERALLS_REPO_TOKEN combined all
+        exit
+      '';
     };
 
     shell = import ./shell.nix {
