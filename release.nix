@@ -40,15 +40,15 @@ with (import pkgs.iohkNix.release-lib) {
   gitrev = decentralized-software-updates.rev;
 };
 
-with pkgs.lib;
+with pkgs;
 
 let
   testsSupportedSystems = [ "x86_64-linux" ];
   collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
   jobs = {
-    inherit (project) datil;
-    inherit (project) decentralized-updates;
+    #inherit (project) datil;
+    #inherit (project) decentralized-updates;
     inherit (project) decentralizedUpdatesSpec;
 
     native = mapTestOn (packagePlatforms project);
@@ -60,9 +60,9 @@ let
       collectTests jobs.native.benchmarks ++
       # Add your project executables to this list if any:
       [
-        datil
-        decentralized-updates
-        decentralizedUpdatesSpec
+        pkgs.datil
+        pkgs.decentralized-updates
+        jobs.decentralizedUpdatesSpec
       ]
     )
   )

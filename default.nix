@@ -21,8 +21,6 @@ let
 
   self = {
     inherit haskellPackages hydraEvalErrors;
-    #datil = import ./datil { inherit pkgs; };
-    #decentralized-updates = import ./executable-spec { inherit pkgs; };
     datil = haskellPackages.datil;
     decentralized-updates = haskellPackages.decentralized-updates;
     # Attributes of PDF builds of LaTeX documentation.
