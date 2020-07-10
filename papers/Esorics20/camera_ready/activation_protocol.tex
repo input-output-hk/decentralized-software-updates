@@ -1,0 +1,231 @@
+\section{Our constructions}
+In this section we propose two main approaches to turn a ledger $\ledger_1$ into an updatable ledger $\ledgerup$. That is, we show how to make $\ledger_1$ able to self-update to the code of a new ledger $\ledger_2$.
+The first approach proposed requires $\ledger_1$ and $\ledger_2$ to be the same (i.e.,  they use the same consensus rules) but might have a different block structure. The advantage in this approach is that we get a very simple updatable ledger, that does not decrease the throughput of  $\ledgerup$ during the update and does not require all the honest parties to be online during the update. 
+The second approach requires fewer similarities between the two ledgers, but it is proven secure only in the semi-online. We also show that we can relax the requirement on the honest parties being online during the update by relying on a 2-way peg approache (more details are provided in the end of Sec~\ref{se:first}).
+
+We now provide a detailed description of our approaches and formally prove their security.
+
+
+
+
+\subsection{First approach.}
+In this section we consider a simplified scenario where the two ledgers, $\ledger_1$ and $\ledger_2$, 
+are the same except for the block format (i.e., $\ledger_1$ and $\ledger_2$ might have a different block size).
+Moreover, we assume that a block valid for $\ledger_1$ is valid for $\ledger_2$ as well (but the viceversa does not necessarily hold). Formally, this means that if the block validation algorithm  $\isvalidb_1$ of $\ledger_1$
+outputs $1$ on some input $B$, then also the block validation algorithm $\isvalidb_2$ of $\ledger_2$ outputs $1$ (see Sec~\ref{se:ledgermodel} for more details).
+We now prove the following theorem
+
+
+\begin{theorem}
+If $\ledger_1$ and $\ledger_2$ are secure ledgers with block validation rules respectively $\isvalidb_1$ and $\isvalidb_2$ such that: 
+\begin{enumerate}
+	\item  $\ledger_1$ and $\ledger_2$ are the same except with respect to the block validation rules;
+	\item for every block $B$ such that if $\isvalidb_1(B)=1$ then $\isvalidb_2(B)=1$,
+	%\item a valid block for $\ledger_1$ is valid for $\ledger_2$, 
+	%\item $\ledger_1$ and $\ledger_2$ have the same chain-selection algorithm;
+	\item $\ledger_1$ (resp. $\ledger_2$)  has common-prefix parameter $k$, chain-growth parameter  $(\cg, s)$ and assumption $\asmp_1$ (resp. $\asmp_2$) with $\asmp_1=\asmp_2$,
+	
+\end{enumerate}
+then there exists an updatable ledger $\ledgerup$ with update parameter  $\Delta := (k+1) \cg^{-1} + s$.
+\end{theorem}
+
+
+
+\begin{proof}
+As before, we assume that enough parties have received the command $(\activate, \ledger_2)$ such that
+$\asmp_2$ holds and denote the time when this happen with $T_0$.
+Our updatable ledger $\ledgerup$ works as follows.
+
+Each party $P_i\in\activep$ does the following steps.
+\begin{myenumerate}
+	\item Use $\isvalidb_2$ as a block validation algorithm.
+	\item Create and post a transaction that contains an \emph{activation flag}. 
+	\item Let $\aflag$ be the index of the block that will contain the first transaction with an activation flag.
+	\item Let $j:=\aflag+k+1$, run $\ledger_1$ and when the $j$-th block $B^i_j$ becomes part of $\check \state_1^{P_i}[\tau_i]$ for some $\tau_i \geq T_0$ start extending $B^i_{j}$ using the rules of $\ledger_2$ instead of the rules of $\ledger_1$ (we recall that a valid block for $\ledger_1$ is also a valid block for $\ledger_2$)
+\end{myenumerate}
+
+
+We provide a pictorial description of what happens to the ledger state during the update in Fig.~\ref{fig:sketch2}.
+We note that two honest parties $P_1$ and $P_2$ might have different $\check \state_1^{P_1}[\tau]$ and  $\check \state_1^{P_2}[\tau]$ at any time $\tau$. The figure~\ref{fig:sketch2}
+describe the scenario where $P_1$ might start to run $\ledger_2$ starting from an 
+unstable block (i.e. a block of  $\check \state_1^{P_1}[\tau]$ with $\tau\geq
+T_0+s$) which is different from the block that $P_2$ is using. However, after sufficiently many
+ rounds (at some round  $\tau'\leq T_0+s+(k_1+1)\cg_1^{-1}$ to be precise) $P_1$ and $P_2$ will agree on what is the last block of $\ledger_1$ and what is the first bock of $\ledger_2$.
+
+ 
+\input{update2}
+To complete the proof we need to show that $\ledger_2$ enjoys consistency and liveness
+and that the state $\ledger_1$ at some time $\tau\in [T_0,T_1]$ is a prefix of $\ledger_2$'s state. 
+
+
+\import{./}{proof}
+
+\end{proof}
+
+
+
+We finally note that this protocol does not put any restriction on whether an honest party needs to be online or not during an update given that $\ledger_1$ and $\ledger_2$ have the same chain selection rule (only the block selection rule is different).
+One practical advantage of our approach is that if $\ledger_1$ (and $\ledger_2$) allows bootstrapping from the genesis block (like in~\cite{CCS:BGKRZ18}) so does our updatable ledger.
+
+
+
+
+\subsection{Second Approach}\label{se:first}
+Before providing our construction we introduce the notion of \emph{\gencompatible} ledgers. We say that
+two ledgers $\ledger_1$ and $\ledger_2$ are \gencompatible\ if a block of 
+$\ledger_1$ can be turned into a valid candidate genesis block for $\ledger_2$. We now propose a formal definition.
+
+
+\begin{definition}
+Let $\ledger_1$ and $\ledger_2$ be two secure ledgers where $\fgenesis$ is the genesis functionality 
+of $\ledger_2$ parameterized by the algorithm $\genesis()$ (see Fig.~\ref{fig:genesis}).
+
+We say that $\ledger_1$ is \gencompatible\ with $\ledger_2$ if there exists a deterministic polynomial time
+algorithm $\translate$ that, on input a valid block $B$ of $\ledger_1$ 
+outputs a valid genesis block $\tilde B$ for $\ledger_2$. Moreover, the output of $\translate$ is identically distributed to the output of the procedure $\genesis()$.
+\end{definition} 
+
+
+
+We note that $\translate$ could be a very simple protocol. For example, if we consider two PoW ledgers 
+that use the same puzzles, then $\ledger_1$ is 
+\gencompatible\ with $\ledger_2$ since the $\translate$ can simply take a block of $\ledger_1$ and use it as
+a candidate genesis block for $\ledger_2$.
+We note that the definition of genesis-compatibility only tells that it is possible to generate a genesis block for $\ledger_2$ with a valid structure. That is, it does not imply that $\ledger_2$ can be securely run using any genesis block generated using $\translate$ as, for example, using an old block of $\ledger_1$ could give an advantage to the adversary over the honest parties.  More details follow.
+
+We now propose our first compiler that turns a ledger $\ledger_1$ that is \gencompatible\ with $\ledger_2$,
+into an updatable ledger.
+At a very high level our approach is the following. We use $\ledger_1$ to realize the genesis functionality 
+of $\ledger_2$, and then we use the output of the genesis functionality to execute $\ledger_2$.
+We note that it is easy to create a candidate genesis block from $\ledger_1$ because it is \gencompatible\
+with $\ledger_2$.
+To complete the description of our compiler, we need to specify what block of $\ledger_1$ will be chosen, and
+argue that this process is indeed sufficient to realize the genesis functionality for $\ledger_2$.
+In our approach the parties that are running $\ledger_1$ agree on the index $j$ of a block that will be used
+as a genesis block (this block can be decided using the consensus algorithm of $\ledger_1$, more details will be provided). 
+When the block of position $j$, that we denote with $B_j$, becomes stable for all the honest parties that decided to update, then these parties use $\translate$ to turn $B_j$ into a genesis block for $\ledger_2$ thus obtaining
+$\bgen$. At this point $\bgen$ is used to run $\ledger_2$ and $\ledger_1$ can be abandoned.
+
+Even though the above approach seems to work, there are many subtleties. The first is that the adversary might 
+be able to see the block $B_j$ before any other honest parties do, and therefore he can take an advantage in the generation
+of the blocks of $\ledger_2$. The second issue is that the adversary might influence the choice of the block
+that will appear in position $j$. Indeed, we do not know how the consensus algorithm of $\ledger_1$ works and what is the power of the adversary in biasing the content of $B_j$. 
+We denote with ${\delay}'$ the upper bound on the number of rounds that pass between the time at which 
+the adversary can see a candidate
+block for $\ledger_1$ for a position $j$, and the time at which all the honest parties see $B_j$ as part of the stable chain. We refer to this parameter ${\delay}'$ as the \emph{prediction} parameter. 
+We also denote with ${\maxblocks}'$ the upper bound on the number of valid chains that are broadcasted on the network that contain a block in position $j$ and refer to this parameter as \emph{maximum forks} parameter.
+
+Coming back to our protocol, we note that if the genesis functionality of $\ledger_2$ is parameterized
+with $\delay={\delay}'$ and $\maxblocks={\maxblocks}'$ then we can prove that the solution we proposed works.
+
+We are now ready to state formally our theorem and prove it.
+
+\begin{theorem}
+If $\ledger_1$ and $\ledger_2$ are secure ledgers and:
+\begin{enumerate}
+	%\item $\ledger_1$ and $\ledger_2$ have the same chain-selection algorithm;
+	\item $\ledger_1$  has common-prefix parameter $k_1$, chain-growth parameter  $(\cg_1, s_1)$ and
+	assumption $\asmp_1$;
+	\item $\ledger_2$  has common-prefix parameter $k_2$, chain-growth parameter  $(\cg_2, s_2)$ and
+	assumption $\asmp_2$;
+	\item the prediction parameter of $\ledger_1$ is ${\delay}'$ and the maximum forks parameter is ${\maxblocks}'$;
+	\item the genesis functionality $\fgenesis$ of $\ledger_2$ is parametrized by $\delay={\delay}'$ and 
+	$\maxblocks={\maxblocks}'$;
+	\item $\ledger_1$ is genesis-compatible with $\ledger_2$.
+\end{enumerate}
+
+then there exists an updatable ledger $\ledgerup$ with update parameter $\Delta:=2k_1 \cg_1^{-1}+s_1$ in the
+semi-online setting.
+
+\end{theorem}
+
+
+
+
+\begin{proof}
+We start the proof by describing how formally our protocol works.
+Let $T_0$ be such that $\asmp_2$ holds. At time $T_0$ each party in $P_i\in \activep$ does the following steps.
+
+\begin{enumerate}
+	\item Create and post a transaction that contains an \emph{activation flag}, let $\aflag$ be the index of the block that will contain the first transaction with an activation flag (note that there might be more than one of such a transactions).
+	\item Keep running $\ledger_1$ until the block with index  $j=\aflag+k_1$ becomes stable (i.e.,becomes part of $\state_1^{P}[\tau]$ for all $P\in\activep$ for some $\tau \geq T_0$) and stop issuing transaction for $\ledger_1$ (if any).
+	\item When the $j$-th block $B_{j}$  becomes stable then stop running $\ledger_1$ and start running 
+	$\ledger_2$ using $\bgen\leftarrow\translate(B_{j})$ as the genesis block.
+	
+\end{enumerate}
+
+
+We provide a pictorial description of what happens to the ledger state during the update in Fig.~\ref{fig:sketch}.
+The activation flag is used by the honest parties to reach an agreement on what it will be the index of the block used as a genesis block. We note that the blocks of $\ledger_1$ that extend $B_j$ might be unstable, moreover after the update has been 
+completed the parties in $\activep$ will ignore the blocks of $\ledger_1$ that extend $B_j$ (since after the update all the parties in $\activep$ will be using the rules $\ledger_2$, hence its chain selection rule).  The reason why the parties in $\activep$ will stop issuing transactions for $\ledger_1$ is that these transactions might be included in blocks that extend $B_j$, which will be ignored after $T_0+\Delta$ rounds. This clearly affects the throughput of the ledger in the interval $[T_0+k_1 \cg_1^{-1}+s_1, T_0+2k_1 \cg_1^{-1}+s_1]$ (Fig.~\ref{fig:sketch}).
+
+We now continue with the proof.
+Let $T_0$ be the time at which we know that  $\activep$ is such that $\asmp_2$ holds.
+In the worst case, the time required for an honest party to post a transaction that 
+contains the activation flag takes time $s_1$ rounds ($s_1$ comes from
+the liveness of $\ledger_1$).
+The number of rounds required for $j$ to be stable in the view of all the honest parties is 
+ $2k_1\cg_1^{-1}$ rounds. This is because to generate the block $B_j$ are required at least $k_1\cg_1^{-1}$ 
+ rounds, and $B_j$ has to be extended with at least $k_1$ blocks to be part of all the honest parties view (and this takes additional $k_1\cg_1^{-1}$ rounds) 
+  Hence, the time required to complete the update is $\Delta=2k_1 \cg_1^{-1}+s_1$.
+ Once the block $B_j$ becomes stable, the parties in $\activep$ can start running $\ledger_2$, and 
+ we are guaranteed that $\ledger_2$ enjoys liveness and consistency because the genesis block
+ for $\ledger_2$ is created accordingly to $\fgenesis$ and by assumption $\asmp_2$ holds.
+  Therefore, everything that appears before $\bgen$ is preserved due to the consistency of 
+ $\ledger_2$. 
+ 
+ We refer to the state of $\ledger_1$ before $\bgen$ as $\tilde \state_1$, and to the state
+ of the ledger after the update as $\tilde \state_1||\state_2$.
+ We finally note that we guarantee no security for the honest parties that were not online during the update.
+ The reason is that after $T_1$ the honest parties abandon $\ledger_1$ and the adversary could compromise it.
+ For example, an adversary could potentially keep extending $\state_1$ after the block $j$, and 
+ create a very long chain, even longer that $\tilde \state_1||\state_2$. Hence, if the chain selection rule of
+ $\ledger_1$ prescribes to take the longest chain, then a party that comes online at time $T_1$ might take
+ the chain $\state_1$ (which is compromised). 
+ 
+\end{proof}
+
+
+We remark that our construction requires the parties to generate empty blocks for $\ledger_1$ from block index $j+1$ and until block $B_j$ becomes stable. This is required as the honest parties, after the update completes, will ignore any block generated using the rules of $\ledger_1$ that comes after 
+$B_j$. 
+
+
+
+\input{update1}
+
+\subsubsection{Practical implications.}
+
+The updatable ledger that we have described can be updated to any ledger $\ledger_2$ under the condition 
+that the genesis functionality of $\ledger_2$ tolerates an adversary that can see the genesis block
+$\delay$ rounds before the honest parties and decide the genesis block among a set of $\maxblocks$ candidate 
+genesis blocks. This requirement might look strong, but we note that the problem of constructing a ledger 
+that is secure in such a scenario is simpler than the problem of constructing a ledger that supports temporary dishonest majority~\cite{FC:AKWW19}. A ledger with security assumption $\asmp$ that tolerates temporary dishonest majority is such that its security properties (liveness and consistency) become valid again 
+when $\asmp[\tau_1]=1$, even if $\asmp[\tau']=0$ for all $\tau'\in[\tau_0, \tau_1-\delta]$
+for some $\tau_0,\tau_1,\delta \in\mathbb{N}$ such that  $\tau_1-\delta\geq \tau_0$. That is,
+the ledger become secure again when there is honest majority (i.e., $\asmp$ holds) even if there was an interval of time when there was no honest majority (i.e., $\asmp$ did not hold).
+Therefore, if we consider the extreme case where $\tau_0=0$, we can assume without loss of generality 
+that the ledger admits a genesis functionality parametrized by $\delay=\delta$, and by $\maxblocks$
+that depends on the upper bound on the number of forks that the adversary can create. 
+Hence, there are already ledgers that might fit our requirements for $\ledger_2$, and all the advancement in the 
+research that concerns the security of ledgers in the case of temporary dishonest majority can be used 
+to construct good candidates of updated ledgers ($\ledger_2$) for existing ledgers ($\ledger_1$) that can be used in our compiler.
+
+
+
+\subsubsection{Security for offline parties}\label{se:peg}
+
+..
+\mic{@Dionysis, we could put  your part here. I could be helpful for you to know that
+we have the notion of semi-online security. This notion guarantees that the properties of updatability hold only for the honest parties that where active during the activation period.
+We could use a new name for the case where the security holds also for parties that are offline for a short period of time.}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,56 @@
+\section{Introduction}
+
+Most of the existing software requires to be updated (or replaced) at some point. Indeed, the most vital aspect for the sustainability of any software system is its ability to effectively and swiftly adapt to changes; one basic form of which are software updates. Therefore the adoption of software updates is at the heart of the lifecycle of any system, and blockchain systems are no exception. Software updates might be triggered by a plethora of different reasons: change requests, bug-fixes, security holes, new-feature requests, various optimizations, code refactoring etc.
+More specifically, for blockchain systems, a typical source of change is the enhancements at the consensus protocol level. There might be changes to the values of specific parameters (e.g., the maximum block size, or the maximum transaction size etc.), changes to the validation rules at any level (transaction, block, or blockchain), or even changes at the consensus protocol itself. Usually, the reason for such changes is the reinforcement of the protocol against a broader scope of adversary attacks, or the optimization of some aspect of the system like the transaction throughput, or the storage cost etc.
+In this paper, our focus is on the software update mechanism of blockchain systems. 
+In more detail, we deal with the secure activation of software update changes on blockchains, without focusing on the processes that lead to the decision to update the blockchain (e.g., using the blockchain to reach consensus on
+what features the new blockchain should have). 
+Indeed, we note that there are already approaches that solve
+the problem of deciding how the blockchain should be updated in a fully decentralized way, incentivising the node of the blockchain to take part in the decision process. 
+ One example is proposed by Bingsheng et al. \cite{NDSS:ZhaOliBal19}, where a complete treasury system is proposed for blockchain systems.
+ We finally remark that there are already proposals on how to update specific blockchain protocols in a 
+ decentralized way~\cite{dash,decred,tezos}. However, to the best of our knowledge, our approach is the first that treats the problem of decentralized updates for blockchain in a formal way providing a security definition 
+ for updatable blockchain and generic constructions (more details will be provided in the next section).
+
+
+
+
+\subsection{Our Contributions}
+In our work, we try to define what is a ledger\footnote{With slight abuse of terminology we use the words 
+ledger and blockchain interchangeably.} that supports updates and refer to it as an \emph{updatable ledger}.
+Then we propose a generic compiler that takes a ledger $\ledger_1$ and turns it into a ledger $\ledgerup$
+that can be updated to the code of a ledger $\ledger_2$ under some conditions.
+We then propose another compiler that, always starting from a ledger $\ledger_1$ turns it into an updatable ledger that tolerates updates only with respect to ledgers that follow the same consensus rule as $\ledger_1$ but have different blocks structure. All our constructions do not rely on any trusted third party (TTP).
+%The latter compiler has been folklore for a long time, but we are the first work that formally argue about its security.
+
+\subsection{Our Techniques} Our definition of updatable ledgers is quite intuitive. We require
+an updatable ledger $\ledgerup$ to be secure under the standard definition of security (i.e., it has to enjoy consistency and liveness) but on top of this, it has to support the property of \emph{updatability}. 
+This property guarantees that, in the case there are  enough parties that are willing to upgrade 
+the code of $\ledgerup$ to the code of a new ledger $\ledger_2$, the honest parties can securely run $\ledger_2$
+and preserve the state of $\ledgerup$.
+
+Clearly, (almost) any ledger $\ledger_1$ can be turned into an updatable ledger $\ledgerup$ 
+if we can rely on a TTP.
+Indeed, in this case the  TTP can issue a genesis block for $\ledger_2$ which incorporates the state of $\ledger_1$ (or just the hash of it), and then the parties that where running $\ledger_1$ can abandon it and start running 
+$\ledger_2$ using the genesis block issued by the TTP.
+
+We show how to construct an updatable ledger without relying on a TTP. The starting point for our construction is
+a standard ledger $\ledger_1$ that we enhance with the following mechanism. At time $T_0$ (when enough parties are assumed to be willing to update to $\ledger_2$)
+a block of $\ledger_1$ is chosen and \emph{translated} into a genesis block for $\ledger_2$. All the parties that wanted to update can now simply run $\ledger_2$ on the chosen genesis block.
+This approach clearly requires that there is an efficient way to translate a block of $\ledger_1$ into a block for $\ledger_2$, and this might limit the class of ledgers to which $\ledgerup$ can be updated
+
+Even though the above approach seems to work, there are unfortunately many subtleties that we need to deal with.
+The first is that the adversary might be able to see the genesis block for $\ledger_2$ before any other honest parties do, and therefore he can take advantage in the generation of the blocks of $\ledger_2$ thus compromising the security of the system. 
+The second issue is that the adversary might influence the choice of the genesis block. Indeed, we do not know how the consensus algorithm of $\ledger_1$ works and what is the power of the adversary in biasing the content of $\ledger_1$'s blocks. We note that this scenario (where there are many candidates blocks and the adversary can decide which block is added to the final chain) is well studied (see~\cite{EC:GarKiaLeo15}) and many blockchain protocols allow this kind of adversarial behaviour (i.e., an adversary can create forks and influence the decision on what fork will become part of the stable chain). 
+To tackle these issues, we further shrink the class of ledgers to which $\ledgerup$ can be updated, and require
+$\ledger_2$ to retain its security even in the case the genesis block can be seen by the adversary before that the hones parties can see it, and even if the adversary can pick the genesis block from a set of candidate genesis blocks.
+Despite being quite general, this compiler has the drawback that the honest parties need to be online during the update. Indeed, if an honest party is offline before $T_0$ and comes online after the update then no security can be guaranteed for this party. Moreover, the throughput of the blockchain is reduced during the updates.  More details are provided in Sec.~\ref{se:first}.
+
+The second scheme that we propose requires $\ledgerup$ and $\ledger_2$ to be the same (i.e.,  they use the same consensus rules) but might have a different block structure. In this case, the update process is even simpler,
+the parties, starting from a pre-agreed block index $j$, start extending the state of  $\ledgerup$ using the rules of
+$\ledger_2$ even if the block in position $j$ is not stable. That is, it might happen that different honest parties 
+start running $\ledger_2$ using a different starting block given that the block $j$ does not belong to the common prefix. We prove that this does not cause issues even in the case when not all the honest parties participate 
+to the update (i.e., some honest parties are offline or decided to not participate to the update). 
+The advantage of this approach over the first that we have proposed is that we do not require all the honest parties to be online during the update, and the throughput is not affected by the update process. 
+
+

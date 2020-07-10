@@ -1,0 +1,50 @@
+\documentclass[runningheads]{llncs}
+\usepackage[strings]{underscore}
+\usepackage{preamble}
+\usepackage{dirtytalk}
+\usepackage{tabu} 
+\usepackage{boxedminipage}
+
+\usepackage[usenames,dvipsnames,pdf]{pstricks}
+ \usepackage{epsfig}
+ \usepackage{pst-grad} 
+ \usepackage{pst-plot}
+ \usepackage[space]{grffile} 
+ \usepackage{etoolbox} 
+ \makeatletter 
+ \patchcmd\Gread@eps{\@inputcheck#1 }{\@inputcheck"#1"\relax}{}{}
+ \makeatother
+ \usepackage{auto-pst-pdf}
+
+
+
+\newcommand{\mic}[1]{{\color{blue}\small\sc Michele: #1}}
+\newcommand{\nnote}[1]{{\color{magenta}\small Nikos: #1}}
+\newcommand{\nknote}[1]{{\color{brown}\small Nikos: #1}}
+
+\begin{document}
+\import{./}{title.tex}
+\import{./}{abstract.tex}
+\clearpage
+
+\input{introduction}
+
+\import{./}{model.tex}
+
+\section{Secure Updatable Ledgers}
+\import{./}{activation_formal.tex}
+\import{./}{activation_protocol.tex}
+
+
+\clearpage
+\bibliographystyle{splncs04}
+
+\bibliography{abbrev3,crypto,references}
+
+\appendix
+
+\input{clock}
+\input{registration}
+
+\end{document}
+
