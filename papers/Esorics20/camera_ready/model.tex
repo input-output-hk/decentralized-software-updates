@@ -99,7 +99,7 @@ $\mc{L}$ that includes $tx$.
 %\end{itemize}
 }
 
-\begin{myitemize}
+\begin{itemize}
   \item[]{\bf Consistency.}
     For any two honest parties $\party_1,\party_2$ and two time slots $t_1\leq t_2$,
     it holds  $\LView{\state}{\party_1}{t_1} \preceq
@@ -110,14 +110,14 @@ $\mc{L}$ that includes $tx$.
     then, at any slot $t$ after $s$ slots (called the
     liveness parameter), any honest party $\party$, if queried,
     will report $\tx \in \LView{\state}{\party}{t}$.
-\end{myitemize}
+\end{itemize}
 
 \end{definition}
 
 In this work we also explicitly rely on the properties of \emph{Common Prefix (CP)}, \emph{Chain Growth (CG)} 
 and  \emph{Chain Quality (CQ)}. 
 
-\begin{myitemize}
+\begin{itemize}
   \item[] {\bf Common Prefix (CP); with parameters $k\in\mathbb{N}$} 
 states that for any pair of honest players  $P_1,P_2$ at rounds $r_1\leq r_2$ respectively, it holds that  ${ \state}^{P_1}[r_1] \preceq  {\check \state}^{P_2}[r_2] $.    
   \item[] {\bf Chain Growth (CG); with parameters $\cg\in (0,1]$ and $s\in\mathbb{N}$}. Consider the chain $\mathcal{C}$
@@ -126,7 +126,7 @@ states that for any pair of honest players  $P_1,P_2$ at rounds $r_1\leq r_2$ re
   
   \item[] {\bf Chain Quality (CQ) with parameters $\mu\in\mathbb{R}$
 and $\ell\in\mathbb{N}$}. For any honest party $P$ with chain $\mathcal{C}$  it holds that for any $\ell$ consecutive blocks of $\mathcal{C}$ the ratio of honest blocks is at least $\mu$.
- \end{myitemize}
+ \end{itemize}
 
 
 

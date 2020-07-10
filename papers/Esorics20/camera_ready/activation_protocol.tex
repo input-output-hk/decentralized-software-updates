@@ -37,12 +37,12 @@ $\asmp_2$ holds and denote the time when this happen with $T_0$.
 Our updatable ledger $\ledgerup$ works as follows.
 
 Each party $P_i\in\activep$ does the following steps.
-\begin{myenumerate}
+\begin{enumerate}
 	\item Use $\isvalidb_2$ as a block validation algorithm.
 	\item Create and post a transaction that contains an \emph{activation flag}. 
 	\item Let $\aflag$ be the index of the block that will contain the first transaction with an activation flag.
 	\item Let $j:=\aflag+k+1$, run $\ledger_1$ and when the $j$-th block $B^i_j$ becomes part of $\check \state_1^{P_i}[\tau_i]$ for some $\tau_i \geq T_0$ start extending $B^i_{j}$ using the rules of $\ledger_2$ instead of the rules of $\ledger_1$ (we recall that a valid block for $\ledger_1$ is also a valid block for $\ledger_2$)
-\end{myenumerate}
+\end{enumerate}
 
 
 We provide a pictorial description of what happens to the ledger state during the update in Fig.~\ref{fig:sketch2}.

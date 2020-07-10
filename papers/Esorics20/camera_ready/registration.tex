@@ -1,7 +1,7 @@
 \section{Functionalities with Dynamic Party Sets}\label{se:registration}
 UC provides support for functionalities in which the set of parties that might interact with the functionality is dynamic. We make this explicit by means of the following mechanism (that we describe almost 
 verbatim from~\cite[Sec. 3.1]{C:BMTZ17}): All the functionalities considered here include the following instructions that allow honest parties to join or leave the set $\parties$ of players that the functionality interacts with, and inform the adversary about the current set of registered parties:
-\begin{myitemize}
+\begin{itemize}
 \item[--]  Upon receiving $(\register, \sid)$ from some party $p_i$ (or from $\adv$ on behalf of a corrupted $p_i$), set $\parties := \parties \cup \{p_i\}$. Return $(\register, \sid, p_i)$ to the caller.
 
 \item[--]  Upon receiving $(\deregister,\sid)$ from some party $p_i\in\parties$, the functionality updates 
@@ -9,15 +9,15 @@ $\parties :=\parties \setminus \{p_i\}$ and returns $(\deregister, \sid, p_i)$ t
 \item[--] Upon receiving $(\isregistered, \sid)$ from some party $p_i$, return $(\register, \sid, b)$ to the caller, where the bit $b$ is $1$ if and only if $p_i\in\parties$.
 \item[--] Upon receiving $(\getregistered,\sid)$ from $\adv$, the functionality returns the response 
 $(\getregistered, \allowbreak \sid, \parties)$ to $\adv$.
-\end{myitemize}
+\end{itemize}
 
 In addition to the above registration instructions, global setups, i.e., shared functionalities that are available both in the real and in the ideal world and allow parties connected to them to share state~\cite{TCC:CDPW07}, allow also UC functionalities to register with them. Concretely, global setups include, in addition to
  the above party registration instructions, two registration/de-registration instructions for functionalities:
 
-\begin{myitemize}
+\begin{itemize}
 \item[--] Upon receiving $(\register, \sid_G)$ from a functionality $F$ (with session-id $\sid$), update $F:= F \cup \{(F, \sid)\}$.
 \item[--] Upon receiving $(\deregister,\sid_G)$ from a functionality $F$ (with session-id $\sid$), update $F := F \{(F, \sid)\}$.
 \item[--] Upon receiving $(\getregistered_F, \sid_G)$ from $\adv$, return $(\getregistered_F, \sid_G, F)$ to $\adv$.
 
-\end{myitemize}
+\end{itemize}
 We use the expression $\sid_G$ to refer to the encoding of the session identifier of global setups. By default (and if not otherwise stated), the above four (or seven in case of global setups) instructions will be part of the code of all ideal functionalities considered in this work. However, to keep the description simpler we will omit these instructions from the formal descriptions unless deviations are defined.
