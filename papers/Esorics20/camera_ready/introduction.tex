@@ -1,18 +1,44 @@
 \section{Introduction}
 
 Most of the existing software requires to be updated (or replaced) at some point. Indeed, the most vital aspect for the sustainability of any software system is its ability to effectively and swiftly adapt to changes; one basic form of which are software updates. Therefore the adoption of software updates is at the heart of the lifecycle of any system, and blockchain systems are no exception. Software updates might be triggered by a plethora of different reasons: change requests, bug-fixes, security holes, new-feature requests, various optimizations, code refactoring etc.
-More specifically, for blockchain systems, a typical source of change is the enhancements at the consensus protocol level. There might be changes to the values of specific parameters (e.g., the maximum block size, or the maximum transaction size etc.), changes to the validation rules at any level (transaction, block, or blockchain), or even changes at the consensus protocol itself. Usually, the reason for such changes is the reinforcement of the protocol against a broader scope of adversary attacks, or the optimization of some aspect of the system like the transaction throughput, or the storage cost etc.
-In this paper, our focus is on the software update mechanism of blockchain systems. 
-In more detail, we deal with the secure activation of software update changes on blockchains, without focusing on the processes that lead to the decision to update the blockchain (e.g., using the blockchain to reach consensus on
-what features the new blockchain should have). 
-Indeed, we note that there are already approaches that solve
-the problem of deciding how the blockchain should be updated in a fully decentralized way, incentivising the node of the blockchain to take part in the decision process. 
- One example is proposed by Bingsheng et al. \cite{NDSS:ZhaOliBal19}, where a complete treasury system is proposed for blockchain systems.
- We finally remark that there are already proposals on how to update specific blockchain protocols in a 
- decentralized way~\cite{dash,decred,tezos}. However, to the best of our knowledge, our approach is the first that treats the problem of decentralized updates for blockchain in a formal way providing a security definition 
- for updatable blockchain and generic constructions (more details will be provided in the next section).
+More specifically, for blockchain systems, a typical source of change is the 
+enhancements at the consensus protocol level. There might be changes to the 
+values of specific parameters (e.g., the maximum block size, or the maximum 
+transaction size etc.), changes to the validation rules at any level 
+(transaction, block, or blockchain), or even changes at the consensus protocol 
+itself. Usually, the reason for such changes is the reinforcement of the 
+protocol against a broader scope of adversary attacks, or the optimization of 
+some aspect of the system like the transaction throughput, or the storage cost 
+etc.
 
+A software update's lifecycle comprises of three important decision points: a) 
+What update proposal should be implemented, b) is a specific implementation 
+appropriate to be deployed and c) when should the changes be activated on the 
+blockchain? A fully decentralized approach should decentralize all of these 
+three decisions. Indeed, there are already proposals on how to update specific 
+blockchain protocols in a decentralized way~\cite{dash,decred,tezos}. Moreover, 
+Bingsheng et al. \cite{NDSS:ZhaOliBal19}, proposes a complete treasury system in
+order to solve the funding problem for software updates. The decentralization 
+of such decisions is usually called in short \emph{decentralized governance}.
 
+In this paper, our focus is not how to achieve decentralized governance for 
+software updates. 
+We assume that appropriate decentralized governance processes (e.g., voting, 
+delegation of voting, upgrade-readiness signaling etc.) are in place and the 
+community has already reached a 
+consensus on what specific update should be activated. Moreover, we assume that 
+a sufficient percent of honest parties have expressed (e.g. through a signaling 
+mechanism) their readiness to upgrade to the new ledger. This is exactly the 
+point from where our focus begins. In particular, we deal with the \emph{secure 
+activation} of software update changes on the blockchain in a fully 
+decentralized setting and essentially 
+provide a way to safely transition from the old ledger to the upgraded ledger 
+without the need of a trusted third party. Moreover, we define what is a secure 
+activation of changes by introducing the notion of \emph{updatable blockchain}. 
+To the best of our knowledge, our approach is the first that treats the problem 
+of decentralized activation of updates for blockchains in such a formal way 
+providing a security definition for updatable blockchain and generic 
+constructions (more details will be provided in the next section).
 
 
 \subsection{Our Contributions}
