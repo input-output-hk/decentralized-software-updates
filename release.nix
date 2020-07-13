@@ -44,29 +44,24 @@ with pkgs;
 
 let
   testsSupportedSystems = [ "x86_64-linux" ];
-  collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
   jobs = {
-    #inherit (project) datil;
-    #inherit (project) decentralized-updates;
+    native = mapTestOn (__trace (__toJSON (packagePlatforms project)) (packagePlatforms project));
+    ifd-pins = mkPins {
+      inherit (sources) iohk-nix "haskell.nix";
+      inherit (import "${sources.iohk-nix}/nix/sources.nix" {}) nixpkgs;
+    };
+    # Collect all spec PDFs, without system suffix
     inherit (project) decentralizedUpdatesSpec;
-
-    native = mapTestOn (packagePlatforms project);
-  } // (
-    # This aggregate job is what IOHK Hydra uses to update
-    # the CI status in GitHub.
-    mkRequiredJob (
-      collectTests jobs.native.tests ++
-      collectTests jobs.native.benchmarks ++
-      # Add your project executables to this list if any:
-      [
+  } // ( mkRequiredJob (
+      collectTests jobs.native.checks ++
+      collectTests jobs.native.benchmarks ++ [
         pkgs.datil
         pkgs.decentralized-updates
         jobs.decentralizedUpdatesSpec
       ]
     )
   )
-  # Collect all spec PDFs, without system suffix
   #// { inherit (project)
   #       decentralizedUpdatesSpec;
   #   }
