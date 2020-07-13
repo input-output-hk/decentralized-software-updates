@@ -43,7 +43,29 @@ with (import pkgs.iohkNix.release-lib) {
 with pkgs;
 
 let
+  getArchDefault = system: let
+    table = {
+      x86_64-linux = import ./. { system = "x86_64-linux"; };
+    };
+  in table.${system};
+  default = getArchDefault builtins.currentSystem;
+  mkPins = inputs: pkgs.runCommand "ifd-pins" {} ''
+    mkdir $out
+    cd $out
+    ${lib.concatMapStringsSep "\n" (input: "ln -sv ${input.value} ${input.key}") (lib.attrValues (lib.mapAttrs (key: value: { inherit key value; }) inputs))}
+  '';
+
   testsSupportedSystems = [ "x86_64-linux" ];
+  # Recurse through an attrset, returning all test derivations in a list.
+  collectTests' = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
+  # Adds the package name to the test derivations for windows-testing-bundle.nix
+  # (passthru.identifier.name does not survive mapTestOn)
+  collectTests = ds: concatLists (
+    mapAttrsToList (packageName: package:
+      map (drv: drv // { inherit packageName; }) (collectTests' package)
+    ) ds);
+
+  sources = import ./nix/sources.nix;
 
   jobs = {
     native = mapTestOn (__trace (__toJSON (packagePlatforms project)) (packagePlatforms project));
