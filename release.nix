@@ -40,7 +40,7 @@ with (import pkgs.iohkNix.release-lib) {
   gitrev = decentralized-software-updates.rev;
 };
 
-with pkgs;
+with pkgs.lib;
 
 let
   getArchDefault = system: let
