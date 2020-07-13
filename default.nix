@@ -23,7 +23,7 @@ let
     inherit decentralizedUpdatesHaskellPackages;
     inherit haskellPackages hydraEvalErrors;
     datil = decentralizedUpdatesHaskellPackages.datil;
-    decentralized-updates = decentralizedUpdateshaskellPackages.decentralized-updates;
+    decentralized-updates = decentralizedUpdatesHaskellPackages.decentralized-updates;
     # Attributes of PDF builds of LaTeX documentation.
     decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
 
