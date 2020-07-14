@@ -1,12 +1,10 @@
 \begin{abstract}
 Software updates for blockchain systems become a real challenge when they impact the underlying consensus mechanism. The activation of such changes might jeopardize the integrity of the blockchain by resulting in chain splits or risking the core assumptions that guarantee the security of the blockchain. 
 Moreover, to reach the goal of a self-sustaining blockchain, the software update process must be handed over to the community and this means that the blockchain should support updates without relying on a trusted party and without compromising its basic security properties: \emph{consistency} and \emph{liveness}.
-
 In this paper, we introduce the notion of \emph{updatable blockchains} and show how to construct blockchains 
 that satisfy this definition. Informally an updatable blockchain is a secure blockchain (i.e., it enjoys  consistency and liveness) and in addition it allows to update its protocol (e.g., the consensus rules) preserving the history of the chain.
 In this work, we focus only on the processes that allow securely switching from one blockchain protocol to another assuming that the blockchain protocols are correct. In more detail, we do not aim at providing a mechanism that allows 
 reaching consensus on what is the code of the new blockchain protocol; we just assume that such a mechanism exists (one example of such a system is provided in NDSS 2019 by Zhang et. al), and show how to securely go from the old protocol to the new one.
-
 The contribution of this paper can be summarized as follows. We provide the first formal definition of updatable ledgers and as a second contribution we propose the description of two compilers. These compilers take a blockchain and turn it into an updatable blockchain.
 The first compiler that we propose is very generic. That is, it makes few assumptions on the similarities between the structure of the current blockchain (i.e., the blockchain that is running) and the new blockchain. However, it requires the new blockchain to be resilient against a specific adversarial behaviour and requires all the honest parties to be online during the switch to the new blockchain.
 The second compiler requires the structure of the current and the updated blockchain to be very similar (only the structure of the blocks can be different) but it allows for an update process more simple, efficient and does not require all the honest parties to be online during the update.
