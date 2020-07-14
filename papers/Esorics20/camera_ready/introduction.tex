@@ -19,7 +19,6 @@ blockchain protocols in a decentralized way~\cite{dash,decred,tezos}. Moreover,
 Bingsheng et al. \cite{NDSS:ZhaOliBal19}, proposes a complete treasury system in
 order to solve the funding problem for software updates. The decentralization 
 of such decisions is usually called in short \emph{decentralized governance}.
-
 This paper does not focus on how to achieve decentralized governance for 
 software updates. Indeed, we assume that appropriate decentralized governance processes (e.g., voting, 
 delegation of voting, upgrade-readiness signaling etc.) are in place and the 
@@ -31,7 +30,7 @@ activation} of software update changes on the blockchain in a fully
 decentralized setting and essentially 
 provide a way to safely transition from the old ledger to the upgraded ledger 
 without the need of a trusted third party. Moreover, we define what is a secure 
-activation of changes by introducing the notion of \emph{updatable blockchain}. 
+activation of changes by introducing the notion of \emph{updatable blockchains}. 
 To the best of our knowledge, our approach is the first that treats the problem 
 of decentralized activation of updates for blockchains in such a formal way 
 providing a security definition for updatable blockchain and generic 
@@ -41,9 +40,9 @@ constructions (more details will be provided in the next section).
 \subsection{Our Contributions}
 In our work, we try to define what is a ledger\footnote{With slight abuse of terminology we use the words 
 ledger and blockchain interchangeably.} that supports updates and refer to it as an \emph{updatable ledger}.
-Then we propose a generic compiler that takes a ledger $\ledger_1$ and turns it into a ledger $\ledgerup$
-that can be updated to the code of a ledger $\ledger_2$ under some conditions.
-We then propose another compiler that, always starting from a ledger $\ledger_1$ turns it into an updatable ledger that tolerates updates only with respect to ledgers that follow the same consensus rule as $\ledger_1$ but have different blocks structure. All our constructions do not rely on any trusted third party (TTP).
+
+Then we propose a generic compiler  that takes a ledger $\ledger_1$ and turns it into an updatable ledger that tolerates updates only with respect to ledgers that follow the same consensus rule as $\ledger_1$ but have different blocks structure. 
+We then propose another (more generic) compiler that, always starting from $\ledger_1$, turns  $\ledger_1$ it into a ledger $\ledgerup$ that can be updated to the code of a ledger $\ledger_2$. This compiler works assuming only few similarities between $\ledger_1$ and $\ledger_2$, but it is more complicated and decreases the throughput of the ledger during the update. All our constructions do not rely on any trusted third party (TTP).
 
 
 \subsection{Our Techniques} Our definition of updatable ledgers is quite intuitive. We require

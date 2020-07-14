@@ -103,7 +103,6 @@ In our approach the parties that are running $\ledger_1$ agree on the index $j$ 
 as a genesis block (this block can be decided using the consensus algorithm of $\ledger_1$, more details will be provided). 
 When the block of position $j$, that we denote with $B_j$, becomes stable for all the honest parties that decided to update, then these parties use $\translate$ to turn $B_j$ into a genesis block for $\ledger_2$ thus obtaining
 $\bgen$. At this point $\bgen$ is used to run $\ledger_2$ and $\ledger_1$ can be abandoned.
-
 Even though the above approach seems to work, there are many subtleties. The first is that the adversary might 
 be able to see the block $B_j$ before any other honest parties do, and therefore he can take an advantage in the generation
 of the blocks of $\ledger_2$. The second issue is that the adversary might influence the choice of the block
@@ -155,7 +154,6 @@ Let $T_0$ be such that $\asmp_2$ holds. At time $T_0$ each party in $P_i\in \act
 We provide a pictorial description of what happens to the ledger state during the update in Fig.~\ref{fig:sketch}.
 The activation flag is used by the honest parties to reach an agreement on what it will be the index of the block used as a genesis block. We note that the blocks of $\ledger_1$ that extend $B_j$ might be unstable, moreover after the update has been 
 completed the parties in $\activep$ will ignore the blocks of $\ledger_1$ that extend $B_j$ (since after the update all the parties in $\activep$ will be using the rules $\ledger_2$, hence its chain selection rule).  The reason why the parties in $\activep$ will stop issuing transactions for $\ledger_1$ is that these transactions might be included in blocks that extend $B_j$, which will be ignored after $T_0+\Delta$ rounds. This clearly affects the throughput of the ledger in the interval $[T_0+k_1 \cg_1^{-1}+s_1, T_0+2k_1 \cg_1^{-1}+s_1]$ (Fig.~\ref{fig:sketch}).
-
 We now continue with the proof.
 Let $T_0$ be the time at which we know that  $\activep$ is such that $\asmp_2$ holds.
 In the worst case, the time required for an honest party to post a transaction that 
@@ -170,7 +168,6 @@ The number of rounds required for $j$ to be stable in the view of all the honest
  for $\ledger_2$ is created accordingly to $\fgenesis$ and by assumption $\asmp_2$ holds.
   Therefore, everything that appears before $\bgen$ is preserved due to the consistency of 
  $\ledger_2$. 
- 
  We refer to the state of $\ledger_1$ before $\bgen$ as $\tilde \state_1$, and to the state
  of the ledger after the update as $\tilde \state_1||\state_2$.
  We finally note that we guarantee no security for the honest parties that were not online during the update.
@@ -207,7 +204,7 @@ Hence, there are already ledgers that might fit our requirements for $\ledger_2$
 research that concerns the security of ledgers in the case of temporary dishonest majority can be used 
 to construct good candidates of updated ledgers ($\ledger_2$) for existing ledgers ($\ledger_1$) that can be used in our compiler.
 
-\subsubsection{Security for Offline Parties}
+\subsubsection{Security for Offline Parties.}
 \newcommand{\concat}{\,\|\,}
 
 Our security notion above is ensured for parties that are online during the upgrade process. Clearly it
@@ -219,7 +216,6 @@ These nodes can be wallets and other clients who mainly consume, rather than mai
 and are often offline for longer periods of time.
 Regardless, these nodes constitute the economic majority of the nodes and we must ensure
 they can also upgrade safely.
-
 The critical situation arises when such a party goes offline prior to an upgrade, remains offline during
 every phase of the upgrade, and comes online long after the rest of the population has successfully
 upgraded. Before describing how to construct a protocol that can protect these parties, let us briefly observe
@@ -237,9 +233,8 @@ the upgrade. As soon as that alternative history overtakes the old chain in term
 successful. Any offline party who wakes up afterwards will use the old-style consensus rules to choose
 the blockchain and hence the upgrade will not appear in its view. The adversary has
 succeeded in isolating the offline party from the rest of the network.
-
 To rectify the above issue, a practical implementation of the protocol must leverage the mining power of the
-upgraded population to maintain \emph{both} the new chain while at the same time securing the old chain. We propose a solution for the case where $\ledger_1$ and $\ledger_2$ are two proof-of-work (PoW) type of ledgers.
+upgraded population to maintain \emph{both} the new chain while at the same time securing the old chain. We propose a solution for the case where $\ledger_1$ and $\ledger_2$ are two proof-of-work or two proof-of-stake type of ledgers.
 Our solution leverages on a variation of 2-for-1 mining~\cite{EC:GarKiaLeo15}.
 An upgraded miner works as follows. They maintain the longest chain $C$ in view of the new protocol rules, but
 also the longest chain $C'$ in the view of an unupgraded party. In case of hard fork, these two chains will
@@ -254,7 +249,6 @@ broadcast to the network. This time unupgraded miners will not consider this a v
 upgraded miners examine the validity of the block $b$ contained within the commentary section of $b'$ and check that the reverse proof-of-work equation is
 satisfied. If so, they adopt the block $b$ as the next block in their upgraded blockchain. The above mechanism is the only mechanism
 by which new-style blocks are accepted by upgraded honest miners.
-
 The protocol just described has two advantages. Firstly, the upgraded honest miners make use of their mining power to contribute to the security
 of both the old and the new-style chain simultaneously. Therefore, an adversary cannot attack the old chain \emph{ex post facto}.
 Secondly, instead of \emph{dividing} their mining power between the two chains, the honest parties only use their mining power \emph{once} to mine on \emph{both} networks, because the hash function is only evaluated once. As such, the honest mining power is not diminished by the use of this mechanism. We observe that, in the Random Oracle model, the last bits of the hash output remain
@@ -265,7 +259,6 @@ bits to test against the proof-of-work equation (e.g., for a second upgrade, the
 In practice, because the scheme adds significant implementation complexity, implementors may elect to maintain this backwards-compatibility
 mechanism for a limited amount of time. In that case, parties who have remained offline longer than the backwards-compatibility
 mechanism is maintained, will have no guarantees for security, similarly to a classical system whose long-term support window has expired.
-
 The scheme requires the added complexity of mining two blocks simultaneously
 only in the case of proof-of-work. This is due to the nature of proof-of-work and specifically the fact that each query counted
 towards the proof-of-work quota can only be devoted to a specific message.

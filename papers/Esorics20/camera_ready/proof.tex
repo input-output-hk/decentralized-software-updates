@@ -12,6 +12,7 @@ $P_i\in\parties$ with $j:=\aflag+k+1$.
 We now go back to our updatable ledger protocol.
 In the protocol that we have described, by assumption, we have that $\asmp_2[T_0]=1$ for all $\tau \geq T_0$.
 From the moment when $\asmp_2$ becomes true the activation process takes $\Delta\leq (k+1) \cg^{-1} + s$  time slots to be completed.
+
 This is because the parties need to wait for the block $\aflag$ to be part of all the honest parties stable view
 and wait for the $j$-th block (with $j:=\aflag+k+1$) of to be part of $\check \state_1^{P_i}[t_{i,j}]$  for all $P_i$ with $t_{i,j}\in\mathbb{N}$. 
 Note that in the moment that the block $B^i_{j}$ becomes available to an honest party $P_i\in\activep$ (i.e., $B^i_{j}$ is part of $\check \state_1^{P_i}$) then the party starts running $\ledger_2$ to extend $B^i_{j}$ as described earlier (we recall that at this time slot the assumption $\asmp_2$ holds).
@@ -31,13 +32,3 @@ in the canonical execution is the same as the number of honest parties that are 
 
 We remark that the only difference between this and the canonical execution described above is
 that the blocks $B_{\aflag},\dots, B_{j-2}, B_{j-1}$  are generated using $\ledger_1$, but this does not represent an issue since we are assuming that any block of $\ledger_1$ is valid for $\ledger_2$.
-
-
-
-
-
-
-
-
-
-
