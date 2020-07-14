@@ -207,22 +207,61 @@ Hence, there are already ledgers that might fit our requirements for $\ledger_2$
 research that concerns the security of ledgers in the case of temporary dishonest majority can be used 
 to construct good candidates of updated ledgers ($\ledger_2$) for existing ledgers ($\ledger_1$) that can be used in our compiler.
 
+\subsubsection{Security for Offline Parties}
+\newcommand{\concat}{\,\|\,}
 
+Our security notion above is ensured for parties that are online during the upgrade process. Clearly it
+is necessary that the majority of the population's consensus-maintaining parties are honest and
+online, as the honest majority assumption mandates. Nevertheless, practical blockchain systems often have
+a large number of \emph{consumer} parties by count who have a very small contribution to the total computational power of
+network, if at all, and are not significantly contributing to the maintenance of the consensus.
+These nodes can be wallets and other clients who mainly consume, rather than maintain, the blockchain,
+and are often offline for longer periods of time.
+Regardless, these nodes constitute the economic majority of the nodes and we must ensure
+they can also upgrade safely.
 
-\subsubsection{Security for offline parties}\label{se:peg}
+The critical situation arises when such a party goes offline prior to an upgrade, remains offline during
+every phase of the upgrade, and comes online long after the rest of the population has successfully
+upgraded. Before describing how to construct a protocol that can protect these parties, let us briefly observe
+why an attack is easily possible by a minority adversary in a construction with no relevant protective mechanism.
+Consider a situation where a hard-fork-style change takes place and that blocks mined by upgraded parties after
+the upgrade are incompatible with blocks mined prior to the upgrade, i.e., after the upgrade, an unupgraded party
+will not consider an upgraded block as valid and an upgraded party will not consider an unupgraded block as valid.
+After the upgrade has been completed, the majority of the population will shift their mining power to mining new-style
+blocks. The adversary can take advantage of this situation to \emph{ex post facto} attack the old system, which
+now remains unprotected as no significant mining power remains to secure it. As such, she can break
+the \emph{common prefix} property, rewrite history, and subvert the upgrade signaling mechanism itself. More
+concretely, an adversary in this situation forks the old chain from the parent of the block in which upgrade
+information appeared for the first time and continues mining a chain parallel to the one that yielded
+the upgrade. As soon as that alternative history overtakes the old chain in terms of work, the adversary is
+successful. Any offline party who wakes up afterwards will use the old-style consensus rules to choose
+the blockchain and hence the upgrade will not appear in its view. The adversary has
+succeeded in isolating the offline party from the rest of the network.
 
-..
-\mic{@Dionysis, we could put  your part here. I could be helpful for you to know that
-we have the notion of semi-online security. This notion guarantees that the properties of updatability hold only for the honest parties that where active during the activation period.
-We could use a new name for the case where the security holds also for parties that are offline for a short period of time.}
+To rectify the above issue, a practical implementation of the protocol must leverage the mining power of the
+upgraded population to maintain \emph{both} the new chain while at the same time securing the old chain.
+To do this, we leverage a variation of \emph{2-for-1} mining~\cite{EC:GarKiaLeo15}.
+An upgraded miner works as follows. They maintain the longest chain $C$ in view of the new protocol rules, but
+also the longest chain $C'$ in the view of an unupgraded party. In case of hard fork, these two chains will
+differ. When they are about to mine a new block on top of the upgraded chain,
+they construct a new-style candidate block $b$ extending $C$ as usual. In addition, they also construct an empty (transactionless) old-style block $b'$ on top of the best unupgraded chain $C'$. In a commentary section of the old-style candidate block $b'$, such as the coinbase transaction, the miner
+places the hash $H(b)$ of the new-style candidate block. The miner then attempts to find proof-of-work for the old-style block,
+i.e., some nonce $\textsf{ctr}$ that satisfies the proof-of-work equation $H(b' \concat \textsf{ctr}) \leq T$ for the mining target $T$.
+If such proof-of-work is found, then the block $b'$ is broadcast to the network and adopted as the tip of the longest unupgraded chain by
+the rest of the (upgraded or unupgraded) miners. Note that this block is designed to be backwards-compatible in the sense that
+it will be accepted by unupgraded miners even though they remain unaware of the upgrade. On the other hand, if the \emph{reverse proof-of-work equation} $H(b' \concat \textsf{ctr})^R \leq T$ is satisfied (where $H(\cdot)^R$ denotes the reversed bitstring of $H(\cdot)$), then $b'$ and the respective proof-of-work and blocks $b', b$ are
+broadcast to the network. This time unupgraded miners will not consider this a valid block. However,
+upgraded miners examine the validity of the block $b$ contained within the commentary section of $b'$ and check that the reverse proof-of-work equation is
+satisfied. If so, they adopt the block $b$ as the next block in their upgraded blockchain. The above mechanism is the only mechanism
+by which new-style blocks are accepted by upgraded honest miners.
 
-
-
-
-
-
-
-
-
-
-
+The protocol just described has two advantages. Firstly, the upgraded honest miners make use of their mining power to contribute to the security
+of both the old and the new-style chain simultaneously. Therefore, an adversary cannot attack the old chain \emph{ex post facto}.
+Secondly, instead of \emph{dividing} their mining power between the two chains, the honest parties only use their mining power \emph{once} to mine on \emph{both} networks, because the hash function is only evaluated once. As such, the honest mining power is not diminished by the use of this mechanism. We observe that, in the Random Oracle model, the last bits of the hash output remain
+uniformly distributed conditioned on the fact that the proof-of-work equation has a solution. Therefore, finding a solution of the
+proof-of-work equation and finding a solution of the reverse proof-of-work equation are two independent events (they will occur simultaneously so rarely that the honest parties can ignore this possibility). Lastly, note that this scheme can be used repeatedly
+when multiple upgrades have occurred on top of one another, simply by treating a portion of the bits of the hash as the significant
+bits to test against the proof-of-work equation (e.g., for a second upgrade, the hash output can be split in three equal parts to be tested against the proof-of-work equation). This scheme therefore theoretically resolves the question of securing offline parties.
+In practice, because the scheme adds significant implementation complexity, implementors may elect to maintain this backwards-compatibility
+mechanism for a limited amount of time. In that case, parties who have remained offline longer than the backwards-compatibility
+mechanism is maintained, will have no guarantees for security, similarly to a classical system whose long-term support window has expired.
