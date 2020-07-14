@@ -3,184 +3,184 @@
     xmlns:latexdraw="http://latexdraw.sourceforge.net/namespaces/latexdraw"
     version="1.1" baseProfile="full">
     <g>
-        <g latexdraw:type="rectangle" id="id1084595437">
+        <g latexdraw:type="rectangle" id="id637443413">
             <rect x="206.0" y="261.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#cccccc"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id853265556">
+        <g latexdraw:type="joinedLines" id="id502166554">
             <polyline points="272.0,275.0 280.0,275.0 "
                 stroke-width="2.0" stroke="black" stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id2061494478">
+        <g latexdraw:type="joinedLines" id="id1170768897">
             <polyline points="288.0,275.0 300.0,275.0 "
                 stroke-width="2.0" stroke="black" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id2072020860">
+        <g latexdraw:type="rectangle" id="id201933237">
             <rect x="291.0" y="261.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#cccccc"/>
         </g>
-        <g latexdraw:type="text" id="id1870453436" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1528259914" fill="black" latexdraw:position="bl">
             <text x="310.0" y="285.0">flag</text>
         </g>
-        <g latexdraw:type="text" id="id467069259" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id2053091568" fill="black" latexdraw:position="bl">
             <text x="305.0" y="385.0">$\aflag$</text>
         </g>
-        <g latexdraw:type="joinedLines" id="id1965874743">
+        <g latexdraw:type="joinedLines" id="id1462232434">
             <polyline
                 points="355.0,275.0 371.66666666666674,275.0 371.66666666666674,275.0 "
                 stroke-width="2.0" stroke="black" fill="none" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id750712214">
+        <g latexdraw:type="joinedLines" id="id109386817">
             <polyline points="372.8571428571429,275.0 380.0,275.0 "
                 stroke-width="2.0" stroke="black" stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id322991803">
+        <g latexdraw:type="joinedLines" id="id1774099821">
             <polyline points="396.6666666666666,330.0 410.0,330.0 "
                 stroke-width="2.0" stroke="black" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id1451447630">
+        <g latexdraw:type="rectangle" id="id659691626">
             <rect x="411.0" y="316.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#666666" stroke-dasharray="8.819444444444445, 5.291666666666667"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id821163111">
+        <g latexdraw:type="joinedLines" id="id1815393818">
             <polyline points="475.0,330.0 495.0,330.0 "
                 stroke-width="2.0" stroke="black" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id555353018">
+        <g latexdraw:type="rectangle" id="id160150781">
             <rect x="201.0" y="431.0" width="33.0" height="18.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#cccccc"/>
         </g>
-        <g latexdraw:type="text" id="id247755800" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id71749732" fill="black" latexdraw:position="bl">
             <text x="250.0" y="445.0">$\ledger_1$ block</text>
         </g>
-        <g latexdraw:type="text" id="id1490748414" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1409162671" fill="black" latexdraw:position="bl">
             <text x="420.0" y="385.0">$\aflag+k+1$</text>
         </g>
-        <g latexdraw:type="text" id="id26529344" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1143598259" fill="black" latexdraw:position="bl">
             <text x="615.0" y="385.0">$\aflag+k$</text>
         </g>
-        <g latexdraw:type="text" id="id1803919959" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1107360351" fill="black" latexdraw:position="bl">
             <text x="265.0" y="170.0">$T_0$</text>
         </g>
-        <g latexdraw:type="text" id="id143046405" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1235649743" fill="black" latexdraw:position="bl">
             <text x="310.0" y="170.0">$T_0+s$</text>
         </g>
-        <g latexdraw:type="text" id="id691027486" fill="black" latexdraw:position="bl">
-            <text x="620.0" y="170.0">$T_0+s_1+(k_1+1)\cg_1^{-1}$</text>
+        <g latexdraw:type="text" id="id1768023315" fill="black" latexdraw:position="bl">
+            <text x="585.0" y="170.0">$T_0+s_1+(k_1+1)\cg_1^{-1}$</text>
         </g>
-        <g latexdraw:type="text" id="id129272725" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1527793425" fill="black" latexdraw:position="bl">
             <text x="180.0" y="170.0">{\bf Round}</text>
         </g>
-        <g latexdraw:type="text" id="id1303010146" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id550674594" fill="black" latexdraw:position="bl">
             <text x="170.0" y="385.0">{\bf Block index}</text>
         </g>
-        <g latexdraw:type="rectangle" id="id1316252411">
+        <g latexdraw:type="rectangle" id="id1871700368">
             <rect x="496.0" y="316.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#666666" stroke-dasharray="8.819444444444445, 5.291666666666667"/>
         </g>
-        <g latexdraw:type="rectangle" id="id448935463">
+        <g latexdraw:type="rectangle" id="id474551415">
             <rect x="201.0" y="461.0" width="33.0" height="18.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#cccccc" stroke-dasharray="8.819444444444445, 5.291666666666667"/>
         </g>
-        <g latexdraw:type="text" id="id2022262933" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id2136817731" fill="black" latexdraw:position="bl">
             <text x="255.0" y="480.0">Unstable $\ledger_1$ block</text>
         </g>
-        <g latexdraw:type="joinedLines" id="id1945189037">
+        <g latexdraw:type="joinedLines" id="id736299379">
             <polyline points="396.6666666666666,200.0 410.0,200.0 "
                 stroke-width="2.0" stroke="black" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id1781106326">
+        <g latexdraw:type="rectangle" id="id608300475">
             <rect x="411.0" y="186.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#cccccc" stroke-dasharray="8.819444444444445, 5.291666666666667"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id571005763">
+        <g latexdraw:type="joinedLines" id="id34652667">
             <polyline points="475.0,200.0 495.0,200.0 "
                 stroke-width="2.0" stroke="black" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id10278593">
+        <g latexdraw:type="rectangle" id="id488229935">
             <rect x="496.0" y="186.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#666666" stroke-dasharray="8.819444444444445, 5.291666666666667"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id161787856">
+        <g latexdraw:type="joinedLines" id="id1997964169">
             <polyline points="560.0,200.0 580.0,200.0 "
                 stroke-width="2.0" stroke="black" stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id1989927701">
+        <g latexdraw:type="rectangle" id="id1685623211">
             <rect x="201.0" y="491.0" width="33.0" height="18.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#666666"/>
         </g>
-        <g latexdraw:type="text" id="id181356915" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id366726303" fill="black" latexdraw:position="bl">
             <text x="255.0" y="510.0">$\ledger_2$ block</text>
         </g>
-        <g latexdraw:type="joinedLines" id="id602247284">
+        <g latexdraw:type="joinedLines" id="id898560582">
             <polyline points="560.0,330.0 585.0,330.0 585.0,330.0 "
                 stroke-width="2.0" stroke="black" fill="none"
                 stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="text" id="id1222508052" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id1942959448" fill="black" latexdraw:position="bl">
             <text x="495.0" y="250.0">$\aflag+k+1$</text>
         </g>
-        <g latexdraw:type="joinedLines" id="id1203024203">
+        <g latexdraw:type="joinedLines" id="id823260581">
             <polyline points="400.0,200.0 385.0,200.0 "
                 stroke-width="2.0" stroke="black" stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id822763765">
+        <g latexdraw:type="joinedLines" id="id1304722547">
             <polyline points="400.0,330.0 385.0,330.0 "
                 stroke-width="2.0" stroke="black" stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id1952235772">
-            <rect x="601.0" y="261.0" width="63.0" height="33.0"
+        <g latexdraw:type="rectangle" id="id2032770299">
+            <rect x="596.0" y="261.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#cccccc"/>
         </g>
-        <g latexdraw:type="rectangle" id="id1256169112">
-            <rect x="681.0" y="261.0" width="63.0" height="33.0"
+        <g latexdraw:type="rectangle" id="id328273490">
+            <rect x="676.0" y="261.0" width="63.0" height="33.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#666666"/>
         </g>
-        <g latexdraw:type="text" id="id1682158680" fill="black" latexdraw:position="bl">
-            <text x="700.0" y="385.0">$\aflag+k+1$</text>
+        <g latexdraw:type="text" id="id92421199" fill="black" latexdraw:position="bl">
+            <text x="670.0" y="385.0">$\aflag+k+1$</text>
         </g>
-        <g latexdraw:type="joinedLines" id="id1381944598">
+        <g latexdraw:type="joinedLines" id="id511332659">
             <polyline
                 points="280.0,180.0 270.0,200.0 285.0,220.0 270.0,240.0 285.0,260.0 270.0,285.0 285.0,305.0 285.0,305.0 "
                 stroke-width="2.0" stroke="black" fill="none" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id189593850">
-            <polyline points="600.0,275.0 585.0,275.0 "
+        <g latexdraw:type="joinedLines" id="id2008450982">
+            <polyline points="595.0,275.0 580.0,275.0 "
                 stroke-width="2.0" stroke="black" stroke-linecap="round"
                 stroke-dasharray="1, 7.291666666666667" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id1447438734">
-            <polyline points="665.0,275.0 680.0,275.0 "
+        <g latexdraw:type="joinedLines" id="id805145545">
+            <polyline points="660.0,275.0 675.0,275.0 "
                 stroke-width="2.0" stroke="black" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="joinedLines" id="id2081714416">
+        <g latexdraw:type="joinedLines" id="id1171512300">
             <polyline
                 points="710.0,180.0 700.0,200.0 710.0,215.0 700.0,235.0 710.0,255.0 710.0,255.0 "
                 stroke-width="2.0" stroke="black" fill="none" latexdraw:rotationAngle="0.0"/>
         </g>
-        <g latexdraw:type="rectangle" id="id2034181706">
+        <g latexdraw:type="rectangle" id="id1886222339">
             <rect x="201.0" y="521.0" width="33.0" height="18.0"
                 latexdraw:borderPos="outer" stroke-width="2.0"
                 stroke="black" fill="#666666" stroke-dasharray="8.819444444444445, 5.291666666666667"/>
         </g>
-        <g latexdraw:type="text" id="id1737681795" fill="black" latexdraw:position="bl">
+        <g latexdraw:type="text" id="id694443820" fill="black" latexdraw:position="bl">
             <text x="255.0" y="540.0">Unstable $\ledger_2$ block</text>
         </g>
     </g>
