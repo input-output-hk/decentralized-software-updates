@@ -44,7 +44,7 @@ ledger and blockchain interchangeably.} that supports updates and refer to it as
 Then we propose a generic compiler that takes a ledger $\ledger_1$ and turns it into a ledger $\ledgerup$
 that can be updated to the code of a ledger $\ledger_2$ under some conditions.
 We then propose another compiler that, always starting from a ledger $\ledger_1$ turns it into an updatable ledger that tolerates updates only with respect to ledgers that follow the same consensus rule as $\ledger_1$ but have different blocks structure. All our constructions do not rely on any trusted third party (TTP).
-%The latter compiler has been folklore for a long time, but we are the first work that formally argue about its security.
+
 
 \subsection{Our Techniques} Our definition of updatable ledgers is quite intuitive. We require
 an updatable ledger $\ledgerup$ to be secure under the standard definition of security (i.e., it has to enjoy consistency and liveness) but on top of this, it has to support the property of \emph{updatability}. 

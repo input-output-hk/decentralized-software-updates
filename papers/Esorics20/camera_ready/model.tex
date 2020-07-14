@@ -7,12 +7,9 @@ We assume instant and {\em fetch-based}  delivery channels~\cite{TCC:KMTZ13,AC:C
 
 We adopt the {\em dynamic availability} model implicit in~\cite{C:BMTZ17} which was fleshed out in~\cite{CCS:BGKRZ18}. We next sketch its main components: All functionalities, protocols, and global setups have a dynamic party set. i.e., they all include special instructions allowing parties to register,  deregister, and allowing the adversary to learn the current set of registered parties. Additionally,  global setups allow any other setup (or functionality) to register and deregister with them, and they also allow other setups to learn their set of registered parties. For more details on the registration process we refer the reader to Appendix~\ref{se:registration}.  
 \paragraph{The Clock Functionality} $\gclock$ (cf. Fig.~\ref{fig:gclock}).
-%As in~\cite{BMTZ17} we  assume a global UC-functionality $\gclock$  that allows the parties to ensure that the protocol they are running proceeds in synchronized rounds. 
 The \emph{clock functionality}  was initially proposed in~\cite{TCC:KMTZ13} to enable synchronous execution of UC protocols. Here we adopt its global-setup version, denoted by $\gclock$, which was proposed by~\cite{C:BMTZ17} and was used in the (G)UC proofs of the ledger's security.\footnote{As a global setup, $\gclock$ also exists in the ideal world and the ledger connects to it to keep track of rounds.}  $\gclock$  allows  parties (and functionalities) to ensure that the protocol they are running proceeds in synchronized rounds; it keeps track of  round variable whose value can be retrieved by parties (or by functionalities) via sending to it the pair: $\gread$. This value is increased when every honest party has sent to the clock a command $\gupdate$.
 The parties use the clock as follows.  Each party starts every operation by reading the current round from $\gclock$ via the command $\gread$. Once any party  has executed all its instructions
-for that round it instructs the clock to advance by sending a $\gupdate$ command, and gets in an idle mode where it simply reads the clock time in every activation until the round advances. %The clock advances to the next round when all the parties have requested to advance to the next round.
-%In~\cite{KZZ16,BMTZ17}, this idea was transfered to the (G)UC setting, by assuming that the clock is a global setup. This allows  different protocols to use the same clock and we will also use the latter model in this paper. In particular, we model the \emph{time aspect} of all the functionalities that we propose, in terms of number of rounds. Therefore, when  $\gclock$ proceeds from one round to another, we say that $\gclock$ has \emph{ticked}. 
-%For completeness, we have included the global clock functionality in Appendix~\ref{app:funcs} We refer  readers to Fig.~\ref{fig:gclock} for a formal description of the functionality.
+for that round it instructs the clock to advance by sending a $\gupdate$ command, and gets in an idle mode where it simply reads the clock time in every activation until the round advances. 
 To keep more compact the description of our functionalities that rely on $\gclock$, we implicitly assume that
 whenever an input is received the command $\gread$ is sent to $\gclock$ to retrieve the current round. Moreover, before giving the output, the functionalities request to advance the clock by sending $\gupdate$ to $\gclock$.
 
@@ -42,15 +39,6 @@ equal $\tcorrupt$, a bound that is also hardcoded in $C$.
 We divide time into discrete units called \emph{time slots} or {\emph round}. Players are equipped with (roughly)
 synchronized clocks $\gclock$ that indicate the current slot: we assume that any clock drift is subsumed in the slot
 length.
-%Each slot $\slr$ is indexed by an integer $r\in\{1,2,\dots\}$.
-
-
-%The first ITI party to be spawned running protocol
-%$\Pi$ is restricted by $C$ to be party $P_1$. After a party $P_i$ is activated, the environment is restricted to
-%activate party $P_{i+1}$, except when $P_n$ is activated in which case the next ITI to be activated is always
-%the adversary $\adv$. Note that when a corrupted party $Pi$ is activated the adversary $\adv$ is activated
-%instead.
-
 
 
 \subsubsection{Ledger Consensus.}
@@ -71,8 +59,6 @@ description of $\ledger$. In this work, we assume that the ledger state is obtai
 and serializing the transactions in the remaining blocks. We refer to $k$ as the \emph{common-prefix parameter}.
 We denote by $\state^P[t]$ the ledger state of a ledger $\ledger$ as viewed by a party $P$ at the beginning of a time slot $t$
 and by ${\check \state}^{P}[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet. $\state^P[t]$ can be obtained from  ${\check \state}^{P}[t]$ by dropping the last $k$ block.
-%ledger states (or, more generally, any sequences), we denote by the prefix relation.
-% and by $\hat P^\ledger[t]$ the complete state of the ledger (at time $t$) including all pending transactions that are not stable yet.
 
 
 For two ledger states (or, more generally, any sequences), we denote by $\preceq$ the prefix relation.
@@ -82,22 +68,7 @@ Recall the definition of secure ledger protocol given in~\cite{RSA:GarKia20}.
 \begin{definition}\label{de:ledger} A ledger protocol $\ledger$ is secure if it enjoys the following properties.
 
 
-\ignore{
-\begin{itemize}
-\item {\em Consistency:} This property mandates that if a client queries
-an honest node's ledger at round $t_1$
-and receives the response $\mc{L}_1$,
-then a client querying an honest node's ledger at round $t_2\geq t_1 $
- receives a response $\mc{L}_2$ that satisfies $\mc{L}_1 \preceq \mc{L}_2$,
-where $\preceq$ denotes the standard prefix operation.
 
-\item {\em Liveness:} If a transaction $tx$ is given as input to all honest
-nodes continuously for a certain number of rounds denoted by $u$,
-and a client queries any honest node's ledger
-after these $u$ rounds, then the node responds with a value
-$\mc{L}$ that includes $tx$.
-%\end{itemize}
-}
 
 \begin{itemize}
   \item[]{\bf Consistency.}

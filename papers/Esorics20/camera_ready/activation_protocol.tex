@@ -1,7 +1,7 @@
 \section{Our constructions}
 In this section we propose two main approaches to turn a ledger $\ledger_1$ into an updatable ledger $\ledgerup$. That is, we show how to make $\ledger_1$ able to self-update to the code of a new ledger $\ledger_2$.
 The first approach proposed requires $\ledger_1$ and $\ledger_2$ to be the same (i.e.,  they use the same consensus rules) but might have a different block structure. The advantage in this approach is that we get a very simple updatable ledger, that does not decrease the throughput of  $\ledgerup$ during the update and does not require all the honest parties to be online during the update. 
-The second approach requires fewer similarities between the two ledgers, but it is proven secure only in the semi-online. We also show that we can relax the requirement on the honest parties being online during the update by relying on a 2-way peg approache (more details are provided in the end of Sec~\ref{se:first}).
+The second approach requires fewer similarities between the two ledgers, but it is proven secure only in the semi-online. We also show that we can relax the requirement on the honest parties being online during the update by relying on a 2-way peg approach (more details are provided in the end of Sec.~\ref{se:first}).
 
 We now provide a detailed description of our approaches and formally prove their security.
 
@@ -12,7 +12,7 @@ We now provide a detailed description of our approaches and formally prove their
 In this section we consider a simplified scenario where the two ledgers, $\ledger_1$ and $\ledger_2$, 
 are the same except for the block format (i.e., $\ledger_1$ and $\ledger_2$ might have a different block size).
 Moreover, we assume that a block valid for $\ledger_1$ is valid for $\ledger_2$ as well (but the viceversa does not necessarily hold). Formally, this means that if the block validation algorithm  $\isvalidb_1$ of $\ledger_1$
-outputs $1$ on some input $B$, then also the block validation algorithm $\isvalidb_2$ of $\ledger_2$ outputs $1$ (see Sec~\ref{se:ledgermodel} for more details).
+outputs $1$ on some input $B$, then also the block validation algorithm $\isvalidb_2$ of $\ledger_2$ outputs $1$ (see Sec.~\ref{se:ledgermodel} for more details).
 We now prove the following theorem
 
 
@@ -21,8 +21,6 @@ If $\ledger_1$ and $\ledger_2$ are secure ledgers with block validation rules re
 \begin{enumerate}
 	\item  $\ledger_1$ and $\ledger_2$ are the same except with respect to the block validation rules;
 	\item for every block $B$ such that if $\isvalidb_1(B)=1$ then $\isvalidb_2(B)=1$,
-	%\item a valid block for $\ledger_1$ is valid for $\ledger_2$, 
-	%\item $\ledger_1$ and $\ledger_2$ have the same chain-selection algorithm;
 	\item $\ledger_1$ (resp. $\ledger_2$)  has common-prefix parameter $k$, chain-growth parameter  $(\cg, s)$ and assumption $\asmp_1$ (resp. $\asmp_2$) with $\asmp_1=\asmp_2$,
 	
 \end{enumerate}
@@ -46,7 +44,7 @@ Each party $P_i\in\activep$ does the following steps.
 
 
 We provide a pictorial description of what happens to the ledger state during the update in Fig.~\ref{fig:sketch2}.
-We note that two honest parties $P_1$ and $P_2$ might have different $\check \state_1^{P_1}[\tau]$ and  $\check \state_1^{P_2}[\tau]$ at any time $\tau$. The figure~\ref{fig:sketch2}
+We note that two honest parties $P_1$ and $P_2$ might have different $\check \state_1^{P_1}[\tau]$ and  $\check \state_1^{P_2}[\tau]$ at any time $\tau$. The Fig.~\ref{fig:sketch2}
 describe the scenario where $P_1$ might start to run $\ledger_2$ starting from an 
 unstable block (i.e. a block of  $\check \state_1^{P_1}[\tau]$ with $\tau\geq
 T_0+s$) which is different from the block that $P_2$ is using. However, after sufficiently many
@@ -123,7 +121,6 @@ We are now ready to state formally our theorem and prove it.
 \begin{theorem}
 If $\ledger_1$ and $\ledger_2$ are secure ledgers and:
 \begin{enumerate}
-	%\item $\ledger_1$ and $\ledger_2$ have the same chain-selection algorithm;
 	\item $\ledger_1$  has common-prefix parameter $k_1$, chain-growth parameter  $(\cg_1, s_1)$ and
 	assumption $\asmp_1$;
 	\item $\ledger_2$  has common-prefix parameter $k_2$, chain-growth parameter  $(\cg_2, s_2)$ and
