@@ -74,12 +74,12 @@ let
       inherit (import "${sources.iohk-nix}/nix/sources.nix" {}) nixpkgs;
     };
     # Collect all spec PDFs, without system suffix
-    inherit (project) decentralizedUpdatesSpec;
+    inherit (project) datil decentralized-updates decentralizedUpdatesSpec;
   } // ( mkRequiredJob (
       collectTests jobs.native.checks ++
       collectTests jobs.native.benchmarks ++ [
-        pkgs.datil
-        pkgs.decentralized-updates
+        jobs.datil
+        jobs.decentralized-updates
         jobs.decentralizedUpdatesSpec
       ]
     )
