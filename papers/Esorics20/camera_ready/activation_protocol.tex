@@ -1,7 +1,7 @@
 \section{Our constructions}
 In this section we propose two main approaches to turn a ledger $\ledger_1$ into an updatable ledger $\ledgerup$. That is, we show how to make $\ledger_1$ able to self-update to the code of a new ledger $\ledger_2$.
-The first approach proposed requires $\ledger_1$ and $\ledger_2$ to be the same (i.e.,  they use the same consensus rules) but might have a different block structure. The advantage in this approach is that we get a very simple updatable ledger, that does not decrease the throughput of  $\ledgerup$ during the update and does not require all the honest parties to be online during the update. 
-The second approach requires fewer similarities between the two ledgers, but it is proven secure only in the semi-online. We also show that we can relax the requirement on the honest parties being online during the update by relying on a 2-way peg approach (more details are provided in the end of Sec.~\ref{se:first}).
+The first approach proposed requires $\ledger_1$ and $\ledger_2$ to be the same (i.e.,  they use the same consensus rules) but might have a different block structure. The advantage in this approach is that we get a very simple updatable ledger, that does not decrease the throughput of  $\ledgerup$ during the update and does not require all the honest parties to be online during the update\footnote{We also show that we can relax the requirement on the honest parties being online during the update for the case of PoW ledgers.}. 
+The second approach requires fewer similarities between the two ledgers, but it is proven secure only in the semi-online. We also show that we can relax the requirement on the honest parties being online during the update by relying on a \emph{2-for-1 mining} approach (more details are provided in the end of Sec.~\ref{se:first}).
 
 We now provide a detailed description of our approaches and formally prove their security.
 
@@ -239,8 +239,8 @@ the blockchain and hence the upgrade will not appear in its view. The adversary 
 succeeded in isolating the offline party from the rest of the network.
 
 To rectify the above issue, a practical implementation of the protocol must leverage the mining power of the
-upgraded population to maintain \emph{both} the new chain while at the same time securing the old chain.
-To do this, we leverage a variation of \emph{2-for-1} mining~\cite{EC:GarKiaLeo15}.
+upgraded population to maintain \emph{both} the new chain while at the same time securing the old chain. We propose a solution for the case where $\ledger_1$ and $\ledger_2$ are two proof-of-work (PoW) type of ledgers.
+Our solution leverages on a variation of 2-for-1 mining~\cite{EC:GarKiaLeo15}.
 An upgraded miner works as follows. They maintain the longest chain $C$ in view of the new protocol rules, but
 also the longest chain $C'$ in the view of an unupgraded party. In case of hard fork, these two chains will
 differ. When they are about to mine a new block on top of the upgraded chain,
