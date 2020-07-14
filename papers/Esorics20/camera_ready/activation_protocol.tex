@@ -11,7 +11,7 @@ We now provide a detailed description of our approaches and formally prove their
 \subsection{First approach.}
 In this section we consider a simplified scenario where the two ledgers, $\ledger_1$ and $\ledger_2$, 
 are the same except for the block format (i.e., $\ledger_1$ and $\ledger_2$ might have a different block size).
-Moreover, we assume that a block valid for $\ledger_1$ is valid for $\ledger_2$ as well (but the viceversa does not necessarily hold). Formally, this means that if the block validation algorithm  $\isvalidb_1$ of $\ledger_1$
+Moreover, we assume that a block valid for $\ledger_1$ is valid for $\ledger_2$ as well (but the vice versa does not necessarily hold). Formally, this means that if the block validation algorithm  $\isvalidb_1$ of $\ledger_1$
 outputs $1$ on some input $B$, then also the block validation algorithm $\isvalidb_2$ of $\ledger_2$ outputs $1$ (see Sec.~\ref{se:ledgermodel} for more details).
 We now prove the following theorem
 
@@ -144,7 +144,7 @@ Let $T_0$ be such that $\asmp_2$ holds. At time $T_0$ each party in $P_i\in \act
 
 \begin{enumerate}
 	\item Create and post a transaction that contains an \emph{activation flag}, let $\aflag$ be the index of the block that will contain the first transaction with an activation flag (note that there might be more than one of such a transactions).
-	\item Keep running $\ledger_1$ until the block with index  $j=\aflag+k_1$ becomes stable (i.e.,becomes part of $\state_1^{P}[\tau]$ for all $P\in\activep$ for some $\tau \geq T_0$) and stop issuing transaction for $\ledger_1$ (if any).
+	\item Keep running $\ledger_1$ until the block with index  $j=\aflag+k_1$ becomes stable (i.e., becomes part of $\state_1^{P}[\tau]$ for all $P\in\activep$ for some $\tau \geq T_0$) and stop issuing transaction for $\ledger_1$ (if any).
 	\item When the $j$-th block $B_{j}$  becomes stable then stop running $\ledger_1$ and start running 
 	$\ledger_2$ using $\bgen\leftarrow\translate(B_{j})$ as the genesis block.
 	

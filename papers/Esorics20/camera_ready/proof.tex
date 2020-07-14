@@ -23,7 +23,7 @@ If we consider the execution of the protocol from time $T_0$ and $T_0+\Delta$ th
 and the same assumption, and given that $\check \state_1^{P_i}$ (and $\check \state_2^{P_i}$) contains at most $k$ blocks 
 more than $\state_1^{P_i}$ (and $\state_2^{P_i}$) for all $P_i\in\activep$. Hence, any advantage that the adversary has on our updatable ledger can be translated into an advantage for an adversary that is attacking $\ledger_2$, which is assumed to be secure.
 Note that it is crucial that the assumption that underlines the two ledger is the same. Indeed, we note that the
-number of honest parties that received $(\activate, \ledger_2)$ might be lower that the overall number of honest parties. Hence, the honest parties that are running the update procedure are less than the parties that are running $\ledger_1$ (this might happen as we do not require all the honest parties to update). However, given that 
+number of honest parties that received $(\activate, \ledger_2)$ might be lower than the overall number of honest parties. Hence, the honest parties that are running the update procedure are less than the parties that are running $\ledger_1$ (this might happen as we do not require all the honest parties to update). However, given that 
 $\asmp_1=\asmp_2$, we can see the honest parties that did not receive the command $(\activate,\ledger_2)$
 as parties controlled by the adversary as they are not following the update procedure. Luckily, this does not
 cause problems as even if we consider these parties as adversarial, $\asmp_1$ would still hold  
