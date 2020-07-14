@@ -265,3 +265,12 @@ bits to test against the proof-of-work equation (e.g., for a second upgrade, the
 In practice, because the scheme adds significant implementation complexity, implementors may elect to maintain this backwards-compatibility
 mechanism for a limited amount of time. In that case, parties who have remained offline longer than the backwards-compatibility
 mechanism is maintained, will have no guarantees for security, similarly to a classical system whose long-term support window has expired.
+
+The scheme requires the added complexity of mining two blocks simultaneously
+only in the case of proof-of-work. This is due to the nature of proof-of-work and specifically the fact that each query counted
+towards the proof-of-work quota can only be devoted to a specific message.
+In proof-of-stake blockchains, the solution for maintaining the security of offline unupgraded parties is
+the obvious one and allows for a much simpler implementation: We require upgraded parties to mint, alongside their
+new-style blocks extending the longest upgraded chain and containing transactions,
+also empty old-style blocks extending the longest unupgraded chain, to ensure the security of their unupgraded
+counterparts.
