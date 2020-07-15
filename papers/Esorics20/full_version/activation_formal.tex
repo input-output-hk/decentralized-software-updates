@@ -1,0 +1,48 @@
+
+\subsection{Defining Secure Updatable Ledgers}
+In this section, we provide the definition of updatable ledgers. Our definition is generic in the sense that can be applied to a large class of ledgers (e.g., PoS, PoW and so on).
+Let $\ledgerup$ and $\ledger_2$ be the two ledgers with the respective assumptions $\asmp_1$ and 
+$\asmp_2$. 
+Assuming that $\asmp_1$ holds, then among the parties that are running $\ledgerup$ we could have up to a fraction of $\tcorrupt_1$ corrupted parties (i.e., parties that have received the command $\corrupt$).
+Analogously, the assumption $\asmp_2$ for the ledger $\ledger_2$ holds if the number of corrupted parties
+divided by the number of honest party is below the threshold $\tcorrupt_2$.
+
+The interface of an updatable ledger extends the interface of a standard ledger by adding the command 
+$(\activate, \ledger_2)$. 
+That is, each party that runs an updatable ledger $\ledgerup$ can receive the command $(\activate, \ledger_2)$
+from the environment to enable the update procedure.
+ Let $t_{P_i}$ denote the time in which
+a party $P_i$ receives the activation command and let $\activep$ be the set of parties that received this command.
+Informally, an updatable ledger guarantees that if the set of honest parties that are willing to run $\ledger_2$ (i.e., the number of parties that received $(\activate,\ledger_2)$)
+is such that $\asmp_2[\tau]=1$ for all $\tau\geq T_0$ for some $T_0\in\mathbb{N}$, then
+the state of $\ledger_2$ at time $T_0+\Delta$ corresponds to the state of $\ledgerup$ at some time $T\in [T_0,T_0+\Delta]$.
+The parameter $\Delta$ represents the time required for the update process to be completed.
+The above implies that $\state_2$  extends $\state_1$ and that $\ledger_2$ is secure (i.e., it enjoys consistency and liveness).
+In a nutshell, a secure update process guarantees that the state of the old ledger is moved into the new ledger, and that the new ledger is secure.
+We now give a more formal definition.
+
+
+\begin{definition}[Updatable Ledger]\label{de:act}
+We say that a ledger $\ledgerup$ is updatable with activation parameter $\Delta$ (where $\Delta\in\mathbb{N}$) if it is a secure ledger 
+according to Def.~\ref{de:ledger} and it enjoys the following property.
+
+{\bf Updatability.} Let $\ledger_2$ be a secure ledger (always according to Def.~\ref{de:ledger}).
+Let $\activep$ be the set of parties that received the input $(\activate, \ledger_2)$. 
+If $\activep$ is such that  $\asmp_2[\tau]=1$ for all $\tau\geq T_0$ for some $T_0\in\mathbb{N}$ and $\asmp_1[\tau']=1$ for all $\tau' \leq T_1=T_0 +\Delta$,  then
+\begin{enumerate}
+	\item $\state_1^{P_i}[T'] \preceq \state_2$ for some $P_i\in\activep$ with  $T_0\leq T' \leq T_1$.
+	\item for all $\tau''\geq T_1$ $\ledger_2$ enjoys consistency and liveness
+\end{enumerate}
+\end{definition}
+
+
+
+We note that this definition says nothing on the security of $\ledgerup$ after the time $T_1=T_0+\Delta$. Indeed, the Definition~\ref{de:act} implies that if
+after this time slot $T_0+\Delta$ $\ledgerup$ becomes insecure (e.g., because $\asmp_1$ does not hold) then the security of $\ledger_2$ is not compromised.
+
+We relax the above definition by introducing the notion of updatable ledger in the \emph{semi-online} setting.
+An updatable ledger in the semi-online setting guarantees the properties of updatability 
+only for the honest parties that where active during the activation period $[T_0,T_1]$. That is, if an honest party $P$ is offline before time $T_0$, and comes online after at time $T_1$ then no security is guaranteed with respect to $P$.
+
+
+

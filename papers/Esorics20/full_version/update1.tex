@@ -1,0 +1,57 @@
+\begin{figure}
+\setlength{\fboxsep}{12pt}
+\begin{center}
+\begin{boxedminipage}{12cm}
+
+\begin{center}
+\psscalebox{1.0 1.0} % Change this value to rescale the drawing.
+{
+\begin{pspicture}(0,-2.6829689)(13.9,2.6829689)
+\definecolor{colour0}{rgb}{0.8,0.8,0.8}
+\definecolor{colour1}{rgb}{0.4,0.4,0.4}
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](1.7,2.0929687)(0.4,1.3929688)
+\psline[linecolor=black, linewidth=0.04](1.7,1.7929688)(1.94,1.7929688)(1.94,1.7929688)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](1.94,1.7929688)(2.3,1.7929688)
+\psline[linecolor=black, linewidth=0.04](2.36,1.7929688)(2.6,1.7929688)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](3.9,2.0929687)(2.6,1.3929688)
+\rput[bl](3.0,1.5929687){flag}
+\rput[bl](2.9,0.09296875){$\aflag$}
+\psline[linecolor=black, linewidth=0.04](3.9,1.7929688)(4.1666665,1.7929688)(4.1666665,1.7929688)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](4.1666665,1.7929688)(4.5666666,1.7929688)
+\psline[linecolor=black, linewidth=0.04](4.633333,1.7929688)(4.9,1.7929688)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](6.2,2.0929687)(4.9,1.3929688)
+\psline[linecolor=black, linewidth=0.04](6.2,1.7929688)(6.6,1.7929688)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour0, dimen=outer](7.9,2.0929687)(6.6,1.3929688)
+\psline[linecolor=black, linewidth=0.04](7.9,1.7929688)(8.3,1.7929688)(8.3,1.7929688)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](8.3,1.7929688)(8.9,1.7929688)
+\psline[linecolor=black, linewidth=0.04](9.0,1.7929688)(9.4,1.7929688)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour0, dimen=outer](10.7,2.0929687)(9.4,1.3929688)
+\psline[linecolor=black, linewidth=0.04](5.6,1.3929688)(5.6,0.8929688)(9.4,0.8929688)(9.4,0.8929688)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour1, dimen=outer](10.7,1.1929687)(9.4,0.49296874)
+\psline[linecolor=black, linewidth=0.04, linestyle=dotted, dotsep=0.10583334cm](10.7,0.8929688)(11.4,0.8929688)(11.4,0.8929688)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour0, dimen=outer](1.1,-1.0070312)(0.4,-1.4070313)
+\psframe[linecolor=black, linewidth=0.04, linestyle=dashed, dash=0.17638889cm 0.10583334cm, fillstyle=solid,fillcolor=colour0, dimen=outer](1.1,-1.6070312)(0.4,-2.0070312)
+\psframe[linecolor=black, linewidth=0.04, fillstyle=solid,fillcolor=colour1, dimen=outer](1.1,-2.2070312)(0.4,-2.6070313)
+\rput[bl](1.4,-1.2070312){$\ledger_1$ block}
+\rput[bl](1.5,-1.9070313){Unstable $\ledger_1$ block}
+\rput[bl](1.5,-2.6070313){$\ledger_2$ block}
+\rput[bl](5.3,0.09296875){$j=\aflag+k_1$}
+\rput[bl](9.7,0.09296875){$\aflag+2k_1$}
+\rput[bl](2.0,2.3929687){$T_0$}
+\rput[bl](2.9,2.3929687){$T_0+s_1$}
+\rput[bl](4.9,2.3929687){$T_0+k_1\cg_1^{-1}+s_1$}
+\rput[bl](9.0,2.3929687){$T_0+2k_1\cg_1^{-1}+s_1$}
+\rput[bl](0.0,2.3929687){{\bf Round}}
+\rput[bl](0.0,0.19296876){{\bf Block index}}
+\end{pspicture}
+}
+
+
+
+\end{center}
+
+\end{boxedminipage}
+\end{center}
+\caption{Transition from $\ledger_1$ to $\ledger_2$. Note that the empty blocks of $\ledger_1$ might be non-stable.} 
+\label{fig:sketch}
+\end{figure}

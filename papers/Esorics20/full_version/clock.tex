@@ -1,0 +1,29 @@
+\section{Modeling synchrony}
+
+We refer to Fig.~\ref{fig:gclock} for the formal description of the functionality $\gclock$.
+\begin{figure}[!h]
+\setlength{\fboxsep}{12pt}
+\begin{center}
+\begin{boxedminipage}{12cm}
+The functionality is available to all participants. The functionality is parametrized with variable $\tau$, a set of parties $\mathcal{P}={p_1,\dots, p_n}$, and a set $F$ of functionalities.
+ For each party $p_i\in\mathcal{P}$ it manages variable $\dpi$. For each $\mathcal{F}\in F$ 
+it manages variable $\df$
+
+Initially, $\tau=0, \mathcal{P}=\emptyset$ and $F=\emptyset$.
+
+\begin{itemize}
+\item[-] Upon receiving $(\gupdate,\sid)$ from some party $p_i\in\mathcal{P}$ set $\dpi=1$ 
+execute \emph{Round-Update} and forward $(\gupdate, \sid , p_i)$ to $\adv$.
+\item[-] Upon receiving $(\gupdate, \sid)$ from some functionality $\mathcal{f}\in F$ set $\df=1$, execute \emph{Round-Update} and return $(\gupdate, \sid , F)$ to $F$.
+\item[-] Upon receiving $(\gread, \sid)$ from any participant (including the environment, the adversary, or any ideal-shared or local-functionality) return $(\gread, \sid, \tau)$ to the requester.
+\end{itemize}
+
+Procedure \emph{Round-Update}:
+If $\df=1$ for all $\mathcal{F}\in F$ and $\dpi =1$ for all honest $p_i\in\mathcal{P}$, 
+then set $\tau=\tau+1$ and reset $\df=0$ and $\dpi=0$ for all parties in $\mathcal{P}$.
+
+\end{boxedminipage}
+\end{center}
+\caption{The functionality $\gclock$} 
+\label{fig:gclock}
+\end{figure}
