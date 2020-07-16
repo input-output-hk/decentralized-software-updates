@@ -5,10 +5,10 @@
         "homepage": "https://input-output-hk.github.io/haskell.nix",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "fd3161f2e1116e73fa9647713f98454140f81744",
-        "sha256": "109r5gpigc459fbhnmgqd47w1gn8191kxhns6gh61zyjknmk62m8",
+        "rev": "161235fe0d211eb97a094387d83ca9d2fa593d77",
+        "sha256": "08yi53j853cswpdjjc8xy8311r7figwjflhhdjfhpx1fk979p3g6",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/haskell.nix/archive/fd3161f2e1116e73fa9647713f98454140f81744.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/161235fe0d211eb97a094387d83ca9d2fa593d77.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
@@ -23,18 +23,6 @@
         "url": "https://github.com/input-output-hk/iohk-nix/archive/0de0af2ed1b2d8f563e4f10e4e1fb386a5ffe683.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "stack2nix": {
-        "branch": "master",
-        "description": "Generate nix expressions for Haskell projects",
-        "homepage": null,
-        "owner": "input-output-hk",
-        "repo": "stack2nix",
-        "rev": "66520d94c47e702cd4f13cd5c0ef06b5b8f413e3",
-        "sha256": "0xjmvjqdkzzczkqympryvmam63fijdv5bzllqck45mqwsmm8bd05",
-        "type": "tarball",
-        "url": "https://github.com/input-output-hk/stack2nix/archive/66520d94c47e702cd4f13cd5c0ef06b5b8f413e3.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-        },
     "nixpkgs-19.03": {
         "branch": "nixos-19.03",
         "description": "Nix Packages collection",
@@ -45,6 +33,18 @@
         "sha256": "11z6ajj108fy2q5g8y4higlcaqncrbjm3dnv17pvif6avagw4mcb",
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs/archive/34c7eb7545d155cc5b6f499b23a7cb1c96ab4d59.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "stack2nix": {
+        "branch": "master",
+        "description": "Generate nix expressions for Haskell projects",
+        "homepage": null,
+        "owner": "input-output-hk",
+        "repo": "stack2nix",
+        "rev": "66520d94c47e702cd4f13cd5c0ef06b5b8f413e3",
+        "sha256": "0xjmvjqdkzzczkqympryvmam63fijdv5bzllqck45mqwsmm8bd05",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/stack2nix/archive/66520d94c47e702cd4f13cd5c0ef06b5b8f413e3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
