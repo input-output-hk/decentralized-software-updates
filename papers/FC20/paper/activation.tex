@@ -22,7 +22,13 @@ Let us assume that the adoption threshold of our software update protocol is cal
 
 If we consider $\tau_A > H$, then a possible attack would be for the the adversary to rush to signal, so that the threshold $\tau_A$ is met, without sufficient honest stake to have enough time to complete the upgrade. The activation will take place and the new blockchain will run (at least for some time) with an honest stake percent that does not ensure its security. 
 
-In order to prevent this attack, the adoption threshold should be sufficiently large, so that the required percent of stake that has signaled will ensure that the new blockchain will kick off with sufficient honest stake. It is easy to see that in this case, we need $\tau_A \geq \frac{1}{r_{Th}} \times T$, so that for the upgraded stake, the required security property
+In order to prevent this attack, the adoption threshold should be sufficiently 
+large, so that the required percent of stake that has signaled will ensure that 
+the new blockchain will kick off with sufficient honest stake. It is easy to 
+see that in this case, we need $\tau_A \geq \frac{1}{r_{Th}} \times T$, where 
+$r_{Th}$ corresponds to the theoretical adversary tolerance of the 
+\emph{upgraded protocol} (potentailly different from the original protocol),  
+so that for the upgraded stake, the required security property
 $\frac{AdversaryStake}{TotalStake_{upgraded}} < r_{Th}$ will still hold and thus the upgraded blockchain will be secure. Indeed, if we assume that the total upgraded stake percent is above the adoption threshold minimum value $\frac{1}{r_{Th}} \times T$ (e.g., $\frac{1}{r_{Th}} \times T + \delta$ where $\delta > 0$) and that all the adversary stake $T$ has upgraded, then if we substitute, we see that the property $\frac{AdversaryStake}{TotalStake_{upgraded}} = \frac{T}{\frac{1}{r_{Th}} \times T + \delta} < r_{Th}$ holds. Therefore, for $T$ percent of adversary stake, the requirement for the adoption threshold is:
 
 \begin{equation} \label{tauA}
