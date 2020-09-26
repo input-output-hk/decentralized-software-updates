@@ -1,0 +1,171 @@
+
+* Context
+
+*** Priviledge project
+    - Funded by EU's Horizon 2020
+    - IO Research goal: develop and validate an update protocol for Cardano.
+
+* Main challenges of an update protocol
+
+*** Seamlessly switching between versions
+    - Solved by Edsko's HFC.
+    - HFC needs to know: *if and when version changes take place*
+    - Who provides this information?
+
+*** Digression: Cardano's architecture
+
+***** Network
+
+***** Consensus
+      - Where the HFC leaves
+
+***** Ledger
+      - Processes transaction payload
+      - Update in transactions
+      - Thus: ledger must inform *if and when version changes take place*
+
+* The ledger API
+
+*** Pure functions
+
+    #+BEGIN_SRC haskell
+      :: ( ... ) => st -> tx -> st
+      --   ^
+      --   |
+      --   ---- constraints on st, tx (e.g. which information they need to provide
+      --        which operations they should support)
+    #+END_SRC
+
+*** How to property test the ledger API
+
+***** Plain old PBT for ledger functions
+      Quintessential example of PBT:
+
+      #+BEGIN_SRC haskell
+        prop_reverse :: [Int] -> Bool
+        prop_reverse xs = reverse (reverse xs) == xs
+      #+END_SRC
+
+******* Generating states
+        If ~f~ is a function of a ledger API we could write:
+
+        #+BEGIN_SRC haskell
+          prop_i_f :: st -> tx -> st
+        #+END_SRC
+
+        Problems:
+        - ~st~ large and complex
+          - => large and complex generators
+        - ~st~ has invariants generators have to satisfy
+          - => generators tightly coupled with implementation
+          - => logic duplication
+
+******* An algebra of ledger functions
+        We would like to express properties about combination of ledger function
+        applications:
+
+        #+BEGIN_SRC haskell
+          f0 (f1 st) tx == ???
+        #+END_SRC
+
+        We need a "ledger algebra".
+
+******* We need sequences of transactions
+
+********* Example: approval of a proposal
+          - We need several actions:
+            - SIP commit
+            - SIP reveal
+            - SIP votes
+            - Implementation commit
+            - Implementation reveals
+          - Using a couple of function calls is not enough.
+          - Plain old PBT makes it hard to test: 2 proposals make it to the
+            activation phase.
+            - This is a quite important case if we want to test the queuing
+              mechanism.
+
+***** From sequences of actions to traces
+      Applying sequences of actions:
+      - allow to generate "interesting cases"
+        - e.g. 2 proposals get queued
+      - solves the problem of having to generate state
+        - albeit at the expense of potentially introducing other problems.
+******* What are traces
+        Sequence of actions and ensuing state
+******* Which properties we can express on traces
+********* Money is constant in the system
+          #+BEGIN_SRC haskell
+            moneyIsConstant trace =
+              forall (states trace)
+                     (\st ->
+                       reserves st0 + balance (utxo st0) === reserves st + balance (utxo st)
+                     )
+              where
+                st0 = initialState trace
+          #+END_SRC
+
+********* No double spending
+          #+BEGIN_SRC haskell
+            noDoubleSpending trace =
+              forall (distinctIndices $ length trace)
+                     (\(i, j) -> txins (actionAt i trace) /== txins (actionAt j trace))
+          #+END_SRC
+
+********* Protocol versions increase monotonically
+          #+BEGIN_SRC haskell
+            propVersionsMonotonicallyIncrease trace =
+              isAscending $ fmap protocolVersion (states trace)
+          #+END_SRC
+
+********* And more interesting properties
+          ... which we will see next.
+
+* How to generate traces
+
+*** How it was done in Byron
+    - try our best to generate valid signals
+      - needed when composing multiple rules
+      - required intimate knowledge of the rules
+        - generators looked in the rules state
+
+***** Disadvantages
+      - tight coupling tests and implementation
+      - complex generators
+      - way too complex shrink functions
+      - slow generators
+
+*** The approach we took
+    - keep calm and generate actions ...
+    - but you still need some boundaries on what you're going to generate
+
+
+***** System under test
+
+***** Test scenario
+
+*** Relation with state machine testing
+    The approach described above sound familiar to you?
+
+***** Where its use would have been challenging
+      - Properties where you need a whole trace fragment. Could be work around,
+        but I do not know how simple and/or elegant the end result would have
+        been.
+
+* Expressing properties of the update mechanism
+
+* Bugs we found
+
+* Other content to include
+
+* Random thoughts
+  - Importance of research project for investigating testing framework ideas.
+    - Discarded state machine testing.
+      - Although some ideas were applied in some other form in the current
+        setup.
+      - Failed attempts served as:
+        - lessons
+        - inspiration
+
+* Do not forget
+  Check slack for other considerations I made in the #sl-formal-spec channel.
