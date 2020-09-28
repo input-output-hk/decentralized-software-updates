@@ -17,7 +17,7 @@
 ***** Network
 
 ***** Consensus
-      - Where the HFC leaves
+      - Where the HFC lives
 
 ***** Ledger
       - Processes transaction payload
@@ -92,7 +92,11 @@
     - solves the problem of having to generate state
       - albeit at the expense of potentially introducing other problems.
 ***** What are traces
-      Sequence of actions and ensuing state
+      - Sequence of actions and ensuing state.
+      - Invalid actions are also recorded in the trace.
+        - Useful to test unexpected rejections
+        - And also expected ones! (Does a double spending transaction actually
+          gets rejcted?)
 ***** Which properties we can express on traces
 ******* Money is constant in the system
         #+BEGIN_SRC haskell
@@ -294,7 +298,7 @@
         What is the probability of a proposal being:
         - rejected in ideation phase: 1/6
         - rejected in approval phase: 3/6 * 1/6
-        - activated: 3/6 * 3/6 * 1/2 = 1 / 8
+        - activated: 3/6 * 3/6 * 1/2 = 1/8
 ******* No hashing or signing needed
 
         TODO: show the proposal class.
@@ -339,8 +343,15 @@
     - Are we missing some important check?
     - What are our (implicit) assumptions?
 
-
 * Bugs we found
+
+* Conclusions
+
+*** Do not recommend using these ideas right away
+    - Investigate the use of state-machine testing
+      - More reuse.
+      - Our (Haskell) community benefits as well.
+
 
 * Other content to include
 
