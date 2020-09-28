@@ -36,90 +36,90 @@
       --        which operations they should support)
     #+END_SRC
 
-*** How to property test the ledger API
+* How to property test the ledger API
 
-***** Plain old PBT for ledger functions
-      Quintessential example of PBT:
+*** Plain old PBT for ledger functions
+    Quintessential example of PBT:
+
+    #+BEGIN_SRC haskell
+      prop_reverse :: [Int] -> Bool
+      prop_reverse xs = reverse (reverse xs) == xs
+    #+END_SRC
+
+***** Generating states
+      If ~f~ is a function of a ledger API we could write:
 
       #+BEGIN_SRC haskell
-        prop_reverse :: [Int] -> Bool
-        prop_reverse xs = reverse (reverse xs) == xs
+        prop_i_f :: st -> tx -> st
       #+END_SRC
 
-******* Generating states
-        If ~f~ is a function of a ledger API we could write:
+      Problems:
+      - ~st~ large and complex
+        - => large and complex generators
+      - ~st~ has invariants generators have to satisfy
+        - => generators tightly coupled with implementation
+        - => logic duplication
 
+***** An algebra of ledger functions
+      We would like to express properties about combination of ledger function
+      applications:
+
+      #+BEGIN_SRC haskell
+        f0 (f1 st) tx == ???
+      #+END_SRC
+
+      We need a "ledger algebra".
+
+***** We need sequences of transactions
+
+******* Example: approval of a proposal
+        - We need several actions:
+          - SIP commit
+          - SIP reveal
+          - SIP votes
+          - Implementation commit
+          - Implementation reveals
+        - Using a couple of function calls is not enough.
+        - Plain old PBT makes it hard to test: 2 proposals make it to the
+          activation phase.
+          - This is a quite important case if we want to test the queuing
+            mechanism.
+
+*** From sequences of actions to traces
+    Applying sequences of actions:
+    - allow to generate "interesting cases"
+      - e.g. 2 proposals get queued
+    - solves the problem of having to generate state
+      - albeit at the expense of potentially introducing other problems.
+***** What are traces
+      Sequence of actions and ensuing state
+***** Which properties we can express on traces
+******* Money is constant in the system
         #+BEGIN_SRC haskell
-          prop_i_f :: st -> tx -> st
+          moneyIsConstant trace =
+            forall (states trace)
+                   (\st ->
+                     reserves st0 + balance (utxo st0) === reserves st + balance (utxo st)
+                   )
+            where
+              st0 = initialState trace
         #+END_SRC
 
-        Problems:
-        - ~st~ large and complex
-          - => large and complex generators
-        - ~st~ has invariants generators have to satisfy
-          - => generators tightly coupled with implementation
-          - => logic duplication
-
-******* An algebra of ledger functions
-        We would like to express properties about combination of ledger function
-        applications:
-
+******* No double spending
         #+BEGIN_SRC haskell
-          f0 (f1 st) tx == ???
+          noDoubleSpending trace =
+            forall (distinctIndices $ length trace)
+                   (\(i, j) -> txins (actionAt i trace) /== txins (actionAt j trace))
         #+END_SRC
 
-        We need a "ledger algebra".
+******* Protocol versions increase monotonically
+        #+BEGIN_SRC haskell
+          propVersionsMonotonicallyIncrease trace =
+            isAscending $ fmap protocolVersion (states trace)
+        #+END_SRC
 
-******* We need sequences of transactions
-
-********* Example: approval of a proposal
-          - We need several actions:
-            - SIP commit
-            - SIP reveal
-            - SIP votes
-            - Implementation commit
-            - Implementation reveals
-          - Using a couple of function calls is not enough.
-          - Plain old PBT makes it hard to test: 2 proposals make it to the
-            activation phase.
-            - This is a quite important case if we want to test the queuing
-              mechanism.
-
-***** From sequences of actions to traces
-      Applying sequences of actions:
-      - allow to generate "interesting cases"
-        - e.g. 2 proposals get queued
-      - solves the problem of having to generate state
-        - albeit at the expense of potentially introducing other problems.
-******* What are traces
-        Sequence of actions and ensuing state
-******* Which properties we can express on traces
-********* Money is constant in the system
-          #+BEGIN_SRC haskell
-            moneyIsConstant trace =
-              forall (states trace)
-                     (\st ->
-                       reserves st0 + balance (utxo st0) === reserves st + balance (utxo st)
-                     )
-              where
-                st0 = initialState trace
-          #+END_SRC
-
-********* No double spending
-          #+BEGIN_SRC haskell
-            noDoubleSpending trace =
-              forall (distinctIndices $ length trace)
-                     (\(i, j) -> txins (actionAt i trace) /== txins (actionAt j trace))
-          #+END_SRC
-
-********* Protocol versions increase monotonically
-          #+BEGIN_SRC haskell
-            propVersionsMonotonicallyIncrease trace =
-              isAscending $ fmap protocolVersion (states trace)
-          #+END_SRC
-
-********* And more interesting properties
-          ... which we will see next.
+******* And more interesting properties
+        ... which we will see next.
 
 * How to generate traces
 
@@ -137,22 +137,206 @@
 
 *** The approach we took
     - keep calm and generate actions ...
-    - but you still need some boundaries on what you're going to generate
-
+    - but you still need some constraints on the generated data.
+    - compositionality via modeling of "external disturbances".
 
 ***** System under test
+      [[../test/SystemUnderTest.hs::19][module SystemUnderTest]]
 
 ***** Test scenario
+      [[../test/Trace/Scenario.hs::22][module Trace.Scenario]]
+
+      - Scenario constrains the generation, e.g. provides some context.
+      - ... but also it [[../test/Trace/Generation.hs::26][uniquely determines]] a trace (credit to Edsko).
+        #+BEGIN_SRC haskell
+          elaborateTrace :: forall s t . HasScenario s t => Scenario t -> Trace s t
+        #+END_SRC
+      - What are the functions from ~HasScenario~ that ~elaborateTrace~ needs?
+      - A function from scenarios to traces makes shrinking more tractable.
+      - Why two type parameters in ~HasScenario~?
+
+***** Modeling external disturbances
+      - If a property holds when tested in isolation, but not when integrated,
+        then it must be because of the effect of other sub-systems (always
+        assuming good coverage).
+      - Determine how the sub-system can be influenced by other sub-systems by
+        means of changes in the SUT state (includes SUT environment).
+      - Model these changes as SUT actions.
+
+      #+BEGIN_SRC haskell
+          data SUTAct UpdateSUT
+            = TickAct
+            | UpdateAct (Update.Payload MockSIP MockImpl)
+            | SIPStakeDistChange      (VoterId MockSIP)
+                                      (VoterId MockSIP)
+                                      Stake
+            | ImplStakeDistChange     (VoterId MockSIP)
+                                      (VoterId MockSIP)
+                                      Stake
+            | EndorersStakeDistChange (EndorserId (Protocol MockImpl))
+                                      (EndorserId (Protocol MockImpl))
+                                      Stake
+      #+END_SRC
+
+***** Dumb generation (and better shrinking)
+      Generation uses the "update specifications" of the scenario:
+      #+BEGIN_SRC haskell
+        -- | Specification of a test-case update. This contains all the information
+        -- required for an update to be activated, which includes:
+        --
+        -- * SIP payload
+        --
+        -- * Ideation payload
+        --
+        data UpdateSpec =
+          UpdateSpec
+          { getUpdateSpecId   :: !SpecId
+            -- ^ This should uniquely identify the update spec.
+          , getSIPSubmission  :: !(Submission MockSIP)
+          , getSIPRevelation  :: !(Revelation MockSIP)
+          , getImplSubmission :: !(Submission MockImpl)
+          , getImplRevelation :: !(Revelation MockImpl)
+          } deriving (Eq, Show)
+      #+END_SRC
+
+      #+BEGIN_SRC haskell
+            genActionsFor
+              :: VotersBehavior
+              -> VotersBehavior
+              -> UpdateSpec
+              -> Gen UpdateAction
+            genActionsFor sipVotersBehavior implVotersBehavior aSpec =
+              -- TODO: we also need to generate actions in which the signature of the
+              -- action does not verify.
+              frequency [ (20, genAction)
+                        , (1, pure JustTick)
+                        ]
+              where
+                genAction =
+                  oneof [ -- Ideation
+                          pure $ SIPCommit $ getUpdateSpecId aSpec
+                        , pure $ SIPReveal $ getUpdateSpecId aSpec
+                        , fmap SIPVote
+                          $ genSIPVote participants (Just sipVotersBehavior) aSpec
+                          -- Approval
+                        , pure $ ImplCommit $ getUpdateSpecId aSpec
+                        , pure $ ImplReveal $ getUpdateSpecId aSpec
+                        , fmap ImplVote
+                          $ genImplVote participants (Just implVotersBehavior) aSpec
+                        -- Activation
+                        , fmap ImplEndorsement
+                          $ genEndorsement participants aSpec
+                        ]
+      #+END_SRC
+
+******* No need to inspect the ledger state (unlike Byron)
+        - Action generation doesn't even have access to it.
+        - Less coupling with SUT.
+******* Dumb generation works very well
+        - Example: can find an example of two queued proposals.
+        - Generation is much simpler.
+        - Less chances of masking off errors by trying to generate valid traces
+          only.
+          - No need of complex mutation strategies.
+******* Generation uses some symbolic references
+        - It improves shrinking.
+
+
+        #+BEGIN_SRC haskell
+          data UpdateAction
+            = JustTick
+            | SIPCommit SpecId
+            | SIPReveal SpecId
+            | SIPVote (Vote MockSIP)
+            | ImplCommit SpecId
+            | ImplReveal SpecId
+            | ImplVote (Vote MockImpl)
+            | ImplEndorsement (Update.Endorsement MockSIP MockImpl)
+            deriving (Show)
+        #+END_SRC
+******* Easier to reason about coverage
+        What is the probability of a proposal being:
+        - rejected in ideation phase
+        - rejected in approval phase
+        - activated
+
+
+        #+BEGIN_SRC haskell
+          genActions :: [Participant] -> [UpdateSpec] -> Gen [UpdateAction]
+          genActions participants specs = do
+            -- TODO: the trace length might be determined based on parameters like @k@,
+            -- number of slots per epoch, number of participants, etc. Also we can tune
+            -- this based on the coverage metrics: if shorter traces cover all the
+            -- relevant cases, then there is no need to use such high number.
+            traceLength <- choose (1, 10000)
+            let nrSpecs = length specs
+            sipVotersBehaviors <- vectorOf nrSpecs genVotersBehavior
+            implVotersBehavior <- vectorOf nrSpecs genVotersBehavior
+            vectorOf traceLength
+              $ oneof
+              $ fmap (uncurry3 genActionsFor)
+              $ zip3 sipVotersBehaviors
+                     implVotersBehavior
+                     specs
+        #+END_SRC
+
+        where
+
+        #+BEGIN_SRC haskell
+          genVotersBehavior =
+            frequency [ (3, pure MostApprove)
+                      , (1, pure MostAbstain)
+                      , (1, pure MostReject)
+                      , (1, pure Uniform)
+                      ]
+        #+END_SRC
+
+        What is the probability of a proposal being:
+        - rejected in ideation phase: 1/6
+        - rejected in approval phase: 3/6 * 1/6
+        - activated: 3/6 * 3/6 * 1/2 = 1 / 8
 
 *** Relation with state machine testing
     The approach described above sound familiar to you?
 
-***** Where its use would have been challenging
-      - Properties where you need a whole trace fragment. Could be work around,
-        but I do not know how simple and/or elegant the end result would have
-        been.
+***** Reason for not using SM testing
+      - We did not know in advance how similar the two approaches will be.
+      - Not testing an impure system.
+
+***** A side-by-side comparison would be extremely useful
+      - Better to use existing libraries and techniques.
 
 * Expressing properties of the update mechanism
+
+*** The update mechanism in a nutshell
+    - Three phases: ideation, approval, activation.
+    - Commit-reveal scheme.
+    - Voting process in ideation and approval phases.
+      - Vote confidence: for, against, or abstain.
+    - Endorsements in activation phase.
+    - Proposals have priority.
+
+*** What are desirable properties
+***** Reveal only after stable commit
+***** Stable means stable
+      An event becomes stable after the exact number of slots that corresponds
+      to the stability window pass.
+***** No unrighful rejections of update payload
+***** Votes are correctly tallied
+***** Priorities are honored
+***** Endorsements are correctly tallied
+
+*** One of the most difficult properties to express
+    Endorsements are correctly tallied.
+
+    - What does this means?
+    - We had to replicate the tallying process.
+    - There are several endorsement periods.
+
+*** Properties are tricky to express
+    - Are we missing some important check?
+    - What are our (implicit) assumptions?
+
 
 * Bugs we found
 
