@@ -295,7 +295,9 @@
         - rejected in ideation phase: 1/6
         - rejected in approval phase: 3/6 * 1/6
         - activated: 3/6 * 3/6 * 1/2 = 1 / 8
+******* No hashing or signing needed
 
+        TODO: show the proposal class.
 *** Relation with state machine testing
     The approach described above sound familiar to you?
 
