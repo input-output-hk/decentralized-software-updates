@@ -380,6 +380,18 @@
     - Implementations are discarded due to being unsupported.
     - Implementations are activated.
 
+***** Examples might surprise you
+      - Example of an *obsolete proposal*:
+        - i.e. proposals that can never be adopted since they supersede a
+          version lower than the current version.
+      - I thought a minimal counterexample would have at least two proposals.
+      - You only need one:
+        - submit the same proposal twice:
+          - the first time it'll get activated,
+          - the second time it'll get rejected as obsolete.
+      - Found after making generators "dumber"
+        - Credit goes to Edsko for encouraging further simplifications.
+
 *** What are desirable properties
 
 ***** Reveal only after stable commit
@@ -432,7 +444,180 @@
              }
     #+END_SRC
 
+    - We can describe the protocol as a state machine.
+    - Easier to think about properties.
+    - We can also check the state query API ~stateOf~.
+
+*** Transition validation
+    #+BEGIN_SRC haskell
+      prop_updateEventTransitionsAreValid trace = Check $
+        forall (tsUpdateSpecs (scenario trace))
+               (`updateEventTransitionsForUpdateSpecAreValid` trace)
+    #+END_SRC
+
+    #+BEGIN_SRC haskell
+      updateEventTransitionsForUpdateSpecAreValid updateSpec trace = do
+        noUnrightfulRejectionsInUnknowState updateEventsOfUpdateSpec
+        sequence_ $ mapAdjacent validateTransition updateEventsOfUpdateSpec
+        where
+          updateEventsOfUpdateSpec = updateEvents updateSpec trace
+          -- ...
+    #+END_SRC
+
+    #+BEGIN_SRC haskell
+      validateTransition :: UpdateEvent -> UpdateEvent -> Assertion
+    #+END_SRC
+
+*** Finding missing transitions is fun
+
+    #+BEGIN_SRC haskell
+          validateTransition (E updateState  _)
+                             (E updateState' _) =
+            failBecause $  "Unexpected state change"
+                        <> " from: "
+                        <> cShow updateState
+                        <> " to: "
+                        <> cShow updateState'
+    #+END_SRC
+
+    - ~QuickCheck~ will report the missing transitions.
+      - For each missing transition:
+        - Is it expected? E.g. ~Unknown~ to ~Activated~.
+        - If it is (e.g. ~Unknown~ to ~SIP Submitted~): which conditions must
+          hold?
+
+*** Examples of assertions on transitions
+
+***** An SIP is submitted
+
+      #+BEGIN_SRC haskell
+            validateTransition (E Unknown _fragment)
+                               (E (SIP Submitted) fragment') = do
+              -- The action that led to the @SIP Submitted@ state should be a SIP
+              -- submitted.
+              getSubmittedSIP (firstAction fragment')
+                ==! Just (getSIPSubmission updateSpec)
+              -- The first valid action of @fragment'@ must have been an SIP submission.
+              -- After this action no other actions associated to @updateSpec@ are
+              -- allowed, besides implementation commits.
+              onlyImplementationSubmissionAllowed updateSpec
+                                                  (dropFirstValidAction fragment')
+              fragmentLengthInSlots fragment' <! stableAfter env
+              where
+                env = unUpdateSt (firstState fragment')
+      #+END_SRC
+
+***** A verdict on an implementation is reached
+
+      #+BEGIN_SRC haskell
+            validateTransition (E (Implementation StablyRevealed) fragment)
+                               (E (Implementation (Is what)) fragment') = do
+              validateVerdictEvent (getImpl updateSpec)
+                                   (getImplVoteOf (getImplId updateSpec))
+                                   fragment
+                                   (firstEvent fragment')
+                                   what
+      #+END_SRC
+
+      #+BEGIN_SRC haskell
+        validateVerdictEvent prop extractVote votingFragment tallyEvt decision = do
+          -- No verdict was reached before the last voting period.
+          forall votingPeriodsWithoutVerdict
+                 (noVerdictCanBeReached (noMajorityConfidences Undecided))
+          -- The verdict of the last voting period coincides with the given decision.
+          case decisionConfidence decision of
+            Nothing -> pass -- The decision does not involve majority checking.
+            Just conf ->
+              (stakeThreshold (adversarialStakeRatio env) (totalStake' tallyEvtSt)
+               <!
+               stake extractVote conf lastVotingPeriod tallyEvtSt)
+          -- No verdict different from @confidence@ can be reached.
+          noVerdictCanBeReached (noMajorityConfidences decision)
+                                (lastVotingPeriod, lastTallySt)
+          -- The number of voting periods is bounded by the maximum number of voting
+          -- periods.
+          length proposalVotingPeriods <=! proposalMaxVotingPeriodsI
+          -- If the verdict was @Expired@ then the number of voting periods should equal
+          -- the maximum number of voting periods. This means that expired proposals
+          -- should have gone through the maximum number of voting periods as specified
+          -- in its metadata.
+          when (decision == Expired) $
+            length proposalVotingPeriods ==! proposalMaxVotingPeriodsI
+          -- The slot of the tally state coincides with a tally slot.
+          exists
+            proposalVotingPeriods
+            (\(_, UpdateSt st) -> currentSlot tallyEvtSt ==! currentSlot st)
+          -- No valid vote should have been rejected in a voting period.
+          forall proposalVotingPeriods
+                 (\(votingPeriod, _) ->
+                    forall (invalidActions votingPeriod) noUnexpectedVoteRejection
+                 )
+      #+END_SRC
+
+******* The voting periods function is not very reader friendly 👎
+
+        [[../test/Test/Cardano/Ledger/Update/Properties/StateChangeValidity.hs::790][votingPeriods]]
+
+        - Maybe it can be made so.
+        - Function [[../test/Test/Cardano/Ledger/Update/Properties/StateChangeValidity.hs::848][endorsementIntervals]] is a bit better.
+
+***** A verdict on an activation is reached
+
+      #+BEGIN_SRC haskell
+        validateActivationVerdictEvent updateSpec endorsementsFragment tallyEvt updateState = do
+          onlyEndorsementsAreAllowed updateSpec endorsementsFragment
+          -- The proposal could not have been scheduled earlier.
+          forall endorsementIntervalsWithoutVerdict notEnoughEndorsements
+          -- The proposal gathered enough endorsements at the last tally state, which is
+          -- in @tallyEvt@.
+          case updateState of
+            Scheduled          ->
+              enoughEndorsements (lastEndorsementInterval, lastTallySt, lastThreshold)
+            ActivationExpired  ->
+              notEnoughEndorsements (lastEndorsementInterval, lastTallySt, lastThreshold)
+            ActivationCanceled ->
+              when (not (null proposalEndorsementIntervals)) $
+                notEnoughEndorsements (lastEndorsementInterval, lastTallySt, lastThreshold)
+            Queued             ->
+              when (not (null proposalEndorsementIntervals)) $
+                notEnoughEndorsements (lastEndorsementInterval, lastTallySt, lastThreshold)
+            _                  -> error $ "validateActivationVerdictEvent:"
+                                        ++ " the update state must be either"
+                                        ++ "`Scheduled`, `ActivationExpired`,"
+                                        ++ " `ActivationCanceled`, or `Queued`."
+          -- No valid endorsement is rejected.
+          forall proposalEndorsementIntervals
+                 (\(endorsementInterval, _, _) ->
+                    forall (invalidActions endorsementInterval)
+                           noUnexpectedEndorsementRejection
+                 )
+          -- The number of endorsement periods is bounded by the maximum number of
+          -- endorsement intervals.
+          --
+          -- TODO: the maximum number of endorsement intervals is not configurable yet.
+          length proposalEndorsementIntervals <=! 2
+          -- If we have a last slot in which tally took place, then the tally state
+          -- coincides with a tally slot. In other words, scheduling or expiration of
+          -- proposals can occur only at a tally point.
+          when (updateState == Scheduled || updateState == ActivationExpired) $
+            currentSlot tallyEvtSt ==! currentSlot lastTallySt
+      #+END_SRC
+
 * Bugs we found
+
+*** Zero threshold
+    #+BEGIN_SRC haskell
+      stakeThreshold r_a totalStake =
+        round $ 1/2 * (r_a + 1) * fromIntegral totalStake
+    #+END_SRC
+    - returns 0 when:
+      - ~r_a = 0~
+      - ~totalStake = 1~
+    - Proposals could have been:
+      - approved without votes
+      - activated without endorsements
+    - Could this have been a problem?
+      - Permissioned blockchain with 1 core node in charge of updates.
 
 * Conclusions
 
@@ -444,6 +629,7 @@
 
 * Other content to include
 
+*** TODO Review your code and see if there are other things worth mentioning
 * Random thoughts
   - Importance of research project for investigating testing framework ideas.
     - Discarded state machine testing.
