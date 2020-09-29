@@ -65,7 +65,7 @@
       applications:
 
       #+BEGIN_SRC haskell
-        f0 (f1 st) tx == ???
+        f0 (f1 st tx0) tx1 == ???
       #+END_SRC
 
       We need a "ledger algebra".
@@ -96,7 +96,7 @@
       - Invalid actions are also recorded in the trace.
         - Useful to test unexpected rejections
         - And also expected ones! (Does a double spending transaction actually
-          gets rejcted?)
+          gets rejected?)
 ***** Which properties we can express on traces
 ******* Money is constant in the system
         #+BEGIN_SRC haskell
@@ -300,8 +300,12 @@
         - rejected in approval phase: 3/6 * 1/6
         - activated: 3/6 * 3/6 * 1/2 = 1/8
 ******* No hashing or signing needed
+        [[../src/Cardano/Ledger/Update/Proposal.hs::36][module Cardano.Ledger.Update.Proposal]]
 
-        TODO: show the proposal class.
+        - Commitable
+        - Identifiable
+        - Signed
+
 *** Relation with state machine testing
     The approach described above sound familiar to you?
 
@@ -322,7 +326,62 @@
     - Endorsements in activation phase.
     - Proposals have priority.
 
+*** Some test cases
+***** SIP approval
+      [[../test/Test/Cardano/Ledger/Update/UnitTests/Ideation.hs::49][approveSIP]]
+
+      - [[../test/Test/Cardano/Ledger/UpdateSpec.hs::35][UpdateSpec]]
+***** Implementation approval
+      [[../test/Test/Cardano/Ledger/Update/UnitTests/Approval.hs::252][approveImplementation]]
+
+      - ~stateOf~
+        #+BEGIN_SRC haskell
+          stateOf :: UpdateSpec -> IState -> UpdateState
+        #+END_SRC
+
+        #+BEGIN_SRC haskell
+          data UpdateState
+            = Unknown
+            -- ^ The update is not know to the update-state
+            | SIP PhaseState
+            | Implementation PhaseState
+            | Queued
+            | ActivationExpired
+            | ActivationCanceled
+            | ActivationUnsupported
+            | BeingEndorsed
+            | HasEnoughEndorsements
+            | Scheduled
+            | Activated
+            deriving (Eq, Ord, Show, Generic)
+
+          data PhaseState
+            = Submitted
+            | StablySubmitted
+            | Revealed
+            | StablyRevealed
+            | Is Decision
+            | IsStably Decision
+            deriving (Eq, Ord, Show, Generic)
+        #+END_SRC
+***** Votes are not carried over
+      [[../test/Test/Cardano/Ledger/Update/UnitTests/Approval.hs][implVotesAreNotCarriedOver]]
+
+      Examples:
+      - can help understanding the specification.
+      - can be tested.
+
+***** Simple version change
+      [[../test/Test/Cardano/Ledger/Update/UnitTests/Activation.hs::83][simpleVersionChange]]
+
+*** Using quick check for obtaining examples
+    - SIP's are expired.
+    - Implementations get rejected.
+    - Implementations are discarded due to being unsupported.
+    - Implementations are activated.
+
 *** What are desirable properties
+
 ***** Reveal only after stable commit
 ***** Stable means stable
       An event becomes stable after the exact number of slots that corresponds
@@ -332,16 +391,46 @@
 ***** Priorities are honored
 ***** Endorsements are correctly tallied
 
-*** One of the most difficult properties to express
-    Endorsements are correctly tallied.
+*** Expressing properties was challenging
 
-    - What does this means?
-    - We had to replicate the tallying process.
-    - There are several endorsement periods.
+***** Reliance on ~stateOf~
+      - We did not want to break encapsulation of the ledger state.
+      - If the system reported ~stateOf == Unknown~ most property would be
+        vacuously true.
 
-*** Properties are tricky to express
-    - Are we missing some important check?
-    - What are our (implicit) assumptions?
+***** Completeness
+      - Are we missing important checks
+      - What are our (implicit) assumptions?
+
+***** Checking that endorsements are correctly tallied
+      - How do we express this?
+      - We had to replicate the tallying process.
+      - There are several endorsement periods.
+      - A lot of computation involved for a single property:
+        - for each proposal:
+          - for each endorsement period:
+            - when does it start being endorsed?
+            - when does it stop?
+            - where are the tally-points in the endorsement period?
+
+******* Complex computations led to an idea
+        - Use ~stateOf~ to multiplex the trace in sequences of events per update
+          specification.
+
+*** Multiplexing of trace into events
+    #+BEGIN_SRC haskell
+      data UpdateEvent
+         = E { eventState    :: UpdateState
+             -- ^ State that defines the event. An event occurs at the earliest state
+             -- in which the state of an update proposal changes.
+             , eventFragment :: TraceFragment UpdateSUT
+             -- ^ Longest trace fragment for which the update specification is in
+             -- 'eventState'.
+             --
+             -- Throughout the event fragment, the state of the update specification
+             -- that correspond to the event should be equal to 'eventState'.
+             }
+    #+END_SRC
 
 * Bugs we found
 
