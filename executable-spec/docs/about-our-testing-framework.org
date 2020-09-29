@@ -619,6 +619,2068 @@
     - Could this have been a problem?
       - Permissioned blockchain with 1 core node in charge of updates.
 
+*** Cutoff slots calculation
+***** Cutoff slot
+      Last slot in which endorsements are considered for an epoch.
+***** Cutoff calculation
+      #+BEGIN_SRC haskell
+        nextEpochFirstSlot - 2 * stableAfter
+      #+END_SRC
+***** Problem
+      What happens if ...
+      #+BEGIN_SRC haskell
+        slotsPerEpoch < 2 * stableAfter
+      #+END_SRC
+*** Entering the endorsement period at the wrong time
+    - being endorsed requires:
+      - ~supersedes version number == current version number~
+      - ~supersedes version id == current version id~
+***** Relevant assertion
+      #+BEGIN_SRC haskell
+            validateTransition (E (Implementation StablyRevealed) fragment)
+                               (E BeingEndorsed fragment') = do
+              -- ...
+              getCurrentProtocolVersion (firstState fragment')
+                ==! supersedesVersion (getProtocol updateSpec)
+              getCurrentProtocolId (firstState fragment')
+                ==! supersedesId (getProtocol updateSpec)
+      #+END_SRC
+***** Counterexample
+      Long trace since a lot of events are required.
+      #+BEGIN_SRC haskell
+        🎰 Property tests
+          Changes in state of SIP's are valid: FAIL (61.70s)
+            ,*** Failed! (after 599 tests and 82 shrinks):
+            forall: element does not satisfy the assertion:
+            UpdateSpec
+                { getUpdateSpecId = SpecId { unSpecId = 6 }
+                , getSIPSubmission = MockSubmission
+                    { mpSubmissionCommit = MockCommit 6
+                    , mpSubmissionSignatureVerifies = True
+                    }
+                , getSIPRevelation = MockRevelation
+                    { refersTo = MockCommit 6
+                    , reveals = MockProposal
+                        { mpId = MPId 6
+                        , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                        , mpPayload = ()
+                        }
+                    }
+                , getImplSubmission = MockSubmission
+                    { mpSubmissionCommit = MockCommit 6
+                    , mpSubmissionSignatureVerifies = True
+                    }
+                , getImplRevelation = MockRevelation
+                    { refersTo = MockCommit 6
+                    , reveals = MockProposal
+                        { mpId = MPId 6
+                        , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                        , mpPayload = ImplInfo
+                            { mockImplements = MPId 6
+                            , mockImplType = Protocol
+                                ( MockProtocol
+                                    { mpProtocolId = ProtocolId 6
+                                    , mpProtocolVersion = Version { getVersion = 4 }
+                                    , mpSupersedesId = ProtocolId 1
+                                    , mpSupersedesVersion = Version { getVersion = 1 }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+              ProtocolId 1 is not equal to ProtocolId 3
+            UpdateTestSetup
+                { tsK = BlockNo { unBlockNo = 1 }
+                , tsMaxVotingPeriods = VotingPeriod { unVotingPeriod = 1 }
+                , tsCurrentSlot = SlotNo { unSlotNo = 0 }
+                , tsSlotsPerEpoch = SlotNo { unSlotNo = 5 }
+                , tsAdversarialStakeRatio = 0.0
+                , tsParticipants = fromList
+                    [
+                        ( Participant
+                            ( ParticipantId { unParticipantId = 6 } )
+                        , 2
+                        )
+                    ]
+                , tsGenesisProtocol = MockProtocol
+                    { mpProtocolId = ProtocolId 0
+                    , mpProtocolVersion = Version { getVersion = 0 }
+                    , mpSupersedesId = ProtocolId 0
+                    , mpSupersedesVersion = Version { getVersion = 0 }
+                    }
+                , tsUpdateSpecs =
+                    [ UpdateSpec
+                        { getUpdateSpecId = SpecId { unSpecId = 6 }
+                        , getSIPSubmission = MockSubmission
+                            { mpSubmissionCommit = MockCommit 6
+                            , mpSubmissionSignatureVerifies = True
+                            }
+                        , getSIPRevelation = MockRevelation
+                            { refersTo = MockCommit 6
+                            , reveals = MockProposal
+                                { mpId = MPId 6
+                                , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                , mpPayload = ()
+                                }
+                            }
+                        , getImplSubmission = MockSubmission
+                            { mpSubmissionCommit = MockCommit 6
+                            , mpSubmissionSignatureVerifies = True
+                            }
+                        , getImplRevelation = MockRevelation
+                            { refersTo = MockCommit 6
+                            , reveals = MockProposal
+                                { mpId = MPId 6
+                                , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                , mpPayload = ImplInfo
+                                    { mockImplements = MPId 6
+                                    , mockImplType = Protocol
+                                        ( MockProtocol
+                                            { mpProtocolId = ProtocolId 6
+                                            , mpProtocolVersion = Version { getVersion = 4 }
+                                            , mpSupersedesId = ProtocolId 1
+                                            , mpSupersedesVersion = Version { getVersion = 1 }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    , UpdateSpec
+                        { getUpdateSpecId = SpecId { unSpecId = 3 }
+                        , getSIPSubmission = MockSubmission
+                            { mpSubmissionCommit = MockCommit 3
+                            , mpSubmissionSignatureVerifies = True
+                            }
+                        , getSIPRevelation = MockRevelation
+                            { refersTo = MockCommit 3
+                            , reveals = MockProposal
+                                { mpId = MPId 3
+                                , mpVotingPeriodDuration = SlotNo { unSlotNo = 9 }
+                                , mpPayload = ()
+                                }
+                            }
+                        , getImplSubmission = MockSubmission
+                            { mpSubmissionCommit = MockCommit 3
+                            , mpSubmissionSignatureVerifies = True
+                            }
+                        , getImplRevelation = MockRevelation
+                            { refersTo = MockCommit 3
+                            , reveals = MockProposal
+                                { mpId = MPId 3
+                                , mpVotingPeriodDuration = SlotNo { unSlotNo = 4 }
+                                , mpPayload = ImplInfo
+                                    { mockImplements = MPId 3
+                                    , mockImplType = Protocol
+                                        ( MockProtocol
+                                            { mpProtocolId = ProtocolId 3
+                                            , mpProtocolVersion = Version { getVersion = 1 }
+                                            , mpSupersedesId = ProtocolId 0
+                                            , mpSupersedesVersion = Version { getVersion = 0 }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                , tsActions =
+                    [ SIPCommit
+                        ( SpecId { unSpecId = 3 } )
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , SIPReveal
+                        ( SpecId { unSpecId = 3 } )
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , ImplCommit
+                        ( SpecId { unSpecId = 3 } )
+                    , JustTick
+                    , SIPVote
+                        ( MockVote
+                            { voteVoterId = MockVoterId
+                                { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                            , voteCandidate = MPId 3
+                            , voteConfidence = For
+                            , voteSignatureVerifies = True
+                            }
+                        )
+                    , SIPCommit
+                        ( SpecId { unSpecId = 6 } )
+                    , JustTick
+                    , ImplCommit
+                        ( SpecId { unSpecId = 6 } )
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , SIPReveal
+                        ( SpecId { unSpecId = 6 } )
+                    , JustTick
+                    , ImplReveal
+                        ( SpecId { unSpecId = 3 } )
+                    , JustTick
+                    , JustTick
+                    , SIPVote
+                        ( MockVote
+                            { voteVoterId = MockVoterId
+                                { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                            , voteCandidate = MPId 6
+                            , voteConfidence = For
+                            , voteSignatureVerifies = True
+                            }
+                        )
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , ImplVote
+                        ( MockVote
+                            { voteVoterId = MockVoterId
+                                { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                            , voteCandidate = MPId 3
+                            , voteConfidence = For
+                            , voteSignatureVerifies = True
+                            }
+                        )
+                    , JustTick
+                    , JustTick
+                    , ImplReveal
+                        ( SpecId { unSpecId = 6 } )
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , ImplEndorsement
+                        ( Endorsement
+                            { endorserId = EndorserId
+                                { unEndorserId = ParticipantId { unParticipantId = 6 } }
+                            , endorsedVersion = Version { getVersion = 1 }
+                            }
+                        )
+                    , ImplVote
+                        ( MockVote
+                            { voteVoterId = MockVoterId
+                                { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                            , voteCandidate = MPId 6
+                            , voteConfidence = For
+                            , voteSignatureVerifies = True
+                            }
+                        )
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    , JustTick
+                    ]
+                }
+            Initial state:
+            [ Unknown
+            , Unknown
+            ]
+            Events:
+            [
+                ( UpdateAct
+                    ( Ideation
+                        ( Submit
+                            ( MockSubmission
+                                { mpSubmissionCommit = MockCommit 3
+                                , mpSubmissionSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Unknown
+                    , SIP Submitted
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP Submitted
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablySubmitted
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablySubmitted
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Ideation
+                        ( Reveal
+                            ( MockRevelation
+                                { refersTo = MockCommit 3
+                                , reveals = MockProposal
+                                    { mpId = MPId 3
+                                    , mpVotingPeriodDuration = SlotNo { unSlotNo = 9 }
+                                    , mpPayload = ()
+                                    }
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Unknown
+                    , SIP Revealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP Revealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Approval
+                        ( Submit
+                            ( MockSubmission
+                                { mpSubmissionCommit = MockCommit 3
+                                , mpSubmissionSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Ideation
+                        ( Cast
+                            ( MockVote
+                                { voteVoterId = MockVoterId
+                                    { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                                , voteCandidate = MPId 3
+                                , voteConfidence = For
+                                , voteSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Unknown
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Ideation
+                        ( Submit
+                            ( MockSubmission
+                                { mpSubmissionCommit = MockCommit 6
+                                , mpSubmissionSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ SIP Submitted
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP Submitted
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Approval
+                        ( Submit
+                            ( MockSubmission
+                                { mpSubmissionCommit = MockCommit 6
+                                , mpSubmissionSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ SIP Submitted
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablySubmitted
+                    , SIP StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablySubmitted
+                    , Implementation StablySubmitted
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablySubmitted
+                    , Implementation StablySubmitted
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Ideation
+                        ( Reveal
+                            ( MockRevelation
+                                { refersTo = MockCommit 6
+                                , reveals = MockProposal
+                                    { mpId = MPId 6
+                                    , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                    , mpPayload = ()
+                                    }
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ SIP Revealed
+                    , Implementation StablySubmitted
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP Revealed
+                    , Implementation StablySubmitted
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Approval
+                        ( Reveal
+                            ( MockRevelation
+                                { refersTo = MockCommit 3
+                                , reveals = MockProposal
+                                    { mpId = MPId 3
+                                    , mpVotingPeriodDuration = SlotNo { unSlotNo = 4 }
+                                    , mpPayload = ImplInfo
+                                        { mockImplements = MPId 3
+                                        , mockImplType = Protocol
+                                            ( MockProtocol
+                                                { mpProtocolId = ProtocolId 3
+                                                , mpProtocolVersion = Version { getVersion = 1 }
+                                                , mpSupersedesId = ProtocolId 0
+                                                , mpSupersedesVersion = Version { getVersion = 0 }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ SIP Revealed
+                    , Implementation Revealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablyRevealed
+                    , Implementation Revealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablyRevealed
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Ideation
+                        ( Cast
+                            ( MockVote
+                                { voteVoterId = MockVoterId
+                                    { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                                , voteCandidate = MPId 6
+                                , voteConfidence = For
+                                , voteSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ SIP StablyRevealed
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablyRevealed
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ SIP StablyRevealed
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablySubmitted
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Approval
+                        ( Cast
+                            ( MockVote
+                                { voteVoterId = MockVoterId
+                                    { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                                , voteCandidate = MPId 3
+                                , voteConfidence = For
+                                , voteSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Implementation StablySubmitted
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablySubmitted
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablySubmitted
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Approval
+                        ( Reveal
+                            ( MockRevelation
+                                { refersTo = MockCommit 6
+                                , reveals = MockProposal
+                                    { mpId = MPId 6
+                                    , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                    , mpPayload = ImplInfo
+                                        { mockImplements = MPId 6
+                                        , mockImplType = Protocol
+                                            ( MockProtocol
+                                                { mpProtocolId = ProtocolId 6
+                                                , mpProtocolVersion = Version { getVersion = 4 }
+                                                , mpSupersedesId = ProtocolId 1
+                                                , mpSupersedesVersion = Version { getVersion = 1 }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Implementation Revealed
+                    , Implementation StablyRevealed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation Revealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablyRevealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablyRevealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Activation
+                        ( Endorsement
+                            { endorserId = EndorserId
+                                { unEndorserId = ParticipantId { unParticipantId = 6 } }
+                            , endorsedVersion = Version { getVersion = 1 }
+                            }
+                        )
+                    )
+                ,
+                    [ Implementation StablyRevealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( UpdateAct
+                    ( Approval
+                        ( Cast
+                            ( MockVote
+                                { voteVoterId = MockVoterId
+                                    { unMockVoterId = ParticipantId { unParticipantId = 6 } }
+                                , voteCandidate = MPId 6
+                                , voteConfidence = For
+                                , voteSignatureVerifies = True
+                                }
+                            )
+                        )
+                    )
+                ,
+                    [ Implementation StablyRevealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablyRevealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Implementation StablyRevealed
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Queued
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Queued
+                    , BeingEndorsed
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Queued
+                    , Scheduled
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ Queued
+                    , Scheduled
+                    ]
+                )
+            ,
+                ( TickAct
+                ,
+                    [ BeingEndorsed
+                    , Activated
+                    ]
+                )
+            ]
+            Use --quickcheck-replay=246825 to reproduce.
+      #+END_SRC
+*** Votes on rejected or expired proposals
+***** Relevant assertion
+      #+BEGIN_SRC haskell
+          validateTransition (E (SIP StablyRevealed) fragment)
+                               (E (SIP (Is what)) fragment') = do
+              validateVerdictEvent (getSIP updateSpec)
+                                   (getSIPVoteOf (getSIPId updateSpec))
+                                   fragment
+                                   (firstEvent fragment')
+                                   what
+              -- We shouldn't see any actions in @fragment'@, save for implementation
+              -- submissions, which the system cannot check.
+              onlyImplementationSubmissionAllowed updateSpec fragment'
+      #+END_SRC
+***** Counterexample
+      Wait for expiration then vote:
+      #+BEGIN_SRC haskell
+        Update
+          �� Property tests
+            wip: Changes in state of update proposals are valid: FAIL (0.07s)
+              ,*** Failed! (after 1 test and 29 shrinks):
+              forall: element does not satisfy the assertion:
+              UpdateSpec
+                  { getUpdateSpecId = SpecId { unSpecId = 4 }
+                  , getSIPSubmission = MockSubmission
+                      { mpSubmissionCommit = MockCommit 4
+                      , mpSubmissionSignatureVerifies = True
+                      }
+                  , getSIPRevelation = MockRevelation
+                      { refersTo = MockCommit 4
+                      , reveals = MockProposal
+                          { mpId = MPId 4
+                          , mpVotingPeriodDuration = SlotNo { unSlotNo = 0 }
+                          , mpPayload = ()
+                          }
+                      }
+                  , getImplSubmission = MockSubmission
+                      { mpSubmissionCommit = MockCommit 4
+                      , mpSubmissionSignatureVerifies = True
+                      }
+                  , getImplRevelation = MockRevelation
+                      { refersTo = MockCommit 4
+                      , reveals = MockProposal
+                          { mpId = MPId 4
+                          , mpVotingPeriodDuration = SlotNo { unSlotNo = 0 }
+                          , mpPayload = ImplInfo
+                              { mockImplements = MPId 4
+                              , mockImplType = Protocol
+                                  ( MockProtocol
+                                      { mpProtocolId = ProtocolId 4
+                                      , mpProtocolVersion = Version { getVersion = 3 }
+                                      , mpSupersedesId = ProtocolId 1
+                                      , mpSupersedesVersion = Version { getVersion = 1 }
+                                      }
+                                  )
+                              }
+                          }
+                      }
+                  }
+                forall: element does not satisfy the assertion:
+              UpdateAct
+                  ( Ideation
+                      ( Cast
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                              , voteCandidate = MPId 4
+                              , voteConfidence = Against
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      )
+                  )
+                    Just ( MPId 4 ) is equal to Just ( MPId 4 )
+              UpdateTestSetup
+                  { tsK = BlockNo { unBlockNo = 1 }
+                  , tsMaxVotingPeriods = VotingPeriod { unVotingPeriod = 1 }
+                  , tsCurrentSlot = SlotNo { unSlotNo = 0 }
+                  , tsSlotsPerEpoch = SlotNo { unSlotNo = 5 }
+                  , tsAdversarialStakeRatio = 0.0
+                  , tsParticipants = fromList
+                      [
+                          ( Participant
+                              ( ParticipantId { unParticipantId = 1 } )
+                          , 0
+                          )
+                      ]
+                  , tsGenesisProtocol = MockProtocol
+                      { mpProtocolId = ProtocolId 0
+                      , mpProtocolVersion = Version { getVersion = 0 }
+                      , mpSupersedesId = ProtocolId 0
+                      , mpSupersedesVersion = Version { getVersion = 0 }
+                      }
+                  , tsUpdateSpecs =
+                      [ UpdateSpec
+                          { getUpdateSpecId = SpecId { unSpecId = 4 }
+                          , getSIPSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 4
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getSIPRevelation = MockRevelation
+                              { refersTo = MockCommit 4
+                              , reveals = MockProposal
+                                  { mpId = MPId 4
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 0 }
+                                  , mpPayload = ()
+                                  }
+                              }
+                          , getImplSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 4
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getImplRevelation = MockRevelation
+                              { refersTo = MockCommit 4
+                              , reveals = MockProposal
+                                  { mpId = MPId 4
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 0 }
+                                  , mpPayload = ImplInfo
+                                      { mockImplements = MPId 4
+                                      , mockImplType = Protocol
+                                          ( MockProtocol
+                                              { mpProtocolId = ProtocolId 4
+                                              , mpProtocolVersion = Version { getVersion = 3 }
+                                              , mpSupersedesId = ProtocolId 1
+                                              , mpSupersedesVersion = Version { getVersion = 1 }
+                                              }
+                                          )
+                                      }
+                                  }
+                              }
+                          }
+                      ]
+                  , tsActions =
+                      [ SIPCommit
+                          ( SpecId { unSpecId = 4 } )
+                      , JustTick
+                      , JustTick
+                      , SIPReveal
+                          ( SpecId { unSpecId = 4 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , SIPVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                              , voteCandidate = MPId 4
+                              , voteConfidence = Against
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      ]
+                  }
+              Initial state:
+              [ Unknown ]
+              Events:
+              [
+                  ( UpdateAct
+                      ( Ideation
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 4
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  , [ SIP Submitted ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP Submitted ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablySubmitted ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 4
+                                  , reveals = MockProposal
+                                      { mpId = MPId 4
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 0 }
+                                      , mpPayload = ()
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  , [ SIP Revealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP Revealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP ( Is Expired ) ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                                  , voteCandidate = MPId 4
+                                  , voteConfidence = Against
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP ( Is Expired ) ]
+                  )
+              ]
+      #+END_SRC
+***** The culprit
+      #+BEGIN_SRC haskell
+        apply env (Cast vote) st   = do
+          unless (signatureVerifies vote)
+            $ throwError (VoteSignatureDoesNotVerify vote)
+          let sipId = candidate vote
+          unless (Proposals.votingPeriodHasStarted env sipId (proposalsState st))
+            $ throwError (VotePeriodHasNotStarted (currentSlot env) vote (proposalsState st))
+          when (Proposals.votingPeriodHasEnded env sipId (proposalsState st))
+            $ throwError (VotePeriodHasEnded (currentSlot env) vote (proposalsState st))
+          pure $ st { proposalsState =
+                      Proposals.updateBallot sipId vote (proposalsState st)
+                    }
+      #+END_SRC
+
+      No checks on verdict:
+
+      #+BEGIN_SRC haskell
+        votingPeriodHasEnded env ps = votingPeriodEnd env ps <= currentSlot env
+      #+END_SRC
+*** Queued proposals that should have been removed
+    If a proposal is queued, then it must be possible for the protocol version
+    it supersedes to be adopted.
+***** Relevant assertion
+      #+BEGIN_SRC haskell
+            validateTransition (E (Implementation StablyRevealed) fragment)
+                               (E Queued fragment') = do
+              -- ...
+
+              -- the current version, or there is a candidate proposal with higher or
+              -- the same priority.
+              ( getCurrentProtocolVersion (firstState fragment')
+                   <! supersedesVersion (getProtocol updateSpec)
+                ||!
+                exists
+                  (candidatesAtTheBeginningOf fragment' `withIdDifferentFrom` updateSpec)
+                  (\protocol ->
+                     version protocol <! version (getProtocol updateSpec)))
+      #+END_SRC
+***** Counterexample
+      - Update specification 9 fails
+      - The other update in the test setup has the version that update spec 9
+        needs.
+        - But it has a different protocol id.
+
+      #+BEGIN_SRC haskell
+        Update
+          🎰 Property tests
+            wip: Changes in state of update proposals are valid: FAIL (26.04s)
+              ,*** Failed! (after 848 tests and 136 shrinks):
+              forall: element does not satisfy the assertion:
+              UpdateSpec
+                  { getUpdateSpecId = SpecId { unSpecId = 9 }
+                  , getSIPSubmission = MockSubmission
+                      { mpSubmissionCommit = MockCommit 9
+                      , mpSubmissionSignatureVerifies = True
+                      }
+                  , getSIPRevelation = MockRevelation
+                      { refersTo = MockCommit 9
+                      , reveals = MockProposal
+                          { mpId = MPId 9
+                          , mpVotingPeriodDuration = SlotNo { unSlotNo = 7 }
+                          , mpPayload = ()
+                          }
+                      }
+                  , getImplSubmission = MockSubmission
+                      { mpSubmissionCommit = MockCommit 9
+                      , mpSubmissionSignatureVerifies = True
+                      }
+                  , getImplRevelation = MockRevelation
+                      { refersTo = MockCommit 9
+                      , reveals = MockProposal
+                          { mpId = MPId 9
+                          , mpVotingPeriodDuration = SlotNo { unSlotNo = 1 }
+                          , mpPayload = ImplInfo
+                              { mockImplements = MPId 9
+                              , mockImplType = Protocol
+                                  ( MockProtocol
+                                      { mpProtocolId = ProtocolId 9
+                                      , mpProtocolVersion = Version { getVersion = 5 }
+                                      , mpSupersedesId = ProtocolId 4
+                                      , mpSupersedesVersion = Version { getVersion = 1 }
+                                      }
+                                  )
+                              }
+                          }
+                      }
+                  }
+                No term satisfies the assertion:
+                    Version { getVersion = 1 } is not less than Version { getVersion = 1 }
+                    exists: No element satisfies the given assertion
+              UpdateTestSetup
+                  { tsK = BlockNo { unBlockNo = 4 }
+                  , tsMaxVotingPeriods = VotingPeriod { unVotingPeriod = 1 }
+                  , tsCurrentSlot = SlotNo { unSlotNo = 0 }
+                  , tsSlotsPerEpoch = SlotNo { unSlotNo = 17 }
+                  , tsAdversarialStakeRatio = 0.0
+                  , tsParticipants = fromList
+                      [
+                          ( Participant
+                              ( ParticipantId { unParticipantId = 1 } )
+                          , 2
+                          )
+                      ]
+                  , tsGenesisProtocol = MockProtocol
+                      { mpProtocolId = ProtocolId 0
+                      , mpProtocolVersion = Version { getVersion = 0 }
+                      , mpSupersedesId = ProtocolId 0
+                      , mpSupersedesVersion = Version { getVersion = 0 }
+                      }
+                  , tsUpdateSpecs =
+                      [ UpdateSpec
+                          { getUpdateSpecId = SpecId { unSpecId = 9 }
+                          , getSIPSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 9
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getSIPRevelation = MockRevelation
+                              { refersTo = MockCommit 9
+                              , reveals = MockProposal
+                                  { mpId = MPId 9
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 7 }
+                                  , mpPayload = ()
+                                  }
+                              }
+                          , getImplSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 9
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getImplRevelation = MockRevelation
+                              { refersTo = MockCommit 9
+                              , reveals = MockProposal
+                                  { mpId = MPId 9
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 1 }
+                                  , mpPayload = ImplInfo
+                                      { mockImplements = MPId 9
+                                      , mockImplType = Protocol
+                                          ( MockProtocol
+                                              { mpProtocolId = ProtocolId 9
+                                              , mpProtocolVersion = Version { getVersion = 5 }
+                                              , mpSupersedesId = ProtocolId 4
+                                              , mpSupersedesVersion = Version { getVersion = 1 }
+                                              }
+                                          )
+                                      }
+                                  }
+                              }
+                          }
+                      , UpdateSpec
+                          { getUpdateSpecId = SpecId { unSpecId = 2 }
+                          , getSIPSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 2
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getSIPRevelation = MockRevelation
+                              { refersTo = MockCommit 2
+                              , reveals = MockProposal
+                                  { mpId = MPId 2
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 3 }
+                                  , mpPayload = ()
+                                  }
+                              }
+                          , getImplSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 2
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getImplRevelation = MockRevelation
+                              { refersTo = MockCommit 2
+                              , reveals = MockProposal
+                                  { mpId = MPId 2
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 1 }
+                                  , mpPayload = ImplInfo
+                                      { mockImplements = MPId 2
+                                      , mockImplType = Protocol
+                                          ( MockProtocol
+                                              { mpProtocolId = ProtocolId 2
+                                              , mpProtocolVersion = Version { getVersion = 1 }
+                                              , mpSupersedesId = ProtocolId 0
+                                              , mpSupersedesVersion = Version { getVersion = 0 }
+                                              }
+                                          )
+                                      }
+                                  }
+                              }
+                          }
+                      ]
+                  , tsActions =
+                      [ SIPCommit
+                          ( SpecId { unSpecId = 2 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplCommit
+                          ( SpecId { unSpecId = 2 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , SIPReveal
+                          ( SpecId { unSpecId = 2 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , SIPCommit
+                          ( SpecId { unSpecId = 9 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , SIPVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                              , voteCandidate = MPId 2
+                              , voteConfidence = For
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplReveal
+                          ( SpecId { unSpecId = 2 } )
+                      , JustTick
+                      , SIPReveal
+                          ( SpecId { unSpecId = 9 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                              , voteCandidate = MPId 2
+                              , voteConfidence = For
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplCommit
+                          ( SpecId { unSpecId = 9 } )
+                      , JustTick
+                      , SIPVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                              , voteCandidate = MPId 9
+                              , voteConfidence = For
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplReveal
+                          ( SpecId { unSpecId = 9 } )
+                      , ImplEndorsement
+                          ( Endorsement
+                              { endorserId = EndorserId
+                                  { unEndorserId = ParticipantId { unParticipantId = 1 } }
+                              , endorsedVersion = Version { getVersion = 1 }
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                              , voteCandidate = MPId 9
+                              , voteConfidence = For
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      ]
+                  }
+              Initial state:
+              [ Unknown
+              , Unknown
+              ]
+              Events:
+              [
+                  ( UpdateAct
+                      ( Ideation
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 2
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 2
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Submitted
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP StablySubmitted
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 2
+                                  , reveals = MockProposal
+                                      { mpId = MPId 2
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 3 }
+                                      , mpPayload = ()
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Unknown
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 9
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP Submitted
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                                  , voteCandidate = MPId 2
+                                  , voteConfidence = For
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Submitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , SIP StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , Implementation StablySubmitted
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 2
+                                  , reveals = MockProposal
+                                      { mpId = MPId 2
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 1 }
+                                      , mpPayload = ImplInfo
+                                          { mockImplements = MPId 2
+                                          , mockImplType = Protocol
+                                              ( MockProtocol
+                                                  { mpProtocolId = ProtocolId 2
+                                                  , mpProtocolVersion = Version { getVersion = 1 }
+                                                  , mpSupersedesId = ProtocolId 0
+                                                  , mpSupersedesVersion = Version { getVersion = 0 }
+                                                  }
+                                              )
+                                          }
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP StablySubmitted
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablySubmitted
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 9
+                                  , reveals = MockProposal
+                                      { mpId = MPId 9
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 7 }
+                                      , mpPayload = ()
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation Revealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP Revealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                                  , voteCandidate = MPId 2
+                                  , voteConfidence = For
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP Revealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 9
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                                  , voteCandidate = MPId 9
+                                  , voteConfidence = For
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , Implementation StablyRevealed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ SIP StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablySubmitted
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 9
+                                  , reveals = MockProposal
+                                      { mpId = MPId 9
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 1 }
+                                      , mpPayload = ImplInfo
+                                          { mockImplements = MPId 9
+                                          , mockImplType = Protocol
+                                              ( MockProtocol
+                                                  { mpProtocolId = ProtocolId 9
+                                                  , mpProtocolVersion = Version { getVersion = 5 }
+                                                  , mpSupersedesId = ProtocolId 4
+                                                  , mpSupersedesVersion = Version { getVersion = 1 }
+                                                  }
+                                              )
+                                          }
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Activation
+                          ( Endorsement
+                              { endorserId = EndorserId
+                                  { unEndorserId = ParticipantId { unParticipantId = 1 } }
+                              , endorsedVersion = Version { getVersion = 1 }
+                              }
+                          )
+                      )
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation Revealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 1 } }
+                                  , voteCandidate = MPId 9
+                                  , voteConfidence = For
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  ,
+                      [ Implementation StablyRevealed
+                      , BeingEndorsed
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Implementation StablyRevealed
+                      , Scheduled
+                      ]
+                  )
+              ,
+                  ( TickAct
+                  ,
+                      [ Queued
+                      , Activated
+                      ]
+                  )
+              ]
+              Use --quickcheck-replay=967840 to reproduce.
+      #+END_SRC
+***** The culprit
+      #+BEGIN_SRC haskell
+            cannotFollowCurrentVersion =
+              protocolSupersedesVersion < State.getCurrentProtocolVersion st
+      #+END_SRC
 * Conclusions
 
 *** Do not recommend using these ideas right away
