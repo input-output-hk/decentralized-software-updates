@@ -5,6 +5,14 @@
     - Funded by EU's Horizon 2020
     - IO Research goal: develop and validate an update protocol for Cardano.
 
+*** The update mechanism in a nutshell
+    - Three phases: ideation, approval, activation.
+    - Commit-reveal scheme.
+    - Voting process in ideation and approval phases.
+      - Vote confidence: for, against, or abstain.
+    - Endorsements in activation phase.
+    - Proposals have priority.
+
 * Main challenges of an update protocol
 
 *** Seamlessly switching between versions
@@ -29,10 +37,10 @@
 *** Pure functions
 
     #+BEGIN_SRC haskell
-      :: ( ... ) => st -> tx -> st
+      :: ( ... ) => st -> d -> Either err st
       --   ^
       --   |
-      --   ---- constraints on st, tx (e.g. which information they need to provide
+      --   ---- constraints on st, d (e.g. which information they need to provide
       --        which operations they should support)
     #+END_SRC
 
@@ -50,7 +58,7 @@
       If ~f~ is a function of a ledger API we could write:
 
       #+BEGIN_SRC haskell
-        prop_i_f :: st -> tx -> st
+        prop_i_f :: st -> tx -> Bool
       #+END_SRC
 
       Problems:
@@ -78,12 +86,12 @@
           - SIP reveal
           - SIP votes
           - Implementation commit
-          - Implementation reveals
+          - Implementation reveal
+          - Implementation votes
         - Using a couple of function calls is not enough.
-        - Plain old PBT makes it hard to test: 2 proposals make it to the
-          activation phase.
-          - This is a quite important case if we want to test the queuing
-            mechanism.
+
+******* Another example: 2 approved proposals
+        Important for testing the queuing mechanism.
 
 *** From sequences of actions to traces
     Applying sequences of actions:
@@ -94,7 +102,7 @@
 ***** What are traces
       - Sequence of actions and ensuing state.
       - Invalid actions are also recorded in the trace.
-        - Useful to test unexpected rejections
+        - Useful to test unexpected rejections.
         - And also expected ones! (Does a double spending transaction actually
           gets rejected?)
 ***** Which properties we can express on traces
@@ -129,9 +137,11 @@
 
 *** How it was done in Byron
     - try our best to generate valid signals
+      - masking off errors (e.g. UTxO generation without double spending)
       - needed when composing multiple rules
       - required intimate knowledge of the rules
         - generators looked in the rules state
+    - influenced by interpreting (SOS) inference-rules as generators.
 
 ***** Disadvantages
       - tight coupling tests and implementation
@@ -160,6 +170,7 @@
       - Why two type parameters in ~HasScenario~?
 
 ***** Modeling external disturbances
+      - Thanks Nick for pointing out this.
       - If a property holds when tested in isolation, but not when integrated,
         then it must be because of the effect of other sub-systems (always
         assuming good coverage).
@@ -259,11 +270,11 @@
             deriving (Show)
         #+END_SRC
 ******* Easier to reason about coverage
-        What is the probability of a proposal being:
-        - rejected in ideation phase
-        - rejected in approval phase
-        - activated
-
+        - Note the use of "voters behavior" in the action generator.
+        - What is the probability of a proposal being:
+          - rejected in ideation phase
+          - rejected in approval phase
+          - activated
 
         #+BEGIN_SRC haskell
           genActions :: [Participant] -> [UpdateSpec] -> Gen [UpdateAction]
@@ -317,14 +328,14 @@
       - Better to use existing libraries and techniques.
 
 * Expressing properties of the update mechanism
-
 *** The update mechanism in a nutshell
     - Three phases: ideation, approval, activation.
-    - Commit-reveal scheme.
+    - Proposals submitted using a commit-reveal scheme.
     - Voting process in ideation and approval phases.
       - Vote confidence: for, against, or abstain.
     - Endorsements in activation phase.
     - Proposals have priority.
+    - Proposals specify one dependency.
 
 *** Some test cases
 ***** SIP approval
@@ -365,7 +376,7 @@
             deriving (Eq, Ord, Show, Generic)
         #+END_SRC
 ***** Votes are not carried over
-      [[../test/Test/Cardano/Ledger/Update/UnitTests/Approval.hs][implVotesAreNotCarriedOver]]
+      [[../test/Test/Cardano/Ledger/Update/UnitTests/Approval.hs::171][implVotesAreNotCarriedOver]]
 
       Examples:
       - can help understanding the specification.
@@ -380,6 +391,325 @@
     - Implementations are discarded due to being unsupported.
     - Implementations are activated.
 
+***** Example of update activation
+      #+BEGIN_SRC haskell
+        Progress 1/2: decentralized-updatesUpdate
+          �� Property tests
+            Implementations are activated: OK (0.71s)
+              +++ OK, failed as expected. Falsifiable (after 1 test and 55 shrinks):
+              UpdateTestSetup
+                  { tsK = BlockNo { unBlockNo = 1 }
+                  , tsMaxVotingPeriods = VotingPeriod { unVotingPeriod = 1 }
+                  , tsCurrentSlot = SlotNo { unSlotNo = 0 }
+                  , tsSlotsPerEpoch = SlotNo { unSlotNo = 5 }
+                  , tsAdversarialStakeRatio = 0.0
+                  , tsParticipants = fromList
+                      [
+                          ( Participant
+                              ( ParticipantId { unParticipantId = 3 } )
+                          , 2
+                          )
+                      ]
+                  , tsGenesisProtocol = MockProtocol
+                      { mpProtocolId = ProtocolId 0
+                      , mpProtocolVersion = Version { getVersion = 0 }
+                      , mpSupersedesId = ProtocolId 0
+                      , mpSupersedesVersion = Version { getVersion = 0 }
+                      }
+                  , tsUpdateSpecs =
+                      [ UpdateSpec
+                          { getUpdateSpecId = SpecId { unSpecId = 1 }
+                          , getSIPSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 1
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getSIPRevelation = MockRevelation
+                              { refersTo = MockCommit 1
+                              , reveals = MockProposal
+                                  { mpId = MPId 1
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                  , mpPayload = ()
+                                  }
+                              }
+                          , getImplSubmission = MockSubmission
+                              { mpSubmissionCommit = MockCommit 1
+                              , mpSubmissionSignatureVerifies = True
+                              }
+                          , getImplRevelation = MockRevelation
+                              { refersTo = MockCommit 1
+                              , reveals = MockProposal
+                                  { mpId = MPId 1
+                                  , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                  , mpPayload = ImplInfo
+                                      { mockImplements = MPId 1
+                                      , mockImplType = Protocol
+                                          ( MockProtocol
+                                              { mpProtocolId = ProtocolId 1
+                                              , mpProtocolVersion = Version { getVersion = 4 }
+                                              , mpSupersedesId = ProtocolId 0
+                                              , mpSupersedesVersion = Version { getVersion = 0 }
+                                              }
+                                          )
+                                      }
+                                  }
+                              }
+                          }
+                      ]
+                  , tsActions =
+                      [ SIPCommit
+                          ( SpecId { unSpecId = 1 } )
+                      , JustTick
+                      , JustTick
+                      , SIPReveal
+                          ( SpecId { unSpecId = 1 } )
+                      , JustTick
+                      , JustTick
+                      , ImplCommit
+                          ( SpecId { unSpecId = 1 } )
+                      , JustTick
+                      , SIPVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 3 } }
+                              , voteCandidate = MPId 1
+                              , voteConfidence = For
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplReveal
+                          ( SpecId { unSpecId = 1 } )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplVote
+                          ( MockVote
+                              { voteVoterId = MockVoterId
+                                  { unMockVoterId = ParticipantId { unParticipantId = 3 } }
+                              , voteCandidate = MPId 1
+                              , voteConfidence = For
+                              , voteSignatureVerifies = True
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , ImplEndorsement
+                          ( Endorsement
+                              { endorserId = EndorserId
+                                  { unEndorserId = ParticipantId { unParticipantId = 3 } }
+                              , endorsedVersion = Version { getVersion = 4 }
+                              }
+                          )
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      , JustTick
+                      ]
+                  }
+              Initial state:
+              [ Unknown ]
+              Events:
+              [
+                  ( UpdateAct
+                      ( Ideation
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 1
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  , [ SIP Submitted ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP Submitted ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablySubmitted ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 1
+                                  , reveals = MockProposal
+                                      { mpId = MPId 1
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                      , mpPayload = ()
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  , [ SIP Revealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP Revealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Submit
+                              ( MockSubmission
+                                  { mpSubmissionCommit = MockCommit 1
+                                  , mpSubmissionSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Ideation
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 3 } }
+                                  , voteCandidate = MPId 1
+                                  , voteConfidence = For
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ SIP StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Implementation StablySubmitted ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Reveal
+                              ( MockRevelation
+                                  { refersTo = MockCommit 1
+                                  , reveals = MockProposal
+                                      { mpId = MPId 1
+                                      , mpVotingPeriodDuration = SlotNo { unSlotNo = 2 }
+                                      , mpPayload = ImplInfo
+                                          { mockImplements = MPId 1
+                                          , mockImplType = Protocol
+                                              ( MockProtocol
+                                                  { mpProtocolId = ProtocolId 1
+                                                  , mpProtocolVersion = Version { getVersion = 4 }
+                                                  , mpSupersedesId = ProtocolId 0
+                                                  , mpSupersedesVersion = Version { getVersion = 0 }
+                                                  }
+                                              )
+                                          }
+                                      }
+                                  }
+                              )
+                          )
+                      )
+                  , [ Implementation Revealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Implementation Revealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Implementation StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Implementation StablyRevealed ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Approval
+                          ( Cast
+                              ( MockVote
+                                  { voteVoterId = MockVoterId
+                                      { unMockVoterId = ParticipantId { unParticipantId = 3 } }
+                                  , voteCandidate = MPId 1
+                                  , voteConfidence = For
+                                  , voteSignatureVerifies = True
+                                  }
+                              )
+                          )
+                      )
+                  , [ Implementation StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Implementation StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Implementation StablyRevealed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ BeingEndorsed ]
+                  )
+              ,
+                  ( UpdateAct
+                      ( Activation
+                          ( Endorsement
+                              { endorserId = EndorserId
+                                  { unEndorserId = ParticipantId { unParticipantId = 3 } }
+                              , endorsedVersion = Version { getVersion = 4 }
+                              }
+                          )
+                      )
+                  , [ BeingEndorsed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ BeingEndorsed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ BeingEndorsed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ BeingEndorsed ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Scheduled ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Scheduled ]
+                  )
+              ,
+                  ( TickAct
+                  , [ Activated ]
+                  )
+              ]
+      #+END_SRC
 ***** Examples might surprise you
       - Example of an *obsolete proposal*:
         - i.e. proposals that can never be adopted since they supersede a
@@ -2682,7 +3012,12 @@
               protocolSupersedesVersion < State.getCurrentProtocolVersion st
       #+END_SRC
 * Conclusions
-
+*** Dumb generation works really well
+    - Keep generation simple
+    - Have good shrinking
+    - Decoupling implementation and tests
+*** Dumb generation needs a test setup
+*** The importance of having research projects within IOHK
 *** Do not recommend using these ideas right away
     - Investigate the use of state-machine testing
       - More reuse.
