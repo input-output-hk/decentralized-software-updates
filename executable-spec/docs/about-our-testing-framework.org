@@ -338,13 +338,9 @@
     - Proposals specify one dependency.
 
 *** Some test cases
-***** SIP approval
-      [[../test/Test/Cardano/Ledger/Update/UnitTests/Ideation.hs::49][approveSIP]]
-
-      - [[../test/Test/Cardano/Ledger/UpdateSpec.hs::35][UpdateSpec]]
 ***** Implementation approval
       [[../test/Test/Cardano/Ledger/Update/UnitTests/Approval.hs::252][approveImplementation]]
-
+      - [[../test/Test/Cardano/Ledger/UpdateSpec.hs::35][UpdateSpec]]
       - ~stateOf~
         #+BEGIN_SRC haskell
           stateOf :: UpdateSpec -> IState -> UpdateState
@@ -884,7 +880,7 @@
                  )
       #+END_SRC
 
-******* The voting periods function is not very reader friendly 👎
+******* The voting periods function is not very reader friendly
 
         [[../test/Test/Cardano/Ledger/Update/Properties/StateChangeValidity.hs::790][votingPeriods]]
 
@@ -3011,30 +3007,27 @@
             cannotFollowCurrentVersion =
               protocolSupersedesVersion < State.getCurrentProtocolVersion st
       #+END_SRC
+
+      Check should have been
+      #+BEGIN_SRC haskell
+        cannotFollowCurrentVersion       =
+              protocolSupersedesVersion < State.getCurrentProtocolVersion st
+              ||
+              (protocolSupersedesVersion == State.getCurrentProtocolVersion st
+              && supersedesId protocol   /= State.getCurrentProtocolId st
+              )
+      #+END_SRC
 * Conclusions
 *** Dumb generation works really well
     - Keep generation simple
     - Have good shrinking
     - Decoupling implementation and tests
-*** Dumb generation needs a test setup
-*** The importance of having research projects within IOHK
+    - Dumb generation needs a test setup
+*** Better to test in a compositional way
+
 *** Do not recommend using these ideas right away
     - Investigate the use of state-machine testing
       - More reuse.
       - Our (Haskell) community benefits as well.
 
-
-* Other content to include
-
-*** TODO Review your code and see if there are other things worth mentioning
-* Random thoughts
-  - Importance of research project for investigating testing framework ideas.
-    - Discarded state machine testing.
-      - Although some ideas were applied in some other form in the current
-        setup.
-      - Failed attempts served as:
-        - lessons
-        - inspiration
-
-* Do not forget
-  Check slack for other considerations I made in the #sl-formal-spec channel.
+*** The importance of having research projects within IOHK
