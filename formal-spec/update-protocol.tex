@@ -86,7 +86,8 @@ When a parameters or consensus proposal is approved\footnote{Cancellation and
   application update proposals come into effect immediately after being
   approved.} it enters a \emph{priority queue} where it waits to be activated.
 The priority of the queue is determined by the update proposal's versions. A
-proposal with lower version will activate \textbf{before} a proposal with a
+proposal with lower version will activate \textbf{before} a 
+proposal with a
 higher version.
 %
 We call the proposals in the activation queue the \emph{approved proposals}.
@@ -102,8 +103,9 @@ The update system guarantees that the protocol versions can only strictly
 increase. In this way, the update system can rely on the update proposal's
 protocol-version and its declared predecessor version to:
 \begin{itemize}
-\item Determine priorities: a lower version is activated before a higher one,
-  specifying the version gives us a simple way to specify urgency.
+\item Determine priorities: a lower version (higher priority) is activated 
+before a higher version (lower priority) one; specifying the version gives us a 
+simple way to specify urgency.
 \item Resolve conflicts: a proposal declares \textbf{one and only one} version
   that it supersedes (its predecessor). Thus a proposal is in conflict with all
   others except the one that it supersedes.
@@ -117,19 +119,34 @@ This design decision requires:
   with the version it supersedes.
 \end{itemize}
 
-Protocol-versions of update proposals do not need to be unique. However, if two
-proposals with the same version are in the approval phase in a given slot, then
-the experts can \textbf{vote for at most one of them}. This guarantees that at
-any slot only one proposal per-version can make it to the activation phase
-since:
-\begin{itemize}
-\item The expert pools can vote for one proposal with the same version at the
-  same slot.
-\item A majority of stake is required to approve the proposal.
-\end{itemize}
+Protocol-versions of update proposals do not need to be unique. 
+%However, if two
+%proposals with the same version are in the approval phase in a given slot, then
+%the experts can \textbf{vote for at most one of them}. This guarantees that at
+%any slot only one proposal per-version can make it to the activation phase
+%since:
+%\begin{itemize}
+%\item The expert pools can vote for one proposal with the same version at the
+%  same slot.
+%\item A majority of stake is required to approve the proposal.
+%\nnote{This is not true. The requirement is to have stake in 
+%favor above the threshold, which might be below majority i.e., 51\%. so both 
+%proposals might exceed the threshold ang get approved}
+
+%\end{itemize} 
+
+If two proposals with the same version are in the approval phase and both are 
+approved, then the last one entering the activation phase, will survive (see 
+section \ref{sec:cancellations} on cancellations). In the unlikely case, where 
+the two proposals coincide in their voting period ends and thus are approved at 
+the very same slot, then we resolve this conflict by choosing the one with the 
+higher stake in favor to enter the activation queue. In the even more unlikely 
+case, where both have the same stake in favor, then we choose the proposal with 
+the greatest id (proposal hash) to enter the activation queue.
 
 The approved proposal at the front of the activation queue will enter the
-\emph{endorsement period}.
+\emph{endorsement period}, if it supersedes the current version (see section 
+\ref{sec:entering-the-endorsement-phase} ).
 %
 There can be \emph{at most one proposal} in the endorsement period at any time.
 %
@@ -304,7 +321,10 @@ There are several factors that can cause a proposal to be canceled:
   made it through the approval phase. If the experts approve such proposal, then
   this gives a strong indication that the older proposal should be discarded.
   Note that even though the system guarantees that only one proposal per-version
-  will get approved in any given slot, there might be proposals approved with
+  will get approved in any given slot (see section \ref{sec:activation-phase} 
+  on how we resolve the conflict of proposals of the same version approved in 
+  the same slot), 
+  there might be proposals approved with
   the same version as a proposal approved in a previous slot.
 \item The proposal supersedes a version that can never follow. Protocol versions
   increase monotonically. So if an update depends on a version that is lower
