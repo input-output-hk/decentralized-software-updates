@@ -150,7 +150,7 @@
       - slow generators
 
 *** The approach we took
-    - keep calm and generate actions ...
+    - keep calm and generate actions (transactions) ...
     - but you still need some constraints on the generated data.
     - compositionality via modeling of "external disturbances".
 
@@ -817,20 +817,20 @@
 ***** An SIP is submitted
 
       #+BEGIN_SRC haskell
-            validateTransition (E Unknown _fragment)
-                               (E (SIP Submitted) fragment') = do
-              -- The action that led to the @SIP Submitted@ state should be a SIP
-              -- submitted.
-              getSubmittedSIP (firstAction fragment')
-                ==! Just (getSIPSubmission updateSpec)
-              -- The first valid action of @fragment'@ must have been an SIP submission.
-              -- After this action no other actions associated to @updateSpec@ are
-              -- allowed, besides implementation commits.
-              onlyImplementationSubmissionAllowed updateSpec
-                                                  (dropFirstValidAction fragment')
-              fragmentLengthInSlots fragment' <! stableAfter env
-              where
-                env = unUpdateSt (firstState fragment')
+        validateTransition (E Unknown _fragment)
+                           (E (SIP Submitted) fragment') = do
+          -- The action that led to the @SIP Submitted@ state should be a SIP
+          -- submitted.
+          getSubmittedSIP (firstAction fragment')
+            ==! Just (getSIPSubmission updateSpec)
+          -- The first valid action of @fragment'@ must have been an SIP submission.
+          -- After this action no other actions associated to @updateSpec@ are
+          -- allowed, besides implementation commits.
+          onlyImplementationSubmissionAllowed updateSpec
+                                              (dropFirstValidAction fragment')
+          fragmentLengthInSlots fragment' <! stableAfter env
+          where
+            env = unUpdateSt (firstState fragment')
       #+END_SRC
 
 ***** A verdict on an implementation is reached
@@ -3030,4 +3030,6 @@
       - More reuse.
       - Our (Haskell) community benefits as well.
 
+*** Use property-based testing for guiding your design
+    - By means of (counter) examples.
 *** The importance of having research projects within IOHK
