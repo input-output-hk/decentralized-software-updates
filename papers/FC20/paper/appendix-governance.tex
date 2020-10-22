@@ -109,8 +109,12 @@ Essentially, an $\mu$-honest stake majority result signifies the strength of a v
 
 Based on this definition, for our voting mechanism, we set two main security goals:
 \begin{itemize}
-\item \textbf{Security Goal A:} a software update that has not achieved an honest stake approval, will never be allowed to pass to the next phase in the SU lifecycle, i.e., will not be approved.
-\item \textbf{Security Goal B:} a software update that has achieved an honest stake majority approval, will be allowed to pass to the next phase in the SU lifecycle, i.e., will be approved.
+\item \textbf{Security Goal A (Safety property):} a software update that has 
+not achieved an honest stake approval, will never be allowed to pass to the 
+next phase in the SU lifecycle, i.e., will not be approved.
+\item \textbf{Security Goal B (Liveness property):} a software update that has 
+achieved an honest stake majority approval, will be allowed to pass to the next 
+phase in the SU lifecycle, i.e., will be approved.
 \end{itemize}
 
 Intuitively, failing to achieve the first goal means that we risk the adversary to be able to approve a malicious proposal that is not approved by the honest stake (i.e., some part of the honest stake); and by failing to achieve the second goal, we risk that the adversary might block the approval of a proposal that has been approved by the honest stake majority (i.e., at least half of the honest stake). %We call the latter a \emph{Denial of Approval} attack.
