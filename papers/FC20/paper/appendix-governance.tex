@@ -133,10 +133,17 @@ The adoption threshold $\tau_V(p) = T + \frac{H}{p},\ p > 1$ achieves both secur
 \end{theorem}
 \begin{proof}
 Clearly, for security goal A, in order for the adversary stake not to have the power to vote for a malicious proposal on its own, we need $\tau_V \geq T + \delta$,
-where $0 < \delta \leq H$. In our case, $\delta = \frac{H}{p},\ p > 1$, where $0 < \frac{H}{p} \leq H$. In other words, there will always be the need for a fraction of the honest stake $H$ to vote in order to approve a proposal.
+where $0 < \delta < H$. In our case, $\delta = \frac{H}{p},\ p > 1$, where $0 < 
+\frac{H}{p} < H$. In other words, there will always be the need for a 
+fraction of the honest stake $H$ to vote in order to approve a proposal.
 
 For security goal B, we assume that we have an $\mu$-honest stake majority approval for an SU. This means that the specific SU has received a number of $H/2 + \mu$ positive votes from the honest stake, where $0 < \mu \leq H/2$.
-Therefore the adoption threshold could be lower bounded by $T + H/2$, since we know that we have received more that $T + H/2$ votes. This results from the fact that our threshold should be above $T$, as much as possible, to ensure security goal A, but at the same time, we know that we have an honest stake majority approval, which by definition means that we have also received more that $H/2$ honest positive votes. Therefore,  $\tau_V > T + H/2$. Then, equivalently we can wright $\tau_V = T + H/p ,\ 1 < p \leq 2$.
+The adoption threshold could be lower bounded by $T + H/2$. This results from 
+the fact that our threshold should be above $T$, as much as possible, to ensure 
+security goal A, but at the same time, we know that we have an honest stake 
+majority approval, which by definition means that we have also received more 
+that $H/2$ honest positive votes. Therefore,  $\tau_V > T + H/2$. Then, 
+equivalently we can wright $\tau_V = T + H/p ,\ 1 < p \leq 2$.
 
 In order for the adversary not to be able to block this approval, of course we need $\tau_V < H/2 + \mu$. But then this also means that $T + H/p < H/2 + \mu$, which means $\mu > T + H \times (\frac{1}{p} - \frac{1}{2})$.
 \end{proof}
