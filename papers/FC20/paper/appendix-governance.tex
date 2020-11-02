@@ -70,6 +70,351 @@ In our proposal, we have chosen a three-value logic for our vote (for/against/ab
 %Moreover, the \say{abstain} vote is a sign that the stakeholder has not formed an opinion for, or against, a specific software update. However, it might also denote that the evaluator has not made yet a decision and maybe he/she needs more time. Therefore,
 Moreover, the abstain vote can be also used as a way for the evaluator to say that the evaluation of the SU has not finished, a conclusion can not be drawn yet and indirectly submit a request for a time extension (i.e., a new voting period).
 
+\subsection{Voting Threshold Analysis}
+Lets assume that $H$ is the percent of honest stake and $T$ is the percent of 
+adversarial stake that actively participate in the voting process. We assume 
+also that
+\begin{equation}\label{eq:H_plus_T}
+	H+T=100    
+\end{equation}
+Moreover, the stake considered during the tally is the stake that the voters 
+have at that moment. That is, we only consider the stake of the voters at the 
+moment of the tally, without taking into account the stake that the voters had 
+in the moment that the votes were casted. In other words, the calculation of 
+the 
+voting result corresponds to the stake distribution at the same time and not to 
+some previous historic moment. This way, the result better represents the 
+current situation at the moment of the tally.
+
+We consider two types of possible attacks:
+\begin{itemize}
+	\item \emph{Malicious Proposal Attack}: The adversary manages with its own 
+	stake to approve a malicious proposal
+	\item \emph{Denial of Approval Attack}: The adversary manages to block a 
+	proposal approved by the honest stake majority.
+\end{itemize}
+
+% Naturally, in order to avoid the approval of a malicious proposal by the 
+%adversary stake $T$, we need a voting threshold $\tau_V > T$. So that the 
+%adversary cannot control the result of the voting process with its own stake. 
+%Therefore, we assume: 
+% \begin{equation} \label{eq-tau_v}
+% \tau_V(\gamma) = T + \gamma,\ \gamma > 0
+% \end{equation}
+
+\begin{definition}
+	We define as an $\mu$-honest stake majority result (e.g., approval, 
+	rejection), a voting result that is voted by more than (or equal) $H/2 + 
+	\mu$ percent of votes coming from the honest stake $H$ exclusively, where 
+	$0 < \mu \leq H/2$. We call $\mu$ the \emph{strength} of an honest stake 
+	majority result. If we do not explicitly define $\mu$, then we simply say 
+	that we have an \emph{honest stake majority result}.
+\end{definition}
+Essentially, an $\mu$-honest stake majority result signifies the 
+\emph{strength} of a voting result that has been voted by the honest majority. 
+If $\mu = H/2$, then we have a unanimous result from the honest stake $H$.
+
+Based on this definition, we define a \emph{secure voting protocol} as one that 
+enjoys the following two properties:
+\begin{definition}
+	A voting protocol is secure if it enjoys both the safety and liveness 
+	properties.
+	
+	\begin{itemize}
+		\item \textbf{Safety property:} a software update that has 
+		not achieved an honest stake approval, will never be allowed to pass to 
+		the 
+		next phase in the SU lifecycle, even if all the adversary stake has 
+		voted in favor; i.e., cannot not be approved only by the adversary 
+		stake.
+		\item \textbf{Liveness property:} a software update that has 
+		achieved an honest stake majority approval of \emph{strength} $\mu$ 
+		(i.e., $\frac{H}{2} + \mu$ positive votes from the honest parties, 
+		where $0 <\mu \leq \frac{H}{2}$), will be allowed to pass to the next 
+		phase in the SU lifecycle, i.e., cannot be blocked by the adversary 
+		stake.
+	\end{itemize}
+	
+\end{definition}
+
+
+Clearly, the safety property protects us from the malicious approval attack, 
+while the liveness property protects us from the denial of approval attack.
+
+Our goal, is to define the appropriate voting threshold $\tau_V$, such as the 
+two said properties hold. The following theorem defines the necessary and 
+sufficient condition that the voting threshold should satisfy, in order both 
+the safety and liveness properties to hold.
+
+\begin{theorem}\label{th:safety_and_liveness_condition}
+	For each voting protocol with a voting threshold $\tau_V$ both the safety 
+	and liveness properties hold iff:
+	\begin{align*} 
+		T < \tau_V < \frac{H}{2} + \mu,\ where\ 0 < \mu \leq \frac{H}{2}
+		% &T < \tau_V < \frac{H}{2} + \mu\ \ \ \ \land\\ 
+		% &T < \frac{H}{2} \overset{eq. \ref{eq:H_plus_T}}{\iff} T < 
+		%\frac{1}{3} \times 100,\\  
+		% &where\ 0 < \mu \leq \frac{H}{2}
+	\end{align*}
+	\begin{proof}
+		Since $T < \tau_V$, any malicious proposal that is voted positively by 
+		all adversarial stake T, but by no honest stake at all, cannot be 
+		approved, because the condition for approval is $[positive\ stake] > 
+		\tau_V$. Therefore, the safety property holds. Inversely, if the safety 
+		property holds, then no proposal that has no positive votes from the 
+		honest stake can be approved even if the whole adversary stake has 
+		voted in favor, which means that the positive votes must be below the 
+		voting threshold; thus $T < \tau_V$. 
+		
+		Similarly, since $\tau_V < \frac{H}{2} + \mu$, any proposal that has 
+		received $\frac{H}{2}+\mu$ positive votes, where $0 < \mu \leq 
+		\frac{H}{2}$ from the honest stake will be approved, because the 
+		condition for approval is $[positive\ stake] > \tau_V$. Inversely, if 
+		the liveness condition holds, then any proposal that has received 
+		$\frac{H}{2}+\mu$ positive votes, where $0 < \mu \leq \frac{H}{2}$ from 
+		the honest stake will be approved, which means that the following 
+		condition should hold $\tau_V < \frac{H}{2} + \mu$.
+	\end{proof}
+\end{theorem}
+
+In the following we propose a voting threshold, which is parametric on a 
+parameter $\gamma$, along with the sufficient conditions in order for both 
+safety and liveness properties to hold.
+
+\begin{theorem}\label{th:proposed_voting_threshold}
+	If the voting threshold $\tau_V$ of a voting protocol is defined as:
+	\begin{align*}
+		&\tau_V(\gamma) = \frac{H}{2} + \gamma = 50(1 - r) + \gamma\\
+		&\land\\
+		&T < \frac{H}{2} \overset{eq. \ref{eq:H_plus_T}}{\iff} r < \frac{1}{3}\\
+		&\land\\
+		&0 \leq \gamma < \mu\\
+		&,where\ 0 < \mu \leq \frac{H}{2}\ and\ r = \frac{T}{100}\ is\ the\ 
+		adversary\ ratio
+	\end{align*}
+	then both the safety and liveness properties hold.
+	\begin{proof}
+		Since 
+		\begin{align*}
+			&T < \frac{H}{2} \iff\\
+			&T < \frac{H}{2} + \gamma \iff\\
+			&T < \tau_V
+		\end{align*}
+		Also, since
+		\begin{align*}
+			&\gamma < \mu \iff\\
+			&\frac{H}{2} + \gamma < \frac{H}{2} + \mu \iff\\
+			&\tau_V < \frac{H}{2} + \mu
+		\end{align*}
+		Therefore we have proved that $T < \tau_V < \frac{H}{2} + \mu$ and thus 
+		based on theorem \ref{th:safety_and_liveness_condition} both safety and 
+		liveness properties hold.
+	\end{proof}
+\end{theorem}
+
+Theorem \ref{th:proposed_voting_threshold} provides a definition of the voting 
+threshold that is sufficient for both the safety and liveness properties to 
+hold. This holds only when the adversary stake $T < 1/3 \times 100 \approx 
+33.33\%$. The $\gamma$ parameter can essentially take values in the range $0 
+\leq \gamma < \frac{H}{2}$ and is always upper bounded by the strength of the 
+honest majority result $\mu$. This means that \emph{only} honest majority 
+results of strength $\mu > \gamma$ cannot be blocked (i.e., the liveness 
+property holds).
+
+For $\gamma = 0$, $\tau_V = \frac{H}{2}$, which means that an honest majority 
+result of \emph{any} strength $\mu$ will be approved (i.e., cannot be blocked), 
+even if the honest majority is marginal, i.e., just $\frac{H}{2} + 1$. On the 
+other hand, such a low threshold $\tau_V$, increases the risk of violating the 
+safety property, since in the case of a malicious proposal voted in favor by 
+the adversary stake T, there are only $\frac{H}{2} - T + 1$ positive votes 
+missing for the proposal to be approved. So we could say informally that when 
+$\gamma$ values are low, liveness is positively impacted, while safety is 
+negatively impacted. Inversely, when $\gamma$ is close to $\frac{H}{2}$, then 
+$\tau_V$ increases and becomes very difficult to violate safety. However, we 
+know that only stake majority results of strength $\mu>\gamma$ cannot be 
+blocked and since $\gamma$ is high valued, the set of results that cannot be 
+blocked reduces. So we could say informally that when $\gamma$ values are high, 
+liveness is negatively impacted, while safety is positively impacted. The 
+relation of the $\gamma$ parameter to the safety and liveness properties is 
+depicted in figure \ref{fig:gamma_parameter}.
+
+\begin{figure}[h!] %[H]
+	\centering
+	\includegraphics[width=0.6\columnwidth,
+	keepaspectratio]{figures/gamma.png}
+	\caption{The $\gamma$ parameter versus liveness and safety.}
+	\label{fig:gamma_parameter}
+\end{figure}
+
+We see from theorem \ref{th:proposed_voting_threshold} that the proposed voting 
+threshold is lower bounded by $\frac{H}{2}$. It can be easily proved that it 
+could be lower bounded even by $T$, where $T < \frac{H}{2}$. In other words, we 
+could have chosen $\tau_V(\gamma) = T + \gamma$ where $0 < \gamma < \mu$ and 
+still enjoy the properties of safety and liveness. We have chosen to lower 
+bound $\tau_V$ by $\frac{H}{2}$, because we want to honor honest stake 
+\emph{majority} and not \emph{minority}. For example, if $T=20\%$ ($H=80\%$) 
+and we have 
+chosen 
+$\tau_V = 25\%$, then even a $30\%$ of honest stake positive votes would be 
+enough to approve a result, assuming that the rest $50\%$ of 
+the honest stake does not vote, or that their votes are split to $25\%$ reject 
+and $25\%$ abstain votes. Since we do not want to allow honest minority to 
+control the voting result like this we have decided to lower bound $\tau_V$ by 
+$\frac{H}{2}$.
+
+Another important observation is that our analysis is based on the assumption 
+that we can have an estimation of the adversary ratio $r$. If it is not 
+possible to estimate $r$ with some accuracy, then we could take a worst case 
+approach for estimating $r$. From Garay et. al. in \cite{sok}, we know that the 
+ratio $r = \frac{T}{T+H} = \frac{T}{100}$ is always upper bounded by the 
+theoretical 
+adversary tolerance $r_{Th}$ of our consensus protocol, i.e., $r = 
+\frac{AdversaryStake}{TotalStake} = \frac{T}{100} < r_{Th}$ (e.g., $r < 1/2 = 
+r_{Th}$, or $r < 1/3 = r_{Th}$ etc.).
+
+In table \ref{table:examples}, we provide some examples of the voting threshold 
+$\tau_V$ for different values of $\gamma$ and different adversary ratios r.For 
+a specific adversary ratio r, as we increase $\gamma$, we require stronger 
+honest stake majority, in order to avoid the denial of approval attack. Looking 
+at the columns we can see that the voting threshold gradually decreases when r 
+increases for a fixed value of $\gamma = 0$. While this is not the case in the 
+$\gamma = T$ column, where the threshold increases since it is linearly 
+depended on T ($\tau_V = 50 + \frac{T}{2}$). Finally, in the last column, the 
+threshold decreases because it is linearly depended on H ($\tau_V = H - 1$) and 
+H decreases as r increases.
+
+\begin{table}[h!]
+	\centering
+	\begin{tabular}{ | c | c | c | c |} 
+		\hline
+		Adversary ratio r ($r < 1/3 \approx 0.33$) & $\gamma = 0$ & $\gamma = 
+		T$ & $\gamma = \frac{H}{2} - 1$ \\ 
+		\hline
+		$0.1$ & $45\%$ & $55\%$ & $89\%$ \\ 
+		$0.2$ & $40\%$ & $60\%$ & $79\%$ \\ 
+		$0.3$ & $35\%$ & $65\%$ & $69\%$ \\ 
+		\hline
+	\end{tabular}
+	\caption{Voting threshold values for different $\gamma$ and adversary 
+	ratios.}
+	\label{table:examples}
+\end{table}
+
+
+
+\begin{comment}
+\begin{theorem}\label{th:proposed_voting_threshold}
+	If the voting threshold $\tau_V$ of a voting protocol is defined as:
+	\begin{align*}
+		&\tau_V(\gamma) = T + \gamma  = 100r + \gamma \\
+		&\land\\
+		&T < \frac{H}{2} \overset{eq. \ref{eq:H_plus_T}}{\iff} r < \frac{1}{3}\\
+		&\land\\
+		&0 < \gamma < \mu\\
+		&,where\ 0 < \mu \leq \frac{H}{2}\ and\ r = \frac{T}{100}\ is\ the\ 
+		adversary\ ratio
+	\end{align*}
+	then both the safety and liveness properties hold.
+	\begin{proof}
+		Since 
+		\begin{align*}
+			&0 < \gamma \iff\\
+			&T < T + \gamma \iff\\			
+			&T < \tau_V
+		\end{align*}
+		Also, since
+		\begin{align*}
+			&\gamma < \mu \iff\\
+			&T + \gamma < T + \mu \overset{T < \frac{H}{2}}{\iff}\\
+			&T + \gamma < \frac{H}{2} + \mu \iff\\
+			&\tau_V < \frac{H}{2} + \mu
+		\end{align*}
+		Therefore we have proved that $T < \tau_V < \frac{H}{2} + \mu$ and thus 
+		based on theorem \ref{th:safety_and_liveness_condition} both safety and 
+		liveness properties hold.
+	\end{proof}
+\end{theorem}
+
+Theorem \ref{th:proposed_voting_threshold} provides a definition of the voting 
+threshold that is sufficient for both the safety and liveness properties to 
+hold. This holds only when the adversary stake $T < 1/3 \times 100 \approx 
+33.33\%$. The $\gamma$ parameter can essentially take values in the range $0 
+< \gamma < \frac{H}{2}$ and is always upper bounded by the strength of the 
+honest majority result $\mu$. This means that \emph{only} honest majority 
+results of strength $\mu > \gamma$ cannot be blocked (i.e., the liveness 
+property holds).
+
+For $\gamma$ values close to $0$, we see that $\tau_V$ approaches $T$, where $T 
+< \frac{H}{2}$, which means that an honest majority 
+result of \emph{any} strength $\mu$ will be approved (i.e., cannot be blocked), 
+even if the honest majority is marginal, i.e., just $\frac{H}{2} + 1$. 
+Moreover, for such very low values of $\gamma$ even honest minority results 
+could be approved in certain cases. For example, assume $T=20\%$ and therefore 
+$H = 80\%$. If we choose $\tau_V = 25\%$, then for example, an honest stake 
+positive result of $30\%$ could be approved, assuming that the rest $50\%$ of 
+the honest stake does not vote, or that their votes are split to $25\%$ reject 
+and $25\%$ abstain votes. If we do not want allow such honest stake minority 
+results to control the result, we could simply lower bound $\gamma$ by 
+$\frac{H}{2}-T$, i.e., $\frac{H}{2}-T \leq	\gamma < \mu$, where $T < 
+\frac{H}{2}$. In this case, the voting threshold $\tau_V$ will be lower bounded 
+by $\frac{H}{2}$.
+
+On the 
+other hand, low values of $\gamma$ that result to low values for the threshold 
+$\tau_V$, increase the risk of 
+violating the 
+safety property, since in the case of a malicious proposal voted in favor by 
+the adversary stake T, there are only $\gamma + 1$ positive votes 
+missing for the proposal to be approved. So we could say informally that when 
+$\gamma$ values are low, liveness is positively impacted, while safety is 
+negatively impacted. Inversely, when $\gamma$ is close to $\frac{H}{2}$, then 
+$\tau_V$ increases and becomes very difficult to violate safety. However, we 
+know that only stake majority results of strength $\mu>\gamma$ cannot be 
+blocked and since $\gamma$ is high valued, the set of results that cannot be 
+blocked reduces. So we could say informally that when $\gamma$ values are high, 
+liveness is negatively impacted, while safety is positively impacted. The 
+relation of the $\gamma$ parameter to the safety and liveness properties is 
+depicted in figure \ref{fig:gamma_parameter}.
+
+\begin{figure}[h!] %[H]
+	\centering
+	\includegraphics[width=0.6\columnwidth,
+	keepaspectratio]{figures/gamma.png}
+	\caption{The $\gamma$ parameter versus liveness and safety.}
+	\label{fig:gamma_parameter}
+\end{figure}
+
+In table \ref{table:examples}, we provide some examples of the voting threshold 
+$\tau_V$ for different values of $\gamma$ and different adversary ratios r.For 
+a specific adversary ratio r, as we increase $\gamma$, we require stronger 
+honest stake majority, in order to avoid the denial of approval attack. Looking 
+at the columns we can see that the voting threshold gradually decreases when r 
+increases for a fixed value of $\gamma = 0$. While this is not the case in the 
+$\gamma = T$ column, where the threshold increases since it is linearly 
+depended on T ($\tau_V = 50 + \frac{T}{2}$). Finally, in the last column, the 
+threshold decreases because it is linearly depended on H ($\tau_V = H - 1$) and 
+H decreases as r increases.
+
+\begin{table}[h!]
+	\centering
+	\begin{tabular}{ | c | c | c | c |} 
+		\hline
+		Adversary ratio r ($r < 1/3 \approx 0.33$) & $\gamma = \frac{H}{2}-T$ & 
+		$\gamma = 
+		T$ & $\gamma = \frac{H}{2} - 1$ \\ 
+		\hline
+		$0.1$ & $45\%$ & $20\%$ & $54\%$ \\ 
+		$0.2$ & $40\%$ & $40\%$ & $59\%$ \\ 
+		$0.3$ & $35\%$ & $60\%$ & $64\%$ \\ 
+		\hline
+	\end{tabular}
+	\caption{Voting threshold values for different $\gamma$ and adversary 
+	ratios.}
+	\label{table:examples}
+\end{table}
+\end{comment}
+
+\begin{comment}
 \subsubsection{On Assumptions and Thresholds}
 Lets assume that $H$ is the percent of honest stake and $T$ is the percent of adversarial stake that actively participate in the voting process. From Garay et. al. in \cite{sok}, we know that the ratio $r = \frac{T}{T+H} = \frac{T}{100}$ is upper bounded by the theoretical adversary tolerance $r_{Th}$ of our consensus protocol, i.e., $r = \frac{AdversaryStake}{TotalStake} = \frac{T}{100} < r_{Th}$ (e.g., $r < 1/2 = r_{Th}$, or $r < 1/3 = r_{Th}$ etc.).
 
@@ -207,6 +552,8 @@ For example, lets take $\tau_V = T + H/2$. If $T = 30\%$, then $H = 70\%$ and $\
 In the case where we have an adversary stake percent that is greater, or equal than $1/3 \times 100 \approx 33.33\%$, then even if we have a unanimous honest stake majority approval, according to lemma \ref{lemma-unanimous} the adversary can still launch a denial of approval attack. For example, if $T = 40\%$, then $H = 60\%$ and $\tau_V = 70\%$ and even if all the honest stake votes positively, the adversary can still block the approval.
 
  To mitigate this risk, as we have already described above, we propose that a denial of approval attack results to a no-majority result, which leads to a revoting process for the specific SU. This revoting can take place a $rv_{no-majority}$ number of times and only after $rv_{no-majority}$ times of a no-majority result the SU will become expired. Therefore, we are limiting the power of the adversary to block a SU, only for a specific voting period and give the chance to the honest stake ($rv_{no-majority}$ number of times) to reconsider its decision and maybe choose to support a candidate SU with a stronger vote.
+
+\end{comment}
 
 \subsection{Delegation} \label{appxdelegation}
 Each stakeholder has the right to participate in the software updates protocol of a proof-of-stake blockchain system.
