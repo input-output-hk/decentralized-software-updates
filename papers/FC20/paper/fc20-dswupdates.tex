@@ -3,38 +3,39 @@
 \usepackage{dirtytalk}
 \usepackage{tabu} 
 \usepackage{comment}
+\usepackage{paralist}
+\usepackage{makecell}
 
-\newcommand{\mnote}[1]{{\color{blue}\small\sc Michele: #1}}
-\newcommand{\nnote}[1]{{\color{magenta}\small Nikos: #1}}
-\newcommand{\nknote}[1]{{\color{brown}\small Nikos: #1}}
+\input{macros}
 
 \begin{document}
 \import{./}{title.tex}
 \import{./}{abstract.tex}
 
-\import{./}{introduction.tex}
-\import{./}{lifecycle.tex}
-%\import{./}{governance.tex}
-\import{./}{activation.tex}
-\import{./}{activation_formal.tex}
-\import{./}{activation_protocol.tex}
-%\import{./}{updlogic.tex}
-%\import{./}{security.tex}
-%\import{./}{ledgerenh.tex}
-%\import{./}{measurements.tex}
-%\import{./}{appendix.tex}
-%\import{./}{conclusion.tex}
+\import{./}{sections/introduction.tex}
+\import{./}{sections/lifecycle.tex}
+\import{./}{sections/governance_new.tex}
+\import{./}{sections/activation.tex}
+\import{./}{sections/activation_formal.tex}
+\import{./}{sections/activation_protocol.tex}
+\import{./}{sections/threshold_analysis.tex}
+%\import{./}{sections/updlogic.tex}
+%\import{./}{sections/security.tex}
+%\import{./}{sections/ledgerenh.tex}
+%\import{./}{sections/measurements.tex}
+%\import{./}{sections/appendix.tex}
+%\import{./}{sections/conclusion.tex}
 \clearpage
 \bibliography{references}
 
 \appendix
-\import{./}{definitions}
-\import{./}{general_notions.tex}
-\import{./}{ledger.tex}
-\import{./}{proof}
-\import{./}{appendix-lifecycle.tex}
-\import{./}{appendix-governance.tex}
-\import{./}{appendix-updlogic.tex}
+\import{./}{sections/definitions}
+\import{./}{sections/general_notions.tex}
+\import{./}{sections/ledger.tex}
+\import{./}{sections/proof}
+\import{./}{sections/appendix-lifecycle.tex}
+%\import{./}{sections/appendix-governance.tex}
+\import{./}{sections/appendix-updlogic.tex}
 
 
 \end{document}
