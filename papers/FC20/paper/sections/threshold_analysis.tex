@@ -170,7 +170,28 @@ and the adoption threshold in order for safety and liveness to hold
 	\end{proof}
 \end{theorem}
 
-Similarly, for the adoption threshold we have:
+The adoption threshold $\tau_A$ should ensure that the required percent of 
+stake that has signaled upgrade readiness, will guarantee that 
+the new blockchain will kick off with sufficient honest stake, determined by 
+the 
+security assumption of the upgraded consensus protocol. It is easy to 
+see that in this case, we need $\tau_A \geq \frac{1}{r_{Th}} \times T$, where 
+$r_{Th}$ corresponds to the theoretical adversary tolerance of the 
+\emph{upgraded protocol} (potentailly different from the original protocol),  
+so that for the upgraded stake, the required security property
+$\frac{AdversaryStake}{TotalStake_{upgraded}} < r_{Th}$ will still hold and 
+thus the upgraded blockchain will be secure. Indeed, if we assume that the 
+total upgraded stake percent is above the adoption threshold minimum value 
+$\frac{1}{r_{Th}} \times T$ (e.g., $\frac{1}{r_{Th}} \times T + \delta$ where 
+$\delta > 0$) and that all the adversary stake $T$ has upgraded (so we have $T$ 
+percent of adversaries in the new blockchain too), then if we 
+substitute, we see that the property 
+$\frac{AdversaryStake}{TotalStake_{upgraded}} = \frac{T}{\frac{1}{r_{Th}} 
+\times T + \delta} < r_{Th}$ holds for the upgraded protocol. So 
+$\frac{1}{r_{Th}} T$ is the appropriate lower bound for the adoption threshold, 
+in order to ensure safety. Here is the respective theorem for the adoption 
+threshold.
+
 \begin{theorem}\label{th:safety_and_liveness_condition_activation}
 	For each activation protocol with a threshold $\tau_A$ 
 	both the safety and liveness properties hold iff:
@@ -179,8 +200,7 @@ Similarly, for the adoption threshold we have:
 	\end{align*}
 	where $r_{Th}$ is the 
 	theoretical 
-	adversary tolerance of our consensus protocol (see section 
-	\ref{secureupdate}).
+	adversary tolerance of our consensus protocol.
 	\begin{proof}
 		Since $\frac{1}{r_{Th}}T < \tau$, signals of any stake not sufficient 
 		w.r.t. the security assumption of the upgraded protocol (see section 
@@ -234,41 +254,84 @@ Similarly, for the adoption threshold we have:
 %	\end{proof}
 %\end{theorem}
 
-In the following we propose a threshold $\tau$, which is parametric on a 
+In the following, we propose a threshold function $\tau(\gamma)$, which depends 
+on a 
 parameter $\gamma$ that we call the \emph{safety strength} and adjusts the 
-percent of honest stake that we wish not to be blocked, along with the 
-sufficient conditions (separately for voting and activation), in order for both 
-safety and liveness properties to hold.
+threshold towards liveness or safety. We provide also the 
+sufficient conditions, in order for both safety and liveness properties to 
+hold. Intuitively,   if we increase the threshold, we increase the required 
+amount of honest-stake positive votes required (or signals), in order to 
+approve (or activate) a proposal. This means that we decrease liveness, but at 
+the same time we increase safety, since it becomes more difficult for a 
+malicious proposal to be approved (or for activation without a sufficient 
+amount of stake to take place). The definition of the threshold function 
+includes also 
+a fixed amount of honest stake $H_{min}$, which is the minimum value that we 
+want our threshold to have and essentially determines the minimum amount of 
+honest stake that we wish not to be blocked (either for voting or activation), 
+i.e., it determines the minimum amount of honest stake that we wish the 
+liveness property to hold.
 
+Although the threshold function definition is common for both voting and 
+activation, since they differ on the required constraint, we present them in 
+two separate theorems:
 \begin{theorem}\label{th:proposed_voting_threshold}
-	If the threshold $\tau$ of a voting (or activation) protocol is 
+	If the threshold $\tau$ of a voting protocol is 
 	defined as:
 	\begin{align*}
 		&\tau(\gamma) = H_{min} + \gamma,\ where\ 0 \leq \gamma < H-H_{min} \\
 		&\land\\
-		&T < H_{min}\ (for\ voting)\\
-		&\frac{1}{r_{Th}}T < H_{min}\ (for\ activation)\\
+		&T < H_{min}\\
 	\end{align*}
-,where $H_{min}$ is the minimum percent of honest stake i.e., $0 \leq H_{min} 
-\leq H$ that we wish the liveness property to hold,
+,where  $0 \leq H_{min} \leq H$,
 then both the safety and liveness properties hold for any amount of honest 
 stake $L_b$ such that $H_{min} + \gamma < L_b \leq H$.
 	\begin{proof}
-		If $S_b \in \{T, \frac{1}{r_{Th}}T\}$Since 
+		Since 
 		\begin{align*}
-			&S_b < H_{min} \iff\\
-			&S_b < H_{min} + \gamma \iff\\
-			&S_b < \tau(\gamma)
+			&T < H_{min} \iff\\
+			&T < H_{min} + \gamma \iff\\
+			&T < \tau(\gamma)
 		\end{align*}
 		Also, since $H_{min} + \gamma < L_b \leq H$, then we have $\tau(\gamma) 
 		< H$.
-		Therefore we have proved that $S_b < \tau(\gamma) < H$ and thus 
-		based on theorems \ref{th:safety_and_liveness_condition_voting} and 
-		\ref{th:safety_and_liveness_condition_activation} both safety 
+		Therefore we have proved that $T < \tau(\gamma) < H$ and thus 
+		based on theorem \ref{th:safety_and_liveness_condition_voting} both 
+		safety 
 		and 
 		liveness properties hold.
 	\end{proof}
 \end{theorem}
+
+\begin{theorem}\label{th:proposed_adoption_threshold}
+	If the threshold $\tau$ of an activation protocol is 
+	defined as:
+	\begin{align*}
+		&\tau(\gamma) = H_{min} + \gamma,\ where\ 0 \leq \gamma < H-H_{min} \\
+		&\land\\
+		&\frac{1}{r_{Th}}T < H_{min}\\
+	\end{align*}
+	,where $0 \leq H_{min} \leq H$,
+	then both the safety and liveness properties hold for any amount of honest 
+	stake $L_b$ such that $H_{min} + \gamma < L_b \leq H$.
+	\begin{proof}
+		Since 
+		\begin{align*}
+			&\frac{1}{r_{Th}}T < H_{min} \iff\\
+			&\frac{1}{r_{Th}}T < H_{min} + \gamma \iff\\
+			&\frac{1}{r_{Th}}T < \tau(\gamma)
+		\end{align*}
+		Also, since $H_{min} + \gamma < L_b \leq H$, then we have $\tau(\gamma) 
+		< H$.
+		Therefore we have proved that $\frac{1}{r_{Th}}T < \tau(\gamma) < H$ 
+		and thus 
+		based on theorem \ref{th:safety_and_liveness_condition_activation} both 
+		safety 
+		and 
+		liveness properties hold.
+	\end{proof}
+\end{theorem}
+
 
 %From section \ref{secureupdate}, we have seen that the appropriate choice for 
 %$S_b$ during the activation phase is $S_b = \frac{1}{r_{Th}}\times T$. This is 
@@ -298,13 +361,16 @@ The $\gamma$ parameter (safety strength) allows us to adjust the threshold
 towards liveness, or 
 safety. This is depicted in figure \ref{fig:gamma_parameter}. Low gamma values 
 provide thresholds with a greater liveness, but reduced safety and inversely, 
-high $\gamma$ values enable higher safety, but less liveness. 
+high $\gamma$ values enable higher safety, but less liveness. This applies to 
+both the voting and the activation processes and this figure corresponds to 
+both.
 
 \begin{figure}[h!] %[H]
 	\centering
 	\includegraphics[width=0.6\columnwidth,
 	keepaspectratio]{figures/gamma.png}
-	\caption{The $\gamma$ parameter versus liveness and safety.}
+	\caption{The $\gamma$ parameter versus liveness and safety for either 
+	voting or activation.}
 	\label{fig:gamma_parameter}
 \end{figure}
 
@@ -319,8 +385,11 @@ Table \ref{table:threshold_examples} shows some examples of different
 threshold functions $\tau(\gamma)$, expressed by means of 
 the adversary stake ratio $r$, $r = \frac{Adversary\ Stake}{Total\ Stake} = 
 \frac{T}{T+H} = \frac{T}{100}$, along with the corresponding constraint on $r$, 
-derived from $S_b < H_{min}$ for the specific choices of $S_b$ and $H_{min}$ 
-respectively. Our analysis is based on the assumption 
+derived from the $T < H_{min}$ constraint and $\frac{1}{r_{Th}}T < H_{min}$ 
+constraint for voting and activation respectively. The choice of $H_{min}$ 
+recorded on the second column determines the resulting threshold function, as 
+well as the required constraint, appearing in the respective columns. Our 
+analysis is based on the assumption 
 that we can have an estimation of the adversary ratio $r$. From Garay et. al. 
 in \cite{sok}, we know that the 
 ratio $r$ is always upper bounded by the 
@@ -333,9 +402,10 @@ r_{Th}$, or $r < 1/3 = r_{Th}$ etc.).
 	\centering
 	\begin{tabular}{ | c | c | c | c |} 
 		\hline
-		\textbf{Process} & $H_{min}$ & \makecell[c]{Threshold\\ $\tau(\gamma) = 
+		\textbf{Process} & $H_{min}$ & \makecell[c]{\textbf{Threshold}\\ 
+		$\tau(\gamma) = 
 		H_{min} + \gamma$,\\ where $0 \leq \gamma < H-H_{min}$} & 
-		\makecell[c]{Constraint\\$T < H_{min}$ (for voting)\\ 
+		\makecell[c]{\textbf{Constraint}\\$T < H_{min}$ (for voting)\\ 
 		$\frac{1}{r_{Th}T} < H_{min}$ 
 		(for activation)} \\ 
 		\hline
@@ -357,16 +427,31 @@ r_{Th}$, or $r < 1/3 = r_{Th}$ etc.).
 	\label{table:threshold_examples}
 \end{table}
 
-In table \ref{table:examples}, we provide some examples of the voting threshold 
-$\tau$ for different values of $\gamma$ and different adversary ratios r, when 
-$\tau(\gamma) = H/2 + \gamma = 50(1-r)+\gamma$ and $r < 1/3$ (i.e., $H_{min} = 
+In table \ref{table:examples}, we provide examples of threshold 
+values for different values of $\gamma$ and different adversary ratios r for a 
+specific choice of the $\tau(\gamma)$ function and a constraint relevant to the 
+voting process. In particular, for the function $\tau(\gamma) = H/2 + \gamma = 
+50(1-r)+\gamma$ and $r < 1/3$ (i.e., $H_{min} = 
 \frac{H}{2}$ and $T < \frac{H}{2}$). For a specific adversary ratio r, as we 
 increase $\gamma$, we 
 require stronger honest stake majority, in order to avoid the denial of 
-approval attack, however this provides us with more safety. We observe that for 
-low values of $\gamma$ ($\gamma = 0$) $H/2$ of honest stake is enough to have 
-liveness. In contrast, for high values of $\gamma$ ($\gamma = H/2 -1$), we 
-require honest stake unanimity in order to have liveness.
+approval attack, however this provides us with more safety. In this particular 
+case of $\tau(\gamma)$, the 
+allowed $\gamma$ values lie in the range $0 \leq \gamma < H/2$.  So in the 
+table 
+we have chosen the lowest possible $\gamma$ value ($\gamma=0$), the maximum 
+$\gamma$ value ($\gamma = \frac{H}{2} - 1$) (assuming for the sake of the 
+example that $\gamma$ takes integer values) and an intermediate value $\gamma = 
+T$.
+
+So for instance, in the line where $r=0.1$, we can see that the allowed range 
+of values for the threshold is $[45\%, 89\%]$. As long as the threshold is 
+in this range, we can have both liveness and safety (assuming $r=0.1$).We 
+observe that for low values of $\gamma$ ($\gamma = 0$), $H/2$ of honest stake 
+is 
+enough to have liveness. In contrast, for high values of $\gamma$ ($\gamma = 
+H/2 -1$), we essentially require honest stake unanimity in order to have 
+liveness.
 %Looking 
 %at the columns we can see that the voting threshold gradually decreases when r 
 %increases for a fixed value of $\gamma = 0$. While this is not the case in the 
@@ -387,8 +472,10 @@ require honest stake unanimity in order to have liveness.
 		$0.3$ & $35\%$ & $65\%$ & $69\%$ \\ 
 		\hline
 	\end{tabular}
-	\caption{Voting threshold values for different $\gamma$ and adversary 
-		ratios for $\tau(\gamma) = 50(1-r)+\gamma$.}
+	\caption{Threshold values for different $\gamma$ and adversary 
+		ratios for a specific choice of $\tau(\gamma)$ ($\tau(\gamma) = 
+		50(1-r)+\gamma$), relevant to the voting 
+		process.}
 	\label{table:examples}
 \end{table}
 
