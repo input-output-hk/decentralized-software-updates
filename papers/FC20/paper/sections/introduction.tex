@@ -53,12 +53,22 @@ In the context of software updates for public stake-based blockchain systems, we
 %\item Hard-forks are the norm
 %\end{itemize}
 
-\import{./}{related_work.tex}
+\import{./}{sections/related_work.tex}
 \paragraph{Goal of the paper.} In this paper we propose a secure software update mechanism that enables a decentralized approach to the blockchain software updates problem. We examine all phases in the lifecycle of a software update and propose practical decentralized alternatives that can be adopted in the real world. These alternatives substitute any \emph{central authority} with the \emph{stakeholders' community}. In order to enable this \emph{decentralization} of software updates, we exploit existing primitives that we combine in order to form a novel decentralized software updates protocol. From a security perspective, we formally define what is a secure activation of changes on a blockchain and prove the security of our protocol with respect to this definition.  Our protocol ensures that:
 %...A safe and secure decentralized software update system. %In other words, a system that will ensure that:
 a) any stakeholder will always be able to submit an update proposal to be voted by the stakeholders' community, b) an update proposal that is not approved by the stakeholders
 %\mnote{Also here, let's talk about a threshold $t$ greater than $51\%$ instead of stake majority since this is what we do}
  will never be applied, c) an update proposal that it is approved by the stakeholders will be eventually applied, d) an update proposal that the stakeholders decide has a higher priority than some other proposal will take higher priority, e) downloaded software is authentic and safe, and finally f) it protects against chain splits during activation of the proposed updates.
 
-\paragraph{Outline of the paper.} In Section~\ref{lifecycle} we present our decentralized approach for the lifecycle of a software update. Section~\ref{secureupdate} defines what a secure software update mechanism is and proves the security of our protocol. In the appendix, we contrast with the centralized approach to the software update lifecycle, provide more details for the voting and delegation mechanisms of our protocol and we discuss our proposal for a metadata-driven software update mechanism.
+\paragraph{Outline of the paper.} In Section~\ref{lifecycle} we present our 
+decentralized approach for the lifecycle of a software update. In section 
+\ref{sec:update_governance}, propose an update governance model based on voting 
+and delegation to experts. Section~\ref{secureupdate} defines what a secure 
+software update mechanism is and proves the security of our protocol. In 
+sSection \ref{sec:threshold_analysis}, we present an analysis regarding the 
+thresholds used for the voting processes, as well as the activation 
+process and show how we can move either towards liveness, or safety. In the 
+appendix, we contrast with the centralized approach to the software update 
+lifecycle and we discuss our proposal for a metadata-driven software update 
+mechanism.
 %\noindent\textbf{Outline of the paper}

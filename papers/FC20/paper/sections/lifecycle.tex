@@ -41,10 +41,29 @@ A SIP is initially uploaded to some external (to the blockchain system) \emph{de
   It can be something very common, as a developer-owned Github repository, to something more elaborate as a content-addressable decentralized file system. In any case, it is in the interest of the party that made the proposal to keep the SIP available, otherwise the SIP will be rejected.
 % \mnote{We should clarify that is in the interest of the party that made the proposal to keep the SIP available. Which is something safe to assume since the SIP could be moved from one decentralized storage to another without affecting the hash of the SIP.} 
  This hash id is committed to the blockchain in a two-step approach, following a hash-based commitment scheme, in order to preserve the rightful authorship of the SIP.
-Once the SIP is revealed a voting period for the specific proposal is initiated. Any stakeholder is eligible to vote for a SIP and the voting power will be proportional to his/her stake. Votes are fee-supported transactions, which are committed to the blockchain. More details for the proposed voting mechanism can be found in the Appendix \ref{appxvoting}. Note that voters are not called to vote only for the SIP per se, but also for the various characteristics of the software update, such as the type of the change, the priority/criticality, etc., which are described in the corresponding metadata. These characteristics will drive the \emph{update policy} adopted, as we will describe in the corresponding section.
+Once the SIP is revealed a voting period for the specific proposal is 
+initiated. Any stakeholder is eligible to vote for a SIP and the voting power 
+will be proportional to his/her stake. Votes are fee-supported transactions, 
+which are committed to the blockchain. More details for the proposed voting 
+mechanism can be found in section \ref{appxvoting}. Note that voters are not 
+called to vote only for the SIP per se, but also for the various 
+characteristics of the software update, such as the type of the change, the 
+priority/criticality, etc., which are described in the corresponding metadata. 
+These characteristics will drive the \emph{update policy} adopted, as we will 
+describe in the corresponding section.
 
 %Note that since a SIP is a document justifying the purpose and benefit of the proposed software update, it should not require in general sufficient technical expertise, in order for a stakeholder to review it and decide on his/her vote. However, in the case that the 
-In the case that the evaluation of a SIP requires greater technical knowledge, then a voting delegation mechanism exists. This means that a stakeholder can delegate his/her voting rights to an appropriate group of experts but also preserve the right to override the delegate's vote, if he/she wishes. Essentially, we propose the use of a delegation mechanism for three distinct reasons: a) for technical expertise, b) for special categories of software updates (e.g., security fixes, platform specific issues etc.) and c) for ensuring an appropriate level of stake participation in the protocol, similar to the stakepools concept described in Karakostas et. al. \cite{stakepools}. More details for the proposed delegation mechanism can be found in the Appendix \ref{appxdelegation}.
+In the case that the evaluation of a SIP requires greater technical knowledge, 
+then a voting delegation mechanism exists. This means that a stakeholder can 
+delegate his/her voting rights to an appropriate group of experts but also 
+preserve the right to override the delegate's vote, if he/she wishes. 
+Essentially, we propose the use of a delegation mechanism for three distinct 
+reasons: a) for technical expertise, b) for special categories of software 
+updates (e.g., security fixes, platform specific issues etc.) and c) for 
+ensuring an appropriate level of stake participation in the protocol, similar 
+to the stakepools concept described in Karakostas et. al. \cite{stakepools}. 
+More details for the proposed delegation mechanism can be found in section 
+\ref{appxdelegation}.
 
 %The delegation mechanism will also be used in order to implement the concept of an \emph{update policy} that will be described in a later section and enables different activation speeds for a SU depending on its type (e.g., a bug-fix versus a change request, a SU that has a consensus protocol impact versus a no-impact one, etc.). For all these, special \emph{delegation groups} will be considered, as we will discuss in the relevant section. A SIP after the voting period can either be voted or rejected. Details on the voting and delegation protocols can be found in the relevant section.
 
@@ -75,7 +94,12 @@ a) there is not a centrally-owned code repository to maintain the code-base (sin
 
 In Figure~3, we depict the decentralized implementation phase. All the approved versions of the code are committed into the blockchain (i.e., only the hash of the update code is stored on-chain). Therefore, we assume that the developer finds the appropriate (usually the latest) approved base source code in the blockchain and downloads it locally, using the link to the %developer-owned 
  code repository provided in the UP metadata. %We abstract this code repository in Figure \ref{implementation} with the depicted decentralized storage solution. This conceptually can be any storage area that is not centrally-owned; from something very common, as a developer-owned Github repository to something more elaborate as a content-addressable decentralized file system.
-It is true that the review of source code is a task that requires extensive technical skills and experience. Therefore, it is not a task that can be assumed by the broad base of the stakeholders community. A voting delegation mechanism at this point must be in place, to enable the delegation of the strenuous code-approval task to some group of experts (see the details of the proposed delegation mechanism in the Appendix \ref{appxdelegation}). 
+It is true that the review of source code is a task that requires extensive 
+technical skills and experience. Therefore, it is not a task that can be 
+assumed by the broad base of the stakeholders community. A voting delegation 
+mechanism at this point must be in place, to enable the delegation of the 
+strenuous code-approval task to some group of experts (see the details of the 
+proposed delegation mechanism in section \ref{appxdelegation}). 
 %In a similar logic with the delegation process, within the ideation phase, discussed above, the delegation process could be leveraged to implement different update policies per type of software update.
 %As we have seen, the voting approval of a SIP signals the beginning of the implementation phase for this SIP. 
 %The SIP has an estimated implementation elapsed time that was included in the SIP metadata, submitted along with the SIP at the ideation phase. This time period, increased by a contingency parameter, will be the available time window for a SIP to be implemented. 
