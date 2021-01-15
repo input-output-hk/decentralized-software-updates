@@ -1,4 +1,9 @@
-\section{Defining a Secure Update System} \label{secureupdate}
+\section{The Activation of Changes}\label{the_activation_of_changes}
+
+\subsection{Synchronization for Upgrading} \label{synchronization_for_upgrading}
+
+
+%\section{Defining a Secure Update System} \label{secureupdate}
 We have seen that upon the approval of a UP, users start installing the software update (i.e., upgrade) and wait for the activation of the changes. We call the total  time period from the approval of a UP until the actual activation of the changes in the blockchain system as the \emph{activation lag}. Our protocol should try to minimize this lag and at the same time ensure a secure activation of the changes.
 
 %We call the time period from the approval of a UP until the actual activation of the changes in the blockchain system as the \emph{activation lag}. In order, to enable a fast and flexible software updating mechanism, we should minimize the activation lag, which is in turn is determined by the \emph{adoption threshold} $\tau_A$. %These are the topics to be discussed in this section.
@@ -66,8 +71,6 @@ Intuitively, in order to prevent this type of attack, we need to give more time 
 }
 
 
-
-
 %Clients are able to read the ledger
 %and submit transactions to be
 %added to it.
@@ -75,5 +78,6 @@ Intuitively, in order to prevent this type of attack, we need to give more time 
 %view to the ledger for the clients. 
 %The properties that a ledger consensus protocol must satisfy are as follows:
 
+\import{./}{sections/secure_activation_protocols.tex}
 
-
+\import{./}{sections/activation_phase_design.tex}

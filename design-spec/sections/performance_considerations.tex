@@ -1,0 +1,333 @@
+\section{Performance Considerations}\label{performance_considerations}
+
+
+\subsection{Transaction Throughput}
+
+An important measurement of a blockchain system's performance is the number of
+transaction bytes per-second ($\mathit{TBPS}$) it can sustain. Unlike the more
+commonly used metric, transactions per-second, this number is not dependent on
+the chosen size of a transaction (which would allow to manipulate it at will by
+choosing different transactions sizes). Running an update mechanism on the
+blockchain should not result in a substantial performance degradation.
+Therefore, in this section we estimate the impact on performance that the
+proposed update mechanism will have on a system's TBPS. Our estimations are
+based on \emph{worst case scenarios}, which allow us to determine upper bounds
+for the performance impact of the update mechanism.
+
+Given a payload size in bytes ($\mathit{psize}$) that needs to be stored in a
+blockchain, and the blockchain's throughput measured in $\mathit{TBPS}$, we have
+that the processing time ($\mathit{ptime}$) for the given payload can be
+calculated as:
+$$ \mathit{ptime} = \frac{\mathit{psize}}{\mathit{TBPS}}$$
+
+The processing time needs to be considered relative to the duration of the
+update process ($\mathit{duration}_u$). If we require $\mathit{ptime}$ seconds
+to process a payload of $\mathit{psize}$ bytes, and the update process lasts for
+$\mathit{duration}_u$ seconds, then the percentage of the blockchain system's
+time that will be occupied processing the update payload can be
+calculated as:
+$$\mathit{ptime}_{\mathit{rel}} = 
+100\frac{\mathit{ptime}}{\mathit{duration}_u}$$
+
+Equivalently, we can consider the percentage of the system's $\mathit{TBPS}$
+that will be used by the update payload:
+$$\mathit{usage}_{\mathit{pct}} = 100\frac{\mathit{psize}}{\mathit{TBPS} ~ 
+\mathit{duration}_u}$$
+
+In the analysis that follows, we consider only $\mathit{usage}_{\mathit{pct}}$,
+as the value of $\mathit{ptime}_{\mathit{rel}}$ is the same.
+
+An update consists of several phases (ideation, implementation, approval, and
+activation). In each phase, there are three types of messages being sent:
+commits, reveals, and votes.
+
+% Why do we consider only the voting period:
+Before the voting phases, where votes can be cast by the participants, each
+update requires only two messages spread across two stability windows, needed
+for transactions to stabilize in the chain. These stability windows are quite
+large, e.g. in Cardano the window lasts for $2k$ slots, $k=2160$, and a slot
+lasts for $20$ seconds, which means that the stability window is 1 day. As a
+result, only two messages need to be transmitted for the commit-reveal phase
+over a large period of time, which means that a blockchain system can easily
+handle this. This leave us with the voting phase as the sole source for
+performance degradation that can be caused by the update mechanism.
+
+% Why do we consider phases in isolation
+In addition, note that we only need to consider the additional load introduced
+by the update mechanism during a single phase. It is in the voting period of
+each phase where the system should be able to handle the additional load, since
+the update mechanism introduces very little load between voting phases.
+
+We define the worst-case scenario for a voting period in terms of
+\begin{itemize}
+	\item number of participants ($n_p$), e.g. voters (note that in the worst 
+	case
+	scenario everybody will vote, regardless of their stake, which means that 
+	the
+	stake distribution is irrelevant for this analysis)
+	\item number of update proposals being voted at the same time ($n_c$), 
+	during the same
+	period (note that in the worst case scenario multiple update proposals will
+	coincide in the start and end of the voting period, otherwise the system 
+	would
+	have a larger time interval to distribute the load).
+	\item number of time a participant changes her vote ($n_c$), per-update 
+	proposal
+\end{itemize}
+Then, we can calculate the worst case scenario for the number of bytes that need
+to be transmitted as part of the vote payload ($\mathit{psize}_v$) as:
+$$\mathit{psize}_v = s_v \mathit{n_p} n_r n_c$$
+
+The size in bytes for $s_v$ was obtained by calculating the size CBOR
+encoding~\cite{RFC7049} of the vote payload of our prototype. This payload
+includes:
+\begin{itemize}
+	\item The hash of the voted SIP. We use 32 bytes hashes, so considering the 
+	1
+	byte CBOR tag this gives us a total 33 bytes.
+	\item The confidence (for, against, reject), which can be encoded in 1 byte
+	(which also included the CBOR tag).
+	\item The key of the voter. We use 32 bytes keys, so this give us a total 
+	of 33
+	bytes, when we consider the CBOR tag.
+	\item The vote signature. We consider 64 bytes signatures, which are 
+	accompanied
+	by a 32 bytes key. This results in 64 + 32 + 1 bytes required for the
+	signature.
+\end{itemize}
+So a vote requires in total 164 bytes.
+
+Table~\ref{fig:tab:worst-case-analysis-voting-period} shows the results of the
+worst case analysis for different parameter values, where $\mathit{duration}_v$
+is the number of voting days, which was used to calculate the voting period
+duration. For this analysis we use the (very conservative) $\mathit{TBPS}$
+estimate that Cardano can achieve: $25k$\footnote{TODO: we need a reference for
+	this}.
+
+\begin{table}[htb]
+	\centering
+	% NOTE: DO NOT EDIT THE TABLE BELOW: It was generated by the benchmarking 
+	%program. See `formal-spec/bench` folder.
+	\begin{tabular}{| r | r | r | r | r |}
+		\hline
+		$n_p$ & $n_r$ & $n_c$ & $\mathit{duration_v}$ & $\mathit{usage_{pct}}$\\
+		\hline
+		1000 & 2 & 1 & 7 & 0.002\\
+		1000 & 2 & 5 & 7 & 0.011\\
+		1000 & 2 & 10 & 7 & 0.022\\
+		10000 & 2 & 1 & 7 & 0.022\\
+		10000 & 2 & 5 & 7 & 0.108\\
+		10000 & 2 & 10 & 7 & 0.217\\
+		100000 & 2 & 1 & 7 & 0.217\\
+		100000 & 2 & 5 & 7 & 1.085\\
+		100000 & 2 & 10 & 7 & 2.169\\
+		1000000 & 2 & 1 & 7 & 2.169\\
+		1000000 & 2 & 5 & 7 & 10.847\\
+		1000000 & 2 & 10 & 7 & 21.693\\
+		1000000 & 2 & 10 & 14 & 10.847\\
+		1000000 & 2 & 10 & 30 & 5.062\\
+		10000000 & 2 & 1 & 7 & 21.693\\
+		10000000 & 2 & 5 & 7 & 108.466\\
+		10000000 & 2 & 10 & 7 & 216.931\\
+		\hline
+	\end{tabular}
+	\caption[Worst-case analysis for voting period]{Worst-case analysis TBPS 
+	for a voting period}
+	\label{fig:tab:worst-case-analysis-voting-period}
+\end{table}
+
+Figure~\ref{fig:usage-vs-participants} shows the worst case usage as a function
+of the number of participants, assuming 10 concurrent update proposals, a 7 day
+voting period, and each participant changing her vote twice.
+
+\begin{figure}[htp]
+	\centering
+	
+	\begin{tikzpicture}
+		\begin{axis}[
+			title={Participants vs usage percentage},
+			xlabel={Participants},
+			xmin=100.0,
+			xmax=1.0e7,
+			xmode=log,
+			xtick={10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 1.0e7},
+			ylabel={Usage percentage},
+			ymin=0.0,
+			ymax=250.0,
+			ymode=log, 
+			ytick={0.001, 0.01, 0.1, 1, 10, 100, 1000},
+			legend pos=north west,
+			ymajorgrids=true,
+			grid style=dashed,
+			]
+			\addplot[color=black] table 
+			{sections/data/participants-vs-usage.dat};
+		\end{axis}
+	\end{tikzpicture}
+	
+	\caption{Worst case scenario analysis for system's usage with 10 concurrent 
+	update proposals}
+	\label{fig:usage-vs-participants}
+\end{figure}
+
+We can see that the impact on the system's performance is negligible
+even when we consider $100,000$ participants. Moreover, we see that 
+the usage consumption percentage scales linearly in the number of 
+participants, i.e., a 10 times increase in the number of participants 
+will only increase 10 times the required usage percent. Also, if we 
+double the throughput, then we can process a double amount of 
+participants workload at the same time.
+%
+These results indicate that the update protocol will start degrading
+the system performance \emph{only} past the 1,000,000 participants. 
+Although this will require that the worst case conditions being met:
+10 SIP's being voted at the same time over the period of 7 days, 
+where each participant votes twice.
+%
+In such case, relying on \emph{voting pools} (or \emph{expert pools}) 
+becomes of crucial importance. In this way delegation of voting rights 
+can help the update system is to scale beyond this number of 
+participants. Alternatively, by increasing the duration of the vote 
+period the impact on the system's performance can be mitigated.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TODO: we need the revisit the section below considering the insight of
+%% the section above.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Processing Time and Memory Consumption}
+Clearly the most processing intesive task of the update mechanism 
+is the tally phase. It is the phase where all the collected votes 
+are counted in order to reach at a decision for a specific proposal. 
+
+We start with a theoretical time complexity analysis where we 
+assume a worst-case scenario, where we have $n$ participants that all
+of them vote by submiting a single vote. Also we assume that we have
+a single proposal, so that within a voting period, the number $n$ of 
+participants coincides to the number of submitted ballots.
+
+In the following we try to break up the operations during the tally phase.
+In the heart of the tally phase lies the following function call, 
+which is called for each proposal.
+
+\begin{lstlisting}[language=Haskell, caption=Tally phase initial function call]
+	tallyStake confidence result ballot stakeDistribution adversarialStakeRatio 
+	=
+	if stakeThreshold adversarialStakeRatio (totalStake stakeDistribution)
+	<
+	stakeOfKeys votingKeys stakeDistribution
+	then Just result
+	else Nothing
+	where
+	votingKeys = Map.filter (== confidence) ballot
+\end{lstlisting}
+
+\lstinline{Map.filter} 
+\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#g:25}},
+ is $O(n)$ so \lstinline{votingKeys} is $O(n)$, where $n$ is the number of 
+ballots, 
+which as we have said coincides to the number of participants. At 
+this point, we have a single pass (loop) over $n$ ballots.
+
+Furthermore, \lstinline{stakeOfKeys} makes the following calls:
+\begin{lstlisting}[language=Haskell, caption=Code example]
+	stakeOfKeys
+	keyMap
+	StakeDistribution
+	{ stakeMap
+	}
+	= Map.foldl (+) 0 $ stakeMap `Map.intersection` keyMap
+\end{lstlisting}
+
+The $intersection$ function in the worst-case is 
+$O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:intersection}}.
+ Therefore this is a second pass
+(loop) over the data of length $n$.
+\lstinline{foldl} is also 
+$O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:foldl}}.
+ This is a third pass (loop) over the data of 
+length $n$. Thus from the above analysis we see that we have for 
+a single proposal a call of \lstinline{tallyStake}, where in each
+such call we have three passes over the data of length $n$. So in total 
+for a single proposal we do $3$ passes over the data of length $n$. 
+That is $3n$ operations, which means that the tally time 
+complexity is $O(n)$. 
+
+This result is also confirmed by the experimental evaluation 
+shown in the graph below:
+
+\begin{figure}[htp]
+	\centering
+	
+	\begin{tikzpicture}
+		\begin{axis}[
+			title={Processing time (sec) vs Number of participants},
+			xlabel={Participants},
+			xmin=100.0,
+			xmax=1.0e7,
+			xmode=log,
+			xtick={10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 1.0e7},
+			ylabel={Processing time (sec)},
+			ymin=0.0000001,
+			ymax=10,
+			ymode=log, 
+			ytick={0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 
+			10},
+			legend pos=north west,
+			ymajorgrids=true,
+			grid style=dashed,
+			]
+			\addplot[color=black] table 
+			{sections/data/participants-vs-elapsed_time.dat};
+		\end{axis}
+	\end{tikzpicture}
+	
+	\caption{Worst case scenario analysis for tally phase processing time}
+	\label{fig:eltime-vs-participants}
+\end{figure}
+
+In Figure \ref{fig:eltime-vs-participants}, we see that the processing 
+time increases linearly in the number of participants. In addition, 
+we see that it takes almost one tenth of a second to process
+the votes of $1$ million participants. These results correspond to 
+a no-parallel execution of the tally algorithm on a i7 CPU laptop 
+with 32GB of RAM.
+
+Finally, we present the measurements of the memory consumption 
+during the tally phase. Again as the graph in 
+Figure \ref{fig:memcons-vs-participants} shows, the memory 
+allocated scales linearly in the number of participants. Moreover, our 
+measurements show that the allocated memory essentially corresponds to the 
+space required for storing the $256$ bit hashes of the public keys of the 
+participants in a Haskell map 
+structure\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html}}.
+
+\begin{figure}[htp]
+	\centering
+	
+	\begin{tikzpicture}
+		\begin{axis}[
+			title={Memory consumed (MBs) vs Number of participants},
+			xlabel={Participants},
+			xmin=100.0,
+			xmax=1.0e7,
+			xmode=log,
+			xtick={10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 1.0e7},
+			ylabel={Memory consumed (MBs)},
+			ymin=1,
+			ymax=10000,
+			ymode=log, 
+			ytick={1, 10, 100, 1000, 10000},
+			legend pos=north west,
+			ymajorgrids=true,
+			grid style=dashed,
+			]
+			\addplot[color=black] table 
+			{sections/data/participants-vs-memory_consumed.dat};
+		\end{axis}
+	\end{tikzpicture}
+	
+	\caption{Worst case scenario analysis for tally phase consumed memory}
+	\label{fig:memcons-vs-participants}
+\end{figure}
+

@@ -1,0 +1,53 @@
+\section{Requirements for a Decentralized Software Update 
+System}\label{sec:requirements}
+
+%\subsection{The Cardano software update system vision	
+%statements}\label{sec:vision_statements}
+\begin{itemize}
+	\item[\textbf{Open Participation Enabled}] Anyone who can submit a common
+	transaction should be able to submit an update proposal and vote for an
+	update proposal.
+	
+	\item[\textbf{Decentralized Decision-Making Enabled}]  All major decisions
+	typically made by central authorities (e.g., code maintainer, software
+	owner etc.)
+	should
+	be made
+	collectively by the community via a voting mechanism: a) What proposal will
+	move forward? b) Do we accept the submitted implementation? and c)
+	will the changes be activated?
+	
+	\item[\textbf{Protocol-Driven}] The update mechanism should be an on-chain
+	protocol driven process: Not
+	based on informal discussions (social consensus\footnote{Although this is
+		also a very useful preparatory step to utilize along with the update
+		protocol.}), but based on a protocol
+	with specific security guarantees; a protocol that will leave behind an
+	immutable (on-chain) trace of events
+	
+	\item[\textbf{Transparent and Auditable}] Anybody should be able to answer
+	\emph{when}, \emph{why} and \emph{how} the system has evolved the way it
+	has. The evolution history of the system should be open to everyone and
+	form a globally-consistent tamper-evident public release log.
+	
+	\item[\textbf{Secure Activation Enabled}] The activation of changes on the 
+	blockchain system should be resilient to chain-splits and ensure a secure 
+	transition from the previous version of the consensus protocol to the new 
+	one. We need to formally define what is a \emph{secure
+		activation} and propose a protocol that enables such an activation.
+	
+	\item[\textbf{Performant and Scalable}] The update mechanism should have a 
+	minimal impact on the transaction throughput and size of the underlying
+	blockchain. Moreover, the update mechanism should be scalable to thousands
+	(or even
+	millions) of participants.
+	
+	\item[\textbf{Metadata-Driven Update Logic}] All updates are not the same
+	(criticality,
+	impact on the system, time to deploy etc.). We should enable a
+	metadata-driven update policy (voting periods length, activation priority,
+	deployment window etc.). This update policy should efficiently handle
+	priorities, version dependencies, update conflicts and emergencies, in
+	order the system to always be at a consistent state.
+	
+\end{itemize}

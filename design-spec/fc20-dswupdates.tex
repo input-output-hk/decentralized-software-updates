@@ -6,6 +6,21 @@
 \usepackage{paralist}
 \usepackage{makecell}
 \usepackage{multirow}
+\usepackage{pgf}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usetikzlibrary{arrows,automata, decorations.pathreplacing, positioning, 
+arrows.meta, calc, shapes}
+% For drawing simple diagrams involving arrows between LaTeX symbols
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+% table in landscape
+\usepackage{pdflscape}
+% table multirow cell
+\usepackage{multirow}
+\usepackage{supertabular}
+
 \setcounter{tocdepth}{2}
 
 \input{macros}
@@ -22,18 +37,22 @@
 
 \clearpage
 \import{./}{sections/introduction.tex}
+\import{./}{sections/requirements.tex}
 \import{./}{sections/lifecycle.tex}
 \import{./}{sections/governance_new.tex}
 \import{./}{sections/activation.tex}
-\import{./}{sections/activation_formal.tex}
-\import{./}{sections/activation_protocol.tex}
+%\import{./}{sections/activation_formal.tex}
 \import{./}{sections/threshold_analysis.tex}
 %\import{./}{sections/updlogic.tex}
+\import{./}{sections/performance_considerations.tex}
+\import{./}{sections/prototype_architecture.tex}
+\import{./}{sections/prototype_validation.tex}
+%\import{./}{sections/activation_protocol.tex}
 %\import{./}{sections/security.tex}
 %\import{./}{sections/ledgerenh.tex}
 %\import{./}{sections/measurements.tex}
 %\import{./}{sections/appendix.tex}
-%\import{./}{sections/conclusion.tex}
+\import{./}{sections/conclusion.tex}
 \clearpage
 \bibliography{references}
 
@@ -41,9 +60,9 @@
 \import{./}{sections/definitions}
 \import{./}{sections/general_notions.tex}
 \import{./}{sections/ledger.tex}
-\import{./}{sections/proof}
+%\import{./}{sections/proof}
 \import{./}{sections/appendix-lifecycle.tex}
-%\import{./}{sections/appendix-governance.tex}
+\import{./}{sections/appendix-governance.tex}
 \import{./}{sections/appendix-updlogic.tex}
 
 
