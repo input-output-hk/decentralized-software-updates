@@ -1,34 +1,68 @@
 \section{Requirements for a Decentralized Software Update 
 System}\label{sec:requirements}
 
+Clearly, the software updates mechanism of any blockchain system is a core 
+component of its governance scheme. ``\emph{Governance}'' is a concise term 
+that includes all the constitutional rules by which the blockchain is governed. 
+Practically, one could say that governance is all about two questions: a)  ``who
+decides?'' and b) ``who pays?''. If the answer to \emph{both} of these 
+questions is  
+``\emph{the community does}'', then one can claim that \emph{decentralized 
+governance} is in place.
+
+In this work, we strongly argue that one of the hard prerequisites of 
+\emph{decentralized governance} is a \emph{decentralized} software updates 
+mechanism. Essentially, we advocate that decentralized governance with a 
+centralized software update mechanism is simply an \emph{oxymoron}.
+
+Indeed, the lifecycle of a software update for a blockchain system comprises 
+many critical decisions. Decisions like ``what proposal should move 
+forward?'', or ``what implementation of a proposal is appropriate and safe to 
+deploy on the blockchain?''  and ``when should we actually activate the changes 
+caused by a software update?''. A decentralized software updates mechanism 
+should provide the means by which these decisions are made collectively in a 
+secure manner, in an efficient way, with results that cannot ever be 
+disputed and allow for the activation of changes securely without the risk of 
+\emph{community (i.e., chain) splits}.
+
+In the rest of this section, we set out a list of high-level requirements that 
+form the \emph{vision} for such a decentralized software updates 
+mechanism for blockchain systems. These are the core features that in our view 
+should characterize this mechanism and will be the ultimate goal of our design:
+
 %\subsection{The Cardano software update system vision	
 %statements}\label{sec:vision_statements}
 \begin{itemize}
 	\item[\textbf{Open Participation Enabled}] Anyone who can submit a common
 	transaction should be able to submit an update proposal and vote for an
-	update proposal.
+	update proposal. The definition of the roadmap of the blockchain system 
+	should not be a privilege of the few.
 	
-	\item[\textbf{Decentralized Decision-Making Enabled}]  All major decisions
+	\item[\textbf{Decentralized Decision-Making Enabled}]  All major decisions 
+	in the lifecycle of a software update,
 	typically made by central authorities (e.g., code maintainer, software
 	owner etc.)
 	should
 	be made
-	collectively by the community via a voting mechanism: a) What proposal will
+	collectively by the community via a secure voting mechanism. For example, 
+	a) What proposal will
 	move forward? b) Do we accept the submitted implementation? and c)
-	will the changes be activated?
+	When will the changes be activated?
 	
 	\item[\textbf{Protocol-Driven}] The update mechanism should be an on-chain
 	protocol driven process: Not
-	based on informal discussions (social consensus\footnote{Although this is
+	based just on informal discussions (i.e., a ``\emph{social 
+	consensus}''\footnote{Although this 
+	is
 		also a very useful preparatory step to utilize along with the update
 		protocol.}), but based on a protocol
 	with specific security guarantees; a protocol that will leave behind an
-	immutable (on-chain) trace of events
+	immutable (on-chain) trace of events.
 	
 	\item[\textbf{Transparent and Auditable}] Anybody should be able to answer
 	\emph{when}, \emph{why} and \emph{how} the system has evolved the way it
 	has. The evolution history of the system should be open to everyone and
-	form a globally-consistent tamper-evident public release log.
+	form a globally-consistent tamper-evident public release log of the changes.
 	
 	\item[\textbf{Secure Activation Enabled}] The activation of changes on the 
 	blockchain system should be resilient to chain-splits and ensure a secure 
@@ -45,8 +79,13 @@ System}\label{sec:requirements}
 	\item[\textbf{Metadata-Driven Update Logic}] All updates are not the same
 	(criticality,
 	impact on the system, time to deploy etc.). We should enable a
-	metadata-driven update policy (voting periods length, activation priority,
-	deployment window etc.). This update policy should efficiently handle
+	\emph{metadata-driven} update policy that among others, determines 
+	(\emph{per-proposal}) things 
+	like the  voting period length, the activation priority, the deployment 
+	window etc. 
+	
+	\item[\textbf{Consistent Update Logic Enabled}] This update policy should 
+	efficiently handle
 	priorities, version dependencies, update conflicts and emergencies, in
 	order the system to always be at a consistent state.
 	
