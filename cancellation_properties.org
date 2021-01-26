@@ -1,0 +1,44 @@
+* Properties avoiding wrong cancellation
+
+** Property 1
+*IF* a consensus update proposal /p1/ is canceled
+*THEN*
+  One of the following conditions shall be satisfied:
+     - Proposal /p1/ supersedes a version that is lower than the current version of the blockchain.
+
+     - A cancellation proposal to cancel /p1/ is approved such that:
+         - The current slot is less than 2k blocks before the end of the "current epoch" *OR*
+         - Proposal /p1/ has *NOT* gathered enough endorsing stake 2k blocks before the end of the "current epoch".
+
+     - Another parameter/consensus update proposal /p2/ with the same version as /p1/ is approved such that:
+         - Proposal /p1/ is also approved at the current slot *AND*
+         - Proposal /p2/ has a higher approval stake than /p1/ *OR*
+           Both /p1/ and /p2/ has the same approval stake but /p2/ has the greatest id.
+
+     - Another parameter/consensus update proposal /p2/ with the same version as /p1/ is approved such that:
+         - Proposal /p1/ was approved at a previous slot *AND*
+         - The current slot is less than 2k blocks before the end of the "current epoch" *OR*
+           Proposal /p1/ has *NOT* gathered enough endorsing stake 2k blocks before the end of the "current epoch".
+
+     - The safety lag of proposal /p1/ expires at the next epoch such that:
+        - The current slot is 2k blocks before the end of the current epoch *AND*
+        - Proposal /p1/ has *NOT* gathered enough endorsing stake.
+
+
+** Property 2
+  *IF* a parameter update proposal /p1/ is canceled
+  *THEN*
+   One of the following conditions shall be satisfied:
+     - Proposal /p1/ supersedes a version that is lower than the current version of the blockchain.
+
+     - A cancellation proposal to cancel /p1/ is approved such that:
+         - The current slot is less than 2k blocks before the end of the "current epoch".
+
+     - Another parameter/consensus update proposal /p2/ with the same version as /p1/ is approved such that:
+         - Proposal /p1/ is also approved at the current slot *AND*
+         - Proposal /p2/ has a higher approval stake than /p1/ *OR*
+           Both /p1/ and /p2/ has the same approval stake but /p2/ has the greatest id.
+
+     - Another parameter/consensus update proposal /p2/ with the same version as /p1/ is approved such that:
+         - Proposal /p1/ was approved at a previous slot *AND*
+         - The current slot is less than 2k blocks before the end of the "current epoch"
