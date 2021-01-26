@@ -1,32 +1,32 @@
 * Questions and Clarifications on Endorsement and Cancellation
 ** Question 1
-Does the safety lag corresponds to a particular end of an epoch or does it specify the number of epochs
-in which endorsement can be made ? Indeed, the specification gives the impression that a safety lag
+Does the safety lag corresponds to a particular end of an epoch or does it specify the number of epochs in which endorsement can be made ? \\
+Indeed, the specification gives the impression that a safety lag
 corresponds to a specific epoch, or is there a conversion (not explicitly stated) performed when the
 consensus proposal enters its endorsement period ?
 
 ** Question 2
-If the safety lag does NOT correspond to a particular end of an epoch and that the ending epoch
-for an endorsement is computed only when a consensus proposal /p1/ enters its endorsement period,
+If the safety lag does NOT correspond to a particular end of an epoch and the "ending epoch"
+for an endorsement is computed only when a consensus proposal $p_{1}$ enters its endorsement period, \\
 then we may have the following situation:
-   - /p1/ enters its endorsement period in epoch 10 (with ending epoch set to 15)
-   - Epoch 14 is reached and /p1/ has still not gathered enough endorsement
-   - Another proposal /p2/ with a version lower than /p1/ is approved but 2k blocks before the end of epoch 14
-   - /p1/ is returned back to the activation queue
-   - Proposal /p2/ is canceled at epoch 19 since it has not gathered enough endorsing stake (or is canceled explicitly)
-   - Proposal /p1/ enters once again its endorsement period (with ending epoch set to 24)
+   - $p_{1}$ enters its endorsement period in epoch 10 (with ending epoch set to 15);
+   - Epoch 14 is reached and $p_{1}$ has still not gathered enough endorsement;
+   - Another proposal $p_{2}$ with a version lower than $p_{1}$ is approved but 2k blocks before the end of epoch 14,
+   - $p_{1}$ is returned back to the activation queue;
+   - Proposal $p_{2}$ is canceled at epoch 19 since it has NOT gathered enough endorsing stake (or is canceled explicitly);
+   - Proposal $p_{1}$ enters once again its endorsement period (with ending epoch set to 24).
 
- In a sense, the endorsement period for /p1/ may be extended deliberately by anyone wanting
- to see /p1/ get endorsed via the submission of a proposal (or any number of necessary proposals) with a version lower
- than /p1/ that he/she knows will never get endorsed (e.g., due to external factors, rumors about security flaws, etc).
+ In a sense, the endorsement period for $p_{1}$ may be extended deliberately by anyone wanting
+ to see $p_{1}$ get endorsed via the submission of a proposal (or any number of necessary proposals) \\
+ with a version lower than $p_{1}$ that he/she knows will never get endorsed (e.g., due to external factors, rumors about security flaws, etc).
 
 ** Question 3
-What is the behavior when an endorsement is received for an update proposal not in its endorsement period ?
- i.e., Is it rejected or is it simply not considered when the effective tally takes place.
+What is the behavior when an endorsing stake is received for an update proposal not in its endorsement period ? \\
+ $\hspace{1ex}$ i.e., Is it rejected or is it simply not considered when the effective tally takes place.
 
 ** Question 4
- - Are the nodes (clients) notified when the proposal they endorsed is returned back to the activation queue,
-   thus knowing that the endorsements have been discarded ?
+Are the nodes (clients) notified when the proposal they endorsed is returned back to the activation queue ?
+Are they aware that the endorsements have been discarded ?
 
 ** Question 5
- - Is implicit and explicit cancellation of a proposal notify to the community ?
+Is implicit and explicit cancellation of a proposal notify to the community ?
