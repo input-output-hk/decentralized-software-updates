@@ -2,7 +2,7 @@
 
 ** Property 1
 *IF* a consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
+*THEN*  \\
 *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed the
 approval phase such that:
    - Proposal /p_{2}/ was approved at a slot greater than the approval slot of /p_{1}/ *AND*
