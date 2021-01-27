@@ -10,8 +10,9 @@
     - Commit-reveal scheme.
     - Voting process in ideation and approval phases.
       - Vote confidence: for, against, or abstain.
-    - Endorsements in activation phase.
+    - Endorsements (synchronization) in activation phase.
     - Proposals have priority.
+    - Proposals specify one dependency.
 
 * Main challenges of an update protocol
 
@@ -221,8 +222,6 @@
               -> UpdateSpec
               -> Gen UpdateAction
             genActionsFor sipVotersBehavior implVotersBehavior aSpec =
-              -- TODO: we also need to generate actions in which the signature of the
-              -- action does not verify.
               frequency [ (20, genAction)
                         , (1, pure JustTick)
                         ]
@@ -339,6 +338,22 @@
 
 *** Some test cases
 ***** Implementation approval
+      #+begin_src haskell
+        -- Precondition: the update SIP should be stably approved
+        approveImplementation :: UpdateSpec -> TestCase
+        approveImplementation update = do
+          stateOf update `shouldBe` SIP (IsStably Approved)
+          submit `implementation` update
+          tickTillStable
+          reveal  `implementation` update
+          stateOf update `shouldBe` Implementation Revealed
+          tickTillStable
+          approve `implementation` update
+          stateOf update `shouldBe` Implementation StablyRevealed
+          tickFor $ Proposal.votingPeriodDuration (getImpl update)
+          tickTillStable
+          stateOf update `shouldBe` Implementation (Is Approved)
+      #+end_src
       [[../test/Test/Cardano/Ledger/Update/UnitTests/Approval.hs::252][approveImplementation]]
       - [[../test/Test/Cardano/Ledger/UpdateSpec.hs::35][UpdateSpec]]
       - ~stateOf~
@@ -725,15 +740,14 @@
       An event becomes stable after the exact number of slots that corresponds
       to the stability window pass.
 ***** No unrighful rejections of update payload
-***** Votes are correctly tallied
 ***** Priorities are honored
+***** Votes are correctly tallied
 ***** Endorsements are correctly tallied
-
 *** Expressing properties was challenging
 
 ***** Reliance on ~stateOf~
       - We did not want to break encapsulation of the ledger state.
-      - If the system reported ~stateOf == Unknown~ most property would be
+      - If the system reported ~stateOf == Unknown~ most properties would be
         vacuously true.
 
 ***** Completeness
@@ -952,11 +966,11 @@
       #+BEGIN_SRC haskell
         nextEpochFirstSlot - 2 * stableAfter
       #+END_SRC
-***** Problem
-      What happens if ...
-      #+BEGIN_SRC haskell
-        slotsPerEpoch < 2 * stableAfter
-      #+END_SRC
+******* Problem
+        What happens if ...
+        #+BEGIN_SRC haskell
+          slotsPerEpoch < 2 * stableAfter
+        #+END_SRC
 *** Entering the endorsement period at the wrong time
     - being endorsed requires:
       - ~supersedes version number == current version number~
