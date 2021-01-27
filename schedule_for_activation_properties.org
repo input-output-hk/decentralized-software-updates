@@ -16,8 +16,7 @@ afterwards and /p_{1}/ has not gathered enough endorsement.
 ** Property 2
 *IF* a parameter update proposal /p_{1}/ is "/scheduled for activation/" \\
 *THEN*
- - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed
- the approval phase such that:
+ - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot greater than the approval slot of /p_{1}/ *AND*
    - One of the following conditions is satisfied:
       - Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the approval epoch for /p_{1}/; *OR*
@@ -34,8 +33,7 @@ epoch and /p_{2}/ is approved before /2k/ blocks of the end of the next epoch, /
 ** Property 3
 *IF* a parameter/consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
 *THEN*
- - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed
- the approval phase such that:
+ - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at the same slot as /p_{1}/ *AND*
    - One of the following conditions is satisfied:
      - Proposal /p_{2}/ has a higher approval stake than /p_{1}/; *OR*

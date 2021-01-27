@@ -1,44 +1,44 @@
 * Properties avoiding wrong cancellation
 
 ** Property 1
-*IF* a consensus update proposal $p_{1}$ is canceled  \\
-*THEN* \\
-  $\hspace{1ex}$ One of the following conditions shall be satisfied:
-     - Proposal $p_{1}$ supersedes a version that is lower than the current version of the blockchain; *OR*
+*IF* a consensus update proposal /p_{1}/ is canceled \\
+*THEN*
+  - One of the following conditions shall be satisfied:
+     - Proposal /p_{1}/ supersedes a version that is lower than the current version of the blockchain; *OR*
 
-     - A cancellation proposal to cancel $p_{1}$ is approved such that:
-         - The current slot is less than $2k$ blocks before the end of the "current epoch" *OR* \\
-         - Proposal $p_{1}$ has *NOT* gathered enough endorsing stake $2k$ blocks before the end of the "current epoch"; *OR*
+     - A cancellation proposal to cancel /p_{1}/ is approved such that:
+         - The current slot is less than /2k/ blocks before the end of the "current epoch" *OR* \\
+         - Proposal /p_{1}/ has *NOT* gathered enough endorsing stake /2k/ blocks before the end of the "current epoch"; *OR*
 
-     - Another parameter/consensus update proposal $p_{2}$ with the same version as $p_{1}$ is approved such that:
-         - Proposal $p_{1}$ is also approved at the current slot *AND*
-         - Proposal $p_{2}$ has a higher approval stake than $p_{1}$ *OR* \\
-           Both $p_{1}$ and $p_{2}$ has the same approval stake but $p_{2}$ has the greatest id; *OR*
+     - Another parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ is approved such that:
+         - Proposal /p_{1}/ is also approved at the current slot *AND*
+         - Proposal /p_{2}/ has a higher approval stake than /p_{1}/ *OR* \\
+           Both /p_{1}/ and /p_{2}/ has the same approval stake but /p_{2}/ has the greatest id; *OR*
 
-     - Another parameter/consensus update proposal $p_{2}$ with the same version as $p_{1}$ is approved such that:
-         - Proposal $p_{1}$ was approved at a previous slot *AND*
-         - The current slot is less than $2k$ blocks before the end of the "current epoch" *OR* \\
-           Proposal $p_{1}$ has *NOT* gathered enough endorsing stake $2k$ blocks before the end of the "current epoch"; *OR*
+     - Another parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ is approved such that:
+         - Proposal /p_{1}/ was approved at a previous slot *AND*
+         - The current slot is less than /2k/ blocks before the end of the "current epoch" *OR* \\
+           Proposal /p_{1}/ has *NOT* gathered enough endorsing stake /2k/ blocks before the end of the "current epoch"; *OR*
 
-     - The safety lag of proposal $p_{1}$ expires at the next epoch such that:
-        - The current slot is $2k$ blocks before the end of the current epoch *AND*
-        - Proposal $p_{1}$ has *NOT* gathered enough endorsing stake.
+     - The safety lag of proposal /p_{1}/ expires at the next epoch such that:
+        - The current slot is /2k/ blocks before the end of the current epoch *AND*
+        - Proposal /p_{1}/ has *NOT* gathered enough endorsing stake.
 
 
 ** Property 2
-  *IF* a parameter update proposal $p_{1}$ is canceled \\
-  *THEN* \\
-   $\hspace{1ex}$ One of the following conditions shall be satisfied:
-     - Proposal $p_{1}$ supersedes a version that is lower than the current version of the blockchain; *OR*
+  *IF* a parameter update proposal /p_{1}/ is canceled \\
+  *THEN*
+   - One of the following conditions shall be satisfied:
+     - Proposal /p_{1}/ supersedes a version that is lower than the current version of the blockchain; *OR*
 
-     - A cancellation proposal to cancel $p_{1}$ is approved such that:
-         - The current slot is less than $2k$ blocks before the end of the "current epoch"; *OR*
+     - A cancellation proposal to cancel /p_{1}/ is approved such that:
+         - The current slot is less than /2k/ blocks before the end of the "current epoch"; *OR*
 
-     - Another parameter/consensus update proposal $p_{2}$ with the same version as $p_{1}$ is approved such that:
-         - Proposal $p_{1}$ is also approved at the current slot *AND*
-         - Proposal $p_{2}$ has a higher approval stake than $p_{1}$ *OR* \\
-           Both $p_{1}$ and $p_{2}$ has the same approval stake but $p_{2}$ has the greatest id; *OR*
+     - Another parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ is approved such that:
+         - Proposal /p_{1}/ is also approved at the current slot *AND*
+         - Proposal /p_{2}/ has a higher approval stake than /p_{1}/ *OR* \\
+           Both /p_{1}/ and /p_{2}/ has the same approval stake but /p_{2}/ has the greatest id; *OR*
 
-     - Another parameter/consensus update proposal $p_{2}$ with the same version as $p_{1}$ is approved such that:
-         - Proposal $p_{1}$ was approved at a previous slot *AND*
-         - The current slot is less than $2k$ blocks before the end of the "current epoch".
+     - Another parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ is approved such that:
+         - Proposal /p_{1}/ was approved at a previous slot *AND*
+         - The current slot is less than /2k/ blocks before the end of the "current epoch".
