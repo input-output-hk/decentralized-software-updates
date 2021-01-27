@@ -6,8 +6,8 @@
  - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot greater than the approval slot of /p_{1}/ *AND*
    - One of the following conditions is satisfied:
-       - Proposal /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the corresponding epoch; *OR*
-       - Proposal /p_{1}/ has *NOT* gathered enough endorsing stake $2k$ blocks before the end of the approval epoch for /p_{2}/
+       - Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the corresponding epoch; *OR*
+       - Proposal /p_{1}/ has *NOT* gathered enough endorsing stake /2k/ blocks before the end of the approval epoch for /p_{2}/
 
 *RATIONALE:* Proposal /p_{1}/ is implicitly canceled when another proposal /p_{2}/ with same version is approved
 afterwards and /p_{1}/ has not gathered enough endorsement.
@@ -15,26 +15,26 @@ afterwards and /p_{1}/ has not gathered enough endorsement.
 
 ** Property 2
 *IF* a parameter update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
- *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed
+*THEN*
+ - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed
  the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot greater than the approval slot of /p_{1}/ *AND*
    - One of the following conditions is satisfied:
-      - Proposal /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the approval epoch for /p_{1}/; *OR*
+      - Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the approval epoch for /p_{1}/; *OR*
 
-      - The approval slot of /p_{1}/ was greater than $2k$ blocks before the end of the corresponding epoch *AND* \\
-        Proposal /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the epoch succeeding the approval epoch for /p_{1}/.
+      - The approval slot of /p_{1}/ was greater than /2k/ blocks before the end of the corresponding epoch *AND* \\
+        Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the epoch succeeding the approval epoch for /p_{1}/.
 
 *RATIONALE:* No endorsement applies for parameter update proposals. A parameter proposal /p_{1}/ may however
-be implicitly canceled by another proposal /p_{2}/, with same version, that is approved at a slot less than $2k$
-blocks before the end of the approval epoch for /p_{1}/. If /p_{1}/ is approved after $2k$ blocks before the end of the current
-epoch and /p_{2}/ is approved before $2k$ blocks of the end of the next epoch, /p_{1}/ is also canceled.
+be implicitly canceled by another proposal /p_{2}/, with same version, that is approved at a slot less than /2k/
+blocks before the end of the approval epoch for /p_{1}/. If /p_{1}/ is approved after /2k/ blocks before the end of the current
+epoch and /p_{2}/ is approved before /2k/ blocks of the end of the next epoch, /p_{1}/ is also canceled.
 
 
 ** Property 3
 *IF* a parameter/consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
-  *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed
+*THEN*
+ - *NO* other parameter/consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed
  the approval phase such that:
    - Proposal /p_{2}/ was approved at the same slot as /p_{1}/ *AND*
    - One of the following conditions is satisfied:
@@ -48,60 +48,59 @@ higher approval stake or with the greatest id.
 
 ** Property 4
 *IF* a parameter/consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
-  *NO* other consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
+*THEN*
+ - *NO* other consensus update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot less than the approval slot of /p_{1}/ *AND*
-   - The approval slot of /p_{1}/ was greater than or equal to $2k$ blocks before the end of the corresponding epoch *AND*
-   - Proposal /p_{2}/ has gathered enough endorsing stake $2k$ blocks before the end of the approval epoch for /p_{1}/.
+   - The approval slot of /p_{1}/ was greater than or equal to /2k/ blocks before the end of the corresponding epoch *AND*
+   - Proposal /p_{2}/ has gathered enough endorsing stake /2k/ blocks before the end of the approval epoch for /p_{1}/.
 
 *RATIONALE:* Proposal /p_{1}/ cannot implicitly canceled another proposal with the same version if the latter
 has gathered enough endorsement when /p_{1}/ is approved.
 
 
 ** Property 5
-*IF* a parameter/consensus update proposal /p_{1}/ is "//scheduled for activation//" \\
-*THEN* \\
-  *NO* other parameter update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
+*IF* a parameter/consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
+*THEN*
+ - *NO* other parameter update proposal /p_{2}/ with the same version as /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot less than the approval slot of /p_{1}/ *AND*
    - One of the following conditions is satisfied:
-      - Proposal /p_{2}/ was approved at a slot less than or equal to $2k$ blocks before the end of the corresponding epoch *AND* \\
-        Proposal /p_{1}/ was approved at a slot greater than or equal to $2k$ blocks before the end of the approval epoch for /p_{2}/; *OR*
+      - Proposal /p_{2}/ was approved at a slot less than or equal to /2k/ blocks before the end of the corresponding epoch *AND* \\
+        Proposal /p_{1}/ was approved at a slot greater than or equal to /2k/ blocks before the end of the approval epoch for /p_{2}/; *OR*
 
-      - Proposal /p_{2}/ was approved at slot greater than $2k$ blocks before the end of the corresponding epoch *AND* \\
-        The approval slot of /p_{1}/ was greater than $2k$ blocks before the end of the epoch succeeding the approval epoch for /p_{2}/.
+      - Proposal /p_{2}/ was approved at slot greater than /2k/ blocks before the end of the corresponding epoch *AND* \\
+        The approval slot of /p_{1}/ was greater than /2k/ blocks before the end of the epoch succeeding the approval epoch for /p_{2}/.
 
 *RATIONALE:* No endorsement applies for parameter update proposals. A parameter proposal /p_{1}/ cannot be implicitly canceled
-by another proposal /p_{2}/ approved \\
-afterwards when either: /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the approval epoch for /p_{1}/;
-or /p_{1}/ was approved at a slot greater than $2k$ blocks \\
-and /p_{2}/ was approved at slot less than $2k$ blocks before the end of the succeeding epoch.
+by another proposal /p_{2}/ approved afterwards when either: /p_{2}/ was approved at a slot less than /2k/ blocks before the
+end of the approval epoch for /p_{1}/; or /p_{1}/ was approved at a slot greater than /2k/ blocks and /p_{2}/ was approved
+at slot less than /2k/ blocks before the end of the succeeding epoch.
 
 
 ** Property 6
 *IF* a parameter/consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
-  *NO* parameter update proposal /p_{2}/ with a version greater than /p_{1}/ has passed the approval phase such that:
+*THEN*
+ - *NO* parameter update proposal /p_{2}/ with a version greater than /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot less than the approval slot of /p_{1}/ *AND*
    - Proposal /p_{2}/ was the candidate proposal when /p_{1}/ was approved *AND*
    - One of the following conditions is satisfied:
-      - Proposal /p_{2}/ was approved at a slot less than or equal to $2k$ blocks before the end of the corresponding epoch *AND* \\
-        Proposal /p_{1}/ was approved at a slot greater than $2k$ blocks before the end of the approval epoch for /p_{2}/; *OR*
+      - Proposal /p_{2}/ was approved at a slot less than or equal to /2k/ blocks before the end of the corresponding epoch *AND* \\
+        Proposal /p_{1}/ was approved at a slot greater than /2k/ blocks before the end of the approval epoch for /p_{2}/; *OR*
 
-      - Proposal /p_{2}/ was approved at a slot greater than $2k$ blocks before the end of the corresponding epoch *AND* \\
-        The approval slot of /p_{1}/ was greater than $2k$ blocks before the end of the epoch succeeding the approval epoch for /p_{2}/.
+      - Proposal /p_{2}/ was approved at a slot greater than /2k/ blocks before the end of the corresponding epoch *AND* \\
+        The approval slot of /p_{1}/ was greater than /2k/ blocks before the end of the epoch succeeding the approval epoch for /p_{2}/.
 
 *RATIONALE:* an approved proposal /p_{1}/ with a lower version cannot canceled a parameter proposal if the latter was the candidat proposal \\
-and was already approved $2k$ blocks before the end of the corresponding epoch.
+and was already approved /2k/ blocks before the end of the corresponding epoch.
 
 
 ** Property 7
 *IF* a parameter/consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
-  *NO* consensus update proposal /p_{2}/ with a version greater than /p_{1}/ has passed the approval phase such that:
+*THEN*
+ - *NO* consensus update proposal /p_{2}/ with a version greater than /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ was approved at a slot less than the approval slot of /p_{1}/ *AND*
    - Proposal /p_{2}/ was the candidate proposal when /p_{1}/ was approved *AND*
-   - Proposal /p_{1}/ was approved at a slot greater than or equal to $2k$ blocks before the end of the corresponding epoch *AND*
-   - Proposal /p_{2}/ had gathered enough endorsing stake $2k$ blocks before the end of the approval epoch for /p_{1}/.
+   - Proposal /p_{1}/ was approved at a slot greater than or equal to /2k/ blocks before the end of the corresponding epoch *AND*
+   - Proposal /p_{2}/ had gathered enough endorsing stake /2k/ blocks before the end of the approval epoch for /p_{1}/.
 
 *RATIONALE:* a approved proposal /p_{1}/ with a lower version cannot canceled a consensus proposal /p_{2}/ if the latter was the candidate proposal \\
 and had gathered enough endorsing stake when /p_{1}/ was approved.
@@ -109,8 +108,8 @@ and had gathered enough endorsing stake when /p_{1}/ was approved.
 
 ** Property 8
 *IF* a parameter update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
-  *NO* parameter/consensus update proposal /p_{2}/ with a version lower than /p_{1}/ has passed the approval phase such that:
+*THEN*
+ - *NO* parameter/consensus update proposal /p_{2}/ with a version lower than /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ is still *NOT* "scheduled for activation" *AND*
 
    - Proposal /p_{2}/ is still *NOT* implicitly or explicitly canceled *AND*
@@ -118,23 +117,22 @@ and had gathered enough endorsing stake when /p_{1}/ was approved.
    - One of the following conditions is satisfied:
        - Proposal /p_{2}/ was approved at a slot less than or equal to the approval slot of /p_{1}/; *OR*
 
-       - Proposal /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the approval epoch for /p_{1}/; *OR*
+       - Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the approval epoch for /p_{1}/; *OR*
 
-       - Proposal /p_{1}/ was approved at a slot greater than $2k$ blocks before the end of the corresponding epoch *AND* \\
-         Proposal /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the epoch succeeding the approval epoch for /p_{1}/.
+       - Proposal /p_{1}/ was approved at a slot greater than /2k/ blocks before the end of the corresponding epoch *AND* \\
+         Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the epoch succeeding the approval epoch for /p_{1}/.
 
 
 *RATIONALE:* When a proposal /p_{1}/ is "/scheduled for activation/" there is a need to guarantee that no another proposal /p_{2}/
-with a lower version resides in the activation queue \\
-or is in its endorsement period, s.t.: proposal /p_{2}/ has not been implicitly canceled by another proposal with the same version;
-no cancellation proposal to cancel /p_{2}/ was approved \\
-before /p_{2}/ gathered enough endorsing stake; and if proposal /p_{2}/ is a consensus then its safety lag has not expired.
+with a lower version resides in the activation queue or is in its endorsement period, s.t.: proposal /p_{2}/ has not been implicitly
+canceled by another proposal with the same version; no cancellation proposal to cancel /p_{2}/ was approved before /p_{2}/ gathered
+enough endorsing stake; and if proposal /p_{2}/ is a consensus then its safety lag has not expired.
 
 
 ** Property 9
 *IF* a consensus update proposal /p_{1}/ is "/scheduled for activation/" \\
-*THEN* \\
-  *NO* parameter/consensus update proposal /p_{2}/ with a version lower than /p_{1}/ has passed the approval phase such that:
+*THEN*
+ - *NO* parameter/consensus update proposal /p_{2}/ with a version lower than /p_{1}/ has passed the approval phase such that:
    - Proposal /p_{2}/ is still *NOT* "/scheduled for activation/" *AND*
 
    - Proposal /p_{2}/ is still *NOT* implicitly or explicitly canceled *AND*
@@ -142,24 +140,24 @@ before /p_{2}/ gathered enough endorsing stake; and if proposal /p_{2}/ is a con
    - One of the following conditions is satisfied:
        - Proposal /p_{2}/ was approved at a slot less than or equal to the approval slot of /p_{1}/; *OR*
 
-       - Proposal /p_{2}/ was approved at a slot less than $2k$ blocks before the end of the corresponding epoch; *OR*
+       - Proposal /p_{2}/ was approved at a slot less than /2k/ blocks before the end of the corresponding epoch; *OR*
 
-       - Proposal /p_{1}/ had *NOT* gathered enough endorsing stake $2k$ blocks before the end of the approval epoch for /p_{2}/.
+       - Proposal /p_{1}/ had *NOT* gathered enough endorsing stake /2k/ blocks before the end of the approval epoch for /p_{2}/.
 
 
-*RATIONALE:* When a proposal /p_{1}/ is "/scheduled for activation/" there is a need to guarantee that no other proposal $/p_{2}/ with a lower version \\
-resides in the activation queue or is in its endorsement period.
+*RATIONALE:* When a proposal /p_{1}/ is "/scheduled for activation/" there is a need to guarantee that no other
+proposal /p_{2}/ with a lower version resides in the activation queue or is in its endorsement period.
 
 
 ** Property 10
 *IF* a consensus update proposal /p/ is "/scheduled for activation/" \\
-*THEN* \\
+*THEN*
  - Its safety lag is greater than or equal to the end of the current epoch *AND*
- - Proposal /p/ has gathered enough endorsing stake $2k$ blocks before the end of the "current epoch" such that:
+ - Proposal /p/ has gathered enough endorsing stake /2k/ blocks before the end of the "current epoch" such that:
    - The tally only considers the endorsing stake arrived after /p/ has entered/re-entered its endorsement period (i.e., /p/ has the lowest version) *AND*
    - Proposal p has *NOT* left its endorsement period up to the slot it is "/scheduled for activation/" *AND*
    - *IF* the safety lag expires at the next epoch *THEN* the endorsing stake is greater than 51% *AND*
-   - *IF* safety lag does not expires at the next epoch *THEN* the endorsing stake is greater than the /adoption threshold/ ($`\mathcal{T}_{A}`$).
+   - *IF* safety lag does not expires at the next epoch *THEN* the endorsing stake is greater than the /adoption threshold/.
 
 
 ** Property 11
@@ -168,31 +166,31 @@ Only one proposal can be "/scheduled for activation/" at any given epoch
 
 ** Property 12
 *IF* a parameter/consensus update proposal is "/scheduled for activation/" \\
-*THEN* \\
-   It supersedes the current version of the blockchain
+*THEN*
+   - It supersedes the current version of the blockchain
 
 
 ** Property 13
 *IF* a parameter/consensus update proposal /p/ was "/scheduled for activation/" at the preceding epoch \\
-*THEN* \\
-   The current version of the blockchain = version of /p/
+*THEN*
+  - The current version of the blockchain = version of /p/
 
 
 ** Property 14
 *IF* a consensus update proposal /p/ is "/scheduled for activation/" \\
-*THEN* \\
-   *NO* cancellation proposal to cancel it has passed the approval phase such that one of the following conditions is satisfied:
+*THEN*
+  - *NO* cancellation proposal to cancel it has passed the approval phase such that one of the following conditions is satisfied:
    - The cancellation proposal was approved at any epoch preceding the "current one"; *OR*
 
-   - The cancellation proposal was approved at a slot less than $2k$ blocks before the end of the "current epoch"; *OR*
+   - The cancellation proposal was approved at a slot less than /2k/ blocks before the end of the "current epoch"; *OR*
 
-   - Proposal /p/ has *NOT* gathered enough endorsing stake $2k$ blocks before the end of the "current epoch".
+   - Proposal /p/ has *NOT* gathered enough endorsing stake /2k/ blocks before the end of the "current epoch".
 
 
 ** Property 15
 *IF* a parameter update proposal /p/ is "/scheduled for activation/" \\
-*THEN* \\
-   *NO* cancellation proposal to cancel it has passed the approval phase such that one of the following conditions is satisfied:
+*THEN*
+ - *NO* cancellation proposal to cancel it has passed the approval phase such that one of the following conditions is satisfied:
    - The cancellation proposal was approved at any epoch preceding the "current one"; *OR*
 
-   - The cancellation proposal was approved at a slot less than $2k$ blocks before the end of the "current epoch".
+   - The cancellation proposal was approved at a slot less than /2k/ blocks before the end of the "current epoch".
