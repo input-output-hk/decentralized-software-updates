@@ -1,1 +1,25 @@
 \subsection{Secure Activation Protocols}\label{sec:secure_activation_protocols}
+A secure activation protocol is one that achieves a secure transition from the 
+current version of the consensus protocol to a new one. We have formally 
+defined what is a \emph{secure activation} and have proposed two distinct 
+protocols that provably achieve this. In a
+nutshell, \emph{secure activation} means, the secure transition from the old
+ledger (L1) to the new ledger (L2) in a way where:
+\begin{itemize}
+	\item L2 enjoys liveness \cite{backbone}
+	\item L2 enjoys consistency \cite{backbone}
+	\item L2 has L1 as a prefix
+\end{itemize}
+
+Our first activation protocol requires the structure of the current and the 
+updated blockchain to be very similar (only the structure of the blocks can be 
+different) but it allows for an update process more simple and efficient. The 
+second activation protocol that we propose is very generic (i.e., makes few 
+assumptions on the similarities between the structure of the current blockchain 
+and the updated blockchain). The drawback of this protocol is that it requires 
+the new blockchain to be resilient against a specific adversarial behaviour and
+requires all the honest parties to be online during the update process.
+However, we show how to get rid of the latest requirement (the honest
+parties being online during the update) in the case of proof-of-work and
+proof-of-stake ledgers. The interested reader can find more details on this 
+topic in our paper \cite{secure_activation}.

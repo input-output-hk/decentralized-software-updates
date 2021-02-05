@@ -1,7 +1,57 @@
 \section{The Activation of Changes}\label{the_activation_of_changes}
 
-\subsection{Synchronization for Upgrading} \label{synchronization_for_upgrading}
+\subsection{Overview}\label{sec:activation_overview}
+In section \ref{lifecycle}, we have described the lifecycle of a software 
+update and there we have seen that once an implementation (UP) is approved, it 
+enters the \emph{Activation} phase. This phase is depicted in figure 
+\ref{fig:activation_phase_overview}.
 
+\begin{figure}[h!] %[H]
+	\centering
+	\includegraphics[width=0.8\columnwidth,
+	keepaspectratio]{figures/activation_phase.png}
+	\caption{The Activation Phase.}
+	\label{fig:activation_phase_overview}
+\end{figure}
+
+An approved update proposal enters the activation phase and is placed in the
+\emph{activation queue}. At this point, the
+\emph{update constraints} of the proposal will be evaluated. A proposal
+satisfies the update constraints when:
+\begin{itemize}
+	\item is approved,
+	\item meets its dependencies,
+	\item does not conflict with the current version,
+	\item has the highest priority among competing proposals
+\end{itemize}
+
+If a proposal satisfies its update constraints it enters the \emph{Endorsement
+Period}. This is the synchronization period discussed in section 	
+\ref{se:activation}, where the \emph{block issuers} download and
+install the update and \emph{signal upgrade readiness}. We call this signal an 
+\emph{endorsement}. Note that only a
+\emph{single} proposal can be endorsed at a time. The endorsement period lasts
+$N$ number of \emph{epochs}, which is a metadata-defined parameter, called the
+\emph{safety lag}; the safety lag corresponds to the sufficient deployment time
+window required for the specific update proposal. Once the endorsements reach a
+specific stake threshold, called the \emph{adoption threshold}, i.e., when the 
+synchronization condition is met, then the activation
+gives the green light to the \emph{activation protocol} to run. The activation
+protocol ensures the secure activation, i.e., the secure transfer from the old
+ledger to the upgraded ledger, based on our formal definition of activation
+security and corresponding security proofs \cite{secure_activation}. 
+
+Finally, note that all the metadata-defined information about an update 
+proposal, such as the
+deployment window length, the proposal's priority, the version dependencies
+etc., form the proposal's \emph{update policy} to be followed by the update
+system. This policy is accepted and confirmed by the community through the
+previous voting process during the Approval phase (see section 
+\ref{lifecycle}). In section \ref{activation_phase_design}, we provide details 
+on the design of the activation phase.
+
+\ignore {
+\subsection{Synchronization for Upgrading} \label{synchronization_for_upgrading}
 
 %\section{Defining a Secure Update System} \label{secureupdate}
 We have seen that upon the approval of a UP, users start installing the software update (i.e., upgrade) and wait for the activation of the changes. We call the total  time period from the approval of a UP until the actual activation of the changes in the blockchain system as the \emph{activation lag}. Our protocol should try to minimize this lag and at the same time ensure a secure activation of the changes.
@@ -15,7 +65,12 @@ In order to enable a swift and effective update mechanism, we want to minimize t
 %What is the minimum necessary percent of stake to have upgraded, before the actual activation of the new softwre takes place, in order to avoid a chain split? 
 We need some minimum necessary percent of stake to have upgraded, before the actual activation of the new software takes place that will ensure that a chain split will be avoided. The \emph{adoption threshold} is used in the activation phase and corresponds exactly to the minimum percent of stake that is necessary to have signaled activation readiness, before the actual activation takes place. It is essentially a synchronization point that ensures that a sufficient percent of stake has upgraded and thus it is safe to actually activate the changes. 
 %It is therefore a guard against chain splits. 
- Please note that the adoption threshold is only relevant for software updates that impact the consensus protocol (i.e., the validation rules for blocks and transactions and the consensus protocol per se). For all other software updates the activation can take place immediately after the upgrade.
+ Please note that the adoption threshold is only relevant for software updates 
+ that impact the consensus protocol. For all other software updates the 
+ activation can take place immediately after the upgrade and for protocol 
+ parameters it can take place automatically in the next epoch (see on section 
+ \ref{se:activation} the discussion about the need for synchronization upon 
+ activation).
 
 Let us assume that the adoption threshold of our software update protocol is called $\tau_A$. %In order to enable update policies, we need to be able to adjust $\tau_A$ based on each software update's metadata. 
 %What would be the appropriate values for $\tau_A$? 
@@ -77,6 +132,8 @@ Intuitively, in order to prevent this type of attack, we need to give more time 
 %The purpose of ledger consensus is to provide a unique
 %view to the ledger for the clients. 
 %The properties that a ledger consensus protocol must satisfy are as follows:
+
+} % ignore
 
 \import{./}{sections/secure_activation_protocols.tex}
 

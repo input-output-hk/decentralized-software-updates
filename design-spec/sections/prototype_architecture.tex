@@ -1,35 +1,41 @@
-\section{Prototype Architecture} \label{prototype_architecture}
+\section{Architecture} \label{architecture}
 
 \subsection{Decentralized Governance Landscape} 
 \label{decentralized_governance_landscape}
 %\section{The Global Decentralized Governance Level}
 %scope of this section
-There are two important questions related to governance: a) Who decides? and b) 
-Who pays? Indeed, 
-this is true for any organization, or any system and it is also true for 
-blockchain systems. Decentralized governance on the other hand, essentially 
-means that the answer to these questions is: “the community”. Cardano aspires 
-to become a truly community-managed blockchain. A self-sustaining blockchain 
-system, where stakeholders can influence the future development of the network 
-and fund new development through a treasury system. However, decentralized 
-governance is a long journey. At the end of this journey -code-named the 
-Voltaire era- Cardano's future will be in the hands of the community! 
+%There are two important questions related to governance: a) Who decides? and 
+%b) 
+%Who pays? Indeed, 
+%this is true for any organization, or any system and it is also true for 
+%blockchain systems. Decentralized governance on the other hand, essentially 
+%means that the answer to these questions is: ``the community''. Cardano 
+%aspires 
+%to become a truly community-managed blockchain. A self-sustaining blockchain 
+%system, where stakeholders can influence the future development of the network 
+%and fund new development through a treasury system. However, decentralized 
+%governance is a long journey. At the end of this journey -code-named the 
+%Voltaire era- Cardano's future will be in the hands of the community! 
+%
+%What does it take to achieve decentralized governance? Can there even be a 
+%``centrally governed decentralized system''? Isn't this an oxymoron? There are 
+%many blockchain systems that claim that have achieved decentralized 
+%governance, 
+%but have they really? Imagine a blockchain system where the community 
+%collectively decides what changes should be funded. However, when the change 
+%is 
+%implemented, then there is a trusted central authority who decides if this 
+%implementation is appropriate to be deployed and when the changes will take 
+%effect. Can we call this decentralized governance? It is important to 
+%understand that governance does not have to do with just one decision. There 
+%are a plethora of core decisions to be made in the whole lifecycle of a 
+%change; 
+%from the initial idea conception to the very end, where changes take effect 
+%into the system. Decentralized governance requires to decentralize all 
+%decision 
+%points, or else it remains an utopia. 
 
-What does it take to achieve decentralized governance? Can there even be a 
-“centrally governed decentralized system”? Isn't this an oxymoron? There are 
-many blockchain systems that claim that have achieved decentralized governance, 
-but have they really? Imagine a blockchain system where the community 
-collectively decides what changes should be funded. However, when the change is 
-implemented, then there is a trusted central authority who decides if this 
-implementation is appropriate to be deployed and when the changes will take 
-effect. Can we call this decentralized governance? It is important to 
-understand that governance does not have to do with just one decision. There 
-are a plethora of core decisions to be made in the whole lifecycle of a change; 
-from the initial idea conception to the very end, where changes take effect 
-into the system. Decentralized governance requires to decentralize all decision 
-points, or else it remains an utopia. 
-
-In this section, we will provide an overview of the overall Cardano 
+In this section, we provide an overview of the overall Cardano 
 decentralized governance landscape. We will identify the main components in 
 this landscape and describe how these can be integrated into a global 
 decentralized governance architecture.  We start by describing the main players 
@@ -403,13 +409,14 @@ to activate a change and only when the update system gives the green light,
 then the ledger layer triggers the HF combinator to activate the changes.
 
 
-\subsection{Software Architecture} \label{software_architecture}
+\subsection{Prototype Architecture} \label{software_architecture}
 %\section{The Update System Level}
 In this section we describe the 3rd level of detail of our proposed 
 architecture that of the update system per se. For the convenience of the 
 reader, we start with a short overview of the decentralized software update 
 lifecycle, the phases of which, the update system essentially implements.
 
+\ignore{
 \subsubsection{An Overview of the Decentralized Software Update
 	Lifecycle}\label{sec:su_lifecycle}
 In order to understand the logic that the update system implements, we need to 
@@ -524,6 +531,7 @@ etc., form the proposal's \emph{update policy} to be followed by the update
 system. This policy is accepted and confirmed by the community through the
 previous voting
 process during the Approval phase.
+} % ignore
 
 \subsubsection{The Update System Software Architecture}
 
