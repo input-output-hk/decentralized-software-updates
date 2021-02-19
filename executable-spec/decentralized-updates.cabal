@@ -1,8 +1,10 @@
+cabal-version:       2.2
+
 name:                decentralized-updates
 version:             0.1.0.0
 synopsis:            Decentralized updates for Cardano
 description:         A prototype for a decentralized update mechanism for Cardano
-license:             Apache
+license:             Apache-2.0
 license-files:       LICENSE
                      NOTICE
 author:              IO Research and IOHK Formal Methods Team
@@ -11,7 +13,7 @@ copyright:           2019 IOHK
 category:            Currency
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
+
 
 flag asserts
   description: Enable assertions
@@ -47,7 +49,7 @@ library
                      -- library if needed somewhere else.
                      , Cardano.Ledger.Assert
                      , Cardano.Ledger.Debug
-  build-depends:       base >=4.11 && <5
+  build-depends:       base >=4.9 && <4.15
                      , containers
                      , text
                      , strict-base-types
