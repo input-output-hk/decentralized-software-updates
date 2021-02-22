@@ -25,7 +25,7 @@ module Cardano.Ledger.Update.Env.StakeDistribution
   )
 where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           NoThunks.Class (NoThunks)
 
 import           Data.List (foldl')
 import           Data.Map.Strict (Map)
@@ -42,7 +42,7 @@ import           Cardano.Ledger.Assert (assert, (==!))
 newtype Stake = Stake { getStake :: Word64 }
  deriving stock (Generic)
  deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random)
- deriving anyclass (NoUnexpectedThunks)
+ deriving anyclass (NoThunks)
 
 data StakeDistribution k =
   StakeDistribution
@@ -54,7 +54,7 @@ data StakeDistribution k =
     --
     -- > totalStake = Map.foldr' (+) (Stake 0) stakeMap
     --
-  } deriving (Show, Generic, NoUnexpectedThunks)
+  } deriving (Show, Generic, NoThunks)
 
 checkInvariants :: StakeDistribution p -> StakeDistribution p
 checkInvariants sd =

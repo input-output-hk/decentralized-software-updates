@@ -51,6 +51,7 @@ library
                      , Cardano.Ledger.Debug
   build-depends:       base >=4.9 && <4.15
                      , containers
+                     , nothunks
                      , text
                      , strict-base-types
                      , pretty-simple

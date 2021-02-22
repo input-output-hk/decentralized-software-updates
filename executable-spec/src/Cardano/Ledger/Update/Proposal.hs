@@ -9,9 +9,9 @@
 
 module Cardano.Ledger.Update.Proposal where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
 import           Cardano.Slotting.Slot (SlotNo)
 
@@ -76,7 +76,7 @@ data Payload proposal
 deriving instance Proposal proposal => Show (Payload proposal)
 
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Enum, Generic, NoUnexpectedThunks)
+  deriving (Eq, Ord, Show, Enum, Generic, NoThunks)
 
 --------------------------------------------------------------------------------
 -- Implementation proposals

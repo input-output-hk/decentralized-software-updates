@@ -33,7 +33,7 @@ module Cardano.Ledger.Update.ProposalState
   )
 where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           NoThunks.Class (NoThunks)
 
 import           Control.Applicative ((<|>))
 import           Data.Map.Strict (Map)
@@ -79,16 +79,16 @@ data ProposalState p =
 
 deriving instance (Proposal p) => Show (ProposalState p)
 
-instance ( NoUnexpectedThunks p
-         , NoUnexpectedThunks (Voter p)
-         , NoUnexpectedThunks (Id (Voter p))
-         ) => NoUnexpectedThunks (ProposalState p)
+instance ( NoThunks p
+         , NoThunks (Voter p)
+         , NoThunks (Id (Voter p))
+         ) => NoThunks (ProposalState p)
 
 data DecisionInfo =
   DecisionInfo
   { reachedOn   :: !SlotNo
   , decisionWas :: !Decision
-  } deriving (Eq, Show, Generic, NoUnexpectedThunks)
+  } deriving (Eq, Show, Generic, NoThunks)
 
 data Decision
   = Rejected
@@ -99,7 +99,7 @@ data Decision
   | Expired
   | Approved
   | Undecided
-  deriving (Eq, Ord, Show, Generic, NoUnexpectedThunks)
+  deriving (Eq, Ord, Show, Generic, NoThunks)
 
 -- | Tally the votes if the end of the voting period is stable. After tallying
 -- the decision state will be changed according to the result of the tallying

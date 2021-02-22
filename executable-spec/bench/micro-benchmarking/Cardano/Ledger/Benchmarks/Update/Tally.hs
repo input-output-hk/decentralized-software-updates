@@ -15,7 +15,7 @@
 
 module Cardano.Ledger.Benchmarks.Update.Tally where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           NoThunks.Class (NoThunks)
 
 import           Control.Monad ((<$!>))
 import           Data.List (repeat, zip)
@@ -80,7 +80,7 @@ data TallyData =
   , participantsHashes :: ![Id (Voter BenchProposal)]
   }
   deriving stock (Show, Generic)
-  deriving anyclass (NoUnexpectedThunks)
+  deriving anyclass (NoThunks)
 
 -- | Simulate the revelation of the number of proposals given by the benchmark
 -- parameters.
@@ -211,14 +211,14 @@ mkStakeDist participantsHashes = fromList $ zip participantsHashes (repeat 1)
 
 newtype BenchProposal = BenchProposal Word64
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (NoUnexpectedThunks)
+  deriving anyclass (NoThunks)
   deriving newtype (ToCBOR)
 
 
 instance Identifiable BenchProposal where
   newtype Id BenchProposal = BenchProposalId BenchHash
     deriving stock (Ord, Eq, Show, Generic)
-    deriving anyclass (NoUnexpectedThunks)
+    deriving anyclass (NoThunks)
 
   _id = BenchProposalId . byronHash
 
@@ -245,7 +245,7 @@ instance Proposal BenchProposal where
   newtype Voter BenchProposal = BenchVoter Word64
     deriving stock (Eq, Ord, Show, Generic)
     deriving newtype (ToCBOR)
-    deriving anyclass (NoUnexpectedThunks)
+    deriving anyclass (NoThunks)
 
   voter      = bvVoterId
   candidate  = bvCandidate
@@ -258,7 +258,7 @@ instance Commitable (Revelation BenchProposal) where
 
 instance Identifiable (Voter BenchProposal) where
   data Id (Voter BenchProposal) = BenchVoterId BenchHash
-    deriving (Ord, Eq, Show, Generic, NoUnexpectedThunks)
+    deriving (Ord, Eq, Show, Generic, NoThunks)
 
   _id = BenchVoterId . byronHash
 

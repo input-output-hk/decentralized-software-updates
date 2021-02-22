@@ -5,7 +5,7 @@
 
 module Cardano.Ledger.Update.Env.HasVotingPeriodsCap where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           NoThunks.Class (NoThunks)
 
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
@@ -19,4 +19,4 @@ class HasVotingPeriodsCap env where
 newtype VotingPeriod = VotingPeriod { unVotingPeriod :: Word8 }
   deriving stock    (Eq, Show, Generic)
   deriving newtype  (Num, Integral, Real, Enum, Ord)
-  deriving anyclass (NoUnexpectedThunks)
+  deriving anyclass (NoThunks)

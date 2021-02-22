@@ -38,7 +38,7 @@ module Cardano.Ledger.Update.ProposalsState
   )
 where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           NoThunks.Class (NoThunks)
 
 import           Control.Exception (assert)
 import           Data.Map.Strict (Map)
@@ -67,11 +67,11 @@ newtype ProposalsState p =
   ProposalsState { proposalStateMap :: (Map (Id p) (ProposalState p)) }
   deriving (Show, Generic)
 
-instance ( NoUnexpectedThunks (Id p)
-         , NoUnexpectedThunks (Voter p)
-         , NoUnexpectedThunks (Id (Voter p))
-         , NoUnexpectedThunks p
-         ) => NoUnexpectedThunks (ProposalsState p)
+instance ( NoThunks (Id p)
+         , NoThunks (Voter p)
+         , NoThunks (Id (Voter p))
+         , NoThunks p
+         ) => NoThunks (ProposalsState p)
 
 initialState :: Proposal p => ProposalsState p
 initialState = ProposalsState mempty
