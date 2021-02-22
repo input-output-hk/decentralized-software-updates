@@ -170,6 +170,7 @@ benchmark update-benchmarking
                      , containers
                      , criterion
                      , cryptonite
+                     , nothunks
                      , pretty-simple
                        -- Dependencies needed for defining the bench hashing
                      , cborg

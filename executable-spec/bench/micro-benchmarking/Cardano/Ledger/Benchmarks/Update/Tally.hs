@@ -18,7 +18,6 @@ module Cardano.Ledger.Benchmarks.Update.Tally where
 import           NoThunks.Class (NoThunks)
 
 import           Control.Monad ((<$!>))
-import           Data.List (repeat, zip)
 import           Data.List (foldl')
 import           Data.Word (Word64)
 import           GHC.Generics (Generic)
