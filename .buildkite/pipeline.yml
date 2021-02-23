@@ -3,3 +3,9 @@ steps:
     command: "nix-build ./nix -A iohkNix.checkCabalProject -o check-cabal-project.sh && ./check-cabal-project.sh"
     agents:
       system: x86_64-linux
+
+  - label: 'coveralls coverage'
+    command:
+      - '$(nix-build -A uploadCoverallsScript --arg config "{ haskellNix = { coverage = true; }; }")/bin/uploadCoveralls.sh'
+    agents:
+      system: x86_64-linux

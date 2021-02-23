@@ -19,6 +19,18 @@ let
     # we are only interested in listing the project packages:
     (selectProjectPackages decentralizedUpdatesHaskellPackages);
 
+  uploadCoverallsScript = pkgSet:
+    let
+      projectPkgs = selectProjectPackages pkgSet;
+      projectCoverageReport = pkgSet.projectCoverageReport;
+    in writeShellScriptBin "uploadCoveralls.sh" ''
+      ${commonLib.hpc-coveralls}/bin/hpc-coveralls all \
+        ${concatStringsSep "\n  " (mapAttrsToList (_: p: "--package-dir .${p.src.origSubDir} \\") projectPkgs)}
+        --hpc-dir ${projectCoverageReport}/share/hpc/vanilla \
+        --coverage-mode StrictlyFullLines \
+        --repo-token=$COVERALLS_REPO_TOKEN
+    '';
+
   self = {
     inherit haskellPackages check-hydra;
 
@@ -35,6 +47,9 @@ let
       # `checks.tests` collect results of executing the tests:
       tests = collectChecks haskellPackages;
     };
+
+    inherit (commonLib) hpc-coveralls;
+    uploadCoverallsScript = uploadCoverallsScript decentralizedUpdatesHaskellPackages;
 
     shell = import ./shell.nix {
       inherit pkgs;
