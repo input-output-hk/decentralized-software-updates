@@ -13,17 +13,94 @@ In this paper, our focus is on the software update mechanism of stake-based bloc
 
 \paragraph{Problem Definition.}
 Traditionally, software updates for blockchain systems have been handled in an ad-hoc, centralized manner: somebody, often a trusted authority, or the original author of the software, provides a new version of the software, and users
-download and install it from that authority's website. Even if the system follows an open source software development model, and therefore an update can potentially be implemented by anyone, the final decision of accepting, or rejecting, a new piece of code is always taken by the main maintainer(s) of the system, who essentially constitutes a central authority. Even in the case where the community has initially reached consensus for an update proposal (in the form of an \emph{Improvement Proposal} document), through the discussion that takes place in various discussion forums, still it remains an informal, \say{social} consensus, which is not recorded as an immutable historical event in the blockchain and the final decision is always up to the code maintainer. Moreover, the authenticity and safety of the downloaded software is usually verified by the digital signature of a trusted authority, such as the original author of the software.
+download and install it from that authority's website. Even if the system 
+follows an open source software development model, and therefore an update can 
+potentially be implemented by anyone, the final decision of accepting, or 
+rejecting, a new piece of code is always taken by the main maintainer(s) of the 
+system, who essentially constitutes a central authority. Even in the case where 
+the community has initially reached consensus for an update proposal (in the 
+form of an \emph{Improvement Proposal} document), through the discussion that 
+takes place in various discussion forums, still it remains an informal, 
+\say{social} consensus, which is not recorded as an immutable historical event 
+in the blockchain and the final decision is always up to the code maintainer. 
+Moreover, the authenticity and safety of the downloaded software is usually 
+verified by the digital signature of a trusted authority, such as the original 
+author of the software. Hence what does it take to decentralize software 
+updates? What are the critical decisions that must be made collectively and not 
+centrally? What is a secure update protocol that will enable this 
+decentralization? How can we avoid chain-splits and ensure a secure transition 
+to an updated protocol. What does it even mean to have a "secure activation"? 
+How can we enable a meta-data driven update logic that will smoothly deal with 
+priorities, version dependencies, conflicts and emergencies? Finally, how can 
+we smoothly incorporate a new update system into the Cardano node?
 
 \paragraph{Our contributions.}
 We put forth a novel mechanism for realizing software updates. In our proposed scheme, an update proposal is possible to be submitted by anyone who can submit a transaction to the blockchain. The decision of which update proposal will be applied and which will not is taken collectively by the community and not centrally. Thus, the roadmap of the system is decided jointly. Moreover, this process is no longer an informal discussion process, but part of an \emph{update protocol}. All relevant events generated are stored within the blockchain itself, and thus recorded in the immutable update history of the system. Moreover, the role of the code maintainer, who used to take decisions on the correctness of the submitted new code and guarantees the validity of the downloaded software, is replaced by the stakeholders' community.
 
-In the context of software updates for public stake-based blockchain systems, we introduce the capability to take stake-based decisions
-%\mnote{I am not sure that we should talk about stake majority-based decision. Indeed, we later discuss the possibility of setting the threshold (that defines whether a proposal should be accepted or not) to be anything greater than $52\%$}
- based on: a) the software update priority, b) the correctness of the new code, c) the maintenance of the code base and d) the authenticity and safety of the downloaded software. We introduce the problem of then activating the changes on the blockchain without risking a chain split
-%, as part of the consensus protocol and recorded on-chain, while at the same time fulfilling software dependencies requirements, resolving version conflicts, enabling different update policies based on update metadata and avoiding chain splits when updates are activated
- as the \emph{decentralized software updates problem}, and put forth the first solution to this problem. In addition, we investigate how to enable different update policies based on the software update context (i.e., update metadata) and at the same time fulfill software dependency requirements and resolve conflicts (cf. Appendix \ref{appxupdlogic}).
-%\mnote{The latest might become on of the main focus of the paper. We should highlight that.}
+In particular in this work, 
+\begin{itemize}
+	\item We identify what are the critical decisions in the lifecycle of a 
+	software and then propose a secure software update protocol that covers the 
+	\emph{full lifecycle} of a software update from the ideation phase (the 
+	moment in which a change to the blockchain protocol is proposed) to the 
+	actual activation of the updated blockchain protocol, which enables 
+	decentralized decision making in all critical decisions.
+	\item We propose a liquid democracy scheme, based on delegated voting to 
+	\emph{experts}, for all the critical, but also deeply technical, decisions 
+	for software updates.
+	\item We formally define what it means for a \emph{decentralized} software 
+	update system to be secure and propose (in \cite{secure_activation}) two 
+	secure 	activation protocols with different trade-offs.
+	\item We deal with all the complexity and details of updates activation, 
+	such as priorities, version dependencies, conflicts resolution and 
+	emergency handling 
+	and propose	an elegant design for smoothly incorporating all these into 
+	our update logic.
+	\item We perform threshold analysis for voting as well as activation, in 
+	order to 	achieve both properties of safety and liveness, which we define 
+	in detail.
+	\item Our performance analysis has shown that our update protocol is both 
+	linearly scalable in the number of participants and does not impact 
+	negatively the performance of the underlying blockchain.
+	\item We propose an architecture for integrating an update mechanism within 
+	the Cardano node \cite{cardano} and in particular within the ledger layer, 
+	so that we 
+	achieve the principles of modularity and information hiding.
+	\item Finally, we have implemented our ideas into a research prototype and 
+	describe a  prototype validation methodology based on a trace-enabled 
+	property-based testing framework that we have developed for this purpose.
+\end{itemize}
+
+%
+%In the context of software updates for public stake-based blockchain systems, 
+%we introduce the capability to take stake-based decisions
+%%\mnote{I am not sure that we should talk about stake majority-based decision. 
+%%Indeed, we later discuss the possibility of setting the threshold (that 
+%%defines 
+%%whether a proposal should be accepted or not) to be anything greater than 
+%%$52\%$}
+% based on: a) the software update priority, b) the correctness of the new 
+%code, c) the maintenance of the code base and d) the authenticity and safety 
+%of 
+%the downloaded software. We introduce the problem of then activating the 
+%changes on the blockchain without risking a chain split
+%%, as part of the consensus protocol and recorded on-chain, while at the same 
+%%time fulfilling software dependencies requirements, resolving version 
+%%conflicts, enabling different update policies based on update metadata and 
+%%avoiding chain splits when updates are activated
+% as the \emph{decentralized software updates problem}, and put forth the first 
+%solution to this problem. In addition, we investigate how to enable different 
+%update policies based on the software update context (i.e., update metadata) 
+%and at the same time fulfill software dependency requirements and resolve 
+%conflicts (cf. Appendix \ref{appxupdlogic}).
+%%\mnote{The latest might become on of the main focus of the paper. We should 
+%%highlight that.}
+
+
+%Contributions
+
+
+
 
 %\paragraph{Problem Definition.}  Traditionally, software updates have been handled in an ad-hoc, centralized manner: Somebody, often
 %a trusted authority, or the original author of the software, provides a new version of the software, and users
@@ -54,21 +131,44 @@ In the context of software updates for public stake-based blockchain systems, we
 %\end{itemize}
 
 \import{./}{sections/related_work.tex}
-\paragraph{Goal of the paper.} In this paper we propose a secure software update mechanism that enables a decentralized approach to the blockchain software updates problem. We examine all phases in the lifecycle of a software update and propose practical decentralized alternatives that can be adopted in the real world. These alternatives substitute any \emph{central authority} with the \emph{stakeholders' community}. In order to enable this \emph{decentralization} of software updates, we exploit existing primitives that we combine in order to form a novel decentralized software updates protocol. From a security perspective, we formally define what is a secure activation of changes on a blockchain and prove the security of our protocol with respect to this definition.  Our protocol ensures that:
+\paragraph{Goal of the paper.} In this paper we propose a secure software 
+update mechanism that enables a decentralized approach to the blockchain 
+software updates problem. We examine all phases in the lifecycle of a software 
+update and propose practical decentralized alternatives that can be adopted in 
+the real world. These alternatives substitute any \emph{central authority} with 
+the \emph{stakeholders' community}. Moreover we describe the integration of 
+such a mechanism into the Cardano node \cite{cardano}. In order to enable this 
+\emph{decentralization} of software updates, we exploit existing primitives 
+that we combine in order to form a novel decentralized software updates 
+protocol. From a security perspective, we formally define what is a secure 
+activation of changes on a blockchain and prove the security of our protocol 
+with respect to this definition \cite{secure_activation} .  Our update mechanism
+ensures that:
 %...A safe and secure decentralized software update system. %In other words, a system that will ensure that:
 a) any stakeholder will always be able to submit an update proposal to be voted by the stakeholders' community, b) an update proposal that is not approved by the stakeholders
 %\mnote{Also here, let's talk about a threshold $t$ greater than $51\%$ instead of stake majority since this is what we do}
- will never be applied, c) an update proposal that it is approved by the stakeholders will be eventually applied, d) an update proposal that the stakeholders decide has a higher priority than some other proposal will take higher priority, e) downloaded software is authentic and safe, and finally f) it protects against chain splits during activation of the proposed updates.
+ will never be applied, c) an update proposal that it is approved by the 
+ stakeholders will be eventually applied, d) an update proposal that the 
+ stakeholders decide has a higher priority than some other proposal will take 
+ higher priority, 
+ %e) downloaded software is authentic and safe, 
+ and finally e) it protects against chain splits during activation of the 
+ proposed updates and ensures a secure transition to the new version of the 
+ consensus protocol.
 
-\paragraph{Outline of the paper.} In Section~\ref{lifecycle} we present our 
+\paragraph{Outline of the paper.} 
+In section \ref{sec:requirements}, we present the high-level requirements that 
+have driven our design. In section \ref{lifecycle}, we present our 
 decentralized approach for the lifecycle of a software update. In section 
-\ref{sec:update_governance}, propose an update governance model based on voting 
-and delegation to experts. Section~\ref{secureupdate} defines what a secure 
-software update mechanism is and proves the security of our protocol. In 
-sSection \ref{sec:threshold_analysis}, we present an analysis regarding the 
-thresholds used for the voting processes, as well as the activation 
-process and show how we can move either towards liveness, or safety. In the 
-appendix, we contrast with the centralized approach to the software update 
-lifecycle and we discuss our proposal for a metadata-driven software update 
-mechanism.
-%\noindent\textbf{Outline of the paper}
+\ref{sec:update_governance}, we propose an update governance model based on 
+voting and delegation to experts. Section \ref{the_activation_of_changes}, 
+deals 
+with the problem of the activation of changes on the blockchain in a secure 
+manner. Section \ref{sec:threshold_analysis}, performs a threshold analysis, in 
+order to achieve the properties of liveness and safety. Section 
+\ref{performance_considerations}, describes the performance analysis of our 
+update mechanism. Section \ref{architecture}, proposes an architecture for 
+integrating an update mechanism into Cardano. Finally, section 
+\ref{prototype_validation}, details our prototype validation approach presents 
+main results and 
+section \ref{sec:conclusion} draws main conclusions.

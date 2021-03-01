@@ -1,13 +1,39 @@
 \begin{abstract}
 %\subsection*{Abstract}
-Software updates are a synonym to software evolution and thus are ubiquitous and inevitable to any blockchain platform. In this paper, we propose a general framework for decentralized software updates in distributed ledger systems. Our framework is primarily focused on Proof of Stake blockchains and aims at providing a solid set of enhancements, covering the full spectrum of a blockchain system, in order to ensure a decentralized, but also secure update mechanism for a public ledger. 
-Our main contribution is two-fold: First, we formally define what it means for a \emph{decentralized} software update system to be secure, and
-then, we propose a decentralized secure software update protocol that covers the full lifecycle of a software update from the ideation phase (the moment in which a change to the blockchain protocol is proposed) to the actual activation of the updated blockchain protocol. To the best of our knowledge, this is the first work that aims at formalizing the notion of a decentralized secure update for a blockchain and also that takes such a holistic approach on software updates.
-%We also discriminate between all known types of software updates, from consensus rules changes to bug-fixes and change requests and provide different update policies that depend on the severity of the updates. 
-
-% Finally, we introduce the concept of \emph{update policies}, to describe the need for different deployment speeds, based on the semantic context (i.e., metadata) %of a software update. We implement our ideas in a prototype update system for the Cardano blockchain and discuss implementation issues and validation results.
-
-
-%Our main contribution is the proposal of a logical architecture that enables a smooth incorporation of updates into all components of a blockchain system. Moreover, we drill down to each component of the architecture and propose specific enhancements and changes. In addition, we describe in detail new components such as the governance module and the update-logic module. For the former, we propose a voting protocol, in order to enable a decentralized update consensus and for the latter, we show how we can implement different update policies for each type of update based on a rich set of update metadata. Finally, we implement our ideas in a prototype update system for the Cardano blockchain and discuss implementation issues and validation results.
-
+Software updates are a synonym to software evolution and thus are ubiquitous 
+and inevitable to any blockchain platform. In this paper, we propose a general 
+framework for decentralized software updates in distributed ledger systems. Our 
+framework is primarily focused on Proof of Stake blockchains and aims at 
+providing a solid set of enhancements, covering the full spectrum of a 
+blockchain system, in order to ensure a decentralized, but also secure update 
+mechanism for a public ledger. 
+We identify what are the critical decisions in the lifecycle of a software 
+update
+and then propose a secure software update protocol that covers the \emph{full 	
+lifecycle} of a software update from the ideation phase (the moment in which a 
+change to the blockchain protocol is proposed) to the actual activation of the 
+updated blockchain protocol, which enables decentralized decision making for 
+\emph{all} critical decisions. We propose a liquid democracy scheme based on 
+\emph{experts} for all the critical, but also deeply technical, decisions for 
+software updates. We formally define what it means for a \emph{decentralized} 
+software update system to be secure and propose secure activation protocols 
+\cite{secure_activation} with various trade-offs. We deal with the complexity 
+of priorities, version dependencies, conflicts resolution and emergency 
+handling for the 
+activation of updates and propose an elegant design. We perform voting and 
+activation
+threshold analysis, in order to achieve both properties of \emph{safety}
+and \emph{liveness}, which we define in detail. Our performance analysis has 
+shown 
+that our update protocol is both linearly scalable in the number of 
+participants and does not impact negatively the performance of the underlying 
+blockchain. Finally, we implement our ideas into a research prototype and 
+propose an architecture for integrating an update mechanism within the Cardano 
+node \cite{cardano}; as well as discuss prototype validation with a 
+trace-enabled 
+property-based 
+testing framework that we have developed. To the best of our knowledge, this is 
+the first work that aims at formalizing the notion of a decentralized secure 
+update for a blockchain and also that takes such a holistic approach on 
+software updates.
 \end{abstract}
