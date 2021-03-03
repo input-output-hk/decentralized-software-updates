@@ -13,6 +13,11 @@ import           Data.Kind (Type)
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (ToJSON, FromJSON)
+import Cardano.Binary (ToCBOR (toCBOR), encodeInt, decodeInt, FromCBOR (fromCBOR))
+import           Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 
 import           Cardano.Slotting.Slot (SlotNo)
 
@@ -77,7 +82,24 @@ data Payload proposal
 deriving instance Proposal proposal => Show (Payload proposal)
 
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Enum, Generic, NoThunks)
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic, NoThunks, NFData, ToJSON, FromJSON)
+
+confidenceEncoding :: IntMap Confidence
+confidenceEncoding = IntMap.fromList [ (0, For)
+                                     , (1, Against)
+                                     , (2, Abstain)
+                                     ]
+
+instance ToCBOR Confidence where
+  toCBOR = encodeInt . fromEnum
+
+instance FromCBOR Confidence where
+  fromCBOR = do
+    i <- decodeInt
+    case IntMap.lookup i confidenceEncoding of
+      Just k  -> return $! k
+      Nothing -> fail $  "Decoded integer value '" <> show i
+                      <> "' is an invalid encoding of a value of type 'Confidence'"
 
 --------------------------------------------------------------------------------
 -- Implementation proposals

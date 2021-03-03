@@ -56,7 +56,10 @@ library
                      , strict-base-types
                      , pretty-simple
                      , random
+                     , deepseq
+                     , aeson
                      -- Cardano specific imports
+                     , cardano-binary
                      , cardano-prelude
                      , cardano-slotting
                      -- Needed for 'Cardano.Ledger.Assert' only. We might want
