@@ -38,12 +38,14 @@ module Cardano.Ledger.Update.ProposalsState
   )
 where
 
+import           Cardano.Binary (FromCBOR, ToCBOR)
 import           Control.DeepSeq (NFData)
 import           Control.Exception (assert)
 import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (isJust)
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
 
@@ -82,6 +84,12 @@ deriving instance (ToJSON p, ToJSONKey (Id p), ToJSONKey (Id (Voter p))) =>
 
 deriving instance (Proposal p, FromJSON p, FromJSONKey (Id p), FromJSONKey (Id (Voter p))) =>
   FromJSON (ProposalsState p)
+
+deriving instance (Typeable p, Proposal p, ToCBOR p, ToCBOR (Id p), ToCBOR (Id (Voter p))) =>
+  ToCBOR (ProposalsState p)
+
+deriving instance (Typeable p, Proposal p, FromCBOR p, FromCBOR (Id p), FromCBOR (Id (Voter p))) =>
+  FromCBOR (ProposalsState p)
 
 initialState :: Proposal p => ProposalsState p
 initialState = ProposalsState mempty
