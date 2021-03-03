@@ -9,6 +9,7 @@
 
 module Cardano.Ledger.Update.Proposal where
 
+import           Data.Kind (Type)
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
@@ -19,14 +20,14 @@ import           Cardano.Slotting.Slot (SlotNo)
 class ( Eq (Commit d)
       , Ord (Commit d)
       , Show (Commit d) ) => Commitable d where
-  type Commit d :: *
+  type Commit d :: Type
   commit :: d -> Commit d
 
 -- | Data for which an ID can be computed.
 class ( Eq (Id p)
       , Ord (Id p)
       , Show (Id p) ) => Identifiable p where
-  data Id p :: *
+  data Id p :: Type
   _id :: p -> Id p
 
 -- | Signed data.
@@ -50,17 +51,17 @@ class ( Commitable (Revelation proposal)
       , Identifiable (Voter proposal)
       ) => Proposal proposal where
 
-  data Submission proposal :: *
-  data Revelation proposal :: *
+  data Submission proposal :: Type
+  data Revelation proposal :: Type
   revelationCommit :: Submission proposal -> Commit (Revelation proposal)
   proposal :: Revelation proposal -> proposal
 
   votingPeriodDuration :: proposal -> SlotNo
-  data Vote proposal :: *
+  data Vote proposal :: Type
   -- NOTE: if we define @Voter@ in this way, the stake distribution will have
   -- to go from @Voter@ to @Stake@. We will need something similar for
   -- endorsements. In this case we'd have an @Endorser@ type.
-  data Voter proposal :: *
+  data Voter proposal :: Type
   voter :: Vote proposal -> Id (Voter proposal)
   candidate :: Vote proposal -> Id proposal
   confidence :: Vote proposal -> Confidence
@@ -98,9 +99,9 @@ class ( Proposal impl
 
   implementationType :: impl -> ImplementationType impl
   -- | Type of protocols the implementation implements.
-  data Protocol impl :: *
+  data Protocol impl :: Type
   -- | Type of applications the implementation implements.
-  data Application impl :: *
+  data Application impl :: Type
 
 -- | Extract the proposed protocol update, if any.
 proposedProtocolUpdate
@@ -149,7 +150,7 @@ class ( Ord (Version protocol)
   -- from the endorsing keys.
   data Endorser protocol
 
-  data Version protocol :: *
+  data Version protocol :: Type
   version :: protocol -> Version protocol
 
   -- | Protocol identifier that the protocol.
