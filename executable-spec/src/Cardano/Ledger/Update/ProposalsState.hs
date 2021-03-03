@@ -38,13 +38,14 @@ module Cardano.Ledger.Update.ProposalsState
   )
 where
 
-import           NoThunks.Class (NoThunks)
-
+import           Control.DeepSeq (NFData)
 import           Control.Exception (assert)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
 import           Cardano.Slotting.Slot (SlotNo)
 
@@ -65,13 +66,22 @@ import           Cardano.Ledger.Update.Proposal (Confidence, Id, Proposal, Vote,
 -- | State of a proposal. The @p@ parameter determines the type of proposals.
 newtype ProposalsState p =
   ProposalsState { proposalStateMap :: (Map (Id p) (ProposalState p)) }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
-instance ( NoThunks (Id p)
+deriving instance ( NoThunks (Id p)
          , NoThunks (Voter p)
          , NoThunks (Id (Voter p))
          , NoThunks p
          ) => NoThunks (ProposalsState p)
+
+deriving instance (NFData p, NFData (Id p), NFData (Id (Voter p)))
+  => NFData (ProposalsState p)
+
+deriving instance (ToJSON p, ToJSONKey (Id p), ToJSONKey (Id (Voter p))) =>
+  ToJSON (ProposalsState p)
+
+deriving instance (Proposal p, FromJSON p, FromJSONKey (Id p), FromJSONKey (Id (Voter p))) =>
+  FromJSON (ProposalsState p)
 
 initialState :: Proposal p => ProposalsState p
 initialState = ProposalsState mempty
