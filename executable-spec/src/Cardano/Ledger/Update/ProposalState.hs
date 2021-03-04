@@ -33,8 +33,6 @@ module Cardano.Ledger.Update.ProposalState
   )
 where
 
-import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
-                     decodeInt, decodeListLenOf, encodeInt, encodeListLen)
 import           Control.Applicative ((<|>))
 import           Control.DeepSeq (NFData)
 import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
@@ -47,6 +45,8 @@ import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeInt, decodeListLenOf, encodeInt, encodeListLen)
 import           Cardano.Slotting.Slot (SlotNo)
 
 import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio

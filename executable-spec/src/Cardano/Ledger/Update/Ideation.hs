@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -7,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Ideation phase interface.
 --
@@ -30,11 +33,18 @@ module Cardano.Ledger.Update.Ideation
   )
 where
 
+import           Control.DeepSeq (NFData)
 import           Control.Monad (unless, when)
 import           Control.Monad.Except (throwError)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Map (Map)
 import qualified Data.Map as Map
+import           Data.Typeable (Typeable)
+import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 import           Cardano.Slotting.Slot (SlotNo)
 
 import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
@@ -60,9 +70,33 @@ data State p =
   State
   { submissionStableAt :: !(Map (Commit (Revelation p)) SlotNo)
   , proposalsState     :: !(ProposalsState p)
-  }
+  } deriving (Generic)
 
 deriving instance Proposal p => Show (State p)
+
+deriving instance
+  ( NFData p, NFData (Commit (Revelation p)), NFData (Id p)
+  , NFData (Id (Voter p))
+  ) =>
+  NFData (State p)
+
+deriving instance
+  ( NoThunks p, NoThunks (Commit (Revelation p)), NoThunks (Voter p)
+  , NoThunks (Id p), NoThunks (Id (Voter p))
+  ) =>
+  NoThunks (State p)
+
+deriving instance
+  ( ToJSONKey (Commit (Revelation p)), ToJSONKey (Id p)
+  , ToJSONKey (Id (Voter p)), ToJSON p
+  ) =>
+  ToJSON (State p)
+
+deriving instance
+  ( Proposal p, FromJSON p, FromJSONKey (Commit (Revelation p))
+  , FromJSONKey (Id p), FromJSONKey (Id (Voter p))
+  ) =>
+  FromJSON (State p)
 
 data Error p
   = SIPCommitAlreadySubmitted (Submission p)
@@ -214,3 +248,34 @@ isSIPStably
   => env -> Id p -> Decision -> st -> Bool
 isSIPStably env sipDataHash d =
   Proposals.isStably env sipDataHash d . proposalsState . getIdeationState
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable p
+  , ToCBOR (Commit (Revelation p))
+  , Proposal p
+  , ToCBOR p
+  , ToCBOR (Id p)
+  , ToCBOR (Id (Voter p))
+  ) => ToCBOR (State p) where
+  toCBOR st
+    =  encodeListLen 2
+    <> toCBOR (submissionStableAt st)
+    <> toCBOR (proposalsState st)
+
+instance
+  ( Typeable p
+  , FromCBOR p
+  , Proposal p
+  , FromCBOR (Id (Voter p))
+  , FromCBOR (Commit (Revelation p))
+  , FromCBOR (Id p)
+  ) => FromCBOR (State p) where
+  fromCBOR = do
+    decodeListLenOf 2
+    ss <- fromCBOR
+    ps <- fromCBOR
+    return $! State ss ps
