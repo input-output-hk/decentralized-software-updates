@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -65,11 +66,16 @@ module Cardano.Ledger.Update.Activation.State
   )
 where
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.List (foldl')
 import           Data.Map.Strict (Map)
 import           Data.Maybe (fromMaybe, maybeToList)
 import           Data.Set (Set)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -130,6 +136,44 @@ data State sip impl =
 
 deriving instance Implementation sip impl => Show (State sip impl)
 
+deriving instance
+  ( Implementation sip impl
+  , Eq (Application impl)
+  ) => Eq (State sip impl)
+
+deriving instance
+  ( NFData (Protocol impl)
+  , NFData (Version (Protocol impl))
+  , NFData (Application impl)
+  , NFData (Id (Endorser (Protocol impl)))
+  ) => NFData (State sip impl)
+
+deriving instance
+  ( NoThunks (Protocol impl)
+  , NoThunks (Version (Protocol impl))
+  , NoThunks (Application impl)
+  , NoThunks (Id (Endorser (Protocol impl)))
+  ) => NoThunks (State sip impl)
+
+deriving instance
+  ( ToJSONKey (Protocol impl)
+  , ToJSON (Application impl)
+  , ToJSONKey (Version (Protocol impl))
+  , ToJSON (Protocol impl)
+  , ToJSON (Id (Endorser (Protocol impl)))
+  ) => ToJSON (State sip impl)
+
+deriving instance
+  ( FromJSON (Protocol impl)
+  , FromJSON (Application impl)
+  , FromJSONKey (Version (Protocol impl))
+  , FromJSONKey (Protocol impl)
+  , Implementation sip impl
+  , Activable impl
+  , FromJSON (Id (Endorser (Protocol impl)))
+  ) => FromJSON (State sip impl)
+
+
 -- | Reason why an implementation did not get adopted and was discarded.
 data Reason
   = Expired
@@ -145,7 +189,7 @@ data Reason
   --
   -- Note than when a version gets replaced, the replaced version in also marked
   -- as unsupported.
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, NFData, NoThunks, ToJSON, FromJSON)
 
 -- | Proposal (if any) in the endorsement period.
 data MaybeAnEndorsedProposal sip impl
@@ -162,6 +206,32 @@ data MaybeAnEndorsedProposal sip impl
   deriving (Generic)
 
 deriving instance Implementation sip impl => Show (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( Eq (Application impl)
+  , Implementation sip impl
+  ) => Eq (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( NFData (Protocol impl)
+  , NFData (Id (Endorser (Protocol impl)))
+  ) => NFData (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( NoThunks (Protocol impl)
+  , NoThunks (Id (Endorser (Protocol impl)))
+  ) => NoThunks (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( ToJSON (Protocol impl)
+  , ToJSON (Id (Endorser (Protocol impl)))
+  ) => ToJSON (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( FromJSON (Protocol impl)
+  , Activable (Protocol impl)
+  , FromJSON (Id (Endorser (Protocol impl)))
+  ) => FromJSON (MaybeAnEndorsedProposal sip impl)
 
 initialState
   :: Implementation sip impl
@@ -421,6 +491,25 @@ data Endorsements impl =
   } deriving (Generic)
 
 deriving instance Activable (Protocol impl) => Show (Endorsements impl)
+
+deriving instance Activable (Protocol impl) => Eq (Endorsements impl)
+
+deriving instance
+  ( NFData (Id (Endorser (Protocol impl)))
+  ) => NFData (Endorsements impl)
+
+deriving instance
+  ( NoThunks (Id (Endorser (Protocol impl)))
+  ) => NoThunks (Endorsements impl)
+
+deriving instance
+  ( ToJSON (Id (Endorser (Protocol impl)))
+  ) => ToJSON (Endorsements impl)
+
+deriving instance
+  ( Activable (Protocol impl)
+  , FromJSON (Id (Endorser (Protocol impl)))
+  ) => FromJSON (Endorsements impl)
 
 --------------------------------------------------------------------------------
 -- Internal operations on endorsements

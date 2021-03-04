@@ -73,6 +73,7 @@ data State p =
   } deriving (Generic)
 
 deriving instance Proposal p => Show (State p)
+deriving instance (Eq p, Proposal p) => Eq (State p)
 
 deriving instance
   ( NFData p, NFData (Commit (Revelation p)), NFData (Id p)
