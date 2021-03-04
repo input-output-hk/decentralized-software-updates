@@ -36,8 +36,7 @@ where
 import           Control.Applicative ((<|>))
 import           Control.DeepSeq (NFData)
 import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
-import           Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
+import           Data.List (find)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
@@ -130,25 +129,6 @@ data Decision
   | Approved
   | Undecided
   deriving (Eq, Ord, Enum, Bounded, Show, Generic, NoThunks, NFData, ToJSON, FromJSON)
-
-decisionEncoding :: IntMap Decision
-decisionEncoding = IntMap.fromList [ (0, Rejected)
-                                   , (1, WithNoQuorum)
-                                   , (2, Expired)
-                                   , (3, Approved)
-                                   , (4, Undecided)
-                                   ]
-
-instance ToCBOR Decision where
-  toCBOR = encodeInt . fromEnum
-
-instance FromCBOR Decision where
-  fromCBOR = do
-    i <- decodeInt
-    case IntMap.lookup i decisionEncoding of
-      Just k  -> return $! k
-      Nothing -> fail $  "Decoded integer value '" <> show i
-                      <> "' is an invalid encoding of a value of type 'Decision'"
 
 -- | Tally the votes if the end of the voting period is stable. After tallying
 -- the decision state will be changed according to the result of the tallying
@@ -352,3 +332,25 @@ instance (Typeable p, FromCBOR p, Proposal p, FromCBOR (Id (Voter p))) =>
     ba <- fromCBOR
     di <- fromCBOR
     return $! ProposalState pr ro vp mp ba di
+
+decisionEncoding :: [(Int, Decision)]
+decisionEncoding = [ (0, Rejected)
+                   , (1, WithNoQuorum)
+                   , (2, Expired)
+                   , (3, Approved)
+                   , (4, Undecided)
+                   ]
+
+instance ToCBOR Decision where
+  toCBOR d =
+    case find ((==d) . snd) decisionEncoding of
+      Nothing     -> error $ "Decision " <> show d <> " is not in the encoding map"
+      Just (i, _) -> encodeInt i
+
+instance FromCBOR Decision where
+  fromCBOR = do
+    i <- decodeInt
+    case lookup i decisionEncoding of
+      Nothing -> fail $  "Decoded integer value '" <> show i
+                      <> "' is an invalid encoding of a value of type 'Decision'"
+      Just r  -> return $! r

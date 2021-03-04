@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -66,20 +67,22 @@ module Cardano.Ledger.Update.Activation.State
   )
 where
 
-import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
-                     decodeListLenOf, encodeListLen)
 import           Control.DeepSeq (NFData)
 import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
-import           Data.List (foldl')
+import           Data.List (find, foldl')
 import           Data.Map.Strict (Map)
 import           Data.Maybe (fromMaybe, maybeToList)
 import           Data.Set (Set)
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeInt, decodeListLen, decodeListLenOf, encodeInt,
+                     encodeListLen)
 import           Cardano.Slotting.Slot (SlotNo)
 
 import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
@@ -700,3 +703,104 @@ queuedProtocols = Map.elems . activationQueue . getActivationState
 -- candidate.
 candidateProtocols :: HasActivationState st sip impl => st -> [Protocol impl]
 candidateProtocols st = maybeToList (endorsedProtocol st) ++ queuedProtocols st
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Version (Protocol impl))
+  , ToCBOR (Application impl)
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  ) => ToCBOR (State sip impl) where
+  toCBOR st
+    =  encodeListLen 6
+    <> toCBOR (endorsedProposal st)
+    <> toCBOR (currentProtocol st)
+    <> toCBOR (activationQueue st)
+    <> toCBOR (applicationUpdates st)
+    <> toCBOR (lastAppliedSlot st)
+    <> toCBOR (discarded st)
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  ) => ToCBOR (MaybeAnEndorsedProposal sip impl) where
+  toCBOR NoProposal     =  encodeListLen 0
+  toCBOR c@Candidate {} =  encodeListLen 3
+                        <> toCBOR (cProtocol c)
+                        <> toCBOR (cEndorsements c)
+                        <> toCBOR (cEndOfSafetyLag c)
+  toCBOR s@Scheduled {} =  encodeListLen 1
+                        <> toCBOR (sProtocol s)
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  ) => FromCBOR (MaybeAnEndorsedProposal sip impl) where
+  fromCBOR = do
+    n <- decodeListLen
+    case n of
+      0 -> return $! NoProposal
+      1 -> do
+        !s <- fromCBOR
+        return $! Scheduled s
+      3 -> do
+        !pr <- fromCBOR
+        !en <- fromCBOR
+        !es <- fromCBOR
+        return $! Candidate pr en es
+      _ -> fail $  "Unknown tag when decoding a value of type 'MaybeAnEndorsedProposal'"
+                <> show n
+
+instance
+  ( Typeable impl
+  , Activable (Protocol impl)
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  ) => ToCBOR (Endorsements impl) where
+  toCBOR en
+    =  encodeListLen 2
+    <> toCBOR (thisEpochEndorsements en)
+    <> toCBOR (nextEpochEndorsements en)
+
+instance
+  ( Typeable impl
+  , Activable (Protocol impl)
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  ) => FromCBOR (Endorsements impl) where
+  fromCBOR = do
+    decodeListLenOf 2
+    t <- fromCBOR
+    n <- fromCBOR
+    return $! Endorsements t n
+
+reasonEncoding :: [(Int, Reason)]
+reasonEncoding = [ (0, Expired)
+                 , (1, Canceled)
+                 , (2, Unsupported)
+                 ]
+
+instance ToCBOR Reason where
+  toCBOR r =
+    case find ((== r) . snd) reasonEncoding of
+      Nothing     -> error $ "Reason " <> show r <> " is not in the encoding map"
+      Just (i, _) -> encodeInt i
+
+
+instance FromCBOR Reason where
+  fromCBOR = do
+    i <- decodeInt
+    case lookup i reasonEncoding of
+      Nothing -> fail $  "Decoded integer value '" <> show i
+                      <> "' is an invalid encoding of a value of type 'Reason'"
+      Just r  -> return $! r
