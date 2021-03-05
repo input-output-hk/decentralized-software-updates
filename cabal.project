@@ -1,29 +1,29 @@
 packages:
   executable-spec
 
--- source-repository-package
---   type: git
---   location: https://github.com/input-output-hk/cardano-prelude
---   tag: ee4e7b547a991876e6b05ba542f4e62909f4a571
---   --sha256: 0dg6ihgrn5mgqp95c4f11l6kh9k3y75lwfqf47hdp554w7wyvaw6
---   subdir:
---     cardano-prelude
---     cardano-prelude-test
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-prelude
+  tag: ee4e7b547a991876e6b05ba542f4e62909f4a571
+  --sha256: 0dg6ihgrn5mgqp95c4f11l6kh9k3y75lwfqf47hdp554w7wyvaw6
+  subdir:
+    cardano-prelude
+    cardano-prelude-test
 
--- source-repository-package
---   type: git
---   location: https://github.com/input-output-hk/cardano-base
---   tag: 4251c0bb6e4f443f00231d28f5f70d42876da055
---   --sha256: 02a61ymvx054pcdcgvg5qj9kpybiajg993nr22iqiya196jmgciv
---   subdir:
---     binary
---     binary/test
---     cardano-crypto-class
---     cardano-crypto-praos
---     slotting
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-base
+  tag: 4251c0bb6e4f443f00231d28f5f70d42876da055
+  --sha256: 02a61ymvx054pcdcgvg5qj9kpybiajg993nr22iqiya196jmgciv
+  subdir:
+    binary
+    binary/test
+    cardano-crypto-class
+    cardano-crypto-praos
+    slotting
 
--- source-repository-package
---   type: git
---   location: https://github.com/nomeata/haskell-successors
---   tag: a19dc93508e822e11be991df58b5755a3e12e793
---   --sha256: 04rj7l4rd3nbdk0j51jv75iz0x56jb0ny1332lxaxsiak3a8niy6
+source-repository-package
+  type: git
+  location: https://github.com/nomeata/haskell-successors
+  tag: a19dc93508e822e11be991df58b5755a3e12e793
+  --sha256: 04rj7l4rd3nbdk0j51jv75iz0x56jb0ny1332lxaxsiak3a8niy6
