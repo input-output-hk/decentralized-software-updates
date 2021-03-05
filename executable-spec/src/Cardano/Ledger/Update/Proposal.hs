@@ -15,10 +15,9 @@ import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
 import           Control.DeepSeq (NFData)
 import           Data.Aeson (ToJSON, FromJSON)
-import Cardano.Binary (ToCBOR (toCBOR), encodeInt, decodeInt, FromCBOR (fromCBOR))
-import           Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
+import           Data.List (find)
 
+import Cardano.Binary (ToCBOR (toCBOR), encodeInt, decodeInt, FromCBOR (fromCBOR))
 import           Cardano.Slotting.Slot (SlotNo)
 
 -- | Data for which a commit can be computed.
@@ -84,22 +83,25 @@ deriving instance Proposal proposal => Show (Payload proposal)
 data Confidence = For | Against | Abstain
   deriving (Eq, Ord, Show, Enum, Bounded, Generic, NoThunks, NFData, ToJSON, FromJSON)
 
-confidenceEncoding :: IntMap Confidence
-confidenceEncoding = IntMap.fromList [ (0, For)
-                                     , (1, Against)
-                                     , (2, Abstain)
-                                     ]
+confidenceEncoding :: [(Int, Confidence)]
+confidenceEncoding = [ (0, For)
+                     , (1, Against)
+                     , (2, Abstain)
+                     ]
 
 instance ToCBOR Confidence where
-  toCBOR = encodeInt . fromEnum
+  toCBOR c =
+    case find ((==c) . snd) confidenceEncoding of
+      Nothing     -> error $ "Confidence " <> show c <> " is not in the encoding map"
+      Just (i, _) -> encodeInt i
 
 instance FromCBOR Confidence where
   fromCBOR = do
     i <- decodeInt
-    case IntMap.lookup i confidenceEncoding of
-      Just k  -> return $! k
+    case lookup i confidenceEncoding of
       Nothing -> fail $  "Decoded integer value '" <> show i
                       <> "' is an invalid encoding of a value of type 'Confidence'"
+      Just r  -> return $! r
 
 --------------------------------------------------------------------------------
 -- Implementation proposals
