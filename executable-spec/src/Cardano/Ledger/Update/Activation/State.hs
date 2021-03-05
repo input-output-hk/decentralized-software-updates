@@ -730,6 +730,25 @@ instance
   ( Typeable sip
   , Typeable impl
   , Activable (Protocol impl)
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Version (Protocol impl))
+  , FromCBOR (Application impl)
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  ) => FromCBOR (State sip impl) where
+  fromCBOR = do
+    decodeListLenOf 6
+    ep <- fromCBOR
+    cp <- fromCBOR
+    aq <- fromCBOR
+    au <- fromCBOR
+    la <- fromCBOR
+    di <- fromCBOR
+    return $! State ep cp aq au la di
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
   , ToCBOR (Protocol impl)
   , ToCBOR (Id (Endorser (Protocol impl)))
   ) => ToCBOR (MaybeAnEndorsedProposal sip impl) where
