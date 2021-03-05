@@ -64,6 +64,7 @@ where
 
 import           Control.Arrow (left)
 import           Control.DeepSeq (NFData)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import           NoThunks.Class (NoThunks)
@@ -140,6 +141,43 @@ deriving instance
   , NoThunks (Commit (Revelation sip))
   , NoThunks (Commit (Revelation impl))
   ) => NoThunks (State sip impl)
+
+deriving instance
+  ( ToJSON sip
+  , ToJSON impl
+  , ToJSON (Id impl)
+  , ToJSON (Id (Endorser (Protocol impl)))
+  , ToJSON (Protocol impl)
+  , ToJSONKey (Commit (Revelation sip))
+  , ToJSONKey (Commit (Revelation impl))
+  , ToJSONKey (Version (Protocol impl))
+  , ToJSON (Application impl)
+  , ToJSONKey (Protocol impl)
+  , ToJSONKey (Id sip)
+  , ToJSONKey (Id impl)
+  , ToJSONKey (Id (Voter sip))
+  , ToJSONKey (Id (Voter impl))
+  ) => ToJSON (State sip impl)
+
+deriving instance
+  ( Proposal sip
+  , Implementation sip impl
+  , Activable impl
+  , FromJSON sip
+  , FromJSON impl
+  , FromJSON (Id impl)
+  , FromJSON (Id (Endorser (Protocol impl)))
+  , FromJSON (Protocol impl)
+  , FromJSONKey (Commit (Revelation sip))
+  , FromJSONKey (Commit (Revelation impl))
+  , FromJSONKey (Version (Protocol impl))
+  , FromJSON (Application impl)
+  , FromJSONKey (Protocol impl)
+  , FromJSONKey (Id sip)
+  , FromJSONKey (Id impl)
+  , FromJSONKey (Id (Voter sip))
+  , FromJSONKey (Id (Voter impl))
+  ) => FromJSON (State sip impl)
 
 data Error sip impl
   = IdeationError (Ideation.Error sip)
