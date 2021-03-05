@@ -162,7 +162,6 @@ deriving instance
 deriving instance
   ( Proposal sip
   , Implementation sip impl
-  , Activable impl
   , FromJSON sip
   , FromJSON impl
   , FromJSON (Id impl)

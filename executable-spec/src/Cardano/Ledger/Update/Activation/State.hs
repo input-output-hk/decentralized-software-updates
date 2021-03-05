@@ -172,7 +172,6 @@ deriving instance
   , FromJSONKey (Version (Protocol impl))
   , FromJSONKey (Protocol impl)
   , Implementation sip impl
-  , Activable impl
   , FromJSON (Id (Endorser (Protocol impl)))
   ) => FromJSON (State sip impl)
 
