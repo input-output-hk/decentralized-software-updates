@@ -101,6 +101,7 @@ test-suite ledger-rules-test
                      , Test.Cardano.Ledger.Update.Properties.StateChangeValidity
                      , Test.Cardano.Ledger.Update.Events
                      , Test.Cardano.Ledger.Update.Properties.Examples
+                     , Test.Cardano.Ledger.Update.Properties.CBORSerialisation
                      -- Test case specification
                      , Test.Cardano.Ledger.UpdateSpec
                      , Test.Cardano.Ledger.Update.TestCase
@@ -127,6 +128,10 @@ test-suite ledger-rules-test
                      -- Cardano specific imports
                      , cardano-slotting
                      , decentralized-updates
+                     -- cbor serialization tests
+                     , cborg
+                     , cardano-binary
+                     , bytestring
   ghc-options:         -Wall
                        -Wcompat
                        -Wincomplete-record-updates

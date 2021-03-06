@@ -20,7 +20,7 @@ main = defaultMain tests
   tests = localOption Auto $ testGroup
     "Update"
     [ testGroup "💡 Ideation phase unit tests"  UnitTests.Ideation.runTests
-    , testGroup "👍 Approval phase unit tests"  UnitTests.Approval.runTests
+    , testGroup "👍 Approval phase unit tests"   UnitTests.Approval.runTests
     , testGroup "⚡ Activation phase unit tests" UnitTests.Activation.runTests
     , testGroup "🎰 Property tests"             Properties.runTests
     ]
