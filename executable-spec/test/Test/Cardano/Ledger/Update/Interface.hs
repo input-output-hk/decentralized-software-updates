@@ -19,6 +19,8 @@ where
 import           Data.Bifunctor (bimap)
 import           GHC.Generics (Generic)
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 import           Cardano.Slotting.Block (BlockNo, unBlockNo)
 import           Cardano.Slotting.Slot (SlotNo)
 
@@ -80,6 +82,7 @@ data IState =
   }
 
 deriving instance (Proposal MockSIP, Implementation MockSIP MockImpl) => Show IState
+deriving instance (Proposal MockSIP, Implementation MockSIP MockImpl) => Eq IState
 
 iStateProtocolVersion :: IState -> Version (Protocol MockImpl)
 iStateProtocolVersion = version . iStateCurrentVersion
@@ -204,3 +207,35 @@ data PhaseState
   | Is Decision
   | IsStably Decision
   deriving (Eq, Ord, Show, Generic)
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance ToCBOR IState where
+  toCBOR st =  encodeListLen 10
+            <> toCBOR (iStateK st)
+            <> toCBOR (iStateMaxVotingPeriods st)
+            <> toCBOR (iStateSIPStakeDist st)
+            <> toCBOR (iStateImplStakeDist st)
+            <> toCBOR (iStateCurrentSlot st)
+            <> toCBOR (iStateEpochFirstSlot st)
+            <> toCBOR (iStateSlotsPerEpoch st)
+            <> toCBOR (iStateR_a st)
+            <> toCBOR (iStateStakepoolsDistribution st)
+            <> toCBOR (updateSt st)
+
+instance FromCBOR IState where
+  fromCBOR = do
+    decodeListLenOf 10
+    k   <- fromCBOR
+    mvp <- fromCBOR
+    sds <- fromCBOR
+    sdi <- fromCBOR
+    cs  <- fromCBOR
+    ef  <- fromCBOR
+    sp  <- fromCBOR
+    ra  <- fromCBOR
+    spd <- fromCBOR
+    ust <- fromCBOR
+    return $! IState k mvp sds sdi cs ef sp ra spd ust

@@ -1,17 +1,32 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Test.Cardano.Ledger.Update.Properties.CBORSerialisation where
 
 import           Codec.CBOR.Read (deserialiseFromBytes)
 import           Codec.CBOR.Write (toLazyByteString)
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import           Test.QuickCheck
+import           Test.QuickCheck (Gen, Property, counterexample, (===))
 
 import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR))
 
+import           SystemUnderTest (SUTSt)
+import           Test.Cardano.Ledger.Update.Properties.SimpleScenario (Simple)
+import           Test.Cardano.Ledger.Update.Properties.UpdateSUT (UpdateSUT)
+import           Trace (Trace)
+import qualified Trace
+import           Trace.Generation (arbitraryTrace, shrinkTrace)
+import           Trace.PropertyTesting (forAllTracesShow)
+
+
+statesAreCorrectlyEncoded :: Property
+statesAreCorrectlyEncoded =
+  forAllTracesShow @UpdateSUT @Simple
+      (roundtrips . Trace.lastState ) (const "")
+
 -- todo: this should be part of Cardano Binary, and generalized to work with
 -- Hedgehog and QuickCheck.
-roundtrip ::
+roundtrips ::
   forall t.
   ( Eq t,
     Show t,
@@ -20,7 +35,7 @@ roundtrip ::
   ) =>
   t ->
   Property
-roundtrip x =
+roundtrips x =
   case fromCBORtoCBOR x of
     Right (remaining, y) | BSL.null remaining -> x === y
     Right (remaining, _) ->

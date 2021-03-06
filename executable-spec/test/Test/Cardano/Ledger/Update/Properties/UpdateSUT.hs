@@ -43,7 +43,7 @@ data UpdateSUT
 instance SUT UpdateSUT where
 
   newtype SUTSt UpdateSUT = UpdateSt { unUpdateSt :: IState }
-    deriving (Show)
+    deriving (Show, Eq)
 
   data SUTAct UpdateSUT
     = TickAct

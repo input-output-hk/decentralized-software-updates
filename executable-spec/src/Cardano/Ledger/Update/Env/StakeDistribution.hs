@@ -54,7 +54,7 @@ data StakeDistribution k =
     --
     -- > totalStake = Map.foldr' (+) (Stake 0) stakeMap
     --
-  } deriving (Show, Generic, NoThunks)
+  } deriving (Show, Eq, Generic, NoThunks)
 
 checkInvariants :: StakeDistribution p -> StakeDistribution p
 checkInvariants sd =
