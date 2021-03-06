@@ -22,7 +22,7 @@ import           Trace.PropertyTesting (forAllTracesShow)
 statesAreCorrectlyEncoded :: Property
 statesAreCorrectlyEncoded =
   forAllTracesShow @UpdateSUT @Simple
-      (roundtrips . Trace.lastState ) (const "")
+      (roundtrips . updateSt . unUpdateSt . Trace.lastState ) (const "")
 
 -- todo: this should be part of Cardano Binary, and generalized to work with
 -- Hedgehog and QuickCheck.
