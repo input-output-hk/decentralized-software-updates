@@ -10,6 +10,8 @@ import           Test.QuickCheck (Property, counterexample, (===))
 
 import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR))
 
+import           Cardano.Ledger.Assert (prettyShow)
+
 import           Test.Cardano.Ledger.Update.Interface (updateSt)
 
 import           Test.Cardano.Ledger.Update.Properties.SimpleScenario (Simple)
@@ -23,7 +25,11 @@ import qualified Trace
 statesAreCorrectlyEncoded :: Property
 statesAreCorrectlyEncoded =
   forAllTracesShow @UpdateSUT @Simple
-      (roundtrips . updateSt . unUpdateSt . Trace.lastState ) (const "")
+      (roundtrips . lastState ) (prettyShow . lastState)
+  where
+    lastState = updateSt . unUpdateSt . Trace.lastState
+
+
 
 -- todo: this should be part of Cardano Binary, and generalized to work with
 -- Hedgehog and QuickCheck.

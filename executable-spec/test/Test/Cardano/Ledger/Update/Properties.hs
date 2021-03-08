@@ -118,7 +118,7 @@ runTests = [
            -- CBOR serialisation tests
            ---------------------------------------------------------------------
            , testProperty "Data is correctly serialised to CBOR"
-             $ withMaxSuccess 1000
+             $ withMaxSuccess 5000
              $ CBORSerialisation.statesAreCorrectlyEncoded
            ]
 
