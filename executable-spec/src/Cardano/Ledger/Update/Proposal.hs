@@ -9,6 +9,7 @@
 
 module Cardano.Ledger.Update.Proposal where
 
+import           Data.Typeable (Typeable)
 import           Data.Kind (Type)
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
@@ -17,7 +18,16 @@ import           Control.DeepSeq (NFData)
 import           Data.Aeson (ToJSON, FromJSON)
 import           Data.List (find)
 
-import Cardano.Binary (ToCBOR (toCBOR), encodeInt, decodeInt, FromCBOR (fromCBOR))
+import Cardano.Binary
+  ( FromCBOR(fromCBOR)
+  , ToCBOR(toCBOR)
+  , decodeInt
+  , decodeWord
+  , encodeInt
+  , encodeWord
+  , encodeListLen
+  , decodeListLenOf
+  )
 import           Cardano.Slotting.Slot (SlotNo)
 
 -- | Data for which a commit can be computed.
@@ -185,3 +195,35 @@ class ( Ord (Version protocol)
 type ProtocolId p = Id (Protocol p)
 
 type EndorserId p = Id (Endorser p)
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable impl
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Id (Protocol impl))
+  , ToCBOR (Application impl)
+  ) => ToCBOR (ImplementationType impl) where
+  toCBOR (Cancellation ps) =
+    encodeListLen 2 <> encodeWord 0 <> toCBOR ps
+  toCBOR (Protocol p) =
+    encodeListLen 2 <> encodeWord 1 <> toCBOR p
+  toCBOR (Application a) =
+    encodeListLen 2 <> encodeWord 2 <> toCBOR a
+
+instance
+  ( Typeable impl
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Id (Protocol impl))
+  , FromCBOR (Application impl)
+  ) => FromCBOR (ImplementationType impl) where
+  fromCBOR = do
+    decodeListLenOf 2
+    tag <- decodeWord
+    case tag of
+      0 -> Cancellation <$> fromCBOR
+      1 -> Protocol     <$> fromCBOR
+      2 -> Application  <$> fromCBOR
+      _ -> fail $ "Unknown tag (" <> show tag <> ") when decoding a value of type 'ImplementationType'"

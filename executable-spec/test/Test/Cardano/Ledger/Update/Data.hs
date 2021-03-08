@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -32,6 +33,9 @@ module Test.Cardano.Ledger.Update.Data
 where
 
 import           Data.Word (Word64)
+
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 
 import           Cardano.Ledger.Update.Proposal
 
@@ -75,14 +79,17 @@ instance Implementation MockSIP MockImpl where
 
   newtype Application MockImpl =
     MockApplication { appId :: Word64 }
-    deriving (Eq, Show)
+    deriving stock (Eq, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
 instance Activable (Protocol MockImpl) where
   newtype Endorser (Protocol MockImpl) = MockEndorser Participant
-    deriving (Eq, Ord, Show)
+    deriving stock (Eq, Ord, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
-  data Version (Protocol MockImpl) = Version { getVersion :: Word64 }
-    deriving (Eq, Ord, Show)
+  newtype Version (Protocol MockImpl) = Version { getVersion :: Word64 }
+    deriving stock (Eq, Ord, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   version           = mpProtocolVersion
   supersedesId      = mpSupersedesId
@@ -98,7 +105,8 @@ increaseVersion (Version v) inc = Version (v + inc)
 
 instance Identifiable (Protocol MockImpl) where
   newtype Id (Protocol MockImpl) = ProtocolId Word64
-    deriving (Eq, Ord, Show)
+    deriving stock (Eq, Ord, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   _id = mpProtocolId
 
@@ -108,14 +116,48 @@ nextId (ProtocolId i)
   | otherwise     = ProtocolId (i + 1)
 
 instance Identifiable (Application MockImpl) where
-  data Id (Application MockImpl) = AppId Word64
-    deriving (Eq, Ord, Show)
+  newtype Id (Application MockImpl) = AppId Word64
+    deriving stock (Eq, Ord, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   _id = AppId . appId
 
 instance Identifiable (Endorser (Protocol MockImpl)) where
   newtype Id (Endorser (Protocol MockImpl)) =
     EndorserId { unEndorserId :: Id Participant }
-    deriving (Eq, Ord, Show)
+    deriving stock (Eq, Ord, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   _id (MockEndorser participant) = EndorserId (_id participant)
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance ToCBOR (Protocol MockImpl) where
+  toCBOR p =  encodeListLen 4
+           <> toCBOR (mpProtocolId p)
+           <> toCBOR (mpProtocolVersion p)
+           <> toCBOR (mpSupersedesId p)
+           <> toCBOR (mpSupersedesVersion p)
+
+instance FromCBOR (Protocol MockImpl) where
+  fromCBOR = do
+    decodeListLenOf 4
+    pid <- fromCBOR
+    pv  <- fromCBOR
+    si  <- fromCBOR
+    sv  <- fromCBOR
+    return $! MockProtocol pid pv si sv
+
+instance ToCBOR ImplInfo where
+  toCBOR ii =  encodeListLen 2
+            <> toCBOR (mockImplements ii)
+            <> toCBOR (mockImplType ii)
+
+instance FromCBOR ImplInfo where
+  fromCBOR = do
+    decodeListLenOf 2
+    mi <- fromCBOR
+    mt <- fromCBOR
+    return $! ImplInfo mi mt

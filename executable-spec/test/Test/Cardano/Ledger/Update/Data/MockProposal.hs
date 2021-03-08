@@ -1,11 +1,15 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Test.Cardano.Ledger.Update.Data.MockProposal where
 
+import           Data.Typeable (Typeable)
 import           Data.Word (Word64)
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 import           Cardano.Slotting.Slot (SlotNo)
 
 import           Cardano.Ledger.Update.Proposal
@@ -16,7 +20,8 @@ import           Cardano.Ledger.Update.Proposal
 --------------------------------------------------------------------------------
 
 newtype Participant = Participant (Id Participant)
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
+  deriving newtype (ToCBOR, FromCBOR)
 
 mkParticipant :: Word64 -> Participant
 mkParticipant = Participant . ParticipantId
@@ -39,7 +44,8 @@ data MockProposal prop payload =
 
 instance Identifiable (MockProposal prop payload) where
   newtype Id (MockProposal prop payload) = MPId Word64
-    deriving (Ord, Eq, Show)
+    deriving stock (Ord, Eq, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   _id = mpId
 
@@ -83,14 +89,16 @@ instance Show payload => Proposal (MockProposal prop payload) where
 
 instance Identifiable Participant where
   newtype Id Participant = ParticipantId { unParticipantId :: Word64 }
-    deriving (Eq, Ord, Show)
+    deriving stock (Eq, Ord, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   _id (Participant pId) = pId
 
 instance Identifiable (Voter (MockProposal prop payload)) where
   newtype Id (Voter (MockProposal prop payload))
     = MockVoterId { unMockVoterId :: (Id Participant) }
-    deriving (Ord, Eq, Show)
+    deriving stock (Ord, Eq, Show)
+    deriving newtype (ToCBOR, FromCBOR)
 
   _id (MockVoter participant) = MockVoterId (_id participant)
 
@@ -109,8 +117,35 @@ instance Signed (Vote (MockProposal prop payload)) where
 --------------------------------------------------------------------------------
 
 newtype MockCommit = MockCommit Word64
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
+  deriving newtype (ToCBOR, FromCBOR)
 
 instance Commitable (Revelation (MockProposal prop payload)) where
   type Commit (Revelation (MockProposal prop payload)) = MockCommit
   commit = refersTo
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable prop
+  , Typeable payload
+  , ToCBOR payload
+  ) => ToCBOR (MockProposal prop payload) where
+  toCBOR mp =  encodeListLen 3
+            <> toCBOR (mpId mp)
+            <> toCBOR (mpVotingPeriodDuration mp)
+            <> toCBOR (mpPayload mp)
+
+instance
+  ( Typeable prop
+  , Typeable payload
+  , FromCBOR payload
+  ) => FromCBOR (MockProposal prop payload) where
+  fromCBOR = do
+    decodeListLenOf 3
+    i   <- fromCBOR
+    vpd <- fromCBOR
+    pl  <- fromCBOR
+    return $! MockProposal i vpd pl

@@ -29,6 +29,7 @@ import           Test.Cardano.Ledger.Update.Properties.SimpleScenario
 import qualified Test.Cardano.Ledger.Update.Properties.StateChangeValidity as StateChangeValidity
 import           Test.Cardano.Ledger.Update.Properties.UpdateSUT
 
+import qualified Test.Cardano.Ledger.Update.Properties.CBORSerialisation as CBORSerialisation
 
 runTests :: [TestTree]
 runTests = [
@@ -113,6 +114,12 @@ runTests = [
            --   - when the update was a candidate
            -- - protocol updated is adopted after being endorsed across several
            --   epochs.
+           ---------------------------------------------------------------------
+           -- CBOR serialisation tests
+           ---------------------------------------------------------------------
+           , testProperty "Data is correctly serialised to CBOR"
+             $ withMaxSuccess 1000
+             $ CBORSerialisation.statesAreCorrectlyEncoded
            ]
 
 --------------------------------------------------------------------------------

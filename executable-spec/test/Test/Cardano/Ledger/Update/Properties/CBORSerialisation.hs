@@ -6,17 +6,18 @@ module Test.Cardano.Ledger.Update.Properties.CBORSerialisation where
 import           Codec.CBOR.Read (deserialiseFromBytes)
 import           Codec.CBOR.Write (toLazyByteString)
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import           Test.QuickCheck (Gen, Property, counterexample, (===))
+import           Test.QuickCheck (Property, counterexample, (===))
 
 import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR))
 
-import           SystemUnderTest (SUTSt)
+import           Test.Cardano.Ledger.Update.Interface (updateSt)
+
 import           Test.Cardano.Ledger.Update.Properties.SimpleScenario (Simple)
-import           Test.Cardano.Ledger.Update.Properties.UpdateSUT (UpdateSUT)
-import           Trace (Trace)
-import qualified Trace
-import           Trace.Generation (arbitraryTrace, shrinkTrace)
+import           Test.Cardano.Ledger.Update.Properties.UpdateSUT (UpdateSUT,
+                     unUpdateSt)
 import           Trace.PropertyTesting (forAllTracesShow)
+
+import qualified Trace
 
 
 statesAreCorrectlyEncoded :: Property
