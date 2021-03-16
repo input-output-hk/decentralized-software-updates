@@ -91,7 +91,7 @@ components in the Cardano decentralized governance landscape.
 	Cardano system. It is similar in concept to BIPs (Bitcoin Improvement 
 	Proposals)  and EIPs (Ethereum Improvement Proposals). The Cardano 
 	Improvement process is intent on enabling a public discussion place for 
-	“Cardano Improvement Proposals” as Process, Standard or Informational 
+	``Cardano Improvement Proposals'' as Process, Standard or Informational 
 	proposals, in a source-controlled, Foundation-managed, GitHub 
 	repository.The aim is to have an open-sourced collection of CIPs available 
 	and proposed for the community, enabling different flavors of 
@@ -112,7 +112,7 @@ components in the Cardano decentralized governance landscape.
 	models and advanced cryptography to ensure the secure and decentralized 
 	operation of the Treasury. A good description of the research-related 
 	issues regarding a Treasury system can be found in 
-	\cite{cryptoeprint:2018:435}. The Cardano Treasury system can 
+	\cite{treasury}. The Cardano Treasury system can 
 	fund \emph{any} idea that improves the Cardano ecosystem and not 
 	necessarily only system-related ideas; for example to launch a new 
 	marketing campaign, or create educational material for the Cardano 
@@ -132,12 +132,12 @@ components in the Cardano decentralized governance landscape.
 \end{itemize}
 The basic flow depicted in figure \ref{fig:cardano_dec_gov_components}, shows 
 that system-related ideas going through a formalization process, in the form of 
-a CIP document. Non system-related ideas do not need this step. In any case, 
-all ideas 
-will 
+a CIP document. Non system-related ideas do not need this step. Some ideas 
+might 
 end up in the Treasury system 
-requesting for funding. Finally, the subset of the proposals that have an 
-approved funding and correspond to software updates, will go through the SW 
+requesting for funding and some others might not require funding at all (e.g., 
+parameters value change). Finally, the subset of the proposals that correspond 
+to software updates, will go through the SW 
 Update system to enable the implementation of the initial idea and the 
 activation of the changes on the blockchain system.
 
@@ -204,7 +204,7 @@ components of the decentralized governance landscape are depicted. In
 particular, the software updates system appears integrated with the Cardano 
 main-chain and is depicted as a flow of the core phases in the lifecycle of a 
 software update, namely: Ideation, Implementation, Approval and Activation. In 
-contrast, the Treasury system runs as a sidechain \cite{sidechains}. This is a 
+contrast, the Treasury system runs as a sidechain \cite{sidechain}. This is a 
 conscious architectural decision, which we explain next.
 
 The update system enables changes on the main-chain, so it is very important 
@@ -212,19 +212,28 @@ that it is secure, because if the chain gets compromised or the protocol fails
 people can lose their money. So the chain upon which the update system runs 
 must be \emph{at least} as secure as the main Cardano chain. This requirement 
 calls for a tight integration between the update system and the Cardano node 
-software, as we will show in section \ref{sec:intra-node-level}. For example, 
+software, as we will show in section \ref{integration_with_cardano}. For 
+example, 
 the triggering for the activation of a change that comes from the update system 
 is integrated within the ledger layer of the Cardano node (see section 
-\ref{sec:intra-node-level}). 
+\ref{integration_with_cardano}). 
 
-If we had followed a sidechain approach for the 
-update system, then we would have to utilize more advanced cryptography 
-\cite{possidechains}, in order to provide strong evidence that indeed the 
-changes should be activated on the main-chain. Moreover, the requirement for a 
+The high-stake nature of software updates mandates that on-chain decisions 
+about them should be made on a chain that is at least as secure as the chain on 
+which the changes will be applied . If we had followed a sidechain approach for 
+the 
+update system, then that would mean that the sidechain should be as secure as 
+the main chain on which the changes will take effect. Moreover, we would have 
+to utilize more advanced cryptography 
+\cite{sidechain}, in order to provide strong evidence that indeed the 
+changes should be activated on the main-chain. All these along with the 
+requirement for a 
 robust, simple-to-implement, fast-and-scalable and also transparent and 
 auditable update mechanism has lead us to the decision to implement the update 
-mechanism on the Cardano main-chain. In contrast, the Cardano Treasury system 
-has built advanced voting protocols and utilizes advance cryptography to ensure 
+mechanism on the Cardano main-chain. In contrast, the Cardano Treasury system, 
+which is implemented as a sidechain, deals with lower-stake decisions (the 
+funding of projects) compared to software updates. Also, it has built advanced 
+voting protocols and utilizes advance cryptography to ensure 
 the privacy of the voters (something that is not required for the update system 
 due to the transparency requirement and also because votes for 
 updates must be open, in order for the experts to be accountable for their 
