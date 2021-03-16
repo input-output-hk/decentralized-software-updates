@@ -29,13 +29,23 @@ author of the software. Hence what does it take to decentralize software
 updates? What are the critical decisions that must be made collectively and not 
 centrally? What is a secure update protocol that will enable this 
 decentralization? How can we avoid chain-splits and ensure a secure transition 
-to an updated protocol. What does it even mean to have a "secure activation"? 
+to an updated protocol? What does it even mean to have a "secure activation"? 
 How can we enable a meta-data driven update logic that will smoothly deal with 
 priorities, version dependencies, conflicts and emergencies? Finally, how can 
 we smoothly incorporate a new update system into the Cardano node?
 
 \paragraph{Our contributions.}
-We put forth a novel mechanism for realizing software updates. In our proposed scheme, an update proposal is possible to be submitted by anyone who can submit a transaction to the blockchain. The decision of which update proposal will be applied and which will not is taken collectively by the community and not centrally. Thus, the roadmap of the system is decided jointly. Moreover, this process is no longer an informal discussion process, but part of an \emph{update protocol}. All relevant events generated are stored within the blockchain itself, and thus recorded in the immutable update history of the system. Moreover, the role of the code maintainer, who used to take decisions on the correctness of the submitted new code and guarantees the validity of the downloaded software, is replaced by the stakeholders' community.
+We put forth a novel mechanism for realizing decentralized software updates. In 
+our proposed scheme, an update proposal is possible to be submitted by anyone 
+who can submit a transaction to the blockchain. The decision of which update 
+proposal will be applied and which will not is taken collectively by the 
+community and not centrally. Thus, the roadmap of the system is decided 
+jointly. Moreover, this process is no longer an informal discussion process, 
+but part of an \emph{update protocol}. All relevant events generated are stored 
+within the blockchain itself, and thus recorded in the immutable update history 
+of the system. Moreover, the role of the code maintainer, who used to take 
+decisions on the correctness of the submitted new code and guarantees the 
+validity of the downloaded software, is replaced by the stakeholders' community.
 
 In particular in this work, 
 \begin{itemize}
@@ -130,17 +140,18 @@ In particular in this work,
 %\item Hard-forks are the norm
 %\end{itemize}
 
-\import{./}{sections/related_work.tex}
-\paragraph{Goal of the paper.} In this paper we propose a secure software 
-update mechanism that enables a decentralized approach to the blockchain 
-software updates problem. We examine all phases in the lifecycle of a software 
-update and propose practical decentralized alternatives that can be adopted in 
-the real world. These alternatives substitute any \emph{central authority} with 
-the \emph{stakeholders' community}. Moreover we describe the integration of 
-such a mechanism into the Cardano node \cite{cardano}. In order to enable this 
-\emph{decentralization} of software updates, we exploit existing primitives 
-that we combine in order to form a novel decentralized software updates 
-protocol. From a security perspective, we formally define what is a secure 
+%\paragraph{Goal of the paper.} In this paper, we propose a secure software 
+%update mechanism that enables a decentralized approach to the blockchain 
+%software updates problem. We examine all phases in the lifecycle of a software 
+%update and propose practical decentralized alternatives that can be adopted in 
+%the real world. These alternatives substitute any \emph{central authority} 
+%with 
+%the \emph{stakeholders' community}. Moreover we describe the integration of 
+%such a mechanism into the Cardano node \cite{cardano}. In order to enable this 
+%\emph{decentralization} of software updates, we exploit existing primitives 
+%that we combine in order to form a novel decentralized software updates 
+%protocol. 
+From a security perspective, we formally define what is a secure 
 activation of changes on a blockchain and prove the security of our protocol 
 with respect to this definition \cite{secure_activation} .  Our update mechanism
 ensures that:
@@ -155,6 +166,8 @@ a) any stakeholder will always be able to submit an update proposal to be voted 
  and finally e) it protects against chain splits during activation of the 
  proposed updates and ensures a secure transition to the new version of the 
  consensus protocol.
+
+\import{./}{sections/related_work.tex}
 
 \paragraph{Outline of the paper.} 
 In section \ref{sec:requirements}, we present the high-level requirements that 
