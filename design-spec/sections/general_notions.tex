@@ -1,0 +1,73 @@
+\subsection{Definitions}\label{se:moredefinitions}
+
+\begin{definition}[Signature scheme]\label{def:signature} A triple of \ppt\ algorithms $(\Gen,\Sign,\Ver)$
+is called a {\em signature scheme} if it satisfies the following properties.
+
+\begin{description}
+
+\item[Completeness:] For every pair $(s,v) \from \Gen(1^\lambda)$,
+    and every $m \in \zo{\lambda}$, we have that $\Pr[\Ver(v, m,\Sign(s, m))=0]<\nu(\lambda).$
+\item[Consistency (non-repudiation):] For any $m$, the probability that $\Gen(1^\lambda)$ generates $(s,v)$
+and $\Ver(v,m,\sigma)$ generates two different outputs in two independent invocations is smaller than $\nu(\lambda)$.
+
+
+\item[Unforgeability:] For every \ppt\ $\adv$, there exists a negligible function $\nu$,  such that for all auxiliary input $z\in \zo{\star}$ it holds that:
+	\begin{equation*}\begin{split}
+\Pr[(s,v) \from \Gen(1^\lambda); (m,\sigma)\from\adv^{\Sign(s,\cdot)}(z,v) \wedge \\
+  \Ver(v,m,\sigma)=1 \wedge m \notin Q] < \nu(\lambda)
+	\end{split}\end{equation*}
+	
+where $Q$ denotes the set of the messages requested by $\adv$ to the oracle $\Sign(s,\cdot)$.
+\end{description}
+ \end{definition}
+ To simplify the description of our protocol we denote a signature of a message $m$ computed using the secret key $s$ with $\sigma_s(m)$.
+ 
+ \ignore{
+ In this paper we also make use of the UC-signature functionality proposed in~\cite{EPRINT:Canetti03} that we denote with 
+ $\fstandard$. We also use the the fact that a scheme $\Sigma=(\Gen,\Sign,\Ver)$ that satisfies Def.~\ref{def:signature}
+ can be turned into a scheme that UC-realized the functionality $\fstandard$~\cite[Thm 2]{EPRINT:Canetti03}.
+  We assume familiarity with $\fstandard$, and for more discussion on this functionality we refer the reader 
+ to Sec.~\ref{se:signaturef} Fig.~\ref{fig:signature}. 
+ 
+ 
+
+ \begin{definition}[Public Key Encryption Scheme (from notes of~\cite{goldwasser1996lecture})]\label{def:pke} A triple of \ppt\ algorithms $(\Gen,\Enc,\Dec)$
+ 	is called a {\em public key encryption scheme} if it satisfies the following properties.
+ 	
+ 	\begin{description}
+ 		
+ 		\item[Completeness:] For every pair $(s, p) \from \Gen(1^\lambda)$,
+ 		and every $m \in \zo{\lambda}$, we have that $\Pr[\Dec(s, \Enc(p, m))= m]<\nu(\lambda).$
+% 		\item[Consistency (non-repudation):] For any $m$, the probability that $\Gen(1^\lambda)$ generates $(s,v)$
+% 		and $\Ver(v,m,\sigma)$ generates two different outputs in two independent invocations is smaller than $\nu(\lambda)$.
+ 		
+ 		
+ 		\item[Security:] For every \ppt\ $\adv$, there exists a negligible function $\nu$,  such that for all auxiliary input $z\in \zo{\star}$ it holds that:
+ 		\begin{equation*}\begin{split}
+ 		\Pr[(s,p) \from \Gen(1^\lambda); b \from \zo{}; (m_1, m_2)\from\adv^{\Dec(s,\cdot)}(z,p) \wedge \\
+ 	    	\adv(\Enc(p, m_b)) = b ] < \nu(\lambda)
+ 		\end{split}\end{equation*}
+
+ 	%	where $Q$ denotes the set of messages whose signatures were requested by $\adv$ to the oracle $\Sign(s,\cdot)$.
+ 	\end{description}
+ \end{definition}
+ 
+ \begin{definition}[Pseudo-Random Function (from book of~\cite{goldreich2009foundations})]\label{def:prf} A function $\prf \colon \zo{\lambda} \times \zo{\lambda} \rightarrow \zo{c\lambda}$
+ 	is called a {\em pseudo-random function} if it satisfies the following properties.
+ 	
+ 	\begin{description}
+ 		
+ 		\item[Efficient:] For every $k \in \zo{\lambda}$,
+ 		and every $m \in \zo{c\lambda}$, there exists a \ppt\ algorithm to compute $\prf_k(m) = \prf(k, m)$.
+ 		
+ 		
+ 		\item[Indistinguishable from Random:] For every \ppt\ $\adv$, there exists a negligible function $\nu$,  such that for all auxiliary input $z\in \zo{\star}$ it holds that:
+ 		$$
+ 		\left|  \Pr_{k\from\zo{\lambda}}(\adv^{\prf_k} (z) = 1) - \Pr_{f\from F}(\adv^{f} (z) = 1) \right| < \nu(\lambda)
+ 		$$
+ 		where $F = \{f \colon \zo{\lambda}\rightarrow \zo{c\lambda} \}$
+ 	\end{description}
+ \end{definition}
+ }
+
+
