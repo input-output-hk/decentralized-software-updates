@@ -77,8 +77,7 @@ notion of a secure voting (or activation) protocol:
 	\begin{itemize}
 		\item \textbf{Safety property for activation:} a software update that 
 		has not received signals of sufficient  stake w.r.t. the 
-		security assumption of the upgraded protocol (see section 
-		\ref{secureupdate}), will never be activated.
+		security assumption of the upgraded protocol, will never be activated.
 		
 		\item \textbf{Liveness property for activation:} a software update that 
 		has received
@@ -95,14 +94,14 @@ attack.
 Our goal, is to define an appropriate voting/adoption threshold $\tau$, such 
 as the two said properties hold. 
 \begin{definition}
-	A voting threshold $\tau_V$ (see section \ref{appxvoting}) is an amount of 
+	A voting threshold $\tau_V$ is an amount of 
 	stake such that any stake $p 
 	> \tau_V$ of positive votes can approve a proposal and any stake $n > 
 	\tau_V$ of 	negative votes can reject a proposal.
 \end{definition}
 Similarly,
 \begin{definition}
-	An adoption threshold $\tau_A$ (see section \ref{secureupdate}) is 
+	An adoption threshold $\tau_A$ is 
 	an amount of stake such that any stake $p 
 	> \tau_A$ of signals can activate a proposal.
 \end{definition}
