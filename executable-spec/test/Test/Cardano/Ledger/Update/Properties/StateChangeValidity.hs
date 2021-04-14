@@ -212,7 +212,11 @@ updateEventTransitionsForUpdateSpecAreValid updateSpec trace = do
         forall (invalidActions fragment')
                (\act -> getSubmittedImpl act
                         /=! Just (getImplSubmission updateSpec)
-               )
+               ) -- TODO: shouldn't we add here the condition that if the
+                 -- implementation submission is invalid, the it can only be
+                 -- because the submission does not verify. If so, why did not
+                 -- get an error here? Do we generate impl submissions with
+                 -- invalid signatures.
     validateTransition (E (SIP (Is Approved)) _fragment)
                        (E (Implementation Submitted) fragment') = do
       getSubmittedImpl (firstAction fragment')

@@ -177,6 +177,10 @@ apply env (Cast vote) st   = do
   let sipId = candidate vote
   unless (Proposals.votingPeriodHasStarted env sipId (proposalsState st))
     $ throwError (VotePeriodHasNotStarted (currentSlot env) vote (proposalsState st))
+  -- todo: if the SIP being voted does not exist then this function will throw
+  -- the "vote period has not started" error. Even if this is true, it is
+  -- confusing for the user. So we should have an error for the case that the
+  -- SIP being voted does not exist.
   when (Proposals.votingPeriodHasEnded env sipId (proposalsState st))
     $ throwError (VotePeriodHasEnded (currentSlot env) vote (proposalsState st))
   pure $ st { proposalsState =
