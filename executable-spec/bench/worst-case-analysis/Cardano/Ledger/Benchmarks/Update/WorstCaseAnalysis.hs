@@ -72,27 +72,27 @@ worstCaseAnalysisTable
                )
                (fmap runAnalysis paramss)
   where
-    paramss = [ AnalysisParams 1000    2 1 7 _25k
-              , AnalysisParams 1000    2 5 7 _25k
-              , AnalysisParams 1000    2 10 7 _25k
+    paramss = [ AnalysisParams 1000    2 1 7 cardanoTBPS
+              , AnalysisParams 1000    2 5 7 cardanoTBPS
+              , AnalysisParams 1000    2 10 7 cardanoTBPS
               --
-              , AnalysisParams 10000   2 1 7 _25k
-              , AnalysisParams 10000   2 5 7 _25k
-              , AnalysisParams 10000   2 10 7 _25k
+              , AnalysisParams 10000   2 1 7 cardanoTBPS
+              , AnalysisParams 10000   2 5 7 cardanoTBPS
+              , AnalysisParams 10000   2 10 7 cardanoTBPS
               --
-              , AnalysisParams 100000  2 1 7 _25k
-              , AnalysisParams 100000  2 5 7 _25k
-              , AnalysisParams 100000  2 10 7 _25k
+              , AnalysisParams 100000  2 1 7 cardanoTBPS
+              , AnalysisParams 100000  2 5 7 cardanoTBPS
+              , AnalysisParams 100000  2 10 7 cardanoTBPS
               --
-              , AnalysisParams 1000000  2 1 7 _25k
-              , AnalysisParams 1000000  2 5 7 _25k
-              , AnalysisParams 1000000  2 10 7 _25k
-              , AnalysisParams 1000000  2 10 14 _25k
-              , AnalysisParams 1000000  2 10 30 _25k
+              , AnalysisParams 1000000  2 1 7 cardanoTBPS
+              , AnalysisParams 1000000  2 5 7 cardanoTBPS
+              , AnalysisParams 1000000  2 10 7 cardanoTBPS
+              , AnalysisParams 1000000  2 10 14 cardanoTBPS
+              , AnalysisParams 1000000  2 10 30 cardanoTBPS
               --
-              , AnalysisParams 10000000  2 1 7 _25k
-              , AnalysisParams 10000000  2 5 7 _25k
-              , AnalysisParams 10000000  2 10 7 _25k
+              , AnalysisParams 10000000  2 1 7 cardanoTBPS
+              , AnalysisParams 10000000  2 5 7 cardanoTBPS
+              , AnalysisParams 10000000  2 10 7 cardanoTBPS
               ]
 
     runAnalysis :: AnalysisParams -> [Value]
@@ -108,8 +108,13 @@ worstCaseAnalysisTable
         , StringValue (printf "%.3f" (usagePct params) :: String)
         ]
 
-_25k :: TBPS
-_25k = tbps 25000 1
+-- | Transaction bytes per-second in the Cardano network.
+--
+-- Currently the maximum block size is 65536 bytes (or 64 K), and a block is
+-- issued every 20 seconds. Thus the network's throughput is 65536/20=3276.8 ~
+-- 3276 TBPS.
+cardanoTBPS :: TBPS
+cardanoTBPS = tbps 3276 1
 
 (^) :: Integer -> Integer -> Integer
 a ^ b = a Prelude.^ b
@@ -132,9 +137,10 @@ worstCaseAnalysisPlot
             }
             dataPoints
   where
+    analysisTBPS = cardanoTBPS
     paramss = fmap mkAnalysisParams samples
       where
-        mkAnalysisParams participants = AnalysisParams participants 2 10 7 _25k
+        mkAnalysisParams participants = AnalysisParams participants 2 10 7 analysisTBPS
     samples =  fmap (100*) [1 .. 10]
             ++ fmap (1000 *) [1 .. 10000]
     results = fmap usagePct paramss
