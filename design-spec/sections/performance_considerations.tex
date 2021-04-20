@@ -143,8 +143,10 @@ voting period, and each participant changing her vote twice.
 
 Looking at Table~\ref{fig:tab:worst-case-analysis-voting-period} and
 Figure~\ref{fig:usage-vs-participants}, we can see that the usage percentage
-scales linearly in the number of participants, i.e., a 10 times increase in the
-number of participants will increase 10 times the required usage percent.
+scales linearly in the number of participants\footnote{Note the logarithmic
+  scale used in Figure~\ref{fig:usage-vs-participants}}, i.e., a 10 times
+increase in the number of participants will increase 10 times the required usage
+percent.
 %
 We can see that the impact of the update protocol on the
 system's performance is negligible up to $100,000$ participants and $1$ proposal
@@ -191,7 +193,7 @@ participants or concurrent update proposals:
 \subsection{Processing Time and Memory Consumption}
 Clearly the most processing intesive task of the update mechanism
 is the tally phase. It is the phase where all the collected votes
-are counted in order to reach at a decision for a specific proposal.
+are counted in order to reach a decision for a specific proposal.
 
 We start with a theoretical time complexity analysis where we
 assume a worst-case scenario, where we have $n$ participants that all
@@ -199,9 +201,9 @@ of them vote by submiting a single vote. Also we assume that we have
 a single proposal, so that within a voting period, the number $n$ of
 participants coincides to the number of submitted ballots.
 
-In the following we try to break up the operations during the tally phase.
-In the heart of the tally phase lies the following function call,
-which is called for each proposal.
+In the following we try to break up the operations during the tally phase. In
+the heart of the tally phase lies the following function call, which is called
+for each proposal.
 
 \begin{lstlisting}[language=Haskell, caption=Tally phase initial function call]
 	tallyStake confidence result ballot stakeDistribution adversarialStakeRatio
@@ -215,39 +217,42 @@ which is called for each proposal.
 	votingKeys = Map.filter (== confidence) ballot
 \end{lstlisting}
 
-\lstinline{Map.filter}
+Function \lstinline{stakeThreshold} is constant whereas \lstinline{Map.filter}
 \footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#g:25}},
- is $O(n)$ so \lstinline{votingKeys} is $O(n)$, where $n$ is the number of
-ballots,
-which as we have said coincides to the number of participants. At
-this point, we have a single pass (loop) over $n$ ballots.
+is $O(n)$ so \lstinline{votingKeys} is $O(n)$, where $n$ is the number of
+ballots, which as we have said coincides to the number of participants. At this
+point, we have a single pass (loop) over $n$ ballots.
 
-Furthermore, \lstinline{stakeOfKeys} makes the following calls:
+The remaining function used in the definition of \lstinline{tallyStake},
+\lstinline{stakeOfKeys}, calculates the stake associated to the given key-map,
+and is defined as follows:
 \begin{lstlisting}[language=Haskell, caption=Code example]
 	stakeOfKeys
 	keyMap
 	StakeDistribution
 	{ stakeMap
 	}
-	= Map.foldl (+) 0 $ stakeMap `Map.intersection` keyMap
+	= Map.foldl (+) 0 (stakeMap `Map.intersection` keyMap)
 \end{lstlisting}
-
 The $intersection$ function in the worst-case is
 $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:intersection}}.
- Therefore this is a second pass
-(loop) over the data of length $n$.
-\lstinline{foldl} is also
+Therefore this is a second pass (loop) over the data of length $n$. Finally, we
+call \lstinline{foldl} with a constant time operation, \lstinline{+}, which
+means that this call is also
 $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:foldl}}.
- This is a third pass (loop) over the data of
-length $n$. Thus from the above analysis we see that we have for
-a single proposal a call of \lstinline{tallyStake}, where in each
-such call we have three passes over the data of length $n$. So in total
-for a single proposal we do $3$ passes over the data of length $n$.
-That is $3n$ operations, which means that the tally time
+This is a third pass (loop) over the data of length $n$. Thus from the above
+analysis we see that we have for a single proposal a call of
+\lstinline{tallyStake}, where in each such call we have three passes over the
+data of length $n$. So in total for a single proposal we do $3$ passes over the
+data of length $n$. That is $3n$ operations, which means that the tally time
 complexity is $O(n)$.
 
-This result is also confirmed by the experimental evaluation
-shown in the graph below:
+This result is also confirmed by the experimental evaluation shown in
+Figure~\ref{fig:eltime-vs-participants}, where we see that the processing time
+increases linearly with the number of participants. In addition, we see that it
+takes almost one tenth of a second to process the votes of $1$ million
+participants. These results correspond to a single-core execution of the tally
+algorithm on a i7 CPU laptop with 32GB of RAM.
 
 \begin{figure}[htp]
 	\centering
@@ -278,13 +283,6 @@ shown in the graph below:
 	\caption{Worst case scenario analysis for tally phase processing time}
 	\label{fig:eltime-vs-participants}
 \end{figure}
-
-In Figure \ref{fig:eltime-vs-participants}, we see that the processing
-time increases linearly in the number of participants. In addition,
-we see that it takes almost one tenth of a second to process
-the votes of $1$ million participants. These results correspond to
-a no-parallel execution of the tally algorithm on a i7 CPU laptop
-with 32GB of RAM.
 
 Finally, we present the measurements of the memory consumption
 during the tally phase. Again as the graph in
