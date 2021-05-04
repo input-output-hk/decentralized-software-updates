@@ -66,9 +66,11 @@ runTests = [
              $ forAllTracesShow (implsAreNot Expired) (const "")
            , testProperty "Implementations are rejected"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (implsAreNot Rejected) (const "")
            , testProperty "Implementations get no-quorum"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (implsAreNot WithNoQuorum) (const "")
            -- We do not test that implementations are approved since that is
            -- implicitly tested when we test that updates are activated.
@@ -81,6 +83,7 @@ runTests = [
              $ forAllTracesShow updatesAreNotActivated (const "")
            , testProperty "Implementations are queued"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow updatesAreNotQueued (const "")
            , testProperty "Updates are discarded due to being expired"
              $ expectFailure
@@ -98,7 +101,7 @@ runTests = [
            -- Update system safety properties
            ---------------------------------------------------------------------
            , testProperty "Changes in the state of update proposals are valid."
-             $ withMaxSuccess 2000
+             $ withMaxSuccess 100000
              $ forAllTracesShow
                  StateChangeValidity.prop_updateEventTransitionsAreValid
                  showActionsAndStateOfUpdateSpec
