@@ -439,7 +439,14 @@ updateEventTransitionsForUpdateSpecAreValid updateSpec trace = do
                        (E BeingEndorsed fragment') = do
       -- The current protocol version must be the version that the update
       -- proposal supersedes.
+      --
+      -- todo: why aren't we checking this as well?
+      -- getCurrentProtocolVersion (firstState fragment')
+      --   ==! supersedesVersion (getProtocol updateSpec)
+      -- getCurrentProtocolId (firstState fragment')
+      --   ==! supersedesId (getProtocol updateSpec)
       supersedesId (getProtocol updateSpec) ==! _id (getCurrentProtocol st')
+
       -- All the queued proposals must have a version higher than this proposal.
       forall
         (candidatesIn fragment' `withIdDifferentFrom` updateSpec)
