@@ -135,12 +135,9 @@ data Error sip impl
   | ImplementationAlreadyRevealed (Revelation impl)
   | NoApprovedSIP (Id sip)
   | VoteSignatureDoesNotVerify (Vote impl)
-  | VotePeriodHasNotStarted SlotNo
-                            (Id impl)
-                            (ProposalsState impl)
-  | VotePeriodHasEnded SlotNo
-                       (Id impl)
-                       (ProposalsState impl)
+  | VotedProposalDoesNotExist (Vote impl)
+  | VotePeriodHasNotStarted SlotNo (Vote impl) (ProposalsState impl)
+  | VotePeriodHasEnded SlotNo (Vote impl) (ProposalsState impl)
 
 deriving instance Implementation sip impl
                   => Show (Error sip impl)
@@ -177,20 +174,20 @@ noApprovedSIP err = do
     _                     -> Nothing
 
 implementationVotePeriodHasNotStarted
-  :: HasApprovalError err sip impl => err -> Maybe (Id impl)
+  :: (Implementation sip impl, HasApprovalError err sip impl) => err -> Maybe (Id impl)
 implementationVotePeriodHasNotStarted err = do
   apprvErr <- getApprovalError err
   case apprvErr of
-    VotePeriodHasNotStarted _ implementationHash _ -> Just implementationHash
-    _                                              -> Nothing
+    VotePeriodHasNotStarted _ vote _ -> Just (candidate vote)
+    _                                -> Nothing
 
 implementationVotePeriodHasEnded
-  :: HasApprovalError err sip impl => err -> Maybe (Id impl)
+  :: (Implementation sip impl, HasApprovalError err sip impl) => err -> Maybe (Id impl)
 implementationVotePeriodHasEnded err = do
   apprvErr <- getApprovalError err
   case apprvErr of
-    VotePeriodHasEnded _ implementationHash _ -> Just implementationHash
-    _                                         -> Nothing
+    VotePeriodHasEnded _ vote _ -> Just (candidate vote)
+    _                           -> Nothing
 
 --------------------------------------------------------------------------------
 -- State update functions
@@ -259,14 +256,16 @@ apply env _ideationSt (Cast vote) st         = do
   unless (signatureVerifies vote)
     $ throwError (VoteSignatureDoesNotVerify vote)
   let implementationId = candidate vote
+  unless (Proposals.isRevealed implementationId (proposalsState st))
+    $ throwError (VotedProposalDoesNotExist vote)
   unless (Proposals.votingPeriodHasStarted env implementationId (proposalsState st))
     $ throwError (VotePeriodHasNotStarted (currentSlot env)
-                                          implementationId
+                                          vote
                                           (proposalsState st)
                  )
   when (Proposals.votingPeriodHasEnded env implementationId (proposalsState st))
     $ throwError (VotePeriodHasEnded (currentSlot env)
-                                     implementationId
+                                     vote
                                      (proposalsState st)
                  )
   pure $ st { proposalsState =

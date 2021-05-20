@@ -160,8 +160,6 @@ tick env st
   & tryFindNewCandidate env -- We do this at the end, since activation or
                             -- expiration cause the next proposal to be put in the
                             -- queue.
-  -- TODO: we might want to take a stake distribution snapshot.
-  --  & tryToTakeStakeDistributionSnapshot
   & State.tickLastAppliedSlot (currentSlot env)
   where
     checkPreCondition =
@@ -173,7 +171,6 @@ tick env st
 
     -- | Activate an eventual candidate protocol version
     --
-    -- TODO: discuss this with Edsko.
     tryActivate st'
       | currentSlot env == epochFirstSlot env = State.activate st'
       | otherwise                             = st'

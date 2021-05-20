@@ -14,11 +14,7 @@ module Cardano.Ledger.Update.ProposalsState
   , reveal
   , updateBallot
   , updateBallot'
-  , votingPeriodHasStarted
 
-  , votingPeriodHasEnded
-  , votingPeriodHasNotEnded
-  , decision
   , removeApproved
   -- * Proposal state query operations
   , isRevealed
@@ -27,6 +23,12 @@ module Cardano.Ledger.Update.ProposalsState
   , isStablyRevealed
   , is
   , isStably
+
+  -- ** Voting phase query operations
+  , votingPeriodHasStarted
+  , votingPeriodHasEnded
+  , votingPeriodHasNotEnded
+  , decision
   -- ** @ProposalState@ re-exports
   , ProposalState.Decision ( Approved
                            , Expired
@@ -142,7 +144,6 @@ isNotRevealed' p st = not $ isRevealed' p st
 -- exception will be thrown, unless the code is compiles with assertions
 -- disabled. See 'Control.Exception.assert'.
 --
--- TODO: we should remove this in favor of 'updateBallot''.
 updateBallot
   :: Proposal p
   => Id p
@@ -213,8 +214,6 @@ decision proposalId
 
 -- | Remove the approved proposals
 --
--- TODO: this is going to mess up 'isApproved' and 'isStablyApproved' So these
--- functions should be placed in the 'ActivationState'
 removeApproved :: ProposalsState p -> ([p], ProposalsState p)
 removeApproved ProposalsState { proposalStateMap } =
   (approveproposalIdesAndProposals, ProposalsState notApproved)

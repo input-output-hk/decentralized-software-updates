@@ -106,6 +106,7 @@ data Error p
   | NoStableCommit (Revelation p)
   | AlreadyRevealed (Revelation p)
   | VoteSignatureDoesNotVerify (Vote p)
+  | VotedProposalDoesNotExist (Vote p)
   | VotePeriodHasNotStarted SlotNo (Vote p) (ProposalsState p)
   | VotePeriodHasEnded SlotNo (Vote p) (ProposalsState p)
 
@@ -175,6 +176,8 @@ apply env (Cast vote) st   = do
   unless (signatureVerifies vote)
     $ throwError (VoteSignatureDoesNotVerify vote)
   let sipId = candidate vote
+  unless (Proposals.isRevealed sipId (proposalsState st))
+    $ throwError (VotedProposalDoesNotExist vote)
   unless (Proposals.votingPeriodHasStarted env sipId (proposalsState st))
     $ throwError (VotePeriodHasNotStarted (currentSlot env) vote (proposalsState st))
   -- todo: if the SIP being voted does not exist then this function will throw
