@@ -267,18 +267,19 @@ transferApprovals env approvalSt st = (approvalSt', checkInvariants st')
     -- and canceled in the same slot. This shouldn't happen in practice, since
     -- the experts should decide on one or the other instead of a approving the
     -- update and its cancellation at the same time.
-    st'                     = foldl' dispatch st approved
+    st'                     = (\stx -> foldl' cancel stx cancellations)
+                            $ (\stx -> foldl' (addProtocolUpdateProposal env) stx protos)
+                            $ (\stx -> foldl' updateApplication stx apps)
+                            $ st
 
-    -- TODO: Cancel the proposals in the end.
-    --
-    -- TODO: the order in which we transfer the approvals might alter the resulting
-    -- state. We should think whether this is a problem.
-    dispatch st'' aProposal =
-      case implementationType aProposal of
-        Cancellation { toCancel } -> foldl' cancel st'' toCancel
-        Protocol protocol         -> addProtocolUpdateProposal env st'' protocol
-        Application application   -> updateApplication st'' application
-
+      where
+        (apps, protos, cancellations) = foldl' split ([], [], []) approved
+          where
+            split (as,  ps, css) aProposal =
+              case implementationType aProposal of
+                Application  a  -> (a:as, ps  , css   )
+                Protocol     p  -> (as  , p:ps, css   )
+                Cancellation cs -> (as  , ps  , cs++css)
 
 -- TODO: if the endorsements come in transactions we need to prevent endorsement
 -- replays, and we need the endorsement to be signed.
