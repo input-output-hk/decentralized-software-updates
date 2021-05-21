@@ -1,8 +1,8 @@
 
 module Test.Cardano.Ledger.Update.Properties.Coverage (runTests) where
 
-import           Test.QuickCheck (Property, conjoin, cover, property,
-                     withMaxSuccess)
+import           Test.QuickCheck (Property, checkCoverage, conjoin, cover,
+                     property, withMaxSuccess)
 import           Test.Tasty (TestTree)
 import           Test.Tasty.QuickCheck (testProperty)
 
@@ -24,15 +24,16 @@ import           Test.Cardano.Ledger.UpdateSpec (UpdateSpec, getImplId,
 
 runTests :: [TestTree]
 runTests = [ testProperty "Relevant cases are covered"
-           $ withMaxSuccess 4000
+           $ withMaxSuccess 5000
+           $ checkCoverage
            $ forAllTracesShow relevantCasesAreCovered show
            ]
   where
     relevantCasesAreCovered :: Trace UpdateSUT Simple -> Property
     relevantCasesAreCovered trace =
-      conjoin $ fmap checkCoverage $ tsUpdateSpecs (scenario trace)
+      conjoin $ fmap checkTraceCoverage $ tsUpdateSpecs (scenario trace)
       where
-        checkCoverage updateSpec =
+        checkTraceCoverage updateSpec =
           conjoin $ fmap checkEventCoverage $ updateEvents updateSpec trace
           where
             checkEventCoverage (E Unknown fragment)
@@ -186,20 +187,119 @@ runTests = [ testProperty "Relevant cases are covered"
                         "Implementation is voted when a verdict on it was stably reached"
               $ property ()
             checkEventCoverage (E Queued fragment)
-              = property ()
+              = cover 0.7 True "Queued"
+                -- The generators generate about 1% of proposals being endorsed,
+                -- so we expect the chance of seeing the invalid actions below
+                -- being even smaller.
+              $ cover 0.5 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is queued"
+              $ cover 0.5 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is queued"
+              $ cover 0.5 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is queued"
+              $ cover 0.5 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is queued"
+              $ cover 0.5 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is queued"
+              $ cover 0.5 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is queued"
+              $ property ()
             checkEventCoverage (E BeingEndorsed fragment)
-              = property ()
+              = cover 0.7 True "Being endorsed"
+              -- The generators generate about 1% of proposals being endorsed,
+              -- so we expect the chance of seeing the invalid actions below
+              -- being even smaller.
+              $ cover 0.5 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is being endorsed"
+              $ cover 0.5 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is being endorsed"
+              $ cover 0.5 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is being endorsed"
+              $ cover 0.5 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is being endorsed"
+              $ cover 0.5 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is being endorsed"
+              $ cover 0.5 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is being endorsed"
+              $ property ()
             checkEventCoverage (E ActivationCanceled fragment)
-              = property ()
+              = cover 0.05 True "Canceled"
+              $ cover 0.01 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is canceled"
+              $ cover 0.01 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is canceled"
+              $ cover 0.01 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is canceled"
+              $ cover 0.01 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is canceled"
+              $ cover 0.01 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is canceled"
+              $ cover 0.01 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is canceled"
+              $ property ()
             checkEventCoverage (E ActivationUnsupported fragment)
-              = property ()
+              = cover 0.05 True "Unsupported"
+                -- The generators generate about 1% of proposals being endorsed,
+                -- so we expect the chance of seeing the invalid actions below
+                -- being even smaller.
+              $ cover 0.01 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is unsupported"
+              $ cover 0.01 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is unsupported"
+              $ cover 0.01 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is unsupported"
+              $ cover 0.01 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is unsupported"
+              $ cover 0.01 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is unsupported"
+              $ cover 0.01 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is unsupported"
+              $ property ()
             checkEventCoverage (E Scheduled fragment)
-              = property ()
+              = cover 0.02 True "Scheduled"
+              $ cover 0.01 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is scheduled"
+              $ cover 0.01 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is scheduled"
+              $ cover 0.01 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is scheduled"
+              $ cover 0.01 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is scheduled"
+              $ cover 0.01 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is scheduled"
+              $ cover 0.01 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is scheduled"
+              $ property ()
             checkEventCoverage (E ActivationExpired fragment)
-              = property ()
+              = cover 0.7 True "Scheduled"
+              $ cover 0.5 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is scheduled"
+              $ cover 0.5 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is scheduled"
+              $ cover 0.5 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is scheduled"
+              $ cover 0.5 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is scheduled"
+              $ cover 0.5 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is scheduled"
+              $ cover 0.5 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is scheduled"
+              $ property ()
             checkEventCoverage (E Activated fragment)
-              = property ()
-            -- checkEventCoverage _ = property ()
+              = cover 0.2 True "Activated"
+              $ cover 0.1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is activated"
+              $ cover 0.1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is activated"
+              $ cover 0.1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is activated"
+              $ cover 0.1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is activated"
+              $ cover 0.1 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is activated"
+              $ cover 0.1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is activated"
+              $ property ()
 
 submitsSIP :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
 submitsSIP = fragmentContains getSubmittedSIP getSIPSubmission
