@@ -95,6 +95,7 @@ test-suite ledger-rules-test
                      , Test.Cardano.Ledger.Update.UnitTests.Common
                      -- Property tests
                      , Test.Cardano.Ledger.Update.Properties
+                     , Test.Cardano.Ledger.Update.Properties.Coverage
                      , Test.Cardano.Ledger.Update.Properties.UpdateSUT
                      , Test.Cardano.Ledger.Update.Properties.SimpleScenario
                      , Test.Cardano.Ledger.Update.Properties.Liveness

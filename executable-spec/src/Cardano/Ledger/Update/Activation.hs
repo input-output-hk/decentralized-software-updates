@@ -277,15 +277,17 @@ transferApprovals env approvalSt st = (approvalSt', checkInvariants st')
           where
             split (as,  ps, css) aProposal =
               case implementationType aProposal of
-                Application  a  -> (a:as, ps  , css   )
-                Protocol     p  -> (as  , p:ps, css   )
+                Application  a  -> (a:as, ps  , css    )
+                Protocol     p  -> (as  , p:ps, css    )
                 Cancellation cs -> (as  , ps  , cs++css)
 
--- TODO: if the endorsements come in transactions we need to prevent endorsement
--- replays, and we need the endorsement to be signed.
+-- | An endorsement of an implementation.
 --
--- TODO: check: if endorsements come into blocks, since only block issuers can
--- endorse, then we shouldn't worry about replay attacks and forgery.
+-- The replay attack protection for endorsements depends on:
+--
+-- - their inclusion on an transaction that spends at least 1 utxo.
+-- - the witnesses for the endorsement signing the entire utxo transaction.
+--
 data Endorsement sip impl =
   Endorsement
   { endorserId       :: !(EndorserId (Protocol impl))
