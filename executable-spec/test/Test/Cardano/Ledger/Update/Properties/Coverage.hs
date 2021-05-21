@@ -1,7 +1,8 @@
 
 module Test.Cardano.Ledger.Update.Properties.Coverage (runTests) where
 
-import           Test.QuickCheck (Property, conjoin, cover, property)
+import           Test.QuickCheck (Property, conjoin, cover, property,
+                     withMaxSuccess)
 import           Test.Tasty (TestTree)
 import           Test.Tasty.QuickCheck (testProperty)
 
@@ -15,13 +16,15 @@ import           Test.Cardano.Ledger.Update.Interface
 import           Test.Cardano.Ledger.Update.Properties.SimpleScenario (Simple,
                      tsUpdateSpecs)
 import           Test.Cardano.Ledger.Update.Properties.UpdateSUT (UpdateSUT,
-                     getRevealedImpl, getRevealedSIP, getVotedImpl,
-                     getVotedSIP)
+                     getRevealedImpl, getRevealedSIP, getSubmittedImpl,
+                     getSubmittedSIP, getVotedImpl, getVotedSIP)
 import           Test.Cardano.Ledger.UpdateSpec (UpdateSpec, getImplId,
-                     getImplRevelation, getSIPId, getSIPRevelation)
+                     getImplRevelation, getImplSubmission, getSIPId,
+                     getSIPRevelation, getSIPSubmission)
 
 runTests :: [TestTree]
 runTests = [ testProperty "Relevant cases are covered"
+           $ withMaxSuccess 4000
            $ forAllTracesShow relevantCasesAreCovered show
            ]
   where
@@ -79,7 +82,127 @@ runTests = [ testProperty "Relevant cases are covered"
                       "Implementation is voted when the SIP is stably revealed"
               $ property ()
             -- TODO: add more cases
-            checkEventCoverage _ = property ()
+            checkEventCoverage (E (SIP (Is _)) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when a verdict on it was reached"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when a verdict on it was reached"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when a verdict on it was reached"
+              $ cover 1 (fragment `revealsImpl` updateSpec)
+                        "Implementation is revealed when a verdict on its SIP was reached"
+              $ cover 1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when a verdict on its SIP was reached"
+              $ property ()
+            checkEventCoverage (E (SIP (IsStably _)) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when a verdict on it was stably reached"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                      "SIP is revealed when a verdict on it was stably reached"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                      "SIP is voted when a verdict on it was stably reached"
+              $ cover 1 (fragment `revealsImpl` updateSpec)
+                      "Implementation is revealed when a verdict on its SIP was stably reached"
+              $ cover 1 (fragment `votesImpl` updateSpec)
+                      "Implementation is voted when a verdict on its SIP was stably reached"
+              $ property ()
+            checkEventCoverage (E (Implementation Submitted) fragment)
+              = -- Chances that we can see this state in a trace are quite small
+                -- since there is a high probability that the implementation
+                -- commit is submitted before the SIP is approved. The system
+                -- cannot reject this submission, so that's why this state has a
+                -- low probability of being reached.
+                --
+                -- Note however that 0.1% coverage means that if we generate 1K
+                -- traces, there will be around 10 traces in which this state is
+                -- reached.
+                cover 0.1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation was submitted"
+              $ cover 0.1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation was submitted"
+              $ cover 0.1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation was submitted"
+              $ cover 0.1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when it is already in the submitted state"
+              $ cover 0.1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted in the submitted state"
+              $ property ()
+            checkEventCoverage (E (Implementation StablySubmitted) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation was stably submitted"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation was stably submitted"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation was stably submitted"
+              $ cover 1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when it is already in the stably submitted state"
+              $ cover 1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted in the stably submitted state"
+              $ property ()
+            checkEventCoverage (E (Implementation Revealed) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation was revealed"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation was revealed"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation was revealed"
+              $ cover 1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when it is already revealed"
+              $ cover 1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted in the revealed state"
+              $ property ()
+            checkEventCoverage (E (Implementation StablyRevealed) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation was stably revealed"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation was stably revealed"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation was stably revealed"
+              $ cover 1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when it is already in the stably revealed state"
+              $ property ()
+            checkEventCoverage (E (Implementation (Is _)) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when a verdict was reached on its implementation"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed a verdict was reached on its implementation"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when a verdict was reached on its implementation"
+              $ cover 1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when a verdict on it was reached"
+              $ cover 1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when a verdict on it was reached"
+              $ property ()
+            checkEventCoverage (E (Implementation (IsStably _)) fragment)
+              = cover 1 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when a verdict was stably reached on its implementation"
+              $ cover 1 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed a verdict was stably reached on its implementation"
+              $ cover 1 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when a verdict was stably reached on its implementation"
+              $ cover 1 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when a verdict on it was stably reached"
+              $ cover 1 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when a verdict on it was stably reached"
+              $ property ()
+            checkEventCoverage (E Queued fragment)
+              = property ()
+            checkEventCoverage (E BeingEndorsed fragment)
+              = property ()
+            checkEventCoverage (E ActivationCanceled fragment)
+              = property ()
+            checkEventCoverage (E ActivationUnsupported fragment)
+              = property ()
+            checkEventCoverage (E Scheduled fragment)
+              = property ()
+            checkEventCoverage (E ActivationExpired fragment)
+              = property ()
+            checkEventCoverage (E Activated fragment)
+              = property ()
+            -- checkEventCoverage _ = property ()
+
+submitsSIP :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
+submitsSIP = fragmentContains getSubmittedSIP getSIPSubmission
 
 revealsSIP :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
 revealsSIP = fragmentContains getRevealedSIP getSIPRevelation
@@ -87,12 +210,14 @@ revealsSIP = fragmentContains getRevealedSIP getSIPRevelation
 votesSIP :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
 votesSIP = fragmentContains getVotedSIP getSIPId
 
+submitsImpl :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
+submitsImpl = fragmentContains getSubmittedImpl getImplSubmission
+
 revealsImpl :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
 revealsImpl = fragmentContains getRevealedImpl getImplRevelation
 
 votesImpl :: TraceFragment UpdateSUT -> UpdateSpec -> Bool
 votesImpl = fragmentContains getVotedImpl getImplId
-
 
 fragmentContains
   :: (Eq a, IsTraceFragment f s)
