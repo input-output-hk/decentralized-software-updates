@@ -271,19 +271,19 @@ runTests = [ testProperty "Relevant cases are covered"
                         "Implementation is voted when its implementation is scheduled"
               $ property ()
             checkEventCoverage (E ActivationExpired fragment)
-              = cover 0.7 True "Scheduled"
-              $ cover 0.5 (fragment `submitsSIP` updateSpec)
-                        "SIP is submitted when its implementation is scheduled"
-              $ cover 0.5 (fragment `revealsSIP` updateSpec)
-                        "SIP is revealed when its implementation is scheduled"
-              $ cover 0.5 (fragment `votesSIP` updateSpec)
-                        "SIP is voted when its implementation is scheduled"
-              $ cover 0.5 (fragment `submitsImpl` updateSpec)
-                         "Implementation is submitted when its implementation is scheduled"
-              $ cover 0.5 (fragment `revealsImpl` updateSpec)
-                         "Implementation is revealed when its implementation is scheduled"
-              $ cover 0.5 (fragment `votesImpl` updateSpec)
-                        "Implementation is voted when its implementation is scheduled"
+              = cover 0.02 True "Activation expired"
+              $ cover 0.01 (fragment `submitsSIP` updateSpec)
+                        "SIP is submitted when its implementation is activation expired"
+              $ cover 0.01 (fragment `revealsSIP` updateSpec)
+                        "SIP is revealed when its implementation is activation expired"
+              $ cover 0.01 (fragment `votesSIP` updateSpec)
+                        "SIP is voted when its implementation is activation expired"
+              $ cover 0.01 (fragment `submitsImpl` updateSpec)
+                         "Implementation is submitted when its implementation is activation expired"
+              $ cover 0.01 (fragment `revealsImpl` updateSpec)
+                         "Implementation is revealed when its implementation is activation expired"
+              $ cover 0.01 (fragment `votesImpl` updateSpec)
+                        "Implementation is voted when its implementation is activation expired"
               $ property ()
             checkEventCoverage (E Activated fragment)
               = cover 0.2 True "Activated"
