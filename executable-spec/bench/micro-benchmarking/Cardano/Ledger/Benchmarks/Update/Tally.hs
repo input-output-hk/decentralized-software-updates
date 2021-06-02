@@ -144,10 +144,10 @@ runTally
 
 data TallyEnv =
   TallyEnv
-  { envK                     :: !BlockNo
-  , envCurrentSlot           :: !SlotNo
-  , envStakeDist             :: !(StakeDistribution (Id (Voter BenchProposal)))
-  , envAdversarialStakeRatio :: !Float
+  { envK                     :: BlockNo
+  , envCurrentSlot           :: SlotNo
+  , envStakeDist             :: (StakeDistribution (Id (Voter BenchProposal)))
+  , envAdversarialStakeRatio :: Float
   }
 
 instance TracksSlotTime TallyEnv where
