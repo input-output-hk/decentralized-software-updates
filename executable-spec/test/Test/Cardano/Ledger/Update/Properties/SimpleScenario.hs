@@ -491,7 +491,7 @@ genActions participants specs = do
   -- number of slots per epoch, number of participants, etc. Also we can tune
   -- this based on the coverage metrics: if shorter traces cover all the
   -- relevant cases, then there is no need to use such high number.
-  traceLength <- choose (1, 10000)
+  traceLength <- choose (1, 1000)
   let nrSpecs = length specs
   sipVotersBehaviors <- vectorOf nrSpecs genVotersBehavior
   implVotersBehavior <- vectorOf nrSpecs genVotersBehavior

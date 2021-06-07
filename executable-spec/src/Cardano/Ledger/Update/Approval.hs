@@ -11,6 +11,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Approval phase interface
 --
@@ -40,16 +41,23 @@ module Cardano.Ledger.Update.Approval
   )
 where
 
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
+import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 import           Control.Monad (unless, when)
 import           Control.Monad.Except (throwError)
 import           Data.Map.Strict (Map)
 import           Data.Maybe (isJust)
 import           Data.Set (Set)
+import           Data.Typeable (Typeable)
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 import Cardano.Slotting.Slot (SlotNo)
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 
 import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
                      (HasAdversarialStakeRatio)
@@ -81,9 +89,43 @@ data State impl =
     -- ^ Implementations that moved away from this phase. We keep track of this
     -- to detect duplicated revelations of proposals that already moved away
     -- from this phase.
-  }
+  } deriving (Generic)
 
 deriving instance Proposal impl => Show (State impl)
+
+deriving instance (Proposal impl, Eq impl) => Eq (State impl)
+
+deriving instance
+  ( NFData impl
+  , NFData (Id impl)
+  , NFData (Id (Voter impl))
+  , NFData (Commit (Revelation impl))
+  ) => NFData (State impl)
+
+deriving instance
+  ( NoThunks impl
+  , NoThunks (Id impl)
+  , NoThunks (Voter impl)
+  , NoThunks (Id (Voter impl))
+  , NoThunks (Commit (Revelation impl))
+  ) => NoThunks (State impl)
+
+deriving instance
+  ( ToJSON impl
+  , ToJSON (Id impl)
+  , ToJSONKey (Id impl)
+  , ToJSONKey (Id (Voter impl))
+  , ToJSONKey (Commit (Revelation impl))
+  ) => ToJSON (State impl)
+
+deriving instance
+  ( Proposal impl
+  , FromJSON (impl)
+  , FromJSON (Id impl)
+  , FromJSONKey (Id impl)
+  , FromJSONKey (Id (Voter impl))
+  , FromJSONKey (Commit (Revelation impl))
+  ) => FromJSON (State impl)
 
 data Error sip impl
   = ImplementationCommitAlreadySubmitted (Commit (Revelation impl))
@@ -93,12 +135,9 @@ data Error sip impl
   | ImplementationAlreadyRevealed (Revelation impl)
   | NoApprovedSIP (Id sip)
   | VoteSignatureDoesNotVerify (Vote impl)
-  | VotePeriodHasNotStarted SlotNo
-                            (Id impl)
-                            (ProposalsState impl)
-  | VotePeriodHasEnded SlotNo
-                       (Id impl)
-                       (ProposalsState impl)
+  | VotedProposalDoesNotExist (Vote impl)
+  | VotePeriodHasNotStarted SlotNo (Vote impl) (ProposalsState impl)
+  | VotePeriodHasEnded SlotNo (Vote impl) (ProposalsState impl)
 
 deriving instance Implementation sip impl
                   => Show (Error sip impl)
@@ -135,20 +174,20 @@ noApprovedSIP err = do
     _                     -> Nothing
 
 implementationVotePeriodHasNotStarted
-  :: HasApprovalError err sip impl => err -> Maybe (Id impl)
+  :: (Implementation sip impl, HasApprovalError err sip impl) => err -> Maybe (Id impl)
 implementationVotePeriodHasNotStarted err = do
   apprvErr <- getApprovalError err
   case apprvErr of
-    VotePeriodHasNotStarted _ implementationHash _ -> Just implementationHash
-    _                                              -> Nothing
+    VotePeriodHasNotStarted _ vote _ -> Just (candidate vote)
+    _                                -> Nothing
 
 implementationVotePeriodHasEnded
-  :: HasApprovalError err sip impl => err -> Maybe (Id impl)
+  :: (Implementation sip impl, HasApprovalError err sip impl) => err -> Maybe (Id impl)
 implementationVotePeriodHasEnded err = do
   apprvErr <- getApprovalError err
   case apprvErr of
-    VotePeriodHasEnded _ implementationHash _ -> Just implementationHash
-    _                                         -> Nothing
+    VotePeriodHasEnded _ vote _ -> Just (candidate vote)
+    _                           -> Nothing
 
 --------------------------------------------------------------------------------
 -- State update functions
@@ -217,14 +256,16 @@ apply env _ideationSt (Cast vote) st         = do
   unless (signatureVerifies vote)
     $ throwError (VoteSignatureDoesNotVerify vote)
   let implementationId = candidate vote
+  unless (Proposals.isRevealed implementationId (proposalsState st))
+    $ throwError (VotedProposalDoesNotExist vote)
   unless (Proposals.votingPeriodHasStarted env implementationId (proposalsState st))
     $ throwError (VotePeriodHasNotStarted (currentSlot env)
-                                          implementationId
+                                          vote
                                           (proposalsState st)
                  )
   when (Proposals.votingPeriodHasEnded env implementationId (proposalsState st))
     $ throwError (VotePeriodHasEnded (currentSlot env)
-                                     implementationId
+                                     vote
                                      (proposalsState st)
                  )
   pure $ st { proposalsState =
@@ -304,3 +345,35 @@ isImplementationStably
   => env -> Id impl -> Decision -> st -> Bool
 isImplementationStably env implementationId d =
   Proposals.isStably env implementationId d . proposalsState . getApprovalState
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable impl
+  , Proposal impl
+  , ToCBOR impl
+  , ToCBOR (Id impl)
+  , ToCBOR (Id (Voter impl))
+  , ToCBOR (Commit (Revelation impl))
+  ) => ToCBOR (State impl) where
+  toCBOR st =  encodeListLen 3
+            <> toCBOR (submissionStableAt st)
+            <> toCBOR (proposalsState st)
+            <> toCBOR (movedAway st)
+
+instance
+  ( Typeable impl
+  , Proposal impl
+  , FromCBOR impl
+  , FromCBOR (Id impl)
+  , FromCBOR (Id (Voter impl))
+  , FromCBOR (Commit (Revelation impl))
+  ) => FromCBOR (State impl) where
+  fromCBOR = do
+    decodeListLenOf 3
+    ss <- fromCBOR
+    ps <- fromCBOR
+    ma <- fromCBOR
+    return $! State ss ps ma

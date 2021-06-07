@@ -33,14 +33,19 @@ module Cardano.Ledger.Update.ProposalState
   )
 where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
-
 import           Control.Applicative ((<|>))
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
+import           Data.List (find)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe)
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeInt, decodeListLenOf, encodeInt, encodeListLen)
 import           Cardano.Slotting.Slot (SlotNo)
 
 import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
@@ -77,18 +82,42 @@ data ProposalState p =
   }
   deriving (Generic)
 
-deriving instance (Proposal p) => Show (ProposalState p)
+deriving instance (Proposal p) =>
+  Show (ProposalState p)
 
-instance ( NoUnexpectedThunks p
-         , NoUnexpectedThunks (Voter p)
-         , NoUnexpectedThunks (Id (Voter p))
-         ) => NoUnexpectedThunks (ProposalState p)
+deriving instance (Eq p, Proposal p) =>
+  Eq (ProposalState p)
+
+deriving instance (NFData p, NFData (Id (Voter p))) =>
+  NFData (ProposalState p)
+
+deriving instance (ToJSON p, ToJSONKey (Id (Voter p))) =>
+  ToJSON (ProposalState p)
+
+deriving instance (FromJSON p, FromJSONKey (Id (Voter p)), Proposal p) =>
+  FromJSON (ProposalState p)
+
+instance ( NoThunks p, NoThunks (Voter p), NoThunks (Id (Voter p))) =>
+  NoThunks (ProposalState p)
 
 data DecisionInfo =
   DecisionInfo
   { reachedOn   :: !SlotNo
   , decisionWas :: !Decision
-  } deriving (Eq, Show, Generic, NoUnexpectedThunks)
+  } deriving (Eq, Show, Generic, NoThunks, NFData, ToJSON, FromJSON)
+
+instance ToCBOR DecisionInfo where
+  toCBOR di
+    =  encodeListLen 2
+    <> toCBOR (reachedOn di)
+    <> toCBOR (decisionWas di)
+
+instance FromCBOR DecisionInfo where
+  fromCBOR = do
+    decodeListLenOf 2
+    ro <- fromCBOR
+    dw <- fromCBOR
+    return $! DecisionInfo ro dw
 
 data Decision
   = Rejected
@@ -99,7 +128,7 @@ data Decision
   | Expired
   | Approved
   | Undecided
-  deriving (Eq, Ord, Show, Generic, NoUnexpectedThunks)
+  deriving (Eq, Ord, Enum, Bounded, Show, Generic, NoThunks, NFData, ToJSON, FromJSON)
 
 -- | Tally the votes if the end of the voting period is stable. After tallying
 -- the decision state will be changed according to the result of the tallying
@@ -276,3 +305,52 @@ isStably
 isStably e d st
   =  (isStable e . reachedOn . decisionInfo) st
   && is d st
+
+--------------------------------------------------------------------------------
+-- To/FromCBOR instances
+--------------------------------------------------------------------------------
+
+instance (Typeable p, ToCBOR p, Proposal p, ToCBOR (Id (Voter p))) =>
+  ToCBOR (ProposalState p) where
+  toCBOR ps
+    =  encodeListLen 6
+    <> toCBOR (proposal ps)
+    <> toCBOR (revealedOn ps)
+    <> toCBOR (votingPeriod ps)
+    <> toCBOR (maxVotingPeriods ps)
+    <> toCBOR (ballot ps)
+    <> toCBOR (decisionInfo ps)
+
+instance (Typeable p, FromCBOR p, Proposal p, FromCBOR (Id (Voter p))) =>
+  FromCBOR (ProposalState p) where
+  fromCBOR = do
+    decodeListLenOf 6
+    pr <- fromCBOR
+    ro <- fromCBOR
+    vp <- fromCBOR
+    mp <- fromCBOR
+    ba <- fromCBOR
+    di <- fromCBOR
+    return $! ProposalState pr ro vp mp ba di
+
+decisionEncoding :: [(Int, Decision)]
+decisionEncoding = [ (0, Rejected)
+                   , (1, WithNoQuorum)
+                   , (2, Expired)
+                   , (3, Approved)
+                   , (4, Undecided)
+                   ]
+
+instance ToCBOR Decision where
+  toCBOR d =
+    case find ((==d) . snd) decisionEncoding of
+      Nothing     -> error $ "Decision " <> show d <> " is not in the encoding map"
+      Just (i, _) -> encodeInt i
+
+instance FromCBOR Decision where
+  fromCBOR = do
+    i <- decodeInt
+    case lookup i decisionEncoding of
+      Nothing -> fail $  "Decoded integer value '" <> show i
+                      <> "' is an invalid encoding of a value of type 'Decision'"
+      Just r  -> return $! r

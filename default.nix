@@ -1,51 +1,78 @@
-################################################################################
-# See `skeleton` project at https://github.com/input-output-hk/iohk-nix/
-################################################################################
-
 { system ? builtins.currentSystem
 , crossSystem ? null
+# allows to cutomize haskellNix (ghc and profiling, see ./nix/haskell.nix)
 , config ? {}
-# Import IOHK common nix lib
-, iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
-# Use nixpkgs pin from iohkLib
-, pkgs ? iohkLib.pkgs
+# allows to override dependencies of the project without modifications,
+# eg. to test build against local checkout of iohk-nix:
+# nix build -f default.nix cardano-node --arg sourcesOverride '{
+#   iohk-nix = ../iohk-nix;
+# }'
+, sourcesOverride ? {}
+# pinned version of nixpkgs augmented with overlays (iohk-nix and our packages).
+, pkgs ? import ./nix { inherit system crossSystem config sourcesOverride; }
+, gitrev ? pkgs.iohkNix.commitIdFromGitRepoOrZero ./.git
 }:
+with pkgs; with commonLib;
 
 let
-  haskell = pkgs.callPackage iohkLib.nix-tools.haskell {};
-  src = iohkLib.cleanSourceHaskell ./.;
-  util = pkgs.callPackage ./nix/util.nix {};
+  haskellPackages = recRecurseIntoAttrs
+    # we are only interested in listing the project packages:
+    (selectProjectPackages decentralizedUpdatesHaskellPackages);
 
-  # Import the Haskell package set.
-  haskellPackages = import ./nix/pkgs.nix {
-    inherit pkgs haskell src;
-    # Provide cross-compiling secret sauce
-    inherit (iohkLib.nix-tools) iohk-extras iohk-module;
+  uploadCoverallsScript = pkgSet:
+    let
+      projectPkgs = selectProjectPackages pkgSet;
+      projectCoverageReport = pkgSet.projectCoverageReport;
+    in writeShellScriptBin "uploadCoveralls.sh" ''
+      ${commonLib.hpc-coveralls}/bin/hpc-coveralls all \
+        ${concatStringsSep "\n  " (mapAttrsToList (_: p: "--package-dir .${p.src.origSubDir} \\") projectPkgs)}
+        --hpc-dir ${projectCoverageReport}/share/hpc/vanilla \
+        --coverage-mode StrictlyFullLines \
+        --repo-token=$COVERALLS_REPO_TOKEN
+    '';
+
+  self = {
+    inherit haskellPackages check-hydra;
+
+    # `tests` are the test suites which have been built.
+    tests = collectComponents' "tests" haskellPackages;
+    # `benchmarks` (only built, not run).
+    benchmarks = collectComponents' "benchmarks" haskellPackages;
+
+    libs = collectComponents' "library" haskellPackages;
+
+    exes = collectComponents' "exes" haskellPackages;
+
+    checks = recurseIntoAttrs {
+      # `checks.tests` collect results of executing the tests:
+      tests = collectChecks haskellPackages;
+    };
+
+    inherit (commonLib) hpc-coveralls;
+    uploadCoverallsScript = uploadCoverallsScript decentralizedUpdatesHaskellPackages;
+
+    shell = import ./shell.nix {
+      inherit pkgs;
+      withHoogle = true;
+    };
+
+    roots = decentralizedUpdatesHaskellPackages.roots;
+
+    #
+    # PDF builds of LaTeX documentation.
+    #
+    # To get a shell where you can run pdflatex to build it yourself, use:
+    #   nix-shell default.nix -A specs.decentralized-updates
+    #
+    # To build all specs locally with Nix:
+    #  nix-build -A specs -o spec.decentralized-updates
+    #
+    specs = recurseIntoAttrs {
+      decentralized-updates =
+        pkgs.callPackage ./formal-spec/default.nix {};
+    };
+
   };
 
-in {
-  inherit pkgs iohkLib src haskellPackages;
-  inherit (haskellPackages.decentralized-updates.identifier) version;
-
-  tests = util.collectComponents "tests" util.isDecentralizedUpdates haskellPackages;
-  benchmarks = util.collectComponents "benchmarks" util.isDecentralizedUpdates haskellPackages;
-
-  # This provides a development environment that can be used with nix-shell or
-  # lorri. See https://input-output-hk.github.io/haskell.nix/user-guide/development/
-  shell = haskellPackages.shellFor {
-    name = "decentralized-updates-shell";
-    # List all local packages in the project.
-    packages = ps: with ps; [
-      decentralized-updates
-    ];
-    # These programs will be available inside the nix-shell.
-    buildInputs =
-      with pkgs.haskellPackages; [ hlint stylish-haskell weeder ghcid lentil ]
-      # You can add your own packages to the shell.
-      ++ [  ];
-  };
-
-  # Attributes of PDF builds of LaTeX documentation.
-  decentralizedUpdatesSpec = import ./formal-spec { inherit pkgs; };
-
-}
+in
+  self

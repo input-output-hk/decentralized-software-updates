@@ -25,24 +25,28 @@ module Cardano.Ledger.Update.Env.StakeDistribution
   )
 where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           NoThunks.Class (NoThunks)
 
 import           Data.List (foldl')
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Monoid (Sum (Sum), getSum)
 import           Data.Set (Set)
+import           Data.Typeable (Typeable)
 import           Data.Word (Word64)
 import           GHC.Generics (Generic)
 import           System.Random (Random)
+
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 
 import           Cardano.Ledger.Assert (assert, (==!))
 
 
 newtype Stake = Stake { getStake :: Word64 }
  deriving stock (Generic)
- deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random)
- deriving anyclass (NoUnexpectedThunks)
+ deriving newtype (Eq, Ord, Show, Enum, Num, Integral, Real, Random, ToCBOR, FromCBOR)
+ deriving anyclass (NoThunks)
 
 data StakeDistribution k =
   StakeDistribution
@@ -54,7 +58,7 @@ data StakeDistribution k =
     --
     -- > totalStake = Map.foldr' (+) (Stake 0) stakeMap
     --
-  } deriving (Show, Generic, NoUnexpectedThunks)
+  } deriving (Show, Eq, Generic, NoThunks)
 
 checkInvariants :: StakeDistribution p -> StakeDistribution p
 checkInvariants sd =
@@ -153,3 +157,19 @@ stakeThreshold
   -> Stake
 stakeThreshold r_a totalStake =
   ceiling $ 1/2 * (r_a + 1) * fromIntegral totalStake
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance (Typeable k, Ord k, ToCBOR k) => ToCBOR (StakeDistribution k) where
+  toCBOR sd =  encodeListLen 2
+            <> toCBOR (stakeMap sd)
+            <> toCBOR (totalStake sd)
+
+instance (Typeable k, Ord k, FromCBOR k) => FromCBOR (StakeDistribution k) where
+  fromCBOR = do
+     decodeListLenOf 2
+     sm <- fromCBOR
+     ts <- fromCBOR
+     return $! StakeDistribution sm ts

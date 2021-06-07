@@ -1,30 +1,11 @@
-env:
-  BUILD_DIR: "/build/decentralized-software-updates"
-  STACK_ROOT: "/build/decentralized-software-updates.stack"
-  CACHE_DIR: "/cache/decentralized-software-updates"
-
 steps:
-  - label: Stack build
+  - label: 'check-cabal-project'
+    command: "nix-build ./nix -A iohkNix.checkCabalProject -o check-cabal-project.sh && ./check-cabal-project.sh"
+    agents:
+      system: x86_64-linux
+
+  - label: 'coveralls coverage'
     command:
-      - "nix-build .buildkite/default.nix -o sr"
-      - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
-    agents:
-      system: x86_64-linux
-    timeout_in_minutes: 60
-    artifact_paths:
-      - "/build/decentralized-software-updates/.stack-work/logs/decentralized-software-updates*.log"
-
-  - label: Check Hydra evaluation of release.nix
-    commands:
-      - "nix-build -A iohkLib.check-hydra -o check-hydra.sh"
-      - "./check-hydra.sh"
-    agents:
-      system: x86_64-linux
-
-  # This will ensure that the generated Nix code is kept up to date.
-  - label: Check auto-generated Nix
-    commands:
-      - "nix-build -A iohkLib.check-nix-tools -o check-nix-tools.sh"
-      - "./check-nix-tools.sh"
+      - '$(nix-build -A uploadCoverallsScript --arg config "{ haskellNix = { coverage = true; }; }")/bin/uploadCoveralls.sh'
     agents:
       system: x86_64-linux

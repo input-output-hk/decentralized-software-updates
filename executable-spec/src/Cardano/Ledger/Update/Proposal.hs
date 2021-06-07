@@ -9,24 +9,39 @@
 
 module Cardano.Ledger.Update.Proposal where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
+import           Data.Typeable (Typeable)
+import           Data.Kind (Type)
 import           Data.Maybe (isJust)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (ToJSON, FromJSON)
+import           Data.List (find)
 
+import Cardano.Binary
+  ( FromCBOR(fromCBOR)
+  , ToCBOR(toCBOR)
+  , decodeInt
+  , decodeWord
+  , encodeInt
+  , encodeWord
+  , encodeListLen
+  , decodeListLenOf
+  )
 import           Cardano.Slotting.Slot (SlotNo)
 
 -- | Data for which a commit can be computed.
 class ( Eq (Commit d)
       , Ord (Commit d)
       , Show (Commit d) ) => Commitable d where
-  type Commit d :: *
+  type Commit d :: Type
   commit :: d -> Commit d
 
 -- | Data for which an ID can be computed.
 class ( Eq (Id p)
       , Ord (Id p)
       , Show (Id p) ) => Identifiable p where
-  data Id p :: *
+  data Id p :: Type
   _id :: p -> Id p
 
 -- | Signed data.
@@ -50,17 +65,17 @@ class ( Commitable (Revelation proposal)
       , Identifiable (Voter proposal)
       ) => Proposal proposal where
 
-  data Submission proposal :: *
-  data Revelation proposal :: *
+  data Submission proposal :: Type
+  data Revelation proposal :: Type
   revelationCommit :: Submission proposal -> Commit (Revelation proposal)
   proposal :: Revelation proposal -> proposal
 
   votingPeriodDuration :: proposal -> SlotNo
-  data Vote proposal :: *
+  data Vote proposal :: Type
   -- NOTE: if we define @Voter@ in this way, the stake distribution will have
   -- to go from @Voter@ to @Stake@. We will need something similar for
   -- endorsements. In this case we'd have an @Endorser@ type.
-  data Voter proposal :: *
+  data Voter proposal :: Type
   voter :: Vote proposal -> Id (Voter proposal)
   candidate :: Vote proposal -> Id proposal
   confidence :: Vote proposal -> Confidence
@@ -76,7 +91,27 @@ data Payload proposal
 deriving instance Proposal proposal => Show (Payload proposal)
 
 data Confidence = For | Against | Abstain
-  deriving (Eq, Ord, Show, Enum, Generic, NoUnexpectedThunks)
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic, NoThunks, NFData, ToJSON, FromJSON)
+
+confidenceEncoding :: [(Int, Confidence)]
+confidenceEncoding = [ (0, For)
+                     , (1, Against)
+                     , (2, Abstain)
+                     ]
+
+instance ToCBOR Confidence where
+  toCBOR c =
+    case find ((==c) . snd) confidenceEncoding of
+      Nothing     -> error $ "Confidence " <> show c <> " is not in the encoding map"
+      Just (i, _) -> encodeInt i
+
+instance FromCBOR Confidence where
+  fromCBOR = do
+    i <- decodeInt
+    case lookup i confidenceEncoding of
+      Nothing -> fail $  "Decoded integer value '" <> show i
+                      <> "' is an invalid encoding of a value of type 'Confidence'"
+      Just r  -> return $! r
 
 --------------------------------------------------------------------------------
 -- Implementation proposals
@@ -98,9 +133,9 @@ class ( Proposal impl
 
   implementationType :: impl -> ImplementationType impl
   -- | Type of protocols the implementation implements.
-  data Protocol impl :: *
+  data Protocol impl :: Type
   -- | Type of applications the implementation implements.
-  data Application impl :: *
+  data Application impl :: Type
 
 -- | Extract the proposed protocol update, if any.
 proposedProtocolUpdate
@@ -149,7 +184,7 @@ class ( Ord (Version protocol)
   -- from the endorsing keys.
   data Endorser protocol
 
-  data Version protocol :: *
+  data Version protocol :: Type
   version :: protocol -> Version protocol
 
   -- | Protocol identifier that the protocol.
@@ -160,3 +195,35 @@ class ( Ord (Version protocol)
 type ProtocolId p = Id (Protocol p)
 
 type EndorserId p = Id (Endorser p)
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable impl
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Id (Protocol impl))
+  , ToCBOR (Application impl)
+  ) => ToCBOR (ImplementationType impl) where
+  toCBOR (Cancellation ps) =
+    encodeListLen 2 <> encodeWord 0 <> toCBOR ps
+  toCBOR (Protocol p) =
+    encodeListLen 2 <> encodeWord 1 <> toCBOR p
+  toCBOR (Application a) =
+    encodeListLen 2 <> encodeWord 2 <> toCBOR a
+
+instance
+  ( Typeable impl
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Id (Protocol impl))
+  , FromCBOR (Application impl)
+  ) => FromCBOR (ImplementationType impl) where
+  fromCBOR = do
+    decodeListLenOf 2
+    tag <- decodeWord
+    case tag of
+      0 -> Cancellation <$> fromCBOR
+      1 -> Protocol     <$> fromCBOR
+      2 -> Application  <$> fromCBOR
+      _ -> fail $ "Unknown tag (" <> show tag <> ") when decoding a value of type 'ImplementationType'"

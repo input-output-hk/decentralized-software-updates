@@ -11,7 +11,7 @@ import           Test.Cardano.Ledger.Update.TestCase
 import           Test.Cardano.Ledger.Update.UnitTests.Common
 import           Test.Cardano.Ledger.UpdateSpec
 
-import           Cardano.Ledger.Update.Proposal (Confidence (For), Voter, _id)
+import           Cardano.Ledger.Update.Proposal (Confidence (For), _id)
 import qualified Cardano.Ledger.Update.Proposal as Proposal
 
 import qualified Cardano.Ledger.Update as Update

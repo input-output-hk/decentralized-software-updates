@@ -25,7 +25,7 @@ import           Test.Cardano.Ledger.Update.UnitTests.Approval
 import           Test.Cardano.Ledger.Update.UnitTests.Common
 import           Test.Cardano.Ledger.Update.UnitTests.Ideation
 
-import           Cardano.Ledger.Update.Proposal (Protocol, _id)
+import           Cardano.Ledger.Update.Proposal (_id)
 
 import           Test.Cardano.Ledger.Update.Data
 

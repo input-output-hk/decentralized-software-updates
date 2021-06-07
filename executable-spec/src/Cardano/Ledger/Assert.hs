@@ -81,14 +81,14 @@ import qualified Text.Pretty.Simple as Pretty
 import qualified Data.Text.Lazy as Text.Lazy
 
 assert :: HasCallStack => Assertion -> a -> a
-assert assertion a =
 #if ENABLE_ASSERTIONS
+assert assertion a =
   case runAssertion assertion of
     Just msg -> error $ unlines
                       $ "Failed assertions" : fmap Text.Lazy.unpack msg
     Nothing -> a
 #else
-  a
+assert _ = id
 #endif
 
 

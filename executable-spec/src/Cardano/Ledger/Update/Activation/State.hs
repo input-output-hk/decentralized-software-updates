@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -65,15 +67,22 @@ module Cardano.Ledger.Update.Activation.State
   )
 where
 
-import           Data.List (foldl')
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
+import           Data.List (find, foldl')
 import           Data.Map.Strict (Map)
 import           Data.Maybe (fromMaybe, maybeToList)
 import           Data.Set (Set)
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeInt, decodeListLen, decodeListLenOf, encodeInt,
+                     encodeListLen)
 import           Cardano.Slotting.Slot (SlotNo)
 
 import           Cardano.Ledger.Update.Env.TracksSlotTime (TracksSlotTime,
@@ -130,6 +139,43 @@ data State sip impl =
 
 deriving instance Implementation sip impl => Show (State sip impl)
 
+deriving instance
+  ( Implementation sip impl
+  , Eq (Application impl)
+  ) => Eq (State sip impl)
+
+deriving instance
+  ( NFData (Protocol impl)
+  , NFData (Version (Protocol impl))
+  , NFData (Application impl)
+  , NFData (Id (Endorser (Protocol impl)))
+  ) => NFData (State sip impl)
+
+deriving instance
+  ( NoThunks (Protocol impl)
+  , NoThunks (Version (Protocol impl))
+  , NoThunks (Application impl)
+  , NoThunks (Id (Endorser (Protocol impl)))
+  ) => NoThunks (State sip impl)
+
+deriving instance
+  ( ToJSONKey (Protocol impl)
+  , ToJSON (Application impl)
+  , ToJSONKey (Version (Protocol impl))
+  , ToJSON (Protocol impl)
+  , ToJSON (Id (Endorser (Protocol impl)))
+  ) => ToJSON (State sip impl)
+
+deriving instance
+  ( FromJSON (Protocol impl)
+  , FromJSON (Application impl)
+  , FromJSONKey (Version (Protocol impl))
+  , FromJSONKey (Protocol impl)
+  , Implementation sip impl
+  , FromJSON (Id (Endorser (Protocol impl)))
+  ) => FromJSON (State sip impl)
+
+
 -- | Reason why an implementation did not get adopted and was discarded.
 data Reason
   = Expired
@@ -145,7 +191,7 @@ data Reason
   --
   -- Note than when a version gets replaced, the replaced version in also marked
   -- as unsupported.
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, NFData, NoThunks, ToJSON, FromJSON)
 
 -- | Proposal (if any) in the endorsement period.
 data MaybeAnEndorsedProposal sip impl
@@ -162,6 +208,32 @@ data MaybeAnEndorsedProposal sip impl
   deriving (Generic)
 
 deriving instance Implementation sip impl => Show (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( Eq (Application impl)
+  , Implementation sip impl
+  ) => Eq (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( NFData (Protocol impl)
+  , NFData (Id (Endorser (Protocol impl)))
+  ) => NFData (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( NoThunks (Protocol impl)
+  , NoThunks (Id (Endorser (Protocol impl)))
+  ) => NoThunks (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( ToJSON (Protocol impl)
+  , ToJSON (Id (Endorser (Protocol impl)))
+  ) => ToJSON (MaybeAnEndorsedProposal sip impl)
+
+deriving instance
+  ( FromJSON (Protocol impl)
+  , Activable (Protocol impl)
+  , FromJSON (Id (Endorser (Protocol impl)))
+  ) => FromJSON (MaybeAnEndorsedProposal sip impl)
 
 initialState
   :: Implementation sip impl
@@ -422,6 +494,25 @@ data Endorsements impl =
 
 deriving instance Activable (Protocol impl) => Show (Endorsements impl)
 
+deriving instance Activable (Protocol impl) => Eq (Endorsements impl)
+
+deriving instance
+  ( NFData (Id (Endorser (Protocol impl)))
+  ) => NFData (Endorsements impl)
+
+deriving instance
+  ( NoThunks (Id (Endorser (Protocol impl)))
+  ) => NoThunks (Endorsements impl)
+
+deriving instance
+  ( ToJSON (Id (Endorser (Protocol impl)))
+  ) => ToJSON (Endorsements impl)
+
+deriving instance
+  ( Activable (Protocol impl)
+  , FromJSON (Id (Endorser (Protocol impl)))
+  ) => FromJSON (Endorsements impl)
+
 --------------------------------------------------------------------------------
 -- Internal operations on endorsements
 --------------------------------------------------------------------------------
@@ -611,3 +702,123 @@ queuedProtocols = Map.elems . activationQueue . getActivationState
 -- candidate.
 candidateProtocols :: HasActivationState st sip impl => st -> [Protocol impl]
 candidateProtocols st = maybeToList (endorsedProtocol st) ++ queuedProtocols st
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Version (Protocol impl))
+  , ToCBOR (Application impl)
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  ) => ToCBOR (State sip impl) where
+  toCBOR st
+    =  encodeListLen 6
+    <> toCBOR (endorsedProposal st)
+    <> toCBOR (currentProtocol st)
+    <> toCBOR (activationQueue st)
+    <> toCBOR (applicationUpdates st)
+    <> toCBOR (lastAppliedSlot st)
+    <> toCBOR (discarded st)
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Version (Protocol impl))
+  , FromCBOR (Application impl)
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  ) => FromCBOR (State sip impl) where
+  fromCBOR = do
+    decodeListLenOf 6
+    ep <- fromCBOR
+    cp <- fromCBOR
+    aq <- fromCBOR
+    au <- fromCBOR
+    la <- fromCBOR
+    di <- fromCBOR
+    return $! State ep cp aq au la di
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  ) => ToCBOR (MaybeAnEndorsedProposal sip impl) where
+  toCBOR NoProposal     =  encodeListLen 0
+  toCBOR c@Candidate {} =  encodeListLen 3
+                        <> toCBOR (cProtocol c)
+                        <> toCBOR (cEndorsements c)
+                        <> toCBOR (cEndOfSafetyLag c)
+  toCBOR s@Scheduled {} =  encodeListLen 1
+                        <> toCBOR (sProtocol s)
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Activable (Protocol impl)
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  ) => FromCBOR (MaybeAnEndorsedProposal sip impl) where
+  fromCBOR = do
+    n <- decodeListLen
+    case n of
+      0 -> return $! NoProposal
+      1 -> do
+        !s <- fromCBOR
+        return $! Scheduled s
+      3 -> do
+        !pr <- fromCBOR
+        !en <- fromCBOR
+        !es <- fromCBOR
+        return $! Candidate pr en es
+      _ -> fail $  "Unknown tag when decoding a value of type 'MaybeAnEndorsedProposal'"
+                <> show n
+
+instance
+  ( Typeable impl
+  , Activable (Protocol impl)
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  ) => ToCBOR (Endorsements impl) where
+  toCBOR en
+    =  encodeListLen 2
+    <> toCBOR (thisEpochEndorsements en)
+    <> toCBOR (nextEpochEndorsements en)
+
+instance
+  ( Typeable impl
+  , Activable (Protocol impl)
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  ) => FromCBOR (Endorsements impl) where
+  fromCBOR = do
+    decodeListLenOf 2
+    t <- fromCBOR
+    n <- fromCBOR
+    return $! Endorsements t n
+
+reasonEncoding :: [(Int, Reason)]
+reasonEncoding = [ (0, Expired)
+                 , (1, Canceled)
+                 , (2, Unsupported)
+                 ]
+
+instance ToCBOR Reason where
+  toCBOR r =
+    case find ((== r) . snd) reasonEncoding of
+      Nothing     -> error $ "Reason " <> show r <> " is not in the encoding map"
+      Just (i, _) -> encodeInt i
+
+
+instance FromCBOR Reason where
+  fromCBOR = do
+    i <- decodeInt
+    case lookup i reasonEncoding of
+      Nothing -> fail $  "Decoded integer value '" <> show i
+                      <> "' is an invalid encoding of a value of type 'Reason'"
+      Just r  -> return $! r

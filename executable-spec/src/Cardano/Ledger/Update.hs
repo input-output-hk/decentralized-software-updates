@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -62,7 +63,14 @@ module Cardano.Ledger.Update
 where
 
 import           Control.Arrow (left)
+import           Control.DeepSeq (NFData)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
+
+import           Cardano.Binary (FromCBOR (fromCBOR), ToCBOR (toCBOR),
+                     decodeListLenOf, encodeListLen)
 
 -- Environment constraints
 import           Cardano.Ledger.Update.Env.HasAdversarialStakeRatio
@@ -89,7 +97,86 @@ data State sip impl =
   }
   deriving (Generic)
 
-deriving instance (Proposal sip, Implementation sip impl) => Show (State sip impl)
+deriving instance
+  ( Proposal sip
+  , Implementation sip impl
+  ) => Show (State sip impl)
+
+deriving instance
+  ( Proposal sip
+  , Implementation sip impl
+  , Eq sip
+  , Eq impl
+  , Eq (Application impl)
+  ) => Eq (State sip impl)
+
+deriving instance
+  ( NFData sip
+  , NFData impl
+  , NFData (Id sip)
+  , NFData (Id impl)
+  , NFData (Id (Voter sip))
+  , NFData (Id (Voter impl))
+  , NFData (Id (Endorser (Protocol impl)))
+  , NFData (Protocol impl)
+  , NFData (Application impl)
+  , NFData (Version (Protocol impl))
+  , NFData (Commit (Revelation sip))
+  , NFData (Commit (Revelation impl))
+  ) => NFData (State sip impl)
+
+deriving instance
+  ( NoThunks sip
+  , NoThunks impl
+  , NoThunks (Id sip)
+  , NoThunks (Id impl)
+  , NoThunks (Id (Voter sip))
+  , NoThunks (Id (Voter impl))
+  , NoThunks (Id (Endorser (Protocol impl)))
+  , NoThunks (Voter sip)
+  , NoThunks (Voter impl)
+  , NoThunks (Protocol impl)
+  , NoThunks (Application impl)
+  , NoThunks (Version (Protocol impl))
+  , NoThunks (Commit (Revelation sip))
+  , NoThunks (Commit (Revelation impl))
+  ) => NoThunks (State sip impl)
+
+deriving instance
+  ( ToJSON sip
+  , ToJSON impl
+  , ToJSON (Id impl)
+  , ToJSON (Id (Endorser (Protocol impl)))
+  , ToJSON (Protocol impl)
+  , ToJSONKey (Commit (Revelation sip))
+  , ToJSONKey (Commit (Revelation impl))
+  , ToJSONKey (Version (Protocol impl))
+  , ToJSON (Application impl)
+  , ToJSONKey (Protocol impl)
+  , ToJSONKey (Id sip)
+  , ToJSONKey (Id impl)
+  , ToJSONKey (Id (Voter sip))
+  , ToJSONKey (Id (Voter impl))
+  ) => ToJSON (State sip impl)
+
+deriving instance
+  ( Proposal sip
+  , Implementation sip impl
+  , FromJSON sip
+  , FromJSON impl
+  , FromJSON (Id impl)
+  , FromJSON (Id (Endorser (Protocol impl)))
+  , FromJSON (Protocol impl)
+  , FromJSONKey (Commit (Revelation sip))
+  , FromJSONKey (Commit (Revelation impl))
+  , FromJSONKey (Version (Protocol impl))
+  , FromJSON (Application impl)
+  , FromJSONKey (Protocol impl)
+  , FromJSONKey (Id sip)
+  , FromJSONKey (Id impl)
+  , FromJSONKey (Id (Voter sip))
+  , FromJSONKey (Id (Voter impl))
+  ) => FromJSON (State sip impl)
 
 data Error sip impl
   = IdeationError (Ideation.Error sip)
@@ -198,3 +285,57 @@ instance Approval.HasApprovalError (Error sip impl) sip impl where
 instance Activation.HasActivationError (Error sip impl) sip impl where
   getActivationError (ActivationError err) = Just err
   getActivationError _                     = Nothing
+
+--------------------------------------------------------------------------------
+-- Serialisation instances
+--------------------------------------------------------------------------------
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Proposal sip
+  , Proposal impl
+  , Activable (Protocol impl)
+  , ToCBOR (Protocol impl)
+  , ToCBOR (Version (Protocol impl))
+  , ToCBOR (Application impl)
+  , ToCBOR sip
+  , ToCBOR impl
+  , ToCBOR (Id sip)
+  , ToCBOR (Id impl)
+  , ToCBOR (Id (Voter sip))
+  , ToCBOR (Id (Voter impl))
+  , ToCBOR (Id (Endorser (Protocol impl)))
+  , ToCBOR (Commit (Revelation sip))
+  , ToCBOR (Commit (Revelation impl))
+  ) => ToCBOR (State sip impl) where
+  toCBOR st =  encodeListLen 3
+            <> toCBOR (ideationSt st)
+            <> toCBOR (approvalSt st)
+            <> toCBOR (activationSt st)
+
+instance
+  ( Typeable sip
+  , Typeable impl
+  , Proposal sip
+  , Proposal impl
+  , Activable (Protocol impl)
+  , FromCBOR (Protocol impl)
+  , FromCBOR (Version (Protocol impl))
+  , FromCBOR (Application impl)
+  , FromCBOR sip
+  , FromCBOR impl
+  , FromCBOR (Id sip)
+  , FromCBOR (Id impl)
+  , FromCBOR (Id (Voter sip))
+  , FromCBOR (Id (Voter impl))
+  , FromCBOR (Id (Endorser (Protocol impl)))
+  , FromCBOR (Commit (Revelation sip))
+  , FromCBOR (Commit (Revelation impl))
+  ) => FromCBOR (State sip impl) where
+  fromCBOR = do
+    decodeListLenOf 3
+    idst <- fromCBOR
+    apst <- fromCBOR
+    acst <- fromCBOR
+    return $! State idst apst acst

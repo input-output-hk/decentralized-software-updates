@@ -29,6 +29,7 @@ import           Test.Cardano.Ledger.Update.Properties.SimpleScenario
 import qualified Test.Cardano.Ledger.Update.Properties.StateChangeValidity as StateChangeValidity
 import           Test.Cardano.Ledger.Update.Properties.UpdateSUT
 
+import qualified Test.Cardano.Ledger.Update.Properties.CBORSerialisation as CBORSerialisation
 
 runTests :: [TestTree]
 runTests = [
@@ -65,9 +66,11 @@ runTests = [
              $ forAllTracesShow (implsAreNot Expired) (const "")
            , testProperty "Implementations are rejected"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (implsAreNot Rejected) (const "")
            , testProperty "Implementations get no-quorum"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (implsAreNot WithNoQuorum) (const "")
            -- We do not test that implementations are approved since that is
            -- implicitly tested when we test that updates are activated.
@@ -80,6 +83,7 @@ runTests = [
              $ forAllTracesShow updatesAreNotActivated (const "")
            , testProperty "Implementations are queued"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow updatesAreNotQueued (const "")
            , testProperty "Updates are discarded due to being expired"
              $ expectFailure
@@ -97,7 +101,7 @@ runTests = [
            -- Update system safety properties
            ---------------------------------------------------------------------
            , testProperty "Changes in the state of update proposals are valid."
-             $ withMaxSuccess 2000
+             $ withMaxSuccess 100000
              $ forAllTracesShow
                  StateChangeValidity.prop_updateEventTransitionsAreValid
                  showActionsAndStateOfUpdateSpec
@@ -113,6 +117,12 @@ runTests = [
            --   - when the update was a candidate
            -- - protocol updated is adopted after being endorsed across several
            --   epochs.
+           ---------------------------------------------------------------------
+           -- CBOR serialisation tests
+           ---------------------------------------------------------------------
+           , testProperty "Data is correctly serialised to CBOR"
+             $ withMaxSuccess 5000
+             $ CBORSerialisation.statesAreCorrectlyEncoded
            ]
 
 --------------------------------------------------------------------------------

@@ -32,7 +32,8 @@ wiki](https://github.com/input-output-hk/decentralized-software-updates/wiki/Roa
 ## Formal specification
 
 The formal specification is written in `LaTeX`. It can be found in the
-[`formal-spec`](./formal-spec) folder. A compiled pdf can be found [here](https://hydra.iohk.io/job/Cardano/decentralized-software-updates/decentralizedUpdatesSpec/latest/download-by-type/doc-pdf/decentralized-updates).
+[`formal-spec`](./formal-spec) folder. A compiled pdf can be found
+[here](https://hydra.iohk.io/job/Cardano/decentralized-software-updates/decentralizedUpdatesSpec/latest/download-by-type/doc-pdf/decentralized-updates).
 
 We use [`nix`](https://nixos.org/nix/download.html) to achieve not only
 reproducible software builds, but also reproducible document builds across
@@ -66,39 +67,38 @@ substituters        = https://hydra.iohk.io https://cache.nixos.org/
 trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 ```
 
-The PDF corresponding to the formal specification can be built by changing the
-working directory to `formal-spec` and then running:
+The PDF corresponding to the formal specification can be built by running:
 
 ```sh
-nix-shell --pure --run "make"
+nix-build -A specs -o spec.decentralized-updates
 ```
+
+To get a shell where you have access to all the necessary tools for building the
+document run:
+
+```sh
+nix-shell default.nix -A specs.decentralized-updates
+```
+
+Once in the `nix-shell` the document can be built by using `make`. When editing
+the document it is also useful to recompile on file changes. To this end, use
+`make watch`.
 
 ## Executable specification
 
 The executable specifications for the update mechanism can be found in the
-[`executable-spec`](executable-spec/) folder.
+[`executable-spec`](executable-spec/) folder. Currently we only support building
+using `nix` because this is the build method used at IOHK.
 
-To test the executable specifications run:
-
-```sh
-stack test --nix --file-watch
-```
-
-To play with the generated traces you can use the `ghci` repl. For instance, if
-using `stack` you can enter the repl as follows:
+To test the executable specifications enter a `nix` shell use `cabal`:
 
 ```sh
-stack --nix repl decentralized-updates
+nix-shell
+cabal test all
 ```
 
-Once in the repl, one can obtain a random trace as follows:
-
-```sh
-λ > import  Control.State.Transition.Generator
-λ > :set -XTypeApplications
-λ > import Cardano.Crypto.Hash.Short (ShortHash)
-λ > randomTrace @(IDEATION ShortHash) 100
-```
+Alternatively you can setup [`lorri`](https://github.com/target/lorri) so that
+cabal is available without needing to enter the nix shell.
 
 ## Contributing
 

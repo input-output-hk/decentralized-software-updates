@@ -2,9 +2,10 @@
 
 module Main where
 
-import           Cardano.Prelude (noUnexpectedThunks, thunkInfoToIsNF)
+import           NoThunks.Class (noThunks)
 
 import           Control.Monad (unless)
+import           Data.Maybe (isNothing)
 import           Text.Pretty.Simple (pPrint)
 
 import           Cardano.Ledger.Benchmarks.Update.Tally
@@ -30,8 +31,8 @@ main = do
 
   -- Check that there are no thunks in the benchmark data. We perform this check
   -- only for one data set as we expect the same to be true for the others.
-  thunkInfo <- noUnexpectedThunks [] tallyData3
-  unless (thunkInfoToIsNF thunkInfo) $ do
+  thunkInfo <- noThunks [] tallyData3
+  unless (isNothing thunkInfo) $ do
     pPrint thunkInfo
     error "Found thunks in the benchmark data"
 

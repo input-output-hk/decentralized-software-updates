@@ -14,11 +14,7 @@ module Cardano.Ledger.Update.ProposalsState
   , reveal
   , updateBallot
   , updateBallot'
-  , votingPeriodHasStarted
 
-  , votingPeriodHasEnded
-  , votingPeriodHasNotEnded
-  , decision
   , removeApproved
   -- * Proposal state query operations
   , isRevealed
@@ -27,6 +23,12 @@ module Cardano.Ledger.Update.ProposalsState
   , isStablyRevealed
   , is
   , isStably
+
+  -- ** Voting phase query operations
+  , votingPeriodHasStarted
+  , votingPeriodHasEnded
+  , votingPeriodHasNotEnded
+  , decision
   -- ** @ProposalState@ re-exports
   , ProposalState.Decision ( Approved
                            , Expired
@@ -38,13 +40,16 @@ module Cardano.Ledger.Update.ProposalsState
   )
 where
 
-import           Cardano.Prelude (NoUnexpectedThunks)
-
+import           Cardano.Binary (FromCBOR, ToCBOR)
+import           Control.DeepSeq (NFData)
 import           Control.Exception (assert)
+import           Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (isJust)
+import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
+import           NoThunks.Class (NoThunks)
 
 import           Cardano.Slotting.Slot (SlotNo)
 
@@ -65,13 +70,28 @@ import           Cardano.Ledger.Update.Proposal (Confidence, Id, Proposal, Vote,
 -- | State of a proposal. The @p@ parameter determines the type of proposals.
 newtype ProposalsState p =
   ProposalsState { proposalStateMap :: (Map (Id p) (ProposalState p)) }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
-instance ( NoUnexpectedThunks (Id p)
-         , NoUnexpectedThunks (Voter p)
-         , NoUnexpectedThunks (Id (Voter p))
-         , NoUnexpectedThunks p
-         ) => NoUnexpectedThunks (ProposalsState p)
+deriving instance ( NoThunks (Id p)
+         , NoThunks (Voter p)
+         , NoThunks (Id (Voter p))
+         , NoThunks p
+         ) => NoThunks (ProposalsState p)
+
+deriving instance (NFData p, NFData (Id p), NFData (Id (Voter p)))
+  => NFData (ProposalsState p)
+
+deriving instance (ToJSON p, ToJSONKey (Id p), ToJSONKey (Id (Voter p))) =>
+  ToJSON (ProposalsState p)
+
+deriving instance (Proposal p, FromJSON p, FromJSONKey (Id p), FromJSONKey (Id (Voter p))) =>
+  FromJSON (ProposalsState p)
+
+deriving instance (Typeable p, Proposal p, ToCBOR p, ToCBOR (Id p), ToCBOR (Id (Voter p))) =>
+  ToCBOR (ProposalsState p)
+
+deriving instance (Typeable p, Proposal p, FromCBOR p, FromCBOR (Id p), FromCBOR (Id (Voter p))) =>
+  FromCBOR (ProposalsState p)
 
 initialState :: Proposal p => ProposalsState p
 initialState = ProposalsState mempty
@@ -124,7 +144,6 @@ isNotRevealed' p st = not $ isRevealed' p st
 -- exception will be thrown, unless the code is compiles with assertions
 -- disabled. See 'Control.Exception.assert'.
 --
--- TODO: we should remove this in favor of 'updateBallot''.
 updateBallot
   :: Proposal p
   => Id p
@@ -195,8 +214,6 @@ decision proposalId
 
 -- | Remove the approved proposals
 --
--- TODO: this is going to mess up 'isApproved' and 'isStablyApproved' So these
--- functions should be placed in the 'ActivationState'
 removeApproved :: ProposalsState p -> ([p], ProposalsState p)
 removeApproved ProposalsState { proposalStateMap } =
   (approveproposalIdesAndProposals, ProposalsState notApproved)

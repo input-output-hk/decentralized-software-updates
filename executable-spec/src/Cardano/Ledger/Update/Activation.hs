@@ -160,8 +160,6 @@ tick env st
   & tryFindNewCandidate env -- We do this at the end, since activation or
                             -- expiration cause the next proposal to be put in the
                             -- queue.
-  -- TODO: we might want to take a stake distribution snapshot.
-  --  & tryToTakeStakeDistributionSnapshot
   & State.tickLastAppliedSlot (currentSlot env)
   where
     checkPreCondition =
@@ -173,7 +171,6 @@ tick env st
 
     -- | Activate an eventual candidate protocol version
     --
-    -- TODO: discuss this with Edsko.
     tryActivate st'
       | currentSlot env == epochFirstSlot env = State.activate st'
       | otherwise                             = st'
@@ -270,24 +267,27 @@ transferApprovals env approvalSt st = (approvalSt', checkInvariants st')
     -- and canceled in the same slot. This shouldn't happen in practice, since
     -- the experts should decide on one or the other instead of a approving the
     -- update and its cancellation at the same time.
-    st'                     = foldl' dispatch st approved
+    st'                     = (\stx -> foldl' cancel stx cancellations)
+                            $ (\stx -> foldl' (addProtocolUpdateProposal env) stx protos)
+                            $ (\stx -> foldl' updateApplication stx apps)
+                            $ st
 
-    -- TODO: Cancel the proposals in the end.
-    --
-    -- TODO: the order in which we transfer the approvals might alter the resulting
-    -- state. We should think whether this is a problem.
-    dispatch st'' aProposal =
-      case implementationType aProposal of
-        Cancellation { toCancel } -> foldl' cancel st'' toCancel
-        Protocol protocol         -> addProtocolUpdateProposal env st'' protocol
-        Application application   -> updateApplication st'' application
+      where
+        (apps, protos, cancellations) = foldl' split ([], [], []) approved
+          where
+            split (as,  ps, css) aProposal =
+              case implementationType aProposal of
+                Application  a  -> (a:as, ps  , css    )
+                Protocol     p  -> (as  , p:ps, css    )
+                Cancellation cs -> (as  , ps  , cs++css)
 
-
--- TODO: if the endorsements come in transactions we need to prevent endorsement
--- replays, and we need the endorsement to be signed.
+-- | An endorsement of an implementation.
 --
--- TODO: check: if endorsements come into blocks, since only block issuers can
--- endorse, then we shouldn't worry about replay attacks and forgery.
+-- The replay attack protection for endorsements depends on:
+--
+-- - their inclusion on an transaction that spends at least 1 utxo.
+-- - the witnesses for the endorsement signing the entire utxo transaction.
+--
 data Endorsement sip impl =
   Endorsement
   { endorserId       :: !(EndorserId (Protocol impl))
