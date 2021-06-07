@@ -41,5 +41,6 @@
      ".pdf"
      ".pfb" ".enc"
      ".dat"
+     ".bbl"
   ];
 }
