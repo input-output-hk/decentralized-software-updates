@@ -38,6 +38,7 @@ runTests = [
            ---------------------------------------------------------------------
             testProperty "SIP's are expired"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (sipsAreNot Expired) (const "")
              -- Use:
              --
@@ -46,9 +47,11 @@ runTests = [
              -- instead of @const ""@ to show the trace.
            , testProperty "SIP's are rejected"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (sipsAreNot Rejected) (const "")
            , testProperty "SIP's get no-quorum"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (sipsAreNot WithNoQuorum) (const "")
            , testProperty "SIP's are approved"
              -- NOTE: here we might have an approved SIP in the trace without
@@ -57,12 +60,14 @@ runTests = [
              -- approved. In that case `stateOf` will return @Implementation
              -- Submitted@ or @Implementation StablySubmitted@.
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (sipsAreNot Approved) (const "")
            ---------------------------------------------------------------------
            -- Implementation phase liveness properties
            ---------------------------------------------------------------------
            , testProperty "Implementations are expired"
              $ expectFailure
+             $ withMaxSuccess 10000
              $ forAllTracesShow (implsAreNot Expired) (const "")
            , testProperty "Implementations are rejected"
              $ expectFailure
