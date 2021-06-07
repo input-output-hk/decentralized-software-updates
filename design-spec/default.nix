@@ -4,7 +4,7 @@ with pkgs;
 
 latex.buildLatex {
   name = "decentralized-updates-design-spec";
-  texFiles = [ "abstract  macros  priviledge-decentralized-swupdates  title" ];
+  texFiles = [ "priviledge-decentralized-swupdates" ];
   meta = with lib; {
     description = "Decentralized updates design specification";
     license = licenses.asl20;
