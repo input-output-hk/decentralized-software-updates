@@ -1,39 +1,45 @@
 \begin{abstract}
 %\subsection*{Abstract}
-Software updates are a synonym to software evolution and thus are ubiquitous 
-and inevitable to any blockchain platform. In this paper, we propose a general 
-framework for decentralized software updates in distributed ledger systems. Our 
-framework is primarily focused on Proof of Stake blockchains and aims at 
-providing a solid set of enhancements, covering the full spectrum of a 
-blockchain system, in order to ensure a decentralized, but also secure update 
-mechanism for a public ledger. 
-We identify what are the critical decisions in the lifecycle of a software 
+Software updates are a synonym to software evolution and thus are ubiquitous
+and inevitable to any blockchain platform. In this document, we propose a general
+framework for decentralized software updates in distributed ledger systems. Our
+framework is primarily focused on Proof of Stake blockchains and aims at
+providing a solid set of enhancements, covering the full spectrum of a
+blockchain system, in order to ensure a decentralized, but also secure update
+mechanism for a public ledger.
+%
+We identified what are the critical decisions in the lifecycle of a software
 update
-and then propose a secure software update protocol that covers the \emph{full 	
-lifecycle} of a software update from the ideation phase (the moment in which a 
-change to the blockchain protocol is proposed) to the actual activation of the 
-updated blockchain protocol, which enables decentralized decision making for 
-\emph{all} critical decisions. We propose a liquid democracy scheme based on 
-\emph{experts} for all the critical, but also deeply technical, decisions for 
-software updates. We formally define what it means for a \emph{decentralized} 
-software update system to be secure and propose secure activation protocols 
-\cite{secure_activation} with various trade-offs. We deal with the complexity 
-of priorities, version dependencies, conflicts resolution and emergency 
-handling for the 
-activation of updates and propose an elegant design. We perform voting and 
-activation
-threshold analysis, in order to achieve both properties of \emph{safety}
-and \emph{liveness}, which we define in detail. Our performance analysis has 
-shown 
-that our update protocol is both linearly scalable in the number of 
-participants and does not impact negatively the performance of the underlying 
-blockchain. Finally, we implement our ideas into a research prototype and 
-propose an architecture for integrating an update mechanism within the Cardano 
-node \cite{cardano}; as well as discuss prototype validation with a 
-trace-enabled 
-property-based 
-testing framework that we have developed. To the best of our knowledge, this is 
-the first work that aims at formalizing the notion of a decentralized secure 
-update for a blockchain and also that takes such a holistic approach on 
+and then proposed a secure software update protocol that covers the \emph{full
+lifecycle} of a software update from the ideation phase (the moment in which a
+change to the blockchain protocol is proposed) to the actual activation of the
+updated blockchain protocol, which enables decentralized decision making for
+\emph{all} critical decisions.
+%
+We proposed a liquid democracy scheme based on
+\emph{experts} for all the critical, but also deeply technical, decisions for
+software updates. We formally defined what it means for a \emph{decentralized}
+software update system to be secure and propose secure activation protocols
+\cite{secure_activation} with various trade-offs. We proposed a design for
+dealing with the complexity of priorities, version dependencies, conflicts
+resolution and emergency handling for the activation of updates.
+%
+We performed voting and activation threshold analysis, in order to achieve both
+properties of \emph{safety} and \emph{liveness}, which we define in detail.
+%
+We carried out several performance analyses that showed our update protocol
+is both linearly scalable in the number of participants and does not impact
+negatively the performance of the underlying blockchain.
+%
+We implemented our ideas into a prototype and
+propose an architecture for integrating an update mechanism within the Cardano
+node \cite{cardano}
+%
+The prototype was validated using a trace property-based testing
+framework that we developed during this project.
+%
+To the best of our knowledge, this is
+the first work that aims at formalizing the notion of a decentralized secure
+update for a blockchain and also that takes such a holistic approach on
 software updates.
 \end{abstract}
