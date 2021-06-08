@@ -69,7 +69,7 @@ let
     #
     specs = recurseIntoAttrs {
       decentralized-updates =
-        pkgs.callPackage ./formal-spec/default.nix {};
+        pkgs.callPackage ./design-spec/default.nix {};
     };
 
   };
