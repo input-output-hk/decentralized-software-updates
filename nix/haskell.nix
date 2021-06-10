@@ -27,10 +27,10 @@ let
     inherit src;
     compiler-nix-name = compiler;
     modules = [
-      # {
-      #   packages.decentralized-updates.configureFlags =
-      #     [ "--ghc-option=-Werror" ];
-      # }
+      {
+        packages.decentralized-updates.configureFlags =
+          [ "--ghc-option=-Werror" ];
+      }
 
       (lib.optionalAttrs coverage {
         packages.decentralized-updates.components.library.doCoverage = true;
