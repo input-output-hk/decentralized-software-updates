@@ -106,7 +106,7 @@ runTests = [
            -- Update system safety properties
            ---------------------------------------------------------------------
            , testProperty "Changes in the state of update proposals are valid."
-             $ withMaxSuccess 100000
+             $ withMaxSuccess 10000
              $ forAllTracesShow
                  StateChangeValidity.prop_updateEventTransitionsAreValid
                  showActionsAndStateOfUpdateSpec
