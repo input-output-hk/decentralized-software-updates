@@ -15,9 +15,16 @@
 with pkgs; with commonLib;
 
 let
+  buildHaskellProject = args: import ./nix/haskell.nix ({
+    inherit config pkgs;
+    inherit (pkgs) buildPackages lib stdenv haskell-nix;
+  } // args);
+  project = buildHaskellProject {};
+  coveredProject = buildHaskellProject { coverage = true; };
+
   haskellPackages = recRecurseIntoAttrs
     # we are only interested in listing the project packages:
-    (selectProjectPackages decentralizedUpdatesHaskellPackages);
+    (selectProjectPackages project);
 
   uploadCoverallsScript = pkgSet:
     let
@@ -32,7 +39,7 @@ let
     '';
 
   self = {
-    inherit haskellPackages check-hydra;
+    inherit pkgs project haskellPackages check-hydra;
 
     # `tests` are the test suites which have been built.
     tests = collectComponents' "tests" haskellPackages;
@@ -49,14 +56,15 @@ let
     };
 
     inherit (commonLib) hpc-coveralls;
-    uploadCoverallsScript = uploadCoverallsScript decentralizedUpdatesHaskellPackages;
+    uploadCoverallsScript = uploadCoverallsScript coveredProject;
 
     shell = import ./shell.nix {
       inherit pkgs;
+      decentralizedSoftwareUpdatesPackages = self;
       withHoogle = true;
     };
 
-    roots = decentralizedUpdatesHaskellPackages.roots;
+    roots = project.roots;
 
     #
     # PDF builds of LaTeX documentation.

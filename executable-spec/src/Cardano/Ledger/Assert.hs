@@ -2,6 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+-- Disable the warning on 'assert' redundant constraints when this is built
+-- without the 'ENABLE_ASSERTIONS' flags enabled.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 module Cardano.Ledger.Assert
   ( assert
   , assertAndReturn

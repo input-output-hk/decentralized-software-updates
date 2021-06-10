@@ -11,6 +11,8 @@
 , compiler ? config.haskellNix.compiler or "ghc8102"
 # Enable profiling
 , profiling ? config.haskellNix.profiling or false
+# Enable coverage
+, coverage ? config.haskellNix.coverage or false
 }:
 let
 
@@ -26,9 +28,13 @@ let
     compiler-nix-name = compiler;
     modules = [
       {
-        packages.decentralized-software-updates.configureFlags =
+        packages.decentralized-updates.configureFlags =
           [ "--ghc-option=-Werror" ];
       }
+
+      (lib.optionalAttrs coverage {
+        packages.decentralized-updates.components.library.doCoverage = true;
+      })
     ];
   };
 in

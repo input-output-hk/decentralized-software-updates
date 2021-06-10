@@ -1,16 +1,17 @@
 # This file is used by nix-shell.
-{ config ? {}
+
+{ decentralizedSoftwareUpdatesPackages ? import ./default.nix { inherit system config sourcesOverride; }
+, config ? {}
 , sourcesOverride ? {}
+, system ? builtins.currentSystem
 , withHoogle ? false
-, pkgs ? import ./nix {
-    inherit config sourcesOverride;
-  }
+, pkgs ? decentralizedSoftwareUpdatesPackages.pkgs
 }:
 with pkgs;
 let
   # This provides a development environment that can be used with nix-shell or
   # lorri. See https://input-output-hk.github.io/haskell.nix/user-guide/development/
-  shell = decentralizedUpdatesHaskellPackages.shellFor {
+  shell = decentralizedSoftwareUpdatesPackages.project.shellFor {
     name = "cabal-dev-shell";
 
     # If shellFor local packages selection is wrong,
