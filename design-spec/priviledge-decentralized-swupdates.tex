@@ -1,70 +1,244 @@
-\documentclass{llncs}
-\usepackage{preamble}
-\usepackage{dirtytalk}
-\usepackage{tabu} 
-\usepackage{comment}
-\usepackage{paralist}
-\usepackage{makecell}
-\usepackage{multirow}
-\usepackage{pgf}
-\usepackage{pgfplots}
-\usepackage{tikz}
-\usepackage{hyperref}
-\usetikzlibrary{arrows,automata, decorations.pathreplacing, positioning, 
-arrows.meta, calc, shapes}
-% For drawing simple diagrams involving arrows between LaTeX symbols
-\usepackage{tikz-cd}
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+
+\usepackage{microtype}
+\usepackage{mathpazo} % nice fonts
 \usepackage{xcolor}
-% table in landscape
-\usepackage{pdflscape}
-% table multirow cell
-\usepackage{multirow}
-\usepackage{supertabular}
-
-\setcounter{tocdepth}{2}
-
-\input{macros}
+\usepackage[unicode=true,pdftex,pdfa,colorlinks=true]{hyperref}
 
 \begin{document}
-\import{./}{title.tex}
-\import{./}{abstract.tex}
 
-\clearpage
+\hypersetup{
+  pdftitle={Design specification of the Priviledge update mechanism},
+  breaklinks=true,
+  linkcolor={blue},
+  citecolor={blue},
+  urlcolor={blue},
+  linkbordercolor={white},
+  citebordercolor={white},
+  urlbordercolor={white}
+}
+
+\title{
+  Design specification of the Priviledge update mechanism\\
+}
+
+\author{
+  Nikos Karagiannidis\\
+  {\small \texttt{nikos.Karagiannidis@iohk.io}}\\
+  \and
+  Damian Nadales \\
+  {\small \texttt{damian.nadales@iohk.io}}\\
+  % TODO: add more authors if deemed appropriate.
+}
+
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
 
 \tableofcontents
 \listoffigures
 \listoftables
 
-\clearpage
-\import{./}{sections/introduction.tex}
-\import{./}{sections/requirements.tex}
-\import{./}{sections/lifecycle.tex}
-\import{./}{sections/governance_new.tex}
-\import{./}{sections/activation.tex}
-%\import{./}{sections/activation_formal.tex}
-\import{./}{sections/threshold_analysis.tex}
-%\import{./}{sections/updlogic.tex}
-\import{./}{sections/performance_considerations.tex}
-\import{./}{sections/prototype_architecture.tex}
-\import{./}{sections/prototype_validation.tex}
-%\import{./}{sections/activation_protocol.tex}
-%\import{./}{sections/security.tex}
-%\import{./}{sections/ledgerenh.tex}
-%\import{./}{sections/measurements.tex}
-%\import{./}{sections/appendix.tex}
-\import{./}{sections/conclusion.tex}
-\clearpage
+\section{Purpose}
+\label{sec:purpose}
+
+% What is the purpose of this document?
+This document presents the design of a decentralized governance mechanism for
+updating public blockchain systems.
+% What is governance
+In this context, governance refers to the set of rules by which the blockchain
+evolves.
+% When is governance decentralized?
+We say that governance is decentralized when the community can use these rules
+to determine the direction in which this blockchain evolves.
+
+% TODO: should we mention here (or somewhre) how governance and the lifecycle of
+% an update are related? We also need to define what an update is.
+
+% Why people should care about the problems stated in this document?
+A decentralized update mechanism is crucial for achieving a decentralized
+blockchain.
+
+% TODO: mention Voltaire, and how this document relates to it.
+
+% Why people should care about this document? vs Target audience?
+This document is intended for stakeholders interested in the implementation of a
+decentralized update system for blockchains.
+
+This document presents a breakdown of the requirements for achieving
+decentralization of the update mechanism in a blockchain, and describes a design
+that satisfies these requirements.
+
+The topic of blockchain governance is difficult and broad, whereas the resources
+available for tackling all the problems that governance poses are limited.
+Therefore we identify important problems that were not solved in the present
+document, but at the same time, we describe how the update mechanism described
+in this document can accommodate any potential solutions to these problems.
+
+
+\section{Requirements}
+\label{sec:requirements}
+
+This section presents the requirements for achieving decentralized governance of
+a blockchain.
+
+\subsection{Open participation}
+\label{sec:open-participation}
+
+\subsection{Decentralized decision making}
+\label{sec:decentr-decis-making}
+
+\subsection{Protocol driven}
+\label{sec:protocol-driven}
+
+\subsection{Transparent and auditable}
+\label{sec:transp-audit}
+
+\subsection{Secure}
+\label{sec:secure}
+
+\subsection{Performant and scalable}
+\label{sec:performant-scalable}
+
+\subsection{Metadata-driven}
+\label{sec:metadata-driven}
+
+\section{Design}
+\label{sec:design}
+
+% Hmmm, I'm thinking if we need to say something about the blockchain
+% architecture we assume: for instance, we assume that we have a ledger
+% components that will execute the update protocol somehow.
+
+\subsection{Update types}
+\label{sec:update-types}
+
+% What is an update? How are updates related to the blockchain evolution and/or
+% how are they related to governance.
+
+% What aspects of a blockchain are we updating?
+
+\subsection{Phases of an update system}
+\label{sec:phases-an-update}
+
+% Why do we need to have a governance system that captures the whole life cycle
+% of an update? So for instance, why not supporting update activations only?
+
+\subsection{Voting and delegation}
+\label{sec:voting-delegation}
+
+\subsubsection{Delegation}
+\label{sec:delegation}
+
+% When we describe how votes are counted we need to talk about delegation. Hence
+% we must first talk about what delegation is.
+
+\subsubsection{Voting}
+\label{sec:voting}
+
+
+\subsection{Threshold analysis}
+\label{sec:threshold-analysis}
+
+
+\subsection{Ideation}
+\label{sec:ideation}
+
+\subsection{Implementation}
+\label{sec:implementation}
+
+\subsection{Activation}
+\label{sec:activation}
+
+% This seems like the right place to cite the Esorics paper. When we talk about
+% the "enactment" process, we should mention what are the possible solutions. We
+% should also mention the hard-fork combinator.
+
+\subsection{Performance analysis}
+\label{sec:performance-analysis}
+
+\subsubsection{Impact on transaction throughput}
+\label{sec:impact-trans-thro}
+
+\subsubsection{Impact on processing time}
+\label{sec:impact-proc-time}
+
+\subsubsection{Impact on memory consumption}
+\label{sec:impact-memory-cons}
+
+\section{Satisfying the requirements}
+\label{sec:satisfy-requ}
+
+% How does the different aspects of the design satisfies the requirements.
+
+% It seems that here we'd want to add the same subsections as in the
+% requirements section.
+
+\section{Implementation}
+\label{sec:implementation-1}
+
+Parts of the design described in this document was implemented and integrated to Cardano,
+in a separate branch.
+
+% Which parts were not implemented?
+
+As a result of the implementation of the prototype:
+\begin{itemize}
+\item We developed a property testing framework
+  \begin{itemize}
+  \item based on IOHK's work
+  \item that improved upon's IOHK's work
+    \begin{itemize}
+    \item faster generation and execution
+    \item modular and simpler generators
+    \end{itemize}
+  \end{itemize}
+\item Made the ledger layer of Cadano parametric on the update logic. This was
+  merged onto master.
+\item Ran benchmarks on a testnet that run the custom update mechanism which:
+  \begin{itemize}
+  \item confirmed that usage is linear on the number of participants as predicted
+  \item latency is an aspect that needs to be carefully considered
+  \end{itemize}
+\end{itemize}
+
+% The interested reader can check: deliverables, source code. Maybe an
+% implementation report.
+
+\section{Problems not addressed}
+\label{sec:probl-not-addr}
+
+% Which problems were not addressed? Why not?
+
+% How can the prototype accommodate potential solutions to these problems.
+          % - Using different voters set or voting weights.
+          % - Incentives (it's an orthogonal, we see in principle nothing to
+          %   accommodate).
+          % - Spam protection: have a set of allowed submitters that is checked
+          %   upon proposal submission (could be at commit time or at reveal
+          %   time).
+
+        % - How this prototype can accommodate a restriction in scope:
+        %   - Having less phases.
+
+        %   - Having a committee / set of genesis keys.
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+
+
+\bibliographystyle{acm}
 \bibliography{references}
 
-\appendix
-\import{./}{sections/definitions}
-\import{./}{sections/general_notions.tex}
-\import{./}{sections/ledger.tex}
-%\import{./}{sections/proof}
-%\import{./}{sections/appendix-lifecycle.tex}
-%\import{./}{sections/appendix-governance.tex}
-%\import{./}{sections/appendix-updlogic.tex}
-
-
 \end{document}
-
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
