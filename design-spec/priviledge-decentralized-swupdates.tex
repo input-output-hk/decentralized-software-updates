@@ -90,33 +90,85 @@ accommodate any potential solutions to these problems.
 \label{sec:requirements}
 % FROM: 2 Requirements for a decentralized software update system
 
-This section presents the requirements for achieving decentralized governance of
-a blockchain.
+This section presents the requirements of an update mechanism for achieving
+decentralized governance of a blockchain.
 
 \subsection{Open}
 \label{sec:open-participation}
 
+In the absence of malicious actors, we could aspire that anybody who can
+participate the blockchain protocol by submitting transactions can participate
+in the update process. However allowing this would open the door for spam
+attacks: if the barrier for submitting update proposals is as low as submitting
+regular transactions, then we risk having a large number of bogus update
+proposals being submitted that will overwhelm the human actors that have to
+review these proposals.
+
+In light of the risk presented in the preceding paragraph, we require that the
+group of people that can participate in the update process should be as broad as
+possible, but not broader. This means that:
+\begin{itemize}
+\item Restrictions on the group of people that can submit update proposals
+  should be as loose as possible.
+\item Any participant that can submit a common transaction should be able to
+  vote on update proposals.
+\end{itemize}
+
 \subsection{Democratic}
 \label{sec:decentr-decis-making}
+
+All major decisions in the life cycle of a system update should be made by the
+community, via a secure voting mechanism.
 
 \subsection{Protocol driven}
 \label{sec:protocol-driven}
 
+The update protocol should be an on-chain process, which is automatically
+enforced by the ledger rules of the blockchain.
+
 \subsection{Transparent and auditable}
 \label{sec:transp-audit}
+
+Anybody should be able to answer \emph{when}, \emph{why}, and \emph{how} the
+system has evolved the way it has. The systems' update history should be:
+\begin{itemize}
+\item open to everyone, and
+\item stored in a tamper-free global ledger.
+\end{itemize}
 
 \subsection{Secure}
 \label{sec:secure}
 
+% TODO: what about other security aspects such as: preservation of ownership,
+% resiliency to DoS attacks, replay protection, ensuring participation of an
+% honest majority of stake-holders, ensuring liveness, etc.
+
 \subsection{Performant and scalable}
 \label{sec:performant-scalable}
+
+The update protocol should have minimal impact on the:
+\begin{itemize}
+\item transaction throughput,
+\item blockchain size, and
+\item block processing time.
+\end{itemize}
+In addition, the impact the update protocol on the metrics above should be a
+linear function of the number of participants.
 
 \subsection{Metadata-driven}
 \label{sec:metadata-driven}
 
+Not all updates are the same. For instance some updates might be more urgent
+than others, some updates might depend on a specific protocol version, some
+updates might take longer than others, etc. Therefore, it should be possible to
+specify proposal dependent features that the protocol must enforce.
+
 \subsection{Consistent}
 \label{sec:cons-update-logic}
 
+The update protocol should define and automatically enforce a policy that is
+consistent with the metadata of the update proposals. So for instance, the
+update protocol should obey the priorities of proposals.
 
 \section{Design}
 \label{sec:design}
@@ -193,8 +245,92 @@ a blockchain.
 
 % How does the different aspects of the design satisfies the requirements.
 
-% It seems that here we'd want to add the same subsections as in the
-% requirements section.
+\subsection{Open}
+\label{sec:sat-open}
+
+This design does not address the definition of minimal requirements for proposal
+submissions that will prevent spam attacks.
+
+This design addresses the requirement that any participant that can submit a
+common transaction should be able to vote on update proposals, by including
+defining a new \emph{vote} transaction type. Furthermore, the fee that these
+vote-transactions pay are calculated in the same way as monetary transactions.
+In this way, stakeholders can vote directly by submitting a vote, or indirectly
+by delegating their voting rights to experts.
+
+\subsection{Democratic}
+\label{sec:sat-decentr-decis-making}
+
+This design addresses the requirements that the community can vote on updates,
+by defining an on-chain voting mechanism in which participants either:
+\begin{itemize}
+\item vote directly by submitting a vote to the blockchain in the same way they
+  do for regular transactions, or
+\item delegate their vote to experts who will vote on their behalf.
+\end{itemize}
+
+\subsection{Protocol driven}
+\label{sec:sat-protocol-driven}
+
+The update mechanism here described can be run as part of the ledger rules of a
+blockchain.
+
+\subsection{Transparent and auditable}
+\label{sec:sat-transp-audit}
+
+By making the update proposals and votes part of the transactions that are
+included in blocks, we ensure that the system updates history is stored in the
+immutable ledger that is the blockchain.
+
+\subsection{Secure}
+\label{sec:sat-secure}
+
+% TODO: is delegation to experts part of the security of the protocol?
+% Delegation to experts:
+%
+% - makes participation more likely (although this depends on the experts' incentives)
+%
+% - put's important decisions in the hands of the people that have the technical
+%   knowledge
+%
+
+\subsection{Performant and scalable}
+\label{sec:sat-performant-scalable}
+
+Our back-of-the envelope calculations showed that the update protocol has an
+impact on the system throughput that is linear on the number of participants.
+These numbers were confirmed by the measurements we took after running several
+experiments on a testnet.
+
+Our asymptotic complexity analysis and micro-benchmarks showed that the impact
+on system's performance is also linear on the number of participants.
+
+\subsection{Metadata-driven}
+\label{sec:sat-metadata-driven}
+
+We have define an update protocol where the submitter of a proposal can specify
+(when applicable):
+\begin{itemize}
+\item its priority,
+\item its dependency,
+\item the duration of its voting period,
+\item the duration of its deployment window.
+\end{itemize}
+
+\subsection{Consistent}
+\label{sec:sat-cons-update-logic}
+
+The activation protocol in Section~\ref{sec:activation} defines a queuing
+mechanism that ensures that proposals are activated in the order prescribed by
+their priorities. Furthermore, this queuing mechanism ensures a candidate
+for activation always supersedes the current protocol version.
+
+The voting period of a proposal submitted to either the ideation or approval
+phases is taken from the proposal's metadata.
+% TODO: we should make sure that we cap this voting period, and mention this
+% exception here.
+Similarly, the deployment window, in the case of consensus-impacting updates, is
+also determined by the proposal's metadata.
 
 \section{Implementation}
 \label{sec:implementation-1}
@@ -233,6 +369,9 @@ The reader interested in the design and implementation of the prototype can
 check the PRIViLEDGE deliverables~\cite{priviledge_d11, priviledge_d12,
   priviledge_d41}, as well as the implementation documentation and source
 code~\cite{dsu-repo2021}.
+
+\section{Related work}
+\label{sec:related-work}
 
 \section{Problems not addressed}
 \label{sec:probl-not-addr}
