@@ -51,36 +51,40 @@
 % What is the purpose of this document?
 This document presents the design of a decentralized governance mechanism for
 updating public blockchain systems.
-% What is governance
+% What is governance.
 In this context, governance refers to the set of rules by which the blockchain
 evolves.
 % When is governance decentralized?
-We say that governance is decentralized when the community can use these rules
-to determine the direction in which this blockchain evolves.
+We say that governance is decentralized when the community can leverage on these
+rules to determine the direction in which this blockchain evolves.
 
-% TODO: should we mention here (or somewhre) how governance and the lifecycle of
+% TODO: should we mention here (or somewhere) how governance and the lifecycle of
 % an update are related? We also need to define what an update is.
 
 % Why people should care about the problems stated in this document?
 A decentralized update mechanism is crucial for achieving a decentralized
 blockchain.
 
-% TODO: mention Voltaire, and how this document relates to it.
-
-% Why people should care about this document? vs Target audience?
+% Why people should care about this document? What is the target audience?
 This document is intended for stakeholders interested in the implementation of a
 decentralized update system for blockchains.
 
-This document presents a breakdown of the requirements for achieving
+% What does this document contains
+This document features a breakdown of the requirements for achieving
 decentralization of the update mechanism in a blockchain, and describes a design
 that satisfies these requirements.
 
-The topic of blockchain governance is difficult and broad, whereas the resources
-available for tackling all the problems that governance poses are limited.
-Therefore we identify important problems that were not solved in the present
-document, but at the same time, we describe how the update mechanism described
-in this document can accommodate any potential solutions to these problems.
+% Who funded this work?
+The work presented here was funded by the PRIViLEDGE project~\cite{priviledge}.
 
+% Scope of this work
+The topic of decentralized blockchain governance is difficult and vast.
+%
+Therefore we identify important problems that were not solved within this
+project, but at the same time, we show how the design described here can
+accommodate any potential solutions to these problems.
+
+% TODO: mention Voltaire, and how this document relates to it.
 
 \section{Requirements}
 \label{sec:requirements}
@@ -149,6 +153,7 @@ a blockchain.
 \subsubsection{Voting}
 \label{sec:voting}
 
+% Describe how votes are counted.
 
 \subsection{Threshold analysis}
 \label{sec:threshold-analysis}
@@ -194,33 +199,40 @@ a blockchain.
 \section{Implementation}
 \label{sec:implementation-1}
 
+% Mention that we have an implementation of the concepts presented in this
+% document, without giving much details about it. The interested reader can look
+% at the code (and maybe we'll have time to document this design).
 Parts of the design described in this document was implemented and integrated to Cardano,
 in a separate branch.
 
 % Which parts were not implemented?
+Expert pools and delegation was not implemented in the prototype. These aspects
+are orthogonal to the update logic that was implemented in the prototype, and as
+such, they can be added later.
 
 As a result of the implementation of the prototype:
 \begin{itemize}
-\item We developed a property testing framework
-  \begin{itemize}
-  \item based on IOHK's work
-  \item that improved upon's IOHK's work
-    \begin{itemize}
-    \item faster generation and execution
-    \item modular and simpler generators
-    \end{itemize}
-  \end{itemize}
-\item Made the ledger layer of Cadano parametric on the update logic. This was
-  merged onto master.
-\item Ran benchmarks on a testnet that run the custom update mechanism which:
-  \begin{itemize}
-  \item confirmed that usage is linear on the number of participants as predicted
-  \item latency is an aspect that needs to be carefully considered
-  \end{itemize}
+\item We developed a property testing framework, which improves upon previous
+  work by IOHK.
+\item We made the ledger layer of Cadano parametric on the update logic. This
+  was merged onto master, and as a result it is now easier to swap Cardano's
+  update mechanism.
+\item We ran benchmarks on a testnet. The results we obtained from these
+  benchmarks confirmed that usage is linear on the number of participants as
+  predicted. On the other hand, we observed a quadratic increase in the
+  transaction latency. In our benchmarks we used a very short voting period of
+  10 minutes, and we reproduced the worst-case and unrealistic assumption that
+  every participant would vote at the same time. Nevertheless, further analysis
+  is needed for a production ready update protocol to determine if safeguard
+  measures against high transaction latency are required.
 \end{itemize}
 
 % The interested reader can check: deliverables, source code. Maybe an
 % implementation report.
+The reader interested in the design and implementation of the prototype can
+check the PRIViLEDGE deliverables~\cite{priviledge_d11, priviledge_d12,
+  priviledge_d41}, as well as the implementation documentation and source
+code~\cite{dsu-repo2021}.
 
 \section{Problems not addressed}
 \label{sec:probl-not-addr}
@@ -242,8 +254,6 @@ As a result of the implementation of the prototype:
 
 \section{Conclusions}
 \label{sec:conclusions}
-
-
 
 \bibliographystyle{acm}
 \bibliography{references}
