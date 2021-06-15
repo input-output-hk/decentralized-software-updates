@@ -177,13 +177,56 @@ update protocol should obey the priorities of proposals.
 % architecture we assume: for instance, we assume that we have a ledger
 % components that will execute the update protocol somehow.
 
+% Updates are activated.
+
+% Maybe say that we assume the blockchain time is split into epochs.
+
 \subsection{Update types}
 \label{sec:update-types}
 
 % What is an update? How are updates related to the blockchain evolution and/or
 % how are they related to governance.
+Updates are the means by which the blockchain system and related ecosystem (e.g.
+wallets, explorers) can evolve. We distinguish the following update types:
+\begin{description}
+\item[Protocol] These updates affect the consensus rules by which nodes agree on
+  a common blockchain. Protocol updates fall in one of the following two
+  categories:
+  \begin{description}
+  \item[Signaled] An update is said to be \emph{signaled} if the nodes must
+    signal they readiness to run the new protocol. For instance, when a new
+    protocol requires the nodes to download and install new software, they must
+    have a way to determine when a sufficient majority of them have upgraded to
+    the new version.
+  \item[Non-signaled] An update is said to be \emph{non-signaled} if the nodes
+    can move to the new protocol version without needing to know if other nodes
+    are ready to move to said version as well. In this kind of updates we assume
+    the nodes are already running a version of the software that can switch to
+    the new protocol. An example of non-signaled protocol updates is
+    \emph{parameters-update}. In a parameters-update, the nodes have already the
+    logic for handling the parameters, and only the values of these parameters
+    change after an update is activated.
+  \end{description}
+\item[Non-protocol] These updates do not affect the consensus rules. The current
+  design does not restrict the nature of these updates. It is up to the ledger
+  layer to react to these updates accordingly. They might include:
+  \begin{itemize}
+  \item updates to the software that runs on the blockchain nodes, which does
+    not affect the protocol. Examples of such updates might include performance
+    or usability improvements.
+  \item transfer of funds. For instance an update proposal might involve funding
+    the development of a certain feature.
+  \item updates to components of the blockchain ecosystem.
+  \end{itemize}
+\end{description}
 
-% What aspects of a blockchain are we updating?
+Note that, according to the preceding definition, an update that requires the
+node to download and install new software to run a \emph{new protocol}, and that
+\emph{also} updates protocol parameters is considered a signaled protocol
+update.
+
+% TODO: mention somewhere that protocol updates must be activated one at a time,
+% whereas non-protocol updates can be approved in parallel.
 
 \subsection{The lifecycle of a decentralized update}
 \label{sec:phases-an-update}
