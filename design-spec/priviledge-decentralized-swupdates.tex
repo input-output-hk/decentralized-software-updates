@@ -198,6 +198,9 @@ wallets, explorers) can evolve. We distinguish the following update types:
     protocol requires the nodes to download and install new software, they must
     have a way to determine when a sufficient majority of them have upgraded to
     the new version.
+    % NOTE: might want to call these software and parameters protocol updates,
+    % however this seems to be too specific to the protocol. What happens if in
+    % the future we add the ability to upgrade the ledger rules dynamically?
   \item[Non-signaled] An update is said to be \emph{non-signaled} if the nodes
     can move to the new protocol version without needing to know if other nodes
     are ready to move to said version as well. In this kind of updates we assume
@@ -232,8 +235,47 @@ update.
 \label{sec:phases-an-update}
 % FROM 3 The lifecycle of a decentralized software update
 
-% Why do we need to have a governance system that captures the whole life cycle
+The update protocol described in this document aims at capturing the whole life
+cycle of an update.
+% TODO: why do we need to have a governance system that captures the whole life cycle
 % of an update? So for instance, why not supporting update activations only?
+%
+% Why distinguish phases at all? SIP and implementations can all be proposals.
+% They only differ in that some kinds of approved implementations can be
+% activated.
+
+We distinguish the following \emph{phases} in the life cycle of an update:
+\begin{description}
+\item[Ideation] This is the phase where an update proposal is submitted to the
+  chain for the other stakeholders to vote on it. Ideation proposals are
+  followed by implementation proposals. Ideation proposals cannot be activated.
+\item[Implementation] In case an update requires an implementation, this is the
+  phase where that happens. This phase is not captured by the protocol proposed
+  in this document, and we assume it takes place entirely off chain.
+\item[Approval] In this phase, an the information about the implementation of an
+  update proposal is submitted to the chain. If the implementation refers to a
+  protocol update, then the update proposal must contain enough information for
+  the protocol to activate it.
+\item[Activation] Once an protocol update implementation is approved, it moves
+  to the activation phase, where it might become the current protocol version,
+  according to the rules described in Section~\ref{sec:activation}. Non-protocol
+  updates are not activated. Their approval is registered by the protocol and
+  it is up to the ledger layer to act on them.
+\end{description}
+
+% TODO: does this fit anywhere.
+%   \begin{itemize}
+%   \item software updates (affecting the protocol or otherwise) might contain the
+%     location of the source code or binaries of the new protocol, as well as
+%     checksum for these artifacts.
+%   \item protocol parameter updates, might include the new values of the updated
+%     parameters.
+%   \item for fund transfers might contain the sources and destinations of funds.
+%   \end{itemize}
+%   The update protocol does not care about the information that these updates
+%   contain. It is up to the particular implementation to choose the appropriate
+%   payload, and up to the human reviewers to determine if the information
+%   contained in the update proposal payload is sufficient.
 
 \subsection{Voting and delegation}
 \label{sec:voting-delegation}
