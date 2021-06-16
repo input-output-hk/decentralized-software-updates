@@ -694,6 +694,56 @@ pool.
 \subsection{Ideation}
 \label{sec:ideation}
 
+The primary goal of the SIP is to capture the idea behind an update.
+An SIP might contain
+\begin{itemize}
+\item title of the SIP,
+\item hash of the SIP text,
+\item author(s),
+\item update justification,
+\item update scope,
+\item update constraints, e.g.:
+  \begin{itemize}
+  \item dependencies,
+  \item conflicts w.r.t. other update proposals,
+  \item prerequisites, etc.
+  \end{itemize}
+\item duration of the SIP voting period,
+\item priority, etc.
+\end{itemize}
+
+Update proposals in this phase are recorded as a text document.
+% TODO: do we need to mention the P2P storage system that is assumed? Why? Is it
+% relevant for the protocol described in this document?
+This design does not constrain where the SIP text is stored. A SIP that is
+unavailable or whose hash does not match the one submitted on the chain can
+simply be rejected by the community.
+
+Update constraints, determine the feasibility of a system update.
+
+The SIP is submitted to the blockchain by means of a fee-supported transaction.
+Any stakeholder can submit an SIP, thereby proposing a system update.
+
+The SIP submission takes place under a commit-reveal scheme, to ensure that the
+ownership of the proposals is preserved.
+%
+% TODO: we should describe this commit reveal scheme
+%
+
+One the SIP is revealed, stakeholders can access all the details of the SIP and
+a voting period starts. Note that stakeholders not only vote for the SIP, but
+also for other characteristics of the update such as:
+\begin{itemize}
+\item type of change,
+\item priority,
+\item criticality, etc.
+\end{itemize}
+These characteristics are described in the SIP's metadata.
+
+In the case that the evaluation of an SIP requires deep technical knowledge,
+stakeholders can make use of a delegation mechanism which is described in
+Section~\ref{sec:delegation-mechanics}.
+
 \subsection{Implementation}
 \label{sec:implementation}
 
