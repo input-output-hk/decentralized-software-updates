@@ -747,6 +747,37 @@ Section~\ref{sec:delegation-mechanics}.
 \subsection{Implementation}
 \label{sec:implementation}
 
+During the implementation phase of an update, an SIP is implemented. This is an
+off-chain process. Not all SIPs require an implementation. Examples of such SIP
+include protocol-parameters updates, or fund transfers.
+
+Once the implementation of an SIP is ready, the developer creates a bundle that
+consists of:
+\begin{itemize}
+\item source code,
+\item metadata,
+\item and optionally binaries.
+\end{itemize}
+This bundle must be uploaded to a repository (decentralized or otherwise), and a
+content-based hash must be produced to uniquely identify it. This hash, together
+with other metadata is called the \emph{update proposal} (UP)
+submitted to the blockckain.
+
+This UP must be submitted to the blockchain for approval by the stakeholders to
+move forward in the update process. Submission of the UP takes place using the
+commit-reveal scheme described in Section~\ref{sec:ideation}.
+
+% TODO: do we say anything about the not being a centrally owned code
+% repository? This seems to be irrelevant to the protocol described here.
+
+All approved UPs are stored in the blockchain. This enables the developer to
+find the appropriate source code versions that will be updated (probably the
+latest) using the link provided in the UP's metadata.
+
+The review of the code requires advanced technical skills. For this reason we
+expect the majority of stakeholders to make use of the delegation mechanism
+describe in Section~\ref{sec:delegation-mechanics}.
+
 \subsection{Approval}
 \label{sec:approval}
 
