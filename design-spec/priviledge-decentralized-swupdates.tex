@@ -195,9 +195,9 @@ wallets, explorers) can evolve. We distinguish the following update types:
   \begin{description}
   \item[Signaled] An update is said to be \emph{signaled} if the nodes must
     signal they readiness to run the new protocol. For instance, when a new
-    protocol requires the nodes to download and install new software, they must
-    have a way to determine when a sufficient majority of them have upgraded to
-    the new version.
+    protocol requires the nodes to download and install new software, the
+    protocol must have a way to determine when a sufficient majority of them
+    have upgraded to the new version.
     % NOTE: might want to call these software and parameters protocol updates,
     % however this seems to be too specific to the protocol. What happens if in
     % the future we add the ability to upgrade the ledger rules dynamically?
@@ -205,7 +205,7 @@ wallets, explorers) can evolve. We distinguish the following update types:
     can move to the new protocol version without needing to know if other nodes
     are ready to move to said version as well. In this kind of updates we assume
     the nodes are already running a version of the software that can switch to
-    the new protocol. An example of non-signaled protocol updates is
+    the new protocol. An example of non-signaled protocol updates is a
     \emph{parameters-update}. In a parameters-update, the nodes have already the
     logic for handling the parameters, and only the values of these parameters
     change after an update is activated.
@@ -219,7 +219,7 @@ wallets, explorers) can evolve. We distinguish the following update types:
     or usability improvements.
   \item transfer of funds. For instance an update proposal might involve funding
     the development of a certain feature.
-  \item updates to components of the blockchain ecosystem.
+  \item updates to other components of the blockchain ecosystem.
   \end{itemize}
 \end{description}
 
@@ -231,37 +231,66 @@ update.
 % TODO: mention somewhere that protocol updates must be activated one at a time,
 % whereas non-protocol updates can be approved in parallel.
 
+% TODO: later on we describe the delegation and voting payload. Maybe we need to
+% describe the update payload as well.
+
 \subsection{The lifecycle of a decentralized update}
 \label{sec:phases-an-update}
 % FROM 3 The lifecycle of a decentralized software update
 
 The update protocol described in this document aims at capturing the whole life
 cycle of an update.
+%
 % TODO: why do we need to have a governance system that captures the whole life cycle
 % of an update? So for instance, why not supporting update activations only?
 %
 % Why distinguish phases at all? SIP and implementations can all be proposals.
 % They only differ in that some kinds of approved implementations can be
 % activated.
-
 We distinguish the following \emph{phases} in the life cycle of an update:
+
 \begin{description}
-\item[Ideation] This is the phase where an update proposal is submitted to the
-  chain for the other stakeholders to vote on it. Ideation proposals are
-  followed by implementation proposals. Ideation proposals cannot be activated.
+\item[Ideation] In this phase, the idea for an update is presented to the
+  stakeholders in the form of an \emph{system improvement proposal} (SIP). An
+  SIP is voted by the system's stakeholders. An SIP is materialized in the form
+  of text document, and as such, once it is approved it does not have any effect
+  in the system until its implementation gets activated.
 \item[Implementation] In case an update requires an implementation, this is the
-  phase where that happens. This phase is not captured by the protocol proposed
-  in this document, and we assume it takes place entirely off chain.
-\item[Approval] In this phase, an the information about the implementation of an
-  update proposal is submitted to the chain. If the implementation refers to a
-  protocol update, then the update proposal must contain enough information for
-  the protocol to activate it.
+  phase where that happens. Some updates like parameter updates, or fund
+  transfers do not require an implementation. This phase is not captured by the
+  protocol proposed in this document, and we assume it takes place entirely off
+  chain.
+\item[Approval] In this phase, the information about the implementation of an
+  SIP is submitted to the chain. If the implementation refers to a protocol
+  update, then the update proposal must contain enough information for the
+  protocol to activate it. As in the ideation phase, the stakeholders vote on
+  the implementation.
 \item[Activation] Once an protocol update implementation is approved, it moves
   to the activation phase, where it might become the current protocol version,
   according to the rules described in Section~\ref{sec:activation}. Non-protocol
   updates are not activated. Their approval is registered by the protocol and
   it is up to the ledger layer to act on them.
 \end{description}
+
+In Sections~\ref{sec:ideation} and \ref{sec:approval} we describe the
+information that update proposals must submit to the blockchain. Stakeholders
+vote on SIPs and their implementations, and thus we describe the voting
+mechanism in Section~\ref{sec:voting}. Stakeholders can delegate their vote. The
+delegation mechanism and the problems it addresses are described in
+Section~\ref{sec:delegation}.
+
+Once an implementation is approved, if it refers to protocol changes it has to
+be \emph{activated}. In Section~\ref{sec:activation} we describe the activation
+protocol.
+
+When designing a decentralized update protocol for PoS blockchain systems, we
+must determine a stake \emph{threshold} to reach on verdict on whether a
+proposal should be approved or rejected. This problem is described and addressed
+in Section~\ref{sec:threshold-analysis}.
+
+Finally, the update protocol should not have impact on the normal operation of
+the blockchain it runs on. In Section~\ref{sec:performance-analysis} we turn our
+attention to the performance analysis the protocol described in this document.
 
 % TODO: does this fit anywhere.
 %   \begin{itemize}
