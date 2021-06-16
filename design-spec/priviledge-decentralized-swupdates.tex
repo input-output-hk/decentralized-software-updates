@@ -703,20 +703,18 @@ This design does not address the definition of minimal requirements for proposal
 submissions that will prevent spam attacks.
 
 This design addresses the requirement that any participant that can submit a
-common transaction should be able to vote on update proposals, by including
-defining a new \emph{vote} transaction type. Furthermore, the fee that these
-vote-transactions pay are calculated in the same way as monetary transactions.
-In this way, stakeholders can vote directly by submitting a vote, or indirectly
-by delegating their voting rights to experts.
+common transaction should be able to vote on update proposals, by
+defining a new \emph{vote} transaction type.
 
 \subsection{Democratic}
 \label{sec:sat-decentr-decis-making}
 
 This design addresses the requirements that the community can vote on updates,
-by defining an on-chain voting mechanism in which participants either:
+by replacing central authorities with an on-chain voting mechanism in which
+participants either:
 \begin{itemize}
 \item vote directly by submitting a vote to the blockchain in the same way they
-  do for regular transactions, or
+  submit regular transactions, or
 \item delegate their vote to experts who will vote on their behalf.
 \end{itemize}
 
@@ -766,6 +764,7 @@ We have define an update protocol where the submitter of a proposal can specify
 \item its dependency,
 \item the duration of its voting period,
 \item the duration of its deployment window.
+\item the threshold per-proposal via the $\gamma$ parameter.
 \end{itemize}
 
 \subsection{Consistent}
@@ -775,6 +774,10 @@ The activation protocol in Section~\ref{sec:activation} defines a queuing
 mechanism that ensures that proposals are activated in the order prescribed by
 their priorities. Furthermore, this queuing mechanism ensures a candidate
 for activation always supersedes the current protocol version.
+
+This protocol also handles conflicts in which multiple proposals try to
+supersede the same version, and defines an emergency mechanism for canceling
+proposals when they are in the activation phase.
 
 The voting period of a proposal submitted to either the ideation or approval
 phases is taken from the proposal's metadata.
