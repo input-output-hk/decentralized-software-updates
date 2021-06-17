@@ -685,6 +685,74 @@ pool.
 \label{sec:voting}
 
 % Describe how votes are counted.
+Voting is the main mechanism for decision making about decentralized updates. A
+vote on an update proposal (SIP or UP) is a fee-based transaction that is valid
+only during the \emph{voting period}.
+%
+The voting period begins when the proposal is stably revealed in the blockchain.
+
+Not all updates are the same, therefore the voting period duration can be
+specified in the proposal's metadata.
+
+We introduce a \emph{vote} transaction type, the \emph{system update vote
+  transaction (SUVT)} that can only be included in a block during the voting
+period. The vote contains the following information:
+$$( H(<SIP/UP>),SU_{Flag},<confidence>,vks_{source},\sigma_{sks_{source}}(m))$$
+In the tuple above $H(<SIP/UP>$ is the hash of the content of the SIP/UP.
+$SU_{Flag}$ is a boolean flag (SIP/UP), which discriminates an SIP vote from an
+UP vote. $<confidence>$ is the vote per-se, expressed as a three-valued flag:
+for, against, or abstain. $vks_{source}$ is the public key of the voter.
+Finally, $\sigma_{sks_{source}}(m)$ is the cryptographic signature, signed with
+the private key corresponding to $vks_{source}$, on the transaction text $m$.
+
+In our proposal, we have chosen three values for the votes
+(for/against/abstain). In this way, apart from the actual result, we can extract
+the real sentiment (positive, negative, neutral) of the community for a specific
+update. This is very important in a decentralized governance model, because it
+clearly shows the appeal of an update proposal for the stakeholders. If we did
+not allow negative votes, then the negative feeling would be hidden under the
+abstaining stake.
+%
+Moreover, the abstain vote can be also used as a way for the evaluator to say
+that the evaluation of an update has not finished. This allows to indirectly
+signal a request for time extension (in the form of a new voting period).
+
+Anyone who owns stake has a legitimate right to vote and this vote will count
+proportionally to the owned stake. This voting right can be delegated to another
+party, as explained in Section~\ref{sec:delegation}. However, we give the power
+to a stakeholder to override the vote of her delegate. Therefore, if within the
+same voting period a direct and delegate vote appear for the same update, the
+direct vote will prevail.
+
+A voter can change her mind after voting for an update. Thus we allow the same
+stakeholder to vote multiple times on the same proposal. Only the last vote
+per-stakeholder, per-proposal is counted, bearing in mind that direct votes
+override delegated ones.
+
+\subsubsection{Voting results}
+\label{sec:voting-results}
+
+After the end of the voting period of an update is stable, the votes are tallied
+and an outcome is decided.
+%
+Such decision depends on a stake threshold $\tau_V$, which can be determined as
+described in Section~\ref{sec:threshold-analysis}. More specifically, a proposal
+is:
+\begin{description}
+\item[Approved] when the stake in favor is larger than $\tau_V$.
+\item[Rejected] when the stake in against is larger than $\tau_V$.
+\item[No-quorum] when the abstaining stake is larger than $\tau_V$. In this
+  case the proposal enters a new voting period, provided that it did not
+  have more than $rv_{no-quorum}$ voting periods. Here $rv_{no-quorum}$ is a
+  protocol parameter. A proposal with no-quorum that has gone through
+  $rv_{no-quorum}$ voting periods becomes \emph{expired}.
+\item[No-majority] when none of the previous cases has appeared (no majority
+  result). In this case the proposal enters a new voting period, provided that
+  it did not have more than $rv_{no-majority}$ voting periods. Here
+  $rv_{no-majority}$ is also a protocol parameters. A proposal that did not
+  reach a verdict after $rv_{no-majority}$ voting periods becomes \emph{expired}
+  as well.
+\end{description}
 
 \subsection{Threshold analysis}
 \label{sec:threshold-analysis}
