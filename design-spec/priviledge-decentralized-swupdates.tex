@@ -750,6 +750,9 @@ During the implementation phase of an update, an SIP is implemented. This is an
 off-chain process. Not all SIPs require an implementation. Examples of such SIP
 include protocol-parameters updates, or fund transfers.
 
+\subsection{Approval}
+\label{sec:approval}
+
 Once the implementation of an SIP is ready, the developer creates a bundle that
 consists of:
 \begin{itemize}
@@ -777,11 +780,67 @@ The review of the code requires advanced technical skills. For this reason we
 expect the majority of stakeholders to make use of the delegation mechanism
 describe in Section~\ref{sec:delegation-mechanics}.
 
-\subsection{Approval}
-\label{sec:approval}
-
 \subsection{Activation}
 \label{sec:activation}
+
+In the activation phase the protocol updates are \emph{activated}. Protocol
+updates enter this phase after they are approved by the stakeholders.
+
+The activation phase features a \emph{synchronization} period for signaled
+updates. During this period the node operators can perform the manual steps
+necessary to update the software. Once the software is installed, the update
+does not take place right away, since the nodes need to synchronize to avoid
+chain splits. The new protocol version remains in a latent state until
+activation takes place.
+
+In a signaled update, the nodes use the synchronization period to signal other
+nodes their readiness to run the new protocol version.
+
+One popular method for signaling is to include the new version of the software
+in the blocks the node issue. This signals the fact that they are ready to run
+the new version. This is the approach taken by Bitcoin~\cite{bitcoin}. A
+drawback of this method is that it restricts signaling only to \emph{block
+  producing nodes}, thereby excluding other type of such as \emph{full-node
+  clients}, \emph{light-node clients}, etc. A major drawback is that the
+activation of changes is delayed by the block creation process which is slow.
+
+An alternative signaling method that does not suffer from the drawbacks above is
+to signal upgrade readiness by means of fee-based transactions. Such
+transactions are bounded to stakeholder keys and therefore bound to specific
+stake.
+%
+As a result we only have to wait for these messages to be stable on the
+blockchain.
+
+Furthermore, we could even use a separate consensus protocol, just for the
+purpose to agree on the binary value carried by these messages (Ready | Not
+Ready) (i.e., a binary Byzantine Agreement problem). The parties taking part in
+this new protocol would be any node (client, or maintainer) that actively
+participates in the underlying consensus protocol and thus needs to synchronize
+with its peers with respect to the activation of some change. The main
+assumptions (network, setup, computation as in Garay et al. \cite{sok}) of this
+consensus protocol, naturally will be identical to the assumptions of the
+underlying consensus protocol and therefore the
+\emph{resiliency}\footnote{According to Garay et. al. in \cite{sok}, the
+  resiliency is the fraction $(t/n)$ of misbehaving parties a protocol can
+  tolerate, where $t$ are the number of adversaries and n are the total number
+  of parties. In our case, we can assume that $t$ is the total adversary stake
+  and $n$ is the total stake.} of the protocol will also be the same.
+
+All in all, by departing from the block signaling solution, we can distinguish
+between the readiness of different types of nodes and achieve a faster
+calculation of the adoption threshold. Of course, the downsides in this case are
+the added complexity and the extra fee that has to be paid for each activation
+signal.
+
+After a sufficient portion of the block producing nodes communicate that they
+are able to run the new version the switch to the new protocol can take place.
+This not happen right after such majority is reached, but instead the switch to
+the new protocol version takes place at a predefined time in the future, most
+likely the beginning of a new epoch.
+
+Non-signaled protocol updates do not require synchronization between nodes, but
+their activation also takes place at a predefined time in the future.
 
 % This seems like the right place to cite the Esorics paper. When we talk about
 % the "enactment" process, we should mention what are the possible solutions. We
