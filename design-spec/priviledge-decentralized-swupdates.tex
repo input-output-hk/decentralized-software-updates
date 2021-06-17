@@ -1793,6 +1793,41 @@ algorithm on a i7 CPU laptop with 32GB of RAM.
 \subsubsection{Low impact on memory consumption}
 \label{sec:low-impact-memory}
 
+Finally, we present the measurements of the memory consumption during the tally
+phase. As the graph in Figure \ref{fig:memcons-vs-participants} shows, the
+memory allocated scales linearly in the number of participants. Moreover, our
+measurements show that the allocated memory essentially corresponds to the space
+required for storing the $256$ bit hashes of the public keys of the participants
+in a Haskell map\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html}}.
+
+\begin{figure}[!htp]
+	\centering
+
+	\begin{tikzpicture}
+		\begin{axis}[
+			title={Memory consumed (MBs) vs Number of participants},
+			xlabel={Participants},
+			xmin=100.0,
+			xmax=1.0e7,
+			xmode=log,
+			xtick={10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 1.0e7},
+			ylabel={Memory consumed (MBs)},
+			ymin=1,
+			ymax=10000,
+			ymode=log,
+			ytick={1, 10, 100, 1000, 10000},
+			legend pos=north west,
+			ymajorgrids=true,
+			grid style=dashed,
+			]
+			\addplot[color=black] table
+			{data/participants-vs-memory_consumed.dat};
+		\end{axis}
+	\end{tikzpicture}
+
+	\caption{Worst case scenario analysis for tally phase consumed memory}
+	\label{fig:memcons-vs-participants}
+\end{figure}
 
 \section{Satisfying the requirements}
 \label{sec:satisfy-requ}
