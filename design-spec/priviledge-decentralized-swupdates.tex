@@ -468,14 +468,15 @@ public keys used to verify signatures.
 \subsubsection{Stake delegation}
 \label{sec:stake-delegation}
 
-In its simplest form, delegation of stake from some party A to another party B
-(typically a stake pool) for participation in the proof-of-stake consensus
-protocol, also delegates the right for participation in the software updates
-protocol.
+In its simplest form, stake delegation for participation in the proof-of-stake
+consensus protocol, also delegates the right for participation in the software
+updates protocol.
 %
-The rationale of this has been described in Subsection \ref{defaultdel} and it
-holds only on the assumption that there is no explicit delegation to some expert
-pool. So in the rest of this text, when we refer to stake delegation, we mean
+The rationale of this has been described in Section~\ref{sec:defa-deleg-avail}
+and it holds only on the assumption that there is no explicit delegation to some
+expert pool.
+%
+So in the rest of this text, when we refer to stake delegation, we mean
 for the participation in both the proof-of-stake consensus protocol and the
 software updates protocol, unless an explicit statement is made for delegation
 to an experts pool.
@@ -488,14 +489,13 @@ This step is a public declaration of a party that it wishes to exercise its
 right for participation in the proof-of-stake protocol, due to its ownership of
 stake. In order for a stakeholder to exercise these rights, he/she must first
 issue a stake key registration certificate. This is a signed message stored in
-the metadata (i.e. payload) of a transaction (see
-Appendix~\ref{se:bcabstraction}) and thus it is published to the blockchain. The
-key registration certificate must contain the public staking key $vks$, and the
-signature of the text of the transaction $m$ by the staking private key $sks$,
-which is the rightful owner of the stake. In other words, the key registration
-certificate $r$ is the pair: $r = (vks, \sigma_{sks}(m))$. The signature
-$\sigma$ of the certificate, authorizes the registration and plays the role of a
-witness.
+the metadata (i.e. payload) of a transaction and thus it is published to the
+blockchain. The key registration certificate must contain the public staking key
+$vks$, and the signature of the text of the transaction $m$ by the staking
+private key $sks$, which is the rightful owner of the stake. In other words, the
+key registration certificate $r$ is the pair: $r = (vks, \sigma_{sks}(m))$. The
+signature $\sigma$ of the certificate, authorizes the registration and plays the
+role of a witness.
 %
 Symmetrically, there is also a de-registration certificate for a stake key,
 which is a declaration that a party no longer wishes to participate in the
@@ -517,8 +517,7 @@ $H(vks_{target})$ is the hash of the target party's public staking key and
 $\sigma_{sks_{source}}(m)$ is the signature of the text $m$ of the transaction
 (within which the delegation certificate is embedded) by the source party's
 private staking key $sks_{source}$, which authorizes the certificate and plays
-the role of a witness (see Appendix~\ref{se:bcabstraction} for a formal
-definition of the signature scheme).
+the role of a witness.
 
 If at some point, the source party wishes to re-delegate to some other party, or
 even to participate in the protocol on its own, then it must simply issue a new
@@ -562,7 +561,7 @@ $$
 In this case, the $H(vks_{target})$ is the hash of the public staking key of the
 expert pool. We have extended the delegation certificate to include a boolean
 flag $SU_{Flag}$, which denotes, if the delegation pertains to a SIP, or an UP.
-In subsection \ref{delfortech} we explained the rationale
+In Section~\ref{sec:deleg-techn-expert} we explained the rationale
 for distinguishing the delegation for these two. Finally, the hash $H(<SIP/UP>)$
 is the hash of the content of the SIP, or UP, in question and plays the role of
 the unique id for this SIP, or UP respectively. Note that if instead of a
