@@ -76,8 +76,8 @@ evolves.
 We say that governance is decentralized when the community can leverage on these
 rules to determine the direction in which this blockchain evolves.
 
-% TODO: should we mention here (or somewhere) how governance and the lifecycle of
-% an update are related? We also need to define what an update is.
+% TODO: should we mention here (or somewhere) how governance and the lifecycle
+% of an update are related? We also need to define what an update is.
 
 % Why people should care about the problems stated in this document?
 A decentralized update mechanism is crucial for achieving a decentralized
@@ -221,12 +221,17 @@ wallets, explorers) can evolve. We distinguish the following update types:
     % the future we add the ability to upgrade the ledger rules dynamically?
   \item[Non-signaled] An update is said to be \emph{non-signaled} if the nodes
     can move to the new protocol version without needing to know if other nodes
-    are ready to move to said version as well. In this kind of updates we assume
-    the nodes are already running a version of the software that can switch to
-    the new protocol. An example of non-signaled protocol updates is a
-    \emph{parameters-update}. In a parameters-update, the nodes have already the
-    logic for handling the parameters, and only the values of these parameters
-    change after an update is activated.
+    are ready to move to said version as well.
+    %
+    In this kind of updates we assume the nodes are already running a version of
+    the software that can automatically switch to the new protocol. This switch,
+    called activation takes place at a time point set by the update mechanism
+    (e.g., the next epoch after the approval of the update).
+    %
+    An example of non-signaled protocol updates is a \emph{parameters-update}.
+    In a parameters-update, the nodes have already the logic for handling the
+    parameters, and only the values of these parameters change after an update
+    is activated.
   \end{description}
 \item[Non-protocol] These updates do not affect the consensus rules. The current
   design does not restrict the nature of these updates. It is up to the ledger
@@ -282,10 +287,11 @@ We distinguish the following \emph{phases} in the life cycle of an update:
   protocol proposed in this document, and we assume it takes place entirely off
   chain.
 \item[Approval] In this phase, the information about the implementation of an
-  SIP is submitted to the chain. If the implementation refers to a protocol
-  update, then the update proposal must contain enough information for the
-  protocol to activate it. As in the ideation phase, the stakeholders vote on
-  the implementation.
+  SIP is submitted to the chain. Henceforth, the implementation update proposal
+  is referred to as UP. If the implementation deals with a protocol update, then
+  the update proposal must contain enough information for the protocol to
+  activate it. As in the ideation phase, the stakeholders vote on the
+  implementation.
 \item[Activation] Once an protocol update implementation is approved, it moves
   to the activation phase, where it might become the current protocol version,
   according to the rules described in Section~\ref{sec:activation}. Non-protocol
@@ -2358,7 +2364,7 @@ importantly, the activation of changes.
 That is why in the above cases, there exists a central authority (or group) that
 assumes the role of the source code maintainer.
 
-Torsos~\cite{tezos-white-paper} implements a decentralized update protocol similar
+Tezos~\cite{tezos-white-paper} implements a decentralized update protocol similar
 to the one presented here. The lifecycle of an update is divided into 4 phases:
 \begin{itemize}
 \item Proposal
@@ -2389,13 +2395,14 @@ features:
 \item Variable length phases, which are specified in the proposal itself.
 \end{itemize}
 
-A similar approach is proposed by Bingsheng et al. \cite{treasury}, where a
-complete treasury system is proposed for blockchain systems, in which liquid
-democracy / delegative voting is followed. We also follow the approach of voting
-delegation, when technical expertise is required in order to reach a decision
-for an update proposal. Similarly, Bingsheng et al. work is focused only on the
-treasury system, which covers only the initial phase in the lifecycle of an
-update proposal.
+A similar approach to the governance model proposed in this document, i.e.,
+liquid democracy via delegation to experts, is proposed by Bingsheng et al.
+\cite{treasury}, where a complete treasury system is proposed for blockchain
+systems, in which liquid democracy / delegative voting is followed. We also
+follow the approach of voting delegation, when technical expertise is required
+in order to reach a decision for an update proposal. Similarly, Bingsheng et al.
+work is focused only on the treasury system, which covers only the initial phase
+in the lifecycle of an update proposal.
 
 \section{Problems not addressed}
 \label{sec:probl-not-addr}
@@ -2419,6 +2426,10 @@ update proposal.
 
 \section{Conclusions}
 \label{sec:conclusions}
+
+% We don't claim this solution is complete, but is intended to constitute a
+% solid base for adding more features that address the open problems described
+% in Section ...
 
 \bibliographystyle{acm}
 \bibliography{references}
