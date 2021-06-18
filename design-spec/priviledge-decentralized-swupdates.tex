@@ -77,14 +77,10 @@ We say that blockchain governance is decentralized when the community can
 leverage on these rules to determine the direction in which said blockchain
 evolves.
 
-% TODO: should we mention here (or somewhere) how governance and the lifecycle
-% of an update are related? We also need to define what an update is.
-
 % Why people should care about the problems stated in this document?
 A decentralized update mechanism is crucial for achieving a decentralized
 blockchain.
 % TODO: why achieving a decentralized blockchain is important?
-
 
 % Why people should care about this document? What is the target audience?
 This document is intended for stakeholders interested realizing an
@@ -98,7 +94,11 @@ that satisfies these requirements.
 % Who funded this work?
 The work presented here was funded by the PRIViLEDGE project~\cite{priviledge}.
 
-% TODO: mention Voltaire, and how this document relates to it.
+% Mention Voltaire, and how this document relates to it.
+The Voltaire era of Cardano will provide a governance system for the Cardano
+network to become a self-sustaining system, no longer under IOHK's management.
+The work presented here can be used as the base for the governance system of the
+Voltaire era.
 
 \section{Requirements}
 \label{sec:requirements}
@@ -244,9 +244,6 @@ Note that, according to the preceding definition, an update that requires the
 node to download and install new software to run a \emph{new protocol}, and that
 \emph{also} updates protocol parameters is considered a signaled protocol
 update.
-
-% TODO: mention somewhere that protocol updates must be activated one at a time,
-% whereas non-protocol updates can be approved in parallel.
 
 \subsection{The lifecycle of a decentralized update}
 \label{sec:phases-an-update}
@@ -684,7 +681,8 @@ only during the \emph{voting period}.
 The voting period begins when the proposal is stably revealed in the blockchain.
 
 Not all updates are the same, therefore the voting period duration can be
-specified in the proposal's metadata.
+specified in the proposal's metadata. The voting period should be limited to
+avoid having proposals dangling in the ledger state for too long.
 
 We introduce a \emph{vote} transaction type, the \emph{system update vote
   transaction (SUVT)} that can only be included in a block during the voting
@@ -1195,7 +1193,7 @@ This UP must be submitted to the blockchain for approval by the stakeholders to
 move forward in the update process. Submission of the UP takes place using a
 commit-reveal scheme.
 
-% TODO: do we say anything about the not being a centrally owned code
+% TODO: do we say anything about the not having a centrally owned code
 % repository? This seems to be irrelevant to the protocol described here.
 
 All approved UPs are stored in the blockchain. This enables the developer to
@@ -1602,7 +1600,7 @@ however their activation also takes place at a predefined time in the future.
 % the "enactment" process, we should mention what are the possible solutions. We
 % should also mention the hard-fork combinator.
 
-% TODO: why not vote and endorse an implementation at the same time?
+% TODO: OPTIONAL: explain why not vote and endorse an implementation at the same time?
 
 \section{Performance analysis}
 \label{sec:performance-analysis}
@@ -2242,8 +2240,7 @@ proposals when they are in the activation phase.
 
 The voting period of a proposal submitted to either the ideation or approval
 phases is taken from the proposal's metadata.
-% TODO: we should make sure that we cap this voting period, and mention this
-% exception here.
+%
 Similarly, the deployment window, in the case of consensus-impacting updates, is
 also determined by the proposal's metadata.
 
