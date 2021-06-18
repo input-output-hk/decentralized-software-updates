@@ -2394,6 +2394,8 @@ features:
 \item Distinction between stake pools and expert pools.
 \item Variable length phases, which are specified in the proposal itself.
 \end{itemize}
+At the time of writing, Tezos, like the design proposed here, did not use a
+stake locking mechanism.
 
 A similar approach to the governance model proposed in this document, i.e.,
 liquid democracy via delegation to experts, is proposed by Bingsheng et al.
@@ -2408,21 +2410,82 @@ in the lifecycle of an update proposal.
 \label{sec:probl-not-addr}
 
 % Which problems were not addressed? Why not?
+The topic of decentralized blockchain governance is complex and vast. The
+research carried out within the PRIViLEDGE had a limited duration. Therefore,
+this work addresses the governance problems that were deemed most important,
+while leaving some problems open. In this section we describe the open problems
+we have identified, and explain how our design can accommodate potential
+solutions to these problems.
 
-% How can the prototype accommodate potential solutions to these problems.
-          % - Using different voters set or voting weights.
-          % - Incentives (it's an orthogonal, we see in principle nothing to
-          %   accommodate).
-          % - Spam protection: have a set of allowed submitters that is checked
-          %   upon proposal submission (could be at commit time or at reveal
-          %   time).
+\subsection{Voting power distribution}
+\label{sec:voting-power-distr}
 
-        % - How this prototype can accommodate a restriction in scope:
-        %   - Having less phases.
+Voting power distribution refers to the function that maps voter identifiers
+(e.g., key hashes) to their voting weight. In this work we used the stake
+distribution as an instance of such function, however there are other
+alternatives such as:
+\begin{itemize}
+\item define the voting power according to the blockchain usage,
+\item define the voting power based on reputation, etc.
+\end{itemize}
+These alternatives should be investigated and compared so that the most suitable
+voting power distribution can be chosen.
 
-        %   - Having a committee / set of genesis keys.
+Our design is not dependent on any particular voting power distribution function.
+%
+Therefore, the update protocol proposed here is parametric on this aspect.
 
-% Sybil attacks by registering multiple expert pools.
+\subsection{Incentives}
+\label{sec:incentives}
+
+The incentive scheme for stakeholders to submit, vote, and endorse proposals
+must be investigated. Participation in the protocol is crucial for achieving
+decentralized governance.
+%
+The update protocol described here is orthogonal to the incentives scheme
+chosen.
+
+\subsection{Spam protection}
+\label{sec:spam-protection}
+
+The design presented here assumes the submission of update payload in fee-based
+transactions. This constitutes a first line of defense against spam attacks.
+However, this still allows for the possibility of a malicious party spamming the
+system with bogus proposals that would overwhelm the human reviewers. Note that
+for instance, in the case of UTxO transactions this is not a problem since the
+transactions are automatically processed.
+
+A production ready update protocol requires a robust spam protection scheme.
+Such scheme would have to reconcile the tension between being as open as
+possible, and filtering bogus or irrelevant proposals.
+
+A possible solution might be requiring proposal submitters to make a deposit,
+which will be returned only if the proposal is voted by a certain stake
+threshold.
+
+This design can easily accommodate a spam protection scheme by defining a set of
+allowed proposal submitters. Maintaining the set of allowed submitters would be
+the responsibility of the spam protection mechanism, and our update protocol
+would only have to check what proposals are submitted by keys in the submitters
+set.
+%
+Alternatively, the spam protection mechanism could define an interface that our
+update protocol can use to check if a given proposal contains a valid submitter.
+
+Note that having a set of allowed submitters also allow us to accommodate a
+transitional update protocol from a scheme in which only a certain set of keys
+can vote on and activate updates (like the one Cardano currently features).
+
+\subsection{Sybil attacks}
+\label{sec:sybil-attacks}
+
+As with stake pools, we need a solution to avoid a malicious party from
+registering multiple expert pools. We can envision that this problem might be
+solved as in the Shelley design~\cite{deldesign}, where pools are required to
+pledge a certain amount of Ada to register.
+
+The current design does not prescribe how expert pools should be registered,
+which means that it allows for the addition of an incentives scheme.
 
 \section{Conclusions}
 \label{sec:conclusions}
@@ -2430,6 +2493,13 @@ in the lifecycle of an update proposal.
 % We don't claim this solution is complete, but is intended to constitute a
 % solid base for adding more features that address the open problems described
 % in Section ...
+
+
+        % - How this prototype can accommodate a restriction in scope:
+        %   - Having less phases.
+
+        %   - Having a committee / set of genesis keys.
+
 
 \bibliographystyle{acm}
 \bibliography{references}
