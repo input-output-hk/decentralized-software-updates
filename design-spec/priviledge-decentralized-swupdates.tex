@@ -73,8 +73,9 @@ updating public blockchain systems.
 In this context, governance refers to the set of rules by which the blockchain
 evolves.
 % When is governance decentralized?
-We say that governance is decentralized when the community can leverage on these
-rules to determine the direction in which this blockchain evolves.
+We say that blockchain governance is decentralized when the community can
+leverage on these rules to determine the direction in which said blockchain
+evolves.
 
 % TODO: should we mention here (or somewhere) how governance and the lifecycle
 % of an update are related? We also need to define what an update is.
@@ -82,10 +83,12 @@ rules to determine the direction in which this blockchain evolves.
 % Why people should care about the problems stated in this document?
 A decentralized update mechanism is crucial for achieving a decentralized
 blockchain.
+% TODO: why achieving a decentralized blockchain is important?
+
 
 % Why people should care about this document? What is the target audience?
-This document is intended for stakeholders interested in the implementation of a
-decentralized update system for blockchains.
+This document is intended for stakeholders interested realizing an
+implementation of a decentralized governance mechanism for blockchains.
 
 % What does this document contains
 This document features a breakdown of the requirements for achieving
@@ -95,18 +98,10 @@ that satisfies these requirements.
 % Who funded this work?
 The work presented here was funded by the PRIViLEDGE project~\cite{priviledge}.
 
-% Scope of this work
-The topic of decentralized blockchain governance is difficult and vast.
-%
-Therefore we identify important problems that were not solved within this
-project, but at the same time, we show how the design described here can
-accommodate any potential solutions to these problems.
-
 % TODO: mention Voltaire, and how this document relates to it.
 
 \section{Requirements}
 \label{sec:requirements}
-% FROM: 2 Requirements for a decentralized software update system
 
 This section presents the requirements of an update mechanism for achieving
 decentralized governance of a blockchain.
@@ -114,7 +109,7 @@ decentralized governance of a blockchain.
 \subsection{Open}
 \label{sec:open-participation}
 
-In the absence of malicious actors, we could aspire that anybody who can
+In the absence of malicious actors, we would wish that anybody who can
 participate the blockchain protocol by submitting transactions can participate
 in the update process. However allowing this would open the door for spam
 attacks: if the barrier for submitting update proposals is as low as submitting
@@ -157,21 +152,17 @@ system has evolved the way it has. The systems' update history should be:
 \subsection{Secure}
 \label{sec:secure}
 
-% TODO: what about other security aspects such as: preservation of ownership,
-% resiliency to DoS attacks, replay protection, ensuring participation of an
-% honest majority of stake-holders, ensuring liveness, etc.
+% TODO: write content.
 
 \subsection{Performant and scalable}
 \label{sec:performant-scalable}
 
-The update protocol should have minimal impact on the:
+The impact of the update protocol should have minimal impact on the:
 \begin{itemize}
 \item transaction throughput,
 \item blockchain size, and
 \item block processing time.
 \end{itemize}
-In addition, the impact the update protocol on the metrics above should be a
-linear function of the number of participants.
 
 \subsection{Metadata-driven}
 \label{sec:metadata-driven}
@@ -179,7 +170,7 @@ linear function of the number of participants.
 Not all updates are the same. For instance some updates might be more urgent
 than others, some updates might depend on a specific protocol version, some
 updates might take longer than others, etc. Therefore, it should be possible to
-specify proposal dependent features that the protocol must enforce.
+specify proposal-dependent features that the protocol must enforce.
 
 \subsection{Consistent}
 \label{sec:cons-update-logic}
@@ -237,14 +228,14 @@ wallets, explorers) can evolve. We distinguish the following update types:
   design does not restrict the nature of these updates. It is up to the ledger
   layer to react to these updates accordingly. They might include:
   \begin{itemize}
-  \item updates to the software that runs on the blockchain nodes, which does
+  \item Updates to the software that runs on the blockchain nodes, which does
     not affect the protocol. Examples of such updates might include performance
     or usability improvements.
-  \item transfer of funds. For instance an update proposal might involve funding
+  \item Funds transfers. For instance an update proposal might involve funding
     the development of a certain feature.
-  \item updates to other components of the blockchain ecosystem.
+  \item Updates to other components of the blockchain ecosystem.
   \end{itemize}
-\item[Cancellation] which are special kind of update proposals that can be used
+\item[Cancellation] These are special kind of update proposals that can be used
   to cancel other \emph{approved} protocol update proposals\footnote{For
     non-approved proposals the expert pools can simply reject said update}.
 \end{description}
@@ -257,22 +248,12 @@ update.
 % TODO: mention somewhere that protocol updates must be activated one at a time,
 % whereas non-protocol updates can be approved in parallel.
 
-% TODO: later on we describe the delegation and voting payload. Maybe we need to
-% describe the update payload as well.
-
 \subsection{The lifecycle of a decentralized update}
 \label{sec:phases-an-update}
-% FROM 3 The lifecycle of a decentralized software update
 
 The update protocol described in this document aims at capturing the whole life
 cycle of an update.
 %
-% TODO: why do we need to have a governance system that captures the whole life cycle
-% of an update? So for instance, why not supporting update activations only?
-%
-% Why distinguish phases at all? SIP and implementations can all be proposals.
-% They only differ in that some kinds of approved implementations can be
-% activated.
 We distinguish the following \emph{phases} in the life cycle of an update:
 
 \begin{description}
@@ -282,15 +263,13 @@ We distinguish the following \emph{phases} in the life cycle of an update:
   of text document, and as such, once it is approved it does not have any effect
   in the system until its implementation gets activated.
 \item[Implementation] In case an update requires an implementation, this is the
-  phase where that happens. Some updates like parameter updates, or fund
+  phase where it takes place. Some updates like parameter updates, or fund
   transfers do not require an implementation. This phase is not captured by the
-  protocol proposed in this document, and we assume it takes place entirely off
-  chain.
+  protocol proposed in this document, and we assume it takes place entirely
+  off-chain.
 \item[Approval] In this phase, the information about the implementation of an
   SIP is submitted to the chain. Henceforth, the implementation update proposal
-  is referred to as UP. If the implementation deals with a protocol update, then
-  the update proposal must contain enough information for the protocol to
-  activate it. As in the ideation phase, the stakeholders vote on the
+  is referred to as UP. As in the ideation phase, the stakeholders vote on the
   implementation.
 \item[Activation] Once an protocol update implementation is approved, it moves
   to the activation phase, where it might become the current protocol version,
@@ -315,23 +294,10 @@ must determine a stake \emph{threshold} to reach on verdict on whether a
 proposal should be approved or rejected. This problem is described and addressed
 in Section~\ref{sec:threshold-analysis}.
 
-Finally, the update protocol should not have impact on the normal operation of
-the blockchain it runs on. In Section~\ref{sec:performance-analysis} we turn our
-attention to the performance analysis the protocol described in this document.
-
-% TODO: does this fit anywhere.
-%   \begin{itemize}
-%   \item software updates (affecting the protocol or otherwise) might contain the
-%     location of the source code or binaries of the new protocol, as well as
-%     checksum for these artifacts.
-%   \item protocol parameter updates, might include the new values of the updated
-%     parameters.
-%   \item for fund transfers might contain the sources and destinations of funds.
-%   \end{itemize}
-%   The update protocol does not care about the information that these updates
-%   contain. It is up to the particular implementation to choose the appropriate
-%   payload, and up to the human reviewers to determine if the information
-%   contained in the update proposal payload is sufficient.
+Finally, the update protocol should not have a large impact on the normal
+operation of the blockchain it runs on. In
+Section~\ref{sec:performance-analysis} we turn our attention to the performance
+analysis of the protocol described in this document.
 
 \subsection{Delegation}
 \label{sec:delegation}
@@ -361,8 +327,8 @@ for the majority of stake to understand.
 Moreover, during the UP approval phase, the approver is called for approving or
 rejecting the submitted source code, which is certainly a task only for experts.
 
-Our proposal for a solution to this problem is to enable delegation to
-participants that posses the required technical expertise.
+Our proposed solution to this problem is to enable delegation to participants
+that posses the required technical expertise.
 %
 Stakeholders will be able to delegate their right to participate in the update
 protocol to an \emph{expert pool}. The proposed delegation to an expert pool
@@ -379,18 +345,18 @@ We distinguish delegation for voting for a SIP document and for approving an UP.
 We could have defined delegation for SIP voting to imply also the approval of
 the corresponding UP. However, since both have a totally different scope, there
 might be a need to delegate to different expert pools to vote on them. An SIP is
-an update proposal justification document and the expert who is called to vote
-for or against a specific SIP, must have a good sense of the road-map of the
-system. On the contrary, the approval of a UP is a very technical task, which
-deals with the review and testing of a piece of code against some declared
-requirements (i.e.,the corresponding SIP) and has nothing to do with the
-software road-map.
+a document that, among other things, justifies an update proposal, and the
+expert who is called to vote for or against a specific SIP must know the
+road-map of the system very well. On the other hand, the approval of a UP is a very
+technical task, which requires reviewing and testing of code
+against some requirements (i.e.,the corresponding SIP) and has nothing
+to do with the software road-map.
 
 \subsubsection{Delegation for specialization}
 \label{sec:deleg-spec}
 
 There are special categories of software updates, like security fixes.
-
+%
 Common sense dictates that security fixes are software updates which:
 \begin{enumerate}
 \item have a high priority, and
@@ -399,7 +365,7 @@ Common sense dictates that security fixes are software updates which:
 Therefore, having a special expert pool as a \emph{default delegate} for this
 category of software updates (both SIPs and UPs) enables:
 \begin{enumerate}
-\item faster path to activation, and
+\item a faster path to activation, and
 \item experts' availability for the evaluation of such updates.
 \end{enumerate}
 A faster path to activation is achieved because:
@@ -428,8 +394,8 @@ can submit a different delegation for a specific SIP/UP regardless of its tag.
 \label{sec:defa-deleg-avail}
 
 Blockchain protocols based on the Proof-of-Stake (PoS) paradigm are by nature
-dependent on the active participation of the digital assets'
-owners~\cite{stakepools}, i.e.,stakeholders.
+dependent on the active participation of the digital-assets
+owners~\cite{stakepools}, i.e., stakeholders.
 %
 In practice, we cannot expect stakeholders to continuously participate actively
 in the software updates protocol.
@@ -442,7 +408,7 @@ enable stake representation, thus allowing users to delegate their participation
 rights to other participants and, in the process, to form \emph{stake
   pools}~\cite{stakepools}. The core idea is that stake pool operators are
 always online and perform the required actions on behalf of regular users, while
-the users retain the ownership of their assets (\cite{stakepools}).
+the users retain the ownership of their assets.
 
 In this specification, we propose to utilize the stake pools mechanism for our
 software updates protocol in tandem with the consensus protocol. In particular,
@@ -637,9 +603,9 @@ staking key of the expert pool, as well as a time indication (e.g., expressed in
 block number, or an epoch number etc.) of when the pool will cease to operate.
 
 \paragraph{Expert pool metadata.}
-The expert pool metadata are necessary information that sufficiently describe an
-expert pool, so that the stakeholders community can decide which expert pool to
-choose for their delegations.
+The expert pool metadata should sufficiently describe an expert pool, so that
+the stakeholders community can decide which expert pool to choose for their
+delegations.
 %
 Typically, this information will be displayed by a wallet application, to assist
 the users to select the expert pool of their choice. Examples of useful
@@ -692,27 +658,26 @@ Therefore, real specialists on a technical domain are hard to find. For this
 reason they are invaluable.
 
 Typically, experts are well-known and well-respected figures in the community.
-As a result, such a well-known expert is expected to receive a significant
-amount of delegations, if she chooses to register an expert pool.
+As a result, they are expected to receive a significant amount of delegations,
+if they choose to register a pool.
 %
 This makes expert pool registration susceptible to identity theft. This is the
 case where an expert pool falsely claims to be a famous expert, just for the
 sake of receiving the delegations from people drawn to the expert's fame.
-%
+
 This identity assurance problem is external to the software updates protocol,
 and also to the underlying consensus protocol. Thus an out-of-band solution
-could be adopted. For example, a renowned expert, could post her public key (or
-its fingerprint) to social media, so that the people who follow her will know
-which is the genuine key that they can delegate to. Other similar solutions can
-be exploited as well. However at the end of the day, in a decentralized setting,
-it is the stake, via delegation, that will be the ultimate judge of an expert
-pool.
+could be adopted. For example, a renowned expert could post her public key (or
+its fingerprint) to social media, so that her followers will know which is the
+genuine key that they can delegate to. Other similar solutions can be used
+as well. However at the end of the day, in a decentralized setting, it is the
+stake, via delegation, that will be the ultimate judge of an expert pool.
 
 \subsection{Voting}
 \label{sec:voting}
 
 % Describe how votes are counted.
-Voting is the main mechanism for decision making about decentralized updates. A
+Voting is the main mechanism for decision making on decentralized updates. A
 vote on an update proposal (SIP or UP) is a fee-based transaction that is valid
 only during the \emph{voting period}.
 %
@@ -728,7 +693,7 @@ $$( H(<SIP/UP>),SU_{Flag},<confidence>,vks_{source},\sigma_{sks_{source}}(m))$$
 In the tuple above $H(<SIP/UP>$ is the hash of the content of the SIP/UP.
 $SU_{Flag}$ is a boolean flag (SIP/UP), which discriminates an SIP vote from an
 UP vote. $<confidence>$ is the vote per-se, expressed as a three-valued flag:
-for, against, or abstain. $vks_{source}$ is the public key of the voter.
+for, against, or abstain. $vks_{source}$ is the voter public key.
 Finally, $\sigma_{sks_{source}}(m)$ is the cryptographic signature, signed with
 the private key corresponding to $vks_{source}$, on the transaction text $m$.
 
@@ -736,20 +701,20 @@ In our proposal, we have chosen three values for the votes
 (for/against/abstain). In this way, apart from the actual result, we can extract
 the real sentiment (positive, negative, neutral) of the community for a specific
 update. This is very important in a decentralized governance model, because it
-clearly shows the appeal of an update proposal for the stakeholders. If we did
+clearly shows the appeal of an update proposal to the stakeholders. If we did
 not allow negative votes, then the negative feeling would be hidden under the
 abstaining stake.
 %
-Moreover, the abstain vote can be also used as a way for the evaluator to say
+Moreover, the abstention can be also used as a way for the evaluator to say
 that the evaluation of an update has not finished. This allows to indirectly
 signal a request for time extension (in the form of a new voting period).
 
 Anyone who owns stake has a legitimate right to vote and this vote will count
 proportionally to the owned stake. This voting right can be delegated to another
-party, as explained in Section~\ref{sec:delegation}. However, we give the power
-to a stakeholder to override the vote of her delegate. Therefore, if within the
-same voting period a direct and delegate vote appear for the same update, the
-direct vote will prevail.
+party, as explained in Section~\ref{sec:delegation}. However, we give
+stakeholders the power to override the votes of their delegates. Therefore, if
+within the same voting period a direct and delegate vote appear for the same
+update, the direct vote will prevail.
 
 A voter can change her mind after voting for an update. Thus we allow the same
 stakeholder to vote multiple times on the same proposal. Only the last vote
@@ -776,7 +741,7 @@ is:
 \item[No-majority] when none of the previous cases has appeared (no majority
   result). In this case the proposal enters a new voting period, provided that
   it did not have more than $rv_{no-majority}$ voting periods. Here
-  $rv_{no-majority}$ is also a protocol parameters. A proposal that did not
+  $rv_{no-majority}$ is also a protocol parameter. A proposal that did not
   reach a verdict after $rv_{no-majority}$ voting periods becomes \emph{expired}
   as well.
 \end{description}
@@ -1171,9 +1136,9 @@ ownership of the proposals is preserved.
 % TODO: we should describe this commit reveal scheme
 %
 
-One the SIP is revealed, stakeholders can access all the details of the SIP and
-a voting period starts. Note that stakeholders not only vote for the SIP, but
-also for other characteristics of the update such as:
+One the SIP is revealed, stakeholders can access all the its details and a
+voting period starts. Note that stakeholders not only vote for the SIP, but also
+for other characteristics of the update such as:
 \begin{itemize}
 \item type of change,
 \item priority,
@@ -1204,8 +1169,8 @@ consists of:
 \end{itemize}
 This bundle must be uploaded to a repository (decentralized or otherwise), and a
 content-based hash must be produced to uniquely identify it. This hash, together
-with other metadata is called the \emph{update proposal} (UP)
-submitted to the blockckain.
+with other metadata, is called the \emph{update proposal} (UP). The UP is
+submitted to the blockchain.
 
 In addition to the data described above, protocol update proposals must specify:
 \begin{itemize}
@@ -1218,7 +1183,7 @@ In addition to the data described above, protocol update proposals must specify:
   implementation of that version. If we do not make this dependency implicit,
   then we risk having an update being applied on the wrong version.
 	%
-	We cannot on the other hand, enforce uniqueness of versions in update
+	We cannot, on the other hand, enforce uniqueness of versions in update
   proposals, since we risk having malicious actors organizing a denial of
   service attack that prevents honest proposals from entering the system.
 	%
@@ -1227,14 +1192,14 @@ In addition to the data described above, protocol update proposals must specify:
 \end{itemize}
 
 This UP must be submitted to the blockchain for approval by the stakeholders to
-move forward in the update process. Submission of the UP takes place using the
-commit-reveal scheme described in Section~\ref{sec:ideation}.
+move forward in the update process. Submission of the UP takes place using a
+commit-reveal scheme.
 
 % TODO: do we say anything about the not being a centrally owned code
 % repository? This seems to be irrelevant to the protocol described here.
 
 All approved UPs are stored in the blockchain. This enables the developer to
-find the appropriate source code versions that will be updated (probably the
+find the appropriate source code version that will be updated (probably the
 latest) using the link provided in the UP's metadata.
 
 The review of the code requires advanced technical skills. For this reason we
@@ -1244,7 +1209,7 @@ describe in Section~\ref{sec:delegation-mechanics}.
 When a protocol update proposal is approved\footnote{Cancellation and
   non-protocol update proposals come into effect immediately after being
   approved.} it enters a \emph{priority queue} where it waits to be activated.
-The priority of the queue is determined by the update proposal's versions. A
+The priority is determined by the update proposal's versions. A
 proposal with lower version will activate \textbf{before} a proposal with a
 higher version.
 %
@@ -1273,7 +1238,7 @@ protocol-version and its declared predecessor version to:
 This design decision requires:
 \begin{itemize}
 \item The implementers to pick exactly one version their update is compatible
-  with, and determine which version their update should receive.
+  with, and determine which version their update should determine.
 \item The experts to check the version that an update has, and the compatibility
   with the version it supersedes.
 \end{itemize}
@@ -1291,13 +1256,11 @@ we resolve this conflict by:
 \begin{enumerate}
 \item picking the proposal with the highest stake in favor, or
 \item picking the proposal with the greatest hash, if they have the same stake
-  in favor\footnote{Note that this is an even more unlikely scenario, and if the
-    experts decide to approve two proposals with the same version at the same
-    time, then this might point to a serious problem on the human side.}.
+  in favor.
 \end{enumerate}
 
 The approved proposal at the front of the activation queue will enter the
-\emph{endorsement period}, if it supersedes the current version (see
+\emph{endorsement period} if it supersedes the current version (see
 Section~\ref{sec:entering-the-endorsement-phase}).
 %
 There can be \emph{at most one protocol update proposal} in the endorsement
@@ -1321,8 +1284,10 @@ epoch, where $k$ is maximum \emph{number of blocks} the chain can roll back (see
 Section~\ref{sec:on-cutoff-points-for-endorsements}).
 
 A scheduled proposal \textbf{waits} to be activated \textbf{till the first slot
-  of the next epoch}. In case of application updates, the proposal does not need
-to be activated. The ledger simply records its approval.
+  of the next epoch}. In case of non-protocol updates, the proposal does not
+need to be activated. The ledger simply records its approval and might decide to
+update the state in any way it sees fit (for instance by transferring funds
+either right away or at the beginning of a new epoch).
 
 The next sub-sections describe the details of the activation protocol outlined
 above.
@@ -1435,14 +1400,14 @@ Non-protocol updates do not change neither the consensus rules nor the ledger
 rules that the blockchain nodes execute. Therefore the do not enter the
 activation phase.
 %
-Upon approval these kind of updates the update system simply records this event,
+When this kind of updates are approved, the update system simply records this event,
 and it is the ledger responsibility to react accordingly. For instance, if the
 update concern funds transfers from the treasury, then the ledger must update
 its state by performing the transfer described in the update.
 
-It the update concerns an application that uses the blockchain (e.g. a wallet),
+If the update concerns an application that uses the blockchain (e.g. a wallet),
 then the dependencies between this application and protocol that the blockchain
-runs managed off chain.
+runs managed off-chain.
 %
 Such dependency management is the responsibility of developers (who implement
 the updates) and experts.
@@ -1451,7 +1416,7 @@ The update system can provide metadata for specifying the dependencies and/or
 conflicts of an application with the rest of the ecosystem, but the update
 system will not check this.
 
-Just like the other kind of updates, non-protocol updates must have a
+Just like with the other kind of updates, non-protocol updates must have a
 corresponding approved SIP and implementation.
 
 \subsubsection{Explicit cancellation}
@@ -1520,7 +1485,7 @@ protocol version is never applied.
 \label{sec:the-queue}
 
 Approved proposals enter an activation priority queue. The order of the queue is
-determined by the proposal's versions. This queue \textbf{shall not} contain any
+determined by the proposals' versions. This queue \textbf{shall not} contain any
 duplicated versions. If a proposal with the same version as a proposal from the
 queue gets approved, then:
 
@@ -1551,18 +1516,17 @@ If a proposal with a lower version than the current candidate enters the queue
   be adopted since versions increase monotonically).
 \end{enumerate}
 
-\subsubsection{On cut-off points for endorsements}
+\subsubsection{Cut-off points for endorsements}
 \label{sec:on-cutoff-points-for-endorsements}
 
 The ledger layer must provide future information about a part of its state. In
-particular, it should be able to tell up to $k$ blocks in the future if a
-new protocol version will be activated. To this end, we require that the
-\emph{last endorsement} required for meeting the adoption threshold \emph{is
-	stable} $k$ blocks before the end of the epoch. This means that
-endorsements for a given proposal for a given epoch are considered up to
-$2k$ blocks before the end of that epoch. This is not to say that the
-endorsements after this cut-off point will not be considered, just that they
-will in the next epoch.
+particular, it should be able to tell up to $k$ blocks in the future if a new
+protocol version will be activated. To this end, we require that the \emph{last
+  endorsement} required for meeting the adoption threshold \emph{is stable} $k$
+blocks before the end of the epoch. This means that endorsements for a given
+proposal for a given epoch are considered up to $2k$ blocks before the end of
+that epoch. This is not to say that the endorsements after this cut-off point
+will not be considered, they will in the next epoch.
 
 To see why this is required, consider a last endorsement (required to meet the
 threshold) arriving between $2k$ blocks and $k$ blocks before the end of an
@@ -1848,7 +1812,7 @@ mainnet conditions, while allowing us to run experiments in a reasonable amount
 of time. This means that in our testnet:
 \begin{itemize}
 \item like the Cardano network, blocks were produced every 20 seconds.
-\item unlike the Cardano network, the stability window was set to 36 minutes
+\item unlike the Cardano network, the stability window was set to 30 minutes
   (in Cardano this is 36 hours).
 \end{itemize}
 Using these parameters we could run each experiment in about 2 hours, depending
@@ -1949,12 +1913,11 @@ the transaction throughput. We can observe a linear relationship between TPS
 
 Addionally to the throughput, in our testnet experiments, we have measured the
 impact on the \emph{transaction latency}. By ``latency'', we mean the
-\emph{average end-to-end time} from the transaction submission until it appears in the
-ledger. To this end, we have used the same setup as in the throughput
-experiments. In other words, a 10 node geographically distributed network,
-where $50$ threads per node
-constantly submit transactions and we utilize a varying number of voters that
-try to vote in a $30$ minute voting period window.
+\emph{average end-to-end time} from the transaction submission until it appears
+in the ledger. To this end, we have used the same setup as in the throughput
+experiments: a 10 node geographically distributed network, where $50$ threads
+per node constantly submit transactions and we utilize a varying number of
+voters that try to vote in a $30$ minute voting period window.
 
 In table \ref{tab:experimental-results-latency}, we record our main results.
 Initially, with a single voter per node and as we are submitting transactions
@@ -2034,18 +1997,6 @@ In the following, we try to break up the operations during the tally phase. In
 the heart of the tally phase lies the following function call, which is called
 for each proposal.
 
-\begin{lstlisting}[language=Haskell, caption=Tally phase initial function call]
-	tallyStake confidence result ballot stakeDistribution adversarialStakeRatio
-	=
-	if stakeThreshold adversarialStakeRatio (totalStake stakeDistribution)
-	<
-	stakeOfKeys votingKeys stakeDistribution
-	then Just result
-	else Nothing
-	where
-	votingKeys = Map.filter (== confidence) ballot
-\end{lstlisting}
-
 \definecolor{uppercasecolor}{rgb}{0.4,0,0.6}
 
 \lstdefinelanguage{PriviHaskell}
@@ -2082,32 +2033,40 @@ for each proposal.
 \lstnewenvironment{haskell}{\lstset{language=PriviHaskell}}{}
 \newcommand{\hinline}[1]{\lstinline[language=PriviHaskell]{#1}}
 
-Function \lstinline{stakeThreshold} is constant whereas \lstinline{Map.filter}
+\begin{lstlisting}[language=PriviHaskell, caption=Tally phase initial function call]
+	tallyStake confidence result ballot stakeDistribution adversarialStakeRatio
+	=
+	if stakeThreshold adversarialStakeRatio (totalStake stakeDistribution)
+	<
+	stakeOfKeys votingKeys stakeDistribution
+	then Just result
+	else Nothing
+	where
+	votingKeys = Map.filter (== confidence) ballot
+\end{lstlisting}
+
+Function \hinline{stakeThreshold} is constant whereas \hinline{Map.filter}
 \footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#g:25}},
-is $O(n)$ so \lstinline{votingKeys} is $O(n)$, where $n$ is the number of
+is $O(n)$ so \hinline{votingKeys} is $O(n)$, where $n$ is the number of
 votes, which as we have said coincides to the number of participants. At this
 point, we have a single pass (loop) over $n$ votes.
 
-The remaining function used in the definition of \lstinline{tallyStake},
-\lstinline{stakeOfKeys}, calculates the stake associated to the given key-map,
+The remaining function used in the definition of \hinline{tallyStake},
+\hinline{stakeOfKeys}, calculates the stake associated to the given key-map,
 and is defined as follows:
-\begin{lstlisting}[language=Haskell, caption=Code example]
-	stakeOfKeys
-	keyMap
-	StakeDistribution
-	{ stakeMap
-	}
+\begin{lstlisting}[language=PriviHaskell, caption=Counting voting stake]
+	stakeOfKeys keyMap StakeDistribution { stakeMap }
 	= Map.foldl (+) 0 (stakeMap `Map.intersection` keyMap)
 \end{lstlisting}
 The $intersection$ function in the worst-case is
 $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:intersection}}.
 Therefore this is a second pass (loop) over the data of length $n$. Finally, we
-call \lstinline{foldl} with a constant time operation, \lstinline{+}, which
+call \hinline{foldl} with a constant time operation, \hinline{+}, which
 means that this call is also
 $O(n)$\footnote{\href{url}{http://hackage.haskell.org/package/containers-0.6.2.1/docs/Data-Map-Strict.html\#v:foldl}}.
 This is a third pass (loop) over the data of length $n$. Thus from the above
 analysis we see that we have for a single proposal a call of
-\lstinline{tallyStake}, where in each such call we have three passes over the
+\hinline{tallyStake}, where in each such call we have three passes over the
 data of length $n$. So in total for a single proposal we do $3$ passes over the
 data of length $n$. That is $3n$ operations, which means that the tally time
 complexity is $O(n)$.
@@ -2200,8 +2159,8 @@ This design does not address the definition of minimal requirements for proposal
 submissions that will prevent spam attacks.
 
 This design addresses the requirement that any participant that can submit a
-common transaction should be able to vote on update proposals, by
-defining a new \emph{vote} transaction type.
+common transaction should be able to submit on vote on update proposals, by
+defining new \emph{SIP}, \emph{UP}, and \emph{vote} transaction types.
 
 \subsection{Democratic}
 \label{sec:sat-decentr-decis-making}
@@ -2249,12 +2208,17 @@ These numbers were confirmed by the measurements we took after running several
 experiments on a testnet.
 
 Our asymptotic complexity analysis and micro-benchmarks showed that the impact
-on system's performance is also linear on the number of participants.
+chain size and transaction throughput is also linear on the number of
+participants.
+
+The increase in latency is a quadratic function of the number of participants.
+More work is needed to determine if this behavior is expected, and/or
+acceptable.
 
 \subsection{Metadata-driven}
 \label{sec:sat-metadata-driven}
 
-We have define an update protocol where the submitter of a proposal can specify
+We have defined an update protocol where the submitter of a proposal can specify
 (when applicable):
 \begin{itemize}
 \item its priority,
@@ -2313,13 +2277,13 @@ As a result of the implementation of the prototype:
 \item We developed a property testing framework, which improves upon previous
   work by IOHK.
 \item We made the ledger layer of Cadano parametric on the update logic. This
-  was merged onto master, and as a result it is now easier to swap Cardano's
-  update mechanism.
+  was merged onto master, and as a result it is now easier to change Cardano's
+  update mechanism in this layer.
 \item We ran benchmarks on a testnet. The results we obtained from these
   benchmarks confirmed that usage is linear on the number of participants as
   predicted. On the other hand, we observed a quadratic increase in the
   transaction latency. In our benchmarks we used a very short voting period of
-  10 minutes, and we reproduced the worst-case and unrealistic assumption that
+  30 minutes, and we reproduced the worst-case and unrealistic assumption that
   every participant would vote at the same time. Nevertheless, further analysis
   is needed for a production ready update protocol to determine if safeguard
   measures against high transaction latency are required.
@@ -2381,7 +2345,7 @@ exploration phase. Notable features of this protocol include:
   This quorum is automatically adjusted based on the stakeholders'
   participation.
 \end{itemize}
-Unlike Tezos' update protocol, the update protocol described in this document
+Unlike Tezos, the governance mechanism described in this document
 features:
 \begin{itemize}
 \item The notion of an ideation phase. In Tezos experts vote directly on
@@ -2451,7 +2415,7 @@ chosen.
 The design presented here assumes the submission of update payload in fee-based
 transactions. This constitutes a first line of defense against spam attacks.
 However, this still allows for the possibility of a malicious party spamming the
-system with bogus proposals that would overwhelm the human reviewers. Note that
+system with bogus proposals that would overwhelm the human reviewers. Note that,
 for instance, in the case of UTxO transactions this is not a problem since the
 transactions are automatically processed.
 
@@ -2466,7 +2430,7 @@ threshold.
 This design can easily accommodate a spam protection scheme by defining a set of
 allowed proposal submitters. Maintaining the set of allowed submitters would be
 the responsibility of the spam protection mechanism, and our update protocol
-would only have to check what proposals are submitted by keys in the submitters
+would only have to check whether proposals are submitted by keys in the submitters
 set.
 %
 Alternatively, the spam protection mechanism could define an interface that our
