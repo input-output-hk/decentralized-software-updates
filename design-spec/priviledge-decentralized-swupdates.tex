@@ -17,6 +17,7 @@
 \usetikzlibrary{automata,positioning}
 \usepackage{pgf}
 \usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
 
 \usepackage{listings}
 \usepackage{color}
@@ -746,7 +747,6 @@ is:
 
 \subsection{Threshold analysis}
 \label{sec:threshold-analysis}
-% FROM 6 Threshold analysis
 
 In the previous sections, we have described two separate voting phases in the
 decentralized update lifecycle
@@ -767,9 +767,10 @@ approach for defining an appropriate threshold for both of these two processes.
 Lets assume that $H$ is the percent of honest stake and $T$ is the percent of
 adversarial stake that actively participate in the voting (or activation)
 process. We assume:
-\begin{equation}\label{eq:H_plus_T}
+\begin{equation}\label{eq:H-plus-T}
 	H+T=100
 \end{equation}
+
 
 We consider two types of possible attacks relevant to both processes:
 \paragraph{Voting process}
@@ -792,7 +793,7 @@ We consider two types of possible attacks relevant to both processes:
 
 With respect to the two said attacks for each process, we define next the notion
 of a secure voting or activation protocol:
-\begin{definition}\label{def:liveness_safety_voting}
+\begin{definition}\label{def:liveness-safety-voting}
 	A voting protocol is secure, if it enjoys both the safety and liveness
   properties.
 
@@ -806,7 +807,7 @@ of a secure voting or activation protocol:
 	\end{itemize}
 \end{definition}
 
-\begin{definition}\label{def:liveness_safety_activation}
+\begin{definition}\label{def:liveness-safety-activation}
 	An activation protocol is secure, if it enjoys both the safety and liveness
   properties.
 
@@ -839,7 +840,7 @@ the two said properties hold.
 
 Next we define sufficient and necessary conditions for the voting threshold and
 the adoption threshold for safety and liveness to hold.
-\begin{theorem}\label{th:safety_and_liveness_condition_voting}
+\begin{theorem}\label{th:safety-and-liveness-condition-voting}
 	For each voting protocol with a threshold $\tau_V$ both the safety and
   liveness properties hold iff:
 	\begin{align*}
@@ -883,7 +884,7 @@ $\frac{AdversaryStake}{TotalStake_{upgraded}} = \frac{T}{\frac{1}{r_{Th}} \times
 is the appropriate lower bound for the adoption threshold, in order to ensure
 safety. Here is the respective theorem for the adoption threshold.
 
-\begin{theorem}\label{th:safety_and_liveness_condition_activation}
+\begin{theorem}\label{th:safety-and-liveness-condition-activation}
 	For each activation protocol with a threshold $\tau_A$
 	both the safety and liveness properties hold iff:
 	\begin{align*}
@@ -931,7 +932,7 @@ amount of honest stake that we wish the liveness property to hold.
 Although the threshold function definition is common for both voting and
 activation, since they differ on the required constraint, we present them in
 two separate theorems:
-\begin{theorem}\label{th:proposed_voting_threshold}
+\begin{theorem}\label{th:proposed-voting-threshold}
 	If the threshold $\tau$ of a voting protocol is
 	defined as:
 	\begin{align*}
@@ -952,14 +953,14 @@ stake $L_b$ such that $H_{min} + \gamma < L_b \leq H$.
 		Also, since $H_{min} + \gamma < L_b \leq H$, then we have $\tau(\gamma)
 		< H$.
 		Therefore we have proved that $T < \tau(\gamma) < H$ and thus
-		based on theorem \ref{th:safety_and_liveness_condition_voting} both
+		based on theorem \ref{th:safety-and-liveness-condition-voting} both
 		safety
 		and
 		liveness properties hold.
 	\end{proof}
 \end{theorem}
 
-\begin{theorem}\label{th:proposed_adoption_threshold}
+\begin{theorem}\label{th:proposed-adoption-threshold}
 	If the threshold $\tau$ of an activation protocol is
 	defined as:
 	\begin{align*}
@@ -981,7 +982,7 @@ stake $L_b$ such that $H_{min} + \gamma < L_b \leq H$.
 		< H$.
 		Therefore we have proved that $\frac{1}{r_{Th}}T < \tau(\gamma) < H$
 		and thus
-		based on theorem \ref{th:safety_and_liveness_condition_activation} both
+		based on theorem \ref{th:safety-and-liveness-condition-activation} both
 		safety
 		and
 		liveness properties hold.
@@ -990,7 +991,7 @@ stake $L_b$ such that $H_{min} + \gamma < L_b \leq H$.
 
 The $\gamma$ parameter (safety strength) allows us to adjust the threshold
 towards liveness, or safety. This is depicted in figure
-\ref{fig:gamma_parameter}. Low gamma values provide thresholds with a greater
+\ref{fig:gamma-parameter}. Low gamma values provide thresholds with a greater
 liveness, but reduced safety and inversely, high $\gamma$ values enable higher
 safety, but less liveness. This applies to both the voting and the activation
 processes and this figure corresponds to both.
@@ -1001,7 +1002,7 @@ processes and this figure corresponds to both.
 	keepaspectratio]{figures/gamma.png}
 	\caption{The $\gamma$ parameter versus liveness and safety for either
 	voting or activation.}
-	\label{fig:gamma_parameter}
+	\label{fig:gamma-parameter}
 \end{figure}
 
 This parametric definition of the threshold gives us the ability to adjust the
@@ -1011,7 +1012,7 @@ require a higher $\gamma$ value in order to ensure a greater safety for the
 result by sacrificing some of the liveness and demanding a stronger consent
 from the community.
 
-Table \ref{table:threshold_examples} shows some examples of different threshold
+Table \ref{table:threshold-examples} shows some examples of different threshold
 functions $\tau(\gamma)$, expressed by means of the adversary stake ratio $r$,
 $r = \frac{Adversary\ Stake}{Total\ Stake} = \frac{T}{T+H} = \frac{T}{100}$,
 along with the corresponding constraint on $r$, derived from the $T < H_{min}$
@@ -1050,7 +1051,7 @@ $r < r_{Th}$ (e.g., $r < 1/2 = r_{Th}$, or $r < 1/3 = r_{Th}$ etc.).
 		\hline
 	\end{tabular}
 	\caption{Examples of different threshold definitions.}
-	\label{table:threshold_examples}
+	\label{table:threshold-examples}
 \end{table}
 
 In table \ref{table:examples}, we provide examples of threshold values for
@@ -1604,7 +1605,6 @@ however their activation also takes place at a predefined time in the future.
 
 \section{Performance analysis}
 \label{sec:performance-analysis}
-% FROM performance considerations
 
 \subsection{Impact on transaction throughput}
 \label{sec:impact-trans-thro}
@@ -1715,8 +1715,7 @@ maximum block body size, $64$ Kb, by the number of seconds per-block, $20$.
     10000000 & 2 & 10 & 7 & 1655.458\\
     \hline
   \end{tabular}
-	\caption[Worst-case analysis for voting period]{Worst-case analysis TBPS
-	for a voting period}
+	\caption{Worst-case analysis TBPS	for a voting period}
 	\label{fig:tab:worst-case-analysis-voting-period}
 \end{table}
 
@@ -2148,7 +2147,7 @@ in a Haskell map\footnote{\href{url}{http://hackage.haskell.org/package/containe
 \section{Satisfying the requirements}
 \label{sec:satisfy-requ}
 
-% How does the different aspects of the design satisfies the requirements.
+% How do the different aspects of the design satisfy the requirements.
 
 \subsection{Open}
 \label{sec:sat-open}
