@@ -100,6 +100,91 @@ cabal test all
 Alternatively you can setup [`lorri`](https://github.com/target/lorri) so that
 cabal is available without needing to enter the nix shell.
 
+## Integration with Cardano
+
+TODO: consider linking a video of the demo. Maybe at the beginning of this README.
+
+The update protocol implemented in this repository was integrated into Cardano,
+although this was not merged into the `master` branch of any of the its
+components, due to the experimental nature of this work. This integration took
+place across several components:
+
+- Ledger, hosted in [`cardano-ledger-specs`](). The integration can be found in commit ...
+- Consensus
+- Node and Cardano command line interface,
+- Devops infrastructure
+
+In particular, `cardano-ops` contains a script for testing the integration, and
+a script for benchmarking a run of the update protocol. Both scripts require a
+system with `nix` installed.
+
+The integration testing script setups a testnet consisting of OBFT nodes that
+produce blocks, and pool nodes which register stake pools and participate in the
+update protocol.
+
+In this test, an update proposal to double the maximum block size is activated,
+after going through the ideation and approval phases. The following steps take
+place:
+
+0. Initially each pool node registers a stake pool. This is required since only
+   active stake, i.e., stake delegated to stake pools, is considered in the
+   stake distribution snapshot that the ledger computes and our update mechanism
+   uses.
+1. An SIP is submitted by one of the pool nodes.
+2. All the pool nodes vote for the SIP.
+3. After the SIP is approved, one of the pool nodes submits the implementation.
+4. All the pool nodes vote for the implementation.
+5. After the implementation is approved, all the pool nodes endorse it.
+6. Once the proposal is endorsed, at an epoch change the update is activated.
+
+In parallel with the steps above, two processes are run:
+
+0. A process that submits a random amount of Lovelace to newly created keys. The
+   goal of this process is to show that other transactions can take place
+   during and after an update.
+1. A process that monitors the update state of the ledger, printing the results
+   on screen. This process terminates when the protocol version changes to that
+   protocol version of the update proposal submitted in this script.
+
+To run this demo check out `cardano-ops`, and inside the root directory of this
+project run:
+
+```sh
+./examples/priviledge-demo.sh redeploy
+```
+
+In the `cardano-ops` repository, commit TOOD..., the number of nodes can be
+changed by editing the lists `bftNodeRegionNames` and `poolRegionNames` in
+`topologies/pivo.nix`. This repository also:
+
+- provides additional details on how to manipulate the testnet infrastructure
+  read `examples/shelley-testnet/README.md`, in the `cardano-ops` repository.
+- explains how the tesnet can be run on an AWS cluster, also in
+  `examples/shelley-testnet/README.md`.
+
+The benchmarking script implements the same logic as the test script, but it
+uses a larger number of pool nodes, transaction submission threads, and voting
+keys. Also different network parameters are used so that the network can
+accommodate the additional load.
+
+TODO: the benchmarks were run on AWS only because a large number of nodes needed
+to be deployed. To run on AWS, `....patch` must be applied.
+
+Upon completion the script copies the relevant logs from the nodes so that
+they can be analyzed.
+
+There is a script that processes the node logs and outputs (among other information):
+- average UTxO transactions submitted during the voting period
+- average latency during the voting period
+
+The log analyzer script can be found in the `menl` directory, in the
+`cardano-ops` repository. It expects the node logs to be in the root directory
+of the `cardano-ops` repository. The log analyzer uses `stack`, and can be executed with
+```sh
+stack run
+```
+inside the `menl` directory.
+
 ## Contributing
 
 Make sure:
