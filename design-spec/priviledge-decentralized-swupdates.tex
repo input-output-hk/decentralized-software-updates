@@ -155,6 +155,11 @@ system has evolved the way it has. The systems' update history should be:
 
 \subsection{Secure}
 \label{sec:secure}
+Security for decentralized blockchain updates pertains to two main areas: a) 
+the 
+decentralized decision making process and b) the activation of the changes on 
+the blockchain. Therefore, one has to define security in this context and then 
+propose a mechanism that ensures the said security. 
 
 % TODO: write content.
 
@@ -173,15 +178,18 @@ The impact of the update protocol should have minimal impact on the:
 
 Not all updates are the same. For instance some updates might be more urgent
 than others, some updates might depend on a specific protocol version, some
-updates might take longer than others, etc. Therefore, it should be possible to
+updates might take longer than others, for some updates a higher approval 
+threshold is more appropriate etc. Therefore, it should be possible to
 specify proposal-dependent features that the protocol must enforce.
 
 \subsection{Consistent}
 \label{sec:cons-update-logic}
 
 The update protocol should define and automatically enforce a policy that is
-consistent with the metadata of the update proposals. So for instance, the
-update protocol should obey the priorities of proposals.
+consistent with the metadata of the update proposals and ensure that the 
+applied updates always leave the system in a consistent state. So for instance, 
+the update protocol should obey the priorities of proposals and their version 
+dependencies. 
 
 \section{Design}
 \label{sec:design}
