@@ -147,7 +147,7 @@ source-repository-package
 
 The repository where the DevOps infrastructure repository
 [`cardano-ops`](https://github.com/input-output-hk/cardano-ops), in commit
-[9f10cb783a0b06660c0ead268626781b2009f595](https://github.com/input-output-hk/cardano-ops/commit/9f10cb783a0b06660c0ead268626781b2009f595)
+[5c630ba534d0211a12f3a98fb8796b630b7a56e1](https://github.com/input-output-hk/cardano-ops/commit/5c630ba534d0211a12f3a98fb8796b630b7a56e1)
 contains a script for testing the integration, and a script for benchmarking a
 run of the update protocol. Both scripts require a system with `nix` installed.
 We mention how to run them later on.
@@ -183,14 +183,14 @@ In parallel with the steps above, two processes are run:
 A recording of the demo can be found [here](https://drive.google.com/file/d/1jVNL7NXsvR5OpshtQqU1j9SfGA7tL0GK/view?usp=sharing "Video of a demo run of the prototype").
 
 To run this demo check out `cardano-ops`, and inside the root directory of this
-project run:
+project start a [`tmux`](https://github.com/tmux/tmux/wiki) session and run:
 
 ```sh
 ./examples/priviledge-demo.sh redeploy
 ```
 
 In the `cardano-ops` repository (commit
-9f10cb783a0b06660c0ead268626781b2009f595) the number of nodes can be changed by
+`5c630ba534d0211a12f3a98fb8796b630b7a56e1`) the number of nodes can be changed by
 editing the lists `bftNodeRegionNames` and `poolRegionNames` in
 `topologies/pivo.nix`. This repository also:
 
@@ -198,6 +198,11 @@ editing the lists `bftNodeRegionNames` and `poolRegionNames` in
   read `examples/shelley-testnet/README.md`, in the `cardano-ops` repository.
 - explains how the tesnet can be run on an AWS cluster, also in
   `examples/shelley-testnet/README.md`.
+
+The `examples/pivo-version-change/aws-integration-test.patch` patch contains an
+example of the changes necessary to run the integration tests with 10 pool nodes
+on AWS. Besides modifying the `poolRegionNames` this patch delays blockchain
+start time so that it takes place after all the nodes are deployed.
 
 The benchmarking script implements the same logic as the test script, but it
 uses a larger number of transaction submission threads and voting keys. In the
@@ -207,7 +212,7 @@ network can accommodate the additional load.
 
 The benchmarks were run on AWS only because a large number of nodes needed to be
 deployed. To run on AWS, the
-`examples/pivo-version-change/aws-benchmarks-run.patch` must be applied. This
+`examples/pivo-version-change/aws-benchmarks.patch` must be applied. This
 patch sets a different set of network parameters for the testnet w.r.t. the
 integration tests, and uses a different number of nodes. Due to a quirk in the
 AWS testnet setup, to guarantee that everything runs smoothly first the network
