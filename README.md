@@ -102,21 +102,55 @@ cabal is available without needing to enter the nix shell.
 
 ## Integration with Cardano
 
-TODO: consider linking a video of the demo. Maybe at the beginning of this README.
-
 The update protocol implemented in this repository was integrated into Cardano,
 although this was not merged into the `master` branch of any of the its
-components, due to the experimental nature of this work. This integration took
-place across several components:
+components, due to the experimental nature of this work. However, as a result of
+this integration the ledger layer of Cardano was made parametric in the update
+protocol. This was a significant change that did get merged into the `master`
+branch of
+[`cardano-ledger-specs`](https://github.com/input-output-hk/cardano-ledger-specs).
 
-- Ledger, hosted in [`cardano-ledger-specs`](). The integration can be found in commit ...
-- Consensus
-- Node and Cardano command line interface,
-- Devops infrastructure
+The update protocol integration with Cardano took place across several
+components:
 
-In particular, `cardano-ops` contains a script for testing the integration, and
-a script for benchmarking a run of the update protocol. Both scripts require a
-system with `nix` installed.
+- Ledger.
+- Consensus.
+- Node and Cardano command line interface.
+- Devops infrastructure.
+
+The [`cardano-node`](https://github.com/input-output-hk/cardano-node/)
+repository, commit
+[61e44a22f73969054070edb4668b5b922de94107](https://github.com/input-output-hk/cardano-node/commit/61e44a22f73969054070edb4668b5b922de94107),
+contains the references to all the components and their corresponding commits in
+the `cabal.project` file:
+
+```cabal
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/decentralized-software-updates
+  tag: e8325a440782a9c362a121340cea64a37e876e2a
+-- ...
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-ledger-specs
+  tag: 3626206b45e68499d7869a4aeeac6ed5889a490d
+-- ...
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/ouroboros-network
+  tag: 035e65bdfc2d79ccd4a204e1735c16e8307991cb
+-- ...
+
+```
+
+The repository where the DevOps infrastructure repository
+[`cardano-ops`](https://github.com/input-output-hk/cardano-ops), in commit
+[3ff3c61482f29d4b571fad34418b02db1696853b](https://github.com/input-output-hk/cardano-ops/commit/3ff3c61482f29d4b571fad34418b02db1696853b)
+contains a script for testing the integration, and a script for benchmarking a
+run of the update protocol. Both scripts require a system with `nix` installed.
+We mention how to run them later on.
 
 The integration testing script setups a testnet consisting of OBFT nodes that
 produce blocks, and pool nodes which register stake pools and participate in the
@@ -143,8 +177,10 @@ In parallel with the steps above, two processes are run:
    goal of this process is to show that other transactions can take place
    during and after an update.
 1. A process that monitors the update state of the ledger, printing the results
-   on screen. This process terminates when the protocol version changes to that
+   on screen. This process terminates when the protocol version changes to the
    protocol version of the update proposal submitted in this script.
+
+A recording of the demo can be found [here](https://drive.google.com/file/d/1jVNL7NXsvR5OpshtQqU1j9SfGA7tL0GK/view?usp=sharing "Video of a demo run of the prototype").
 
 To run this demo check out `cardano-ops`, and inside the root directory of this
 project run:
@@ -153,8 +189,9 @@ project run:
 ./examples/priviledge-demo.sh redeploy
 ```
 
-In the `cardano-ops` repository, commit TOOD..., the number of nodes can be
-changed by editing the lists `bftNodeRegionNames` and `poolRegionNames` in
+In the `cardano-ops` repository (commit
+3ff3c61482f29d4b571fad34418b02db1696853b) the number of nodes can be changed by
+editing the lists `bftNodeRegionNames` and `poolRegionNames` in
 `topologies/pivo.nix`. This repository also:
 
 - provides additional details on how to manipulate the testnet infrastructure
@@ -163,27 +200,62 @@ changed by editing the lists `bftNodeRegionNames` and `poolRegionNames` in
   `examples/shelley-testnet/README.md`.
 
 The benchmarking script implements the same logic as the test script, but it
-uses a larger number of pool nodes, transaction submission threads, and voting
-keys. Also different network parameters are used so that the network can
-accommodate the additional load.
+uses a larger number of transaction submission threads and voting keys. In the
+test script we used 10 voting keys, in the benchmarks we used a maximum of 12K
+voting keys instead. Also different network parameters are used so that the
+network can accommodate the additional load.
 
-TODO: the benchmarks were run on AWS only because a large number of nodes needed
-to be deployed. To run on AWS, `....patch` must be applied.
+The benchmarks were run on AWS only because a large number of nodes needed to be
+deployed. To run on AWS, the
+`examples/pivo-version-change/aws-benchmarks-run.patch` must be applied. This
+patch sets a different set of network parameters for the testnet w.r.t. the
+integration tests, and uses a different number of nodes. Due to a quirk in the
+AWS testnet setup, to guarantee that everything runs smoothly first the network
+must be deployed and redeployed after some delay. To do this first enter the nix
+shell:
+
+```sh
+nix-shell
+```
+
+and then run:
+
+```sh
+nixops destroy --confirm && nixops  deploy -k \
+  && sleep 120; ./examples/pivo-benchmark.sh redeploy
+```
+
+The voting process can be followed by monitoring the script's logs:
+
+```sh
+tail -f voting-process.log
+```
 
 Upon completion the script copies the relevant logs from the nodes so that
 they can be analyzed.
 
-There is a script that processes the node logs and outputs (among other information):
+There is a program that processes the node logs and outputs (among other information):
 - average UTxO transactions submitted during the voting period
 - average latency during the voting period
 
-The log analyzer script can be found in the `menl` directory, in the
+The log analyzer program can be found in the `menl` directory, in the
 `cardano-ops` repository. It expects the node logs to be in the root directory
-of the `cardano-ops` repository. The log analyzer uses `stack`, and can be executed with
+of the `cardano-ops` repository. The log analyzer can be run using `stack` , and
+can be executed as follows:
+
 ```sh
 stack run
 ```
-inside the `menl` directory.
+
+inside the `menl` directory. This program assumes that the following log files
+are stored in the root directory of `cardano-ops`:
+- `bft-node.log`
+- `bft-nodes-tx-submission.log`
+- `voting-timing.log`
+
+These log files are produced by the benchmarking script. When run on an AWS
+cluster, they should be copied to the machine where the logs will be analyzed.
+
 
 ## Contributing
 
