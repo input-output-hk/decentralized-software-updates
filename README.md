@@ -147,7 +147,7 @@ source-repository-package
 
 The repository where the DevOps infrastructure repository
 [`cardano-ops`](https://github.com/input-output-hk/cardano-ops), in commit
-[3ff3c61482f29d4b571fad34418b02db1696853b](https://github.com/input-output-hk/cardano-ops/commit/3ff3c61482f29d4b571fad34418b02db1696853b)
+[9f10cb783a0b06660c0ead268626781b2009f595](https://github.com/input-output-hk/cardano-ops/commit/9f10cb783a0b06660c0ead268626781b2009f595)
 contains a script for testing the integration, and a script for benchmarking a
 run of the update protocol. Both scripts require a system with `nix` installed.
 We mention how to run them later on.
@@ -190,7 +190,7 @@ project run:
 ```
 
 In the `cardano-ops` repository (commit
-3ff3c61482f29d4b571fad34418b02db1696853b) the number of nodes can be changed by
+9f10cb783a0b06660c0ead268626781b2009f595) the number of nodes can be changed by
 editing the lists `bftNodeRegionNames` and `poolRegionNames` in
 `topologies/pivo.nix`. This repository also:
 
