@@ -95,15 +95,15 @@ incorporated later on, without needing to alter the prototype. See
 Currently we only support building the implementation using `nix` because this
 is the build method used at IOHK.
 
-To test the executable specifications enter a `nix` shell use `cabal`:
+To test the executable specifications enter a `nix` shell and use `cabal`:
 
 ```sh
 nix-shell
 cabal test all
 ```
 
-Alternatively you can setup [`lorri`](https://github.com/target/lorri) so that
-cabal is available without needing to enter the nix shell.
+Additionally, you can setup [`lorri`](https://github.com/target/lorri) so that
+`cabal` is available without needing to enter the `nix` shell.
 
 ## Contributing
 
