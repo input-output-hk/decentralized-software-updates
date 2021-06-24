@@ -40,7 +40,8 @@
 }
 
 \title{
-  Decentralized software updates for stake-based ledgers: Design specification 
+  Decentralized software updates for stake-based ledgers\\
+  \large Design specification 
   of the PRIViLEDGE update mechanism\\
 }
 
@@ -2252,7 +2253,9 @@ in a Haskell map\footnote{\href{url}{http://hackage.haskell.org/package/containe
 \label{sec:sat-open}
 
 This design does not address the definition of minimal requirements for proposal
-submissions that will prevent spam attacks.
+submissions that will prevent spam attacks. However it utilizes the fee-based 
+DDoS protection mechanism that is used for transactions similar to Bitcoin, 
+Ethereum and many public blockchains.
 
 This design addresses the requirement that any participant that can submit a
 common transaction should be able to submit on vote on update proposals, by
@@ -2262,7 +2265,8 @@ defining new \emph{SIP}, \emph{UP}, and \emph{vote} transaction types.
 \label{sec:sat-decentr-decis-making}
 
 This design addresses the requirements that the community can vote on updates,
-by replacing central authorities with an on-chain voting mechanism in which
+by replacing central authorities from \emph{all decision points} in the 
+lifecycle of an update with an on-chain voting mechanism in which
 participants either:
 \begin{itemize}
 \item vote directly by submitting a vote to the blockchain in the same way they
@@ -2285,6 +2289,26 @@ immutable ledger that is the blockchain.
 
 \subsection{Secure}
 \label{sec:sat-secure}
+Security in the context of updates has been formally defined:
+\begin{itemize}
+	\item wrt the 
+	decision making process (voting and endorsement processes) we have defined 
+	security via the safety and liveness properties (see definitions 
+	\ref{def:liveness-safety-voting} and \ref{def:liveness-safety-activation})
+	\item wrt to the transition from the current protocol version to the new 
+	one (see 
+	section \ref{sec:secure-activation-of-a-new-protocol-version} and details 
+	in 
+	\cite{secure_activation}). 
+\end{itemize}
+For the former we have defined the necessary and 
+sufficient condition in order for a threshold to enjoy both properties and have 
+shown the trade-off between the two. Moreover we have provided a threshold 
+function, for which we have proved its security that gives as the ability to 
+set a distinct threshold per proposal leaning more towards safety or liveness 
+based on the context of each update. For the latter, we have provided in 
+\cite{secure_activation} two activation protocols with different trade-offs and 
+have proved their security.
 
 % TODO: is delegation to experts part of the security of the protocol?
 % Delegation to experts:
@@ -2307,7 +2331,8 @@ Our asymptotic complexity analysis and micro-benchmarks showed that the impact
 chain size and transaction throughput is also linear on the number of
 participants.
 
-The increase in latency is a quadratic function of the number of participants.
+The increase in latency is a quadratic function of the number of participants 
+in the extreme scenario of the simultaneous voting of all parties.
 More work is needed to determine if this behavior is expected, and/or
 acceptable.
 
@@ -2408,7 +2433,7 @@ This type of informal guidance is too unstable and prone to chain splits, or
 prone to becoming too de-facto centralized \cite{buterin_on_gov}.
 
 There are blockchain systems like Dash~\cite{dash} or Decred~\cite{decred} that
-adopt a decentralized governance scheme. It these systems, the priorities as
+adopt a decentralized governance scheme. In these systems, the priorities as
 well as the funding of update proposals is voted on-chain as part of a
 maintenance protocol.
 %
