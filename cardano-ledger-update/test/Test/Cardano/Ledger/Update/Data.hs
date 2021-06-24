@@ -77,8 +77,8 @@ instance Implementation MockSIP MockImpl where
     , mpSupersedesVersion :: !(Version (Protocol MockImpl))
     } deriving (Eq, Ord, Show)
 
-  newtype Application MockImpl =
-    MockApplication { appId :: Word64 }
+  newtype NonProtocol MockImpl =
+    MockNonProtocol { appId :: Word64 }
     deriving stock (Eq, Show)
     deriving newtype (ToCBOR, FromCBOR)
 
@@ -115,8 +115,8 @@ nextId (ProtocolId i)
   | i == maxBound = error "Maximum number of id's was reached."
   | otherwise     = ProtocolId (i + 1)
 
-instance Identifiable (Application MockImpl) where
-  newtype Id (Application MockImpl) = AppId Word64
+instance Identifiable (NonProtocol MockImpl) where
+  newtype Id (NonProtocol MockImpl) = AppId Word64
     deriving stock (Eq, Ord, Show)
     deriving newtype (ToCBOR, FromCBOR)
 
