@@ -75,9 +75,23 @@ The module structure of the implementation is shown below.
 
 ![Implementation module structure](images/src-intra-deps.svg)
 
-[... look how nice: activation depends on approval which in turn depends on ideation ...]
+As mentioned previously, the update mechanism API entry point is in
+`Cardano.Ledger.Update`. This modules relies on the `Activation`, `Approval`,
+and `Ideation` modules. In particular, `Activation` relies on `Approval` to get
+information about approved proposals that can enter the activation phase.
+Similarly, `Approval` relies on the `Ideation` module to get information about
+approved SIP proposals.
 
-...
+The `Approval` and `Ideation` modules both rely on the `ProposalsState` module,
+which contains functions to keep track of the state of the different update
+proposals submitted to the system.
+
+Environment constraints are modeled by the:
+- `TracksSlotTime`,
+- `HasAdversarialStakeRatio`,
+- `HasVotingPeriodsCap`, and
+- `HasStakeDistribution`
+classes. See the corresponding files for more details.
 
 ... # tests
 
