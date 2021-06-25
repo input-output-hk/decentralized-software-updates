@@ -51,16 +51,16 @@
   \and
   Damian Nadales \\
   {\small \texttt{damian.nadales@iohk.io}}\\
-  % TODO: add more authors if deemed appropriate.
 }
 
 \date{\today}
 
 \maketitle
 
-\begin{abstract}
+\section*{List of Contributors}
+\label{acknowledgements}
 
-\end{abstract}
+Michele Ciampi, Dionysis Zindros, Aggelos Kiayias.
 
 \tableofcontents
 \listoffigures
@@ -85,7 +85,6 @@ centralized governance scheme is an oxymoron.
 % Why people should care about the problems stated in this document?
 Thus a decentralized update mechanism is crucial for achieving a decentralized
 blockchain.
-% TODO: why achieving a decentralized blockchain is important?
 
 % Why people should care about this document? What is the target audience?
 This document is intended for stakeholders interested realizing an
@@ -162,8 +161,6 @@ decentralized decision making process and b) the activation of the changes on
 the blockchain. Therefore, one has to define security in this context and then
 propose a mechanism that ensures the said security.
 
-% TODO: write content.
-
 \subsection{Performant and scalable}
 \label{sec:performant-scalable}
 
@@ -195,14 +192,6 @@ dependencies.
 \section{Design}
 \label{sec:design}
 
-% Hmmm, I'm thinking if we need to say something about the blockchain
-% architecture we assume: for instance, we assume that we have a ledger
-% components that will execute the update protocol somehow.
-
-% Updates are activated.
-
-% Maybe say that we assume the blockchain time is split into epochs.
-
 \subsection{Update types}
 \label{sec:update-types}
 
@@ -220,9 +209,6 @@ wallets, explorers) can evolve. We distinguish the following update types:
     protocol requires the nodes to download and install new software, the
     protocol must have a way to determine when a sufficient majority of them
     have upgraded to the new version.
-    % NOTE: might want to call these software and parameters protocol updates,
-    % however this seems to be too specific to the protocol. What happens if in
-    % the future we add the ability to upgrade the ledger rules dynamically?
   \item[Non-signaled] An update is said to be \emph{non-signaled} if the nodes
     can move to the new protocol version without needing to know if other nodes
     are ready to move to said version as well.
@@ -766,7 +752,7 @@ per-proposal gives stakeholders more time for reviewing a proposal.
 
 In the previous sections, we have described two separate voting phases in the
 decentralized update lifecycle
-% TODO: see if we want to keep these (figure \ref{lifecycle}),
+%
 namely ideation and approval, where a proposal can be approved or rejected by
 the community.
 %
@@ -1135,8 +1121,7 @@ An SIP might contain
 
 Update proposals in this phase are recorded as a structured text document
 (e.g., JSON format).
-% TODO: do we need to mention the P2P storage system that is assumed? Why? Is it
-% relevant for the protocol described in this document?
+%
 This design does not constrain where the SIP text is stored. A SIP that is
 unavailable or whose hash does not match the one submitted on the chain can
 simply be rejected by the community.
@@ -1148,9 +1133,6 @@ Any stakeholder can submit an SIP, thereby proposing a system update.
 
 The SIP submission takes place under a commit-reveal scheme, to ensure that the
 ownership of the proposals is preserved.
-%
-% TODO: we should describe this commit reveal scheme
-%
 
 Once the SIP is revealed, stakeholders can access all the its details and a
 voting period starts. Note that stakeholders not only vote for the SIP, but also
@@ -1211,9 +1193,6 @@ This UP must be submitted to the blockchain for approval by the stakeholders to
 move forward in the update process. Submission of the UP takes place using a
 commit-reveal scheme.
 
-% TODO: do we say anything about the not having a centrally owned code
-% repository? This seems to be irrelevant to the protocol described here.
-
 All approved UPs are stored in the blockchain. This enables the developer to
 find the appropriate source code version that will be updated (probably the
 latest) using the link provided in the UP's metadata.
@@ -1238,6 +1217,23 @@ new protocol version remains in a latent state until activation takes place.
 
 In a signaled update, the nodes use the endorsement period to signal other nodes
 their readiness to run the new protocol version.
+
+% Why not vote and endorse an implementation at the same time?
+In this design it is important that an UP endorsement takes place \emph{after}
+said UP gets approved.
+%
+This is because voting and endorsing in parallel:
+\begin{itemize}
+\item Constitutes a \emph{security risk}: malicious UPs can be easily deployed
+  by encouraging the community to install a proposal before it is approved by
+  the experts.
+\item Undermines the authority of experts: the community would be less prone to
+  follow the advice of a majority of experts if they can simply chose to install
+  any submitted UP.
+\item Favors community splitting: if two UPs that implement the same SIP are
+  submitted, it would be unclear for the community which implementations they
+  should download and install.
+\end{itemize}
 
 One popular method for signaling is to include the new version of the software
 in the blocks the node issue. This denotes that they are ready to run the new
@@ -1285,11 +1281,9 @@ likely the beginning of a new epoch.
 The activation of non-signaled protocol updates do not require endorsements,
 however their activation also takes place at a predefined time in the future.
 
-% This seems like the right place to cite the Esorics paper. When we talk about
-% the "enactment" process, we should mention what are the possible solutions. We
-% should also mention the hard-fork combinator.
-\subsubsection{Secure activation of a new protocol version }
+\subsubsection{Secure activation of a new protocol version}
 \label{sec:secure-activation-of-a-new-protocol-version}
+
 A secure activation of a new version of the consensus protocol is one that
 achieves a \emph{secure transition} from the current version to a new one. We
 have formally defined what is a secure activation and have proposed two
@@ -1324,9 +1318,6 @@ module residing in the consensus layer named \emph{hard-fork combinator}. This
 is the candidate module for implementing the proposed protocols in
 \cite{secure_activation}. The hard-fork combinator is triggered by the update
 system state in order to initiate the said transition.
-
-% TODO: OPTIONAL: explain why not vote and endorse an implementation at the
-%same time?
 
 \subsubsection{Overview of the activation process}
 \label{sec:overview-of-the-activation-process}
@@ -2321,15 +2312,6 @@ based on the context of each update. For the latter, we have provided in
 \cite{secure_activation} two activation protocols with different trade-offs and
 have proved their security.
 
-% TODO: is delegation to experts part of the security of the protocol?
-% Delegation to experts:
-%
-% - makes participation more likely (although this depends on the experts' incentives)
-%
-% - put's important decisions in the hands of the people that have the technical
-%   knowledge
-%
-
 \subsection{Performant and scalable}
 \label{sec:sat-performant-scalable}
 
@@ -2381,9 +2363,6 @@ also determined by the proposal's metadata.
 \section{Implementation of this design specification}
 \label{sec:impl-this-design}
 
-% Mention that we have an implementation of the concepts presented in this
-% document, without giving much details about it. The interested reader can look
-% at the code (and maybe we'll have time to document this design).
 Parts of the design described in this document was implemented and integrated to
 Cardano, in a separate branch. This prototype does not implement delegation. The
 PRIViLEDGE deliverable~\cite{priviledge_d43} contains a detailed description of
@@ -2420,8 +2399,6 @@ As a result of the implementation of the prototype:
   measures against high transaction latency are required.
 \end{itemize}
 
-% The interested reader can check: deliverables, source code. Maybe an
-% implementation report.
 The reader interested in the design and implementation of the prototype can
 check the PRIViLEDGE deliverables~\cite{priviledge_d11, priviledge_d12,
   priviledge_d41}, as well as the implementation documentation and source
@@ -2581,20 +2558,6 @@ pledge a certain amount of Ada to register.
 
 The current design does not prescribe how expert pools should be registered,
 which means that it allows for the addition of an incentives scheme.
-
-\section{Conclusions}
-\label{sec:conclusions}
-
-% We don't claim this solution is complete, but is intended to constitute a
-% solid base for adding more features that address the open problems described
-% in Section ...
-
-
-        % - How this prototype can accommodate a restriction in scope:
-        %   - Having less phases.
-
-        %   - Having a committee / set of genesis keys.
-
 
 \bibliographystyle{acm}
 \bibliography{references}
