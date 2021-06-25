@@ -93,7 +93,13 @@ Environment constraints are modeled by the:
 - `HasStakeDistribution`
 classes. See the corresponding files for more details.
 
-... # tests
+# Tests
+
+The implementation of the update mechanism contains an extensive series of unit
+and property tests. The module structure of the testing code is show below, and
+explained next.
+
+![Tests module structure](images/test-intra-deps.svg)
 
 ... we have unit tests
 
