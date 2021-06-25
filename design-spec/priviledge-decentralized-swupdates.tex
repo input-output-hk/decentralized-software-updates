@@ -1687,22 +1687,32 @@ also be incorrect if we continue in that fork.
 
 \subsection{When multiple client implementations exist}
 
-Since the consensus protocol is open source, there might exist multiple
-implementations of the client (in different languages and/or different
-licensing schemes). As we have seen, our mechanism has a separate on-chain
-voting phase during the ideation phase (section \ref{sec:ideation}). In this
-phase a formal-spec/design of the protocol update is submitted (a SIP - System
-Improvement Proposal). So we are \emph{clearly distinguishing the protocol
-update decision from the implementation approval decision}. The latter takes
-place in the second on-chain voting phase, the approval phase (section
-\ref{sec:approval}), which references the approved SIP. So in a
-multi-implementation setting, what you really need to approve and endorse is
-the protocol upgrade and not the implementation per se. The implementation
-adopted by each party is something that we cannot essentially control. However,
-in the approval phase mentioned above, we can still have a ``blessed''
-\emph{reference implementation} of the upgraded protocol, or even  have a
-single proposal that includes multiple implementations (e.g., in different
-languages) that are approved/blessed by the community.
+In the cases where the consensus protocol is open, alternative client
+implementations might exist (for instance in different languages and/or different
+licensing schemes).
+%
+As we have seen, our mechanism has a separate on-chain voting phase during the
+ideation phase (Section~\ref{sec:ideation}).
+%
+In this phase a formal-spec/design of the protocol update is submitted (as an
+SIP).
+%
+So the update mechanism defined in this document \emph{clearly distinguishes
+  the protocol update decision from the implementation approval decision}.
+%
+The latter takes place in the second on-chain voting phase, the approval phase
+(Section~\ref{sec:approval}), which references the approved SIP.
+
+In a multi-implementation setting, what the community really needs to approve
+and endorse is the protocol upgrade, and not a particular implementation per se.
+%
+The implementation adopted by each participant in the network is something that
+cannot be controlled.
+%
+However, in the approval phase mentioned above, we can still have a ``blessed''
+\emph{reference implementation} of the upgraded protocol, or even have a single
+proposal that includes multiple implementations (e.g., in different languages)
+that are approved/blessed by the community.
 
 \section{Performance analysis}
 \label{sec:performance-analysis}
