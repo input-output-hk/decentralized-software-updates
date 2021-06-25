@@ -52,6 +52,7 @@ auto/
 specs/**/result*
 result*
 specs/**/.ghc.environment.x86_64-linux-*
+spec.decentralized-updates
 
 # Profiling
 *.hp
