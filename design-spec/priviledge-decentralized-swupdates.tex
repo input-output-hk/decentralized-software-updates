@@ -41,7 +41,7 @@
 
 \title{
   Decentralized software updates for stake-based ledgers\\
-  \large Design specification 
+  \large Design specification
   of the PRIViLEDGE update mechanism\\
 }
 
@@ -74,13 +74,13 @@ This document presents the design of a decentralized governance mechanism for
 updating public blockchain systems.
 % What is governance.
 In this context, updating refers to the set of changes by which the blockchain
-evolves. Governance deals with the set of rules by which the decisions that 
-pertain to this update 
-process are made. 
+evolves. Governance deals with the set of rules by which the decisions that
+pertain to this update
+process are made.
 % When is governance decentralized?
 We say that blockchain governance is decentralized when the community can
 leverage on these rules to determine the direction in which said blockchain
-evolves. A decentralized blockchain with a 
+evolves. A decentralized blockchain with a
 centralized governance scheme is an oxymoron.
 % Why people should care about the problems stated in this document?
 Thus a decentralized update mechanism is crucial for achieving a decentralized
@@ -156,11 +156,11 @@ system has evolved the way it has. The systems' update history should be:
 
 \subsection{Secure}
 \label{sec:secure}
-Security for decentralized blockchain updates pertains to two main areas: a) 
-the 
-decentralized decision making process and b) the activation of the changes on 
-the blockchain. Therefore, one has to define security in this context and then 
-propose a mechanism that ensures the said security. 
+Security for decentralized blockchain updates pertains to two main areas: a)
+the
+decentralized decision making process and b) the activation of the changes on
+the blockchain. Therefore, one has to define security in this context and then
+propose a mechanism that ensures the said security.
 
 % TODO: write content.
 
@@ -179,7 +179,7 @@ The impact of the update protocol should have minimal impact on the:
 
 Not all updates are the same. For instance some updates might be more urgent
 than others, some updates might depend on a specific protocol version, some
-updates might take longer than others, for some updates a higher approval 
+updates might take longer than others, for some updates a higher approval
 threshold is more appropriate etc. Therefore, it should be possible to
 specify proposal-dependent features that the protocol must enforce.
 
@@ -187,10 +187,10 @@ specify proposal-dependent features that the protocol must enforce.
 \label{sec:cons-update-logic}
 
 The update protocol should define and automatically enforce a policy that is
-consistent with the metadata of the update proposals and ensure that the 
-applied updates always leave the system in a consistent state. So for instance, 
-the update protocol should obey the priorities of proposals and their version 
-dependencies. 
+consistent with the metadata of the update proposals and ensure that the
+applied updates always leave the system in a consistent state. So for instance,
+the update protocol should obey the priorities of proposals and their version
+dependencies.
 
 \section{Design}
 \label{sec:design}
@@ -270,7 +270,7 @@ We distinguish the following \emph{phases} in the life cycle of an update:
 \item[Ideation] In this phase, the idea for an update is presented to the
   stakeholders in the form of an \emph{system improvement proposal} (SIP). An
   SIP is voted by the system's stakeholders. An SIP is materialized in the form
-  of a (well-structured) text document, and as such, once it is approved it 
+  of a (well-structured) text document, and as such, once it is approved it
   does not have any effect
   in the system until its implementation gets activated.
 \item[Implementation] In case an update requires an implementation, this is the
@@ -280,7 +280,7 @@ We distinguish the following \emph{phases} in the life cycle of an update:
   off-chain.
 \item[Approval] In this phase, the information about the implementation of an
   SIP is submitted to the chain. Henceforth, the implementation update proposal
-  is referred to as UP (\emph{update proposal}). As in the ideation phase, the 
+  is referred to as UP (\emph{update proposal}). As in the ideation phase, the
   stakeholders vote on the
   implementation.
 \item[Activation] Once an protocol update implementation is approved, it moves
@@ -1133,7 +1133,7 @@ An SIP might contain
 \item priority, etc.
 \end{itemize}
 
-Update proposals in this phase are recorded as a structured text document 
+Update proposals in this phase are recorded as a structured text document
 (e.g., JSON format).
 % TODO: do we need to mention the P2P storage system that is assumed? Why? Is it
 % relevant for the protocol described in this document?
@@ -1290,11 +1290,11 @@ however their activation also takes place at a predefined time in the future.
 % should also mention the hard-fork combinator.
 \subsubsection{Secure activation of a new protocol version }
 \label{sec:secure-activation-of-a-new-protocol-version}
-A secure activation of a new version of the consensus protocol is one that 
-achieves a \emph{secure transition} from the current version to a new one. We 
-have formally defined what is a secure activation and have proposed two 
-distinct protocols that provably achieve this \cite{secure_activation}. In a 
-nutshell, secure activation means, the secure 
+A secure activation of a new version of the consensus protocol is one that
+achieves a \emph{secure transition} from the current version to a new one. We
+have formally defined what is a secure activation and have proposed two
+distinct protocols that provably achieve this \cite{secure_activation}. In a
+nutshell, secure activation means, the secure
 transition
 from the old ledger (L1) to the new ledger (L2) in a way where:
 \begin{itemize}
@@ -1302,30 +1302,30 @@ from the old ledger (L1) to the new ledger (L2) in a way where:
 \item L2 enjoys consistency \cite{backbone}
 \item L2 has L1 as a prefix
 \end{itemize}
-The first two properties ensure the security of the updated ledger while the 
-third property ensures the seamless continuation of the ledger history. 
+The first two properties ensure the security of the updated ledger while the
+third property ensures the seamless continuation of the ledger history.
 
-In \cite{secure_activation}, our first activation protocol requires the 
-structure of the current and the updated blockchain to be very similar (only 
-the structure of the blocks can be different) but it allows for an update 
-process more simple and efficient. The second activation protocol that we 
-propose is very generic (i.e., makes few assumptions on the similarities 
-between the structure of the current blockchain and the updated blockchain). 
-The drawback of this protocol is that it requires the new blockchain to be 
-resilient against a specific adversarial behavior and requires all the honest 
-parties to be online during the update process. However, we show how to get rid 
-of the latest requirement (the honest parties being online during the update) 
-in the case of proof-of-work and proof-of-stake ledgers. The interested reader 
+In \cite{secure_activation}, our first activation protocol requires the
+structure of the current and the updated blockchain to be very similar (only
+the structure of the blocks can be different) but it allows for an update
+process more simple and efficient. The second activation protocol that we
+propose is very generic (i.e., makes few assumptions on the similarities
+between the structure of the current blockchain and the updated blockchain).
+The drawback of this protocol is that it requires the new blockchain to be
+resilient against a specific adversarial behavior and requires all the honest
+parties to be online during the update process. However, we show how to get rid
+of the latest requirement (the honest parties being online during the update)
+in the case of proof-of-work and proof-of-stake ledgers. The interested reader
 can find more details on this topic in our paper \cite{secure_activation}.
 
-In Cardano, a specific protocol version is represented by a set of ledger rules 
-called \emph{an era}. The transition from one era to another takes place by a 
-module residing in the consensus layer named \emph{hard-fork combinator}. This 
-is the candidate module for implementing the proposed protocols in 
-\cite{secure_activation}. The hard-fork combinator is triggered by the update 
+In Cardano, a specific protocol version is represented by a set of ledger rules
+called \emph{an era}. The transition from one era to another takes place by a
+module residing in the consensus layer named \emph{hard-fork combinator}. This
+is the candidate module for implementing the proposed protocols in
+\cite{secure_activation}. The hard-fork combinator is triggered by the update
 system state in order to initiate the said transition.
 
-% TODO: OPTIONAL: explain why not vote and endorse an implementation at the 
+% TODO: OPTIONAL: explain why not vote and endorse an implementation at the
 %same time?
 
 \subsubsection{Overview of the activation process}
@@ -1352,22 +1352,22 @@ increase. In this way, the update system can rely on the update proposal's
 protocol-version and its declared predecessor version to:
 \begin{itemize}
 	\item Determine priorities: a lower version (higher priority) is activated
-	before a higher version (lower priority) one; specifying the version gives 
+	before a higher version (lower priority) one; specifying the version gives
 	us
 	a simple way to specify urgency.
-	\item Resolve conflicts: a proposal declares \textbf{one and only one} 
+	\item Resolve conflicts: a proposal declares \textbf{one and only one}
 	version
-	that it supersedes (its predecessor). Thus a proposal is in conflict with 
+	that it supersedes (its predecessor). Thus a proposal is in conflict with
 	all
 	others except the one that it supersedes.
 	\item Check dependencies: a proposal depends only on the one it supersedes.
 \end{itemize}
 This design decision requires:
 \begin{itemize}
-	\item The implementers to pick exactly one version their update is 
+	\item The implementers to pick exactly one version their update is
 	compatible
 	with, and determine which version their update should determine.
-	\item The experts to check the version that an update has, and the 
+	\item The experts to check the version that an update has, and the
 	compatibility
 	with the version it supersedes.
 \end{itemize}
@@ -1384,7 +1384,7 @@ cancellations). In the unlikely case that two approved proposals:
 we resolve this conflict by:
 \begin{enumerate}
 	\item picking the proposal with the highest stake in favor, or
-	\item picking the proposal with the greatest hash, if they have the same 
+	\item picking the proposal with the greatest hash, if they have the same
 	stake
 	in favor.
 \end{enumerate}
@@ -1429,7 +1429,7 @@ An update proposal can enter the endorsement period if two conditions are met:
 \begin{enumerate}
 	\item It is at the front of the priority queue (i.e. it is has the lowest
 	version among the proposals queue).
-	\item The version and proposal hash that the proposal declares to supersede 
+	\item The version and proposal hash that the proposal declares to supersede
 	must
 	be \textbf{the same} as the current version.
 \end{enumerate}
@@ -1459,7 +1459,7 @@ proposal is tallied $2k$ blocks before the end of an epoch. We consider the
 stake \textbf{at the slot in which we tally}. We have two activation thresholds
 depending on the epoch in which the tally takes place:
 \begin{itemize}
-	\item If the next epoch does not coincides with the end of the safety lag, 
+	\item If the next epoch does not coincides with the end of the safety lag,
 	then
 	this threshold is the \emph{adoption threshold} ($\tau_A$).
 	\item If the next epoch coincides with the end of the safety lag, then this
@@ -1472,9 +1472,9 @@ Once we sum up the stake endorsing a proposal there are three possibilities:
 	\begin{enumerate}
 		\item If the safety lag expires on the next epoch then the proposal is
 		canceled.
-		\item If the safety lag does not expire on the next epoch then the 
+		\item If the safety lag does not expire on the next epoch then the
 		proposal
-		can continue to be endorsed on the next epoch. The endorsements are 
+		can continue to be endorsed on the next epoch. The endorsements are
 		carried
 		over.
 	\end{enumerate}
@@ -1483,7 +1483,7 @@ Once we sum up the stake endorsing a proposal there are three possibilities:
 \end{enumerate}
 
 Protocol updates (signaled and otherwise) get activated \emph{at the beginning
-	of an epoch}. The reason for this is that the ledger and consensus rules 
+	of an epoch}. The reason for this is that the ledger and consensus rules
 	rely
 on these to be stable during any given epoch.
 
@@ -1535,7 +1535,7 @@ Non-protocol updates do not change neither the consensus rules nor the ledger
 rules that the blockchain nodes execute. Therefore the do not enter the
 activation phase.
 %
-When this kind of updates are approved, the update system simply records this 
+When this kind of updates are approved, the update system simply records this
 event,
 and it is the ledger responsibility to react accordingly. For instance, if the
 update concern funds transfers from the treasury, then the ledger must update
@@ -1579,25 +1579,25 @@ specify the hash of the implementations they cancel.
 There are several factors that can cause a proposal to be canceled:
 
 \begin{itemize}
-	\item The proposal is explicitly canceled by a cancellation proposal that 
+	\item The proposal is explicitly canceled by a cancellation proposal that
 	made
 	it past the approval phase.
-	\item The proposal is overridden by another proposal with the same version 
+	\item The proposal is overridden by another proposal with the same version
 	that
-	made it through the approval phase. If the experts approve such proposal, 
+	made it through the approval phase. If the experts approve such proposal,
 	then
 	this gives a strong indication that the older proposal should be discarded.
 	%
-	Note that even though the system guarantees that only one proposal 
+	Note that even though the system guarantees that only one proposal
 	per-version
 	will get approved in any given slot (as described earlier), there might be
-	proposals approved with the same version as a proposal approved in a 
+	proposals approved with the same version as a proposal approved in a
 	previous
 	slot.
-	\item The proposal supersedes a version that can never follow. Protocol 
+	\item The proposal supersedes a version that can never follow. Protocol
 	versions
 	increase monotonically. So if an update depends on a version that is lower
-	than the current version we know for sure that such version can never be 
+	than the current version we know for sure that such version can never be
 	seen
 	on the chain, and therefore the proposal that depends on this version can be
 	discarded.
@@ -1645,7 +1645,7 @@ If a proposal with a lower version than the current candidate enters the queue
 (i.e. the front of the queue changes), then we also have two situations:
 
 \begin{enumerate}
-	\item If the candidate proposal does not have enough endorsements, then it 
+	\item If the candidate proposal does not have enough endorsements, then it
 	is
 	put back in the queue, and the new proposal enters the queue.
 	%
@@ -1653,12 +1653,12 @@ If a proposal with a lower version than the current candidate enters the queue
 	canceled (since it will supersede a version lower than the current version).
 	%
 	However, since it is possible that the new proposal gets canceled (for
-	instance due to lack of enough endorsements), we leave the old proposal in 
+	instance due to lack of enough endorsements), we leave the old proposal in
 	the
 	queue.
-	\item If the candidate proposal has enough endorsements, then the new 
+	\item If the candidate proposal has enough endorsements, then the new
 	proposal
-	gets discarded (since it will be superseding an older version that will 
+	gets discarded (since it will be superseding an older version that will
 	never
 	be adopted since versions increase monotonically).
 \end{enumerate}
@@ -1669,7 +1669,7 @@ If a proposal with a lower version than the current candidate enters the queue
 The ledger layer must provide future information about a part of its state. In
 particular, it should be able to tell up to $k$ blocks in the future if a new
 protocol version will be activated. To this end, we require that the \emph{last
-	endorsement} required for meeting the adoption threshold \emph{is stable} 
+	endorsement} required for meeting the adoption threshold \emph{is stable}
 	$k$
 blocks before the end of the epoch. This means that endorsements for a given
 proposal for a given epoch are considered up to $2k$ blocks before the end of
@@ -1686,21 +1686,22 @@ fork where that endorsement never occurred. If we reply ``no'', then this might
 also be incorrect if we continue in that fork.
 
 \subsection{When multiple client implementations exist}
-Since the consensus protocol is open source, there might exist multiple 
-implementations of the client (in different languages and/or different 
-licensing schemes). As we have seen, our mechanism has a separate on-chain 
-voting phase during the ideation phase (section \ref{sec:ideation}). In this 
-phase a formal-spec/design of the protocol update is submitted (a SIP - System 
-Improvement Proposal). So we are \emph{clearly distinguishing the protocol 
-update decision from the implementation approval decision}. The latter takes 
-place in the second on-chain voting phase, the approval phase (section 
-\ref{sec:approval}), which references the approved SIP. So in a 
-multi-implementation setting, what you really need to approve and endorse is 
-the protocol upgrade and not the implementation per se. The implementation 
-adopted by each party is something that we cannot essentially control. However, 
-in the approval phase mentioned above, we can still have a ``blessed'' 
-\emph{reference implementation} of the upgraded protocol, or even  have a 
-single proposal that includes multiple implementations (e.g., in different 
+
+Since the consensus protocol is open source, there might exist multiple
+implementations of the client (in different languages and/or different
+licensing schemes). As we have seen, our mechanism has a separate on-chain
+voting phase during the ideation phase (section \ref{sec:ideation}). In this
+phase a formal-spec/design of the protocol update is submitted (a SIP - System
+Improvement Proposal). So we are \emph{clearly distinguishing the protocol
+update decision from the implementation approval decision}. The latter takes
+place in the second on-chain voting phase, the approval phase (section
+\ref{sec:approval}), which references the approved SIP. So in a
+multi-implementation setting, what you really need to approve and endorse is
+the protocol upgrade and not the implementation per se. The implementation
+adopted by each party is something that we cannot essentially control. However,
+in the approval phase mentioned above, we can still have a ``blessed''
+\emph{reference implementation} of the upgraded protocol, or even  have a
+single proposal that includes multiple implementations (e.g., in different
 languages) that are approved/blessed by the community.
 
 \section{Performance analysis}
@@ -2253,8 +2254,8 @@ in a Haskell map\footnote{\href{url}{http://hackage.haskell.org/package/containe
 \label{sec:sat-open}
 
 This design does not address the definition of minimal requirements for proposal
-submissions that will prevent spam attacks. However it utilizes the fee-based 
-DDoS protection mechanism that is used for transactions similar to Bitcoin, 
+submissions that will prevent spam attacks. However it utilizes the fee-based
+DDoS protection mechanism that is used for transactions similar to Bitcoin,
 Ethereum and many public blockchains.
 
 This design addresses the requirement that any participant that can submit a
@@ -2265,7 +2266,7 @@ defining new \emph{SIP}, \emph{UP}, and \emph{vote} transaction types.
 \label{sec:sat-decentr-decis-making}
 
 This design addresses the requirements that the community can vote on updates,
-by replacing central authorities from \emph{all decision points} in the 
+by replacing central authorities from \emph{all decision points} in the
 lifecycle of an update with an on-chain voting mechanism in which
 participants either:
 \begin{itemize}
@@ -2291,23 +2292,23 @@ immutable ledger that is the blockchain.
 \label{sec:sat-secure}
 Security in the context of updates has been formally defined:
 \begin{itemize}
-	\item wrt the 
-	decision making process (voting and endorsement processes) we have defined 
-	security via the safety and liveness properties (see definitions 
+	\item wrt the
+	decision making process (voting and endorsement processes) we have defined
+	security via the safety and liveness properties (see definitions
 	\ref{def:liveness-safety-voting} and \ref{def:liveness-safety-activation})
-	\item wrt to the transition from the current protocol version to the new 
-	one (see 
-	section \ref{sec:secure-activation-of-a-new-protocol-version} and details 
-	in 
-	\cite{secure_activation}). 
+	\item wrt to the transition from the current protocol version to the new
+	one (see
+	section \ref{sec:secure-activation-of-a-new-protocol-version} and details
+	in
+	\cite{secure_activation}).
 \end{itemize}
-For the former we have defined the necessary and 
-sufficient condition in order for a threshold to enjoy both properties and have 
-shown the trade-off between the two. Moreover we have provided a threshold 
-function, for which we have proved its security that gives as the ability to 
-set a distinct threshold per proposal leaning more towards safety or liveness 
-based on the context of each update. For the latter, we have provided in 
-\cite{secure_activation} two activation protocols with different trade-offs and 
+For the former we have defined the necessary and
+sufficient condition in order for a threshold to enjoy both properties and have
+shown the trade-off between the two. Moreover we have provided a threshold
+function, for which we have proved its security that gives as the ability to
+set a distinct threshold per proposal leaning more towards safety or liveness
+based on the context of each update. For the latter, we have provided in
+\cite{secure_activation} two activation protocols with different trade-offs and
 have proved their security.
 
 % TODO: is delegation to experts part of the security of the protocol?
@@ -2331,7 +2332,7 @@ Our asymptotic complexity analysis and micro-benchmarks showed that the impact
 chain size and transaction throughput is also linear on the number of
 participants.
 
-The increase in latency is a quadratic function of the number of participants 
+The increase in latency is a quadratic function of the number of participants
 in the extreme scenario of the simultaneous voting of all parties.
 More work is needed to determine if this behavior is expected, and/or
 acceptable.
