@@ -130,7 +130,20 @@ of the system when a proposal undergoes two voting periods. In particular, this
 test expresses the fact that the votes of a proposal are not carried over to the
 next period.
 
-... explain what are traces
+The property tests rely on the notion of traces. The update system API consists
+of _state transforming functions_ of the form:
+
+```haskell
+:: ( ... ) => st -> d -> Either err st
+```
+
+This is: given some initial state and some data (in particular a slot or some
+update payload, like a vote), return either an error if the function could not
+be applied, or the result of applying the data the initial state. Thus, the
+behavior of the system's API can be modeled in terms state evolution. Here the
+state evolves by applying _actions_, which in our context can be slot ticks or
+the application of a certain update payload. Traces are modeled in module
+`Trace`
 
 ... explain how to get examples of traces ...
 
