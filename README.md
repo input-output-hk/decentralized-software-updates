@@ -29,11 +29,11 @@ and these results will be incorporated into the
 The research roadmap can be found in [our
 wiki](https://github.com/input-output-hk/decentralized-software-updates/wiki/Roadmap).
 
-## Formal specification
+## Design specification
 
-The formal specification is written in `LaTeX`. It can be found in the
-[`formal-spec`](./formal-spec) folder. A compiled pdf can be found
-[here](https://hydra.iohk.io/job/Cardano/decentralized-software-updates/decentralizedUpdatesSpec/latest/download-by-type/doc-pdf/decentralized-updates).
+The design specification is written in `LaTeX`. It can be found in the
+[`design-spec`](./design-spec) folder. A compiled pdf can be found
+[here](https://hydra.iohk.io/job/Cardano/decentralized-software-updates/specs.decentralized-updates/latest/download-by-type/doc-pdf/priviledge-decentralized-swupdates).
 
 We use [`nix`](https://nixos.org/nix/download.html) to achieve not only
 reproducible software builds, but also reproducible document builds across
@@ -73,6 +73,9 @@ The PDF corresponding to the formal specification can be built by running:
 nix-build -A specs -o spec.decentralized-updates
 ```
 
+The above command will create a `spec.decentralized-updates` folder that
+contains the compiled document.
+
 To get a shell where you have access to all the necessary tools for building the
 document run:
 
@@ -80,9 +83,9 @@ document run:
 nix-shell default.nix -A specs.decentralized-updates
 ```
 
-Once in the `nix-shell` the document can be built by using `make`. When editing
-the document it is also useful to recompile on file changes. To this end, use
-`make watch`.
+Once in the `nix-shell` the document can be built by running `make` inside the
+`design-spec` directory. When editing the document it is also useful to
+recompile on file changes. To this end use `make watch`.
 
 ## Executable specification
 
