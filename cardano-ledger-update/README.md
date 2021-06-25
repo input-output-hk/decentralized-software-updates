@@ -101,7 +101,34 @@ explained next.
 
 ![Tests module structure](images/test-intra-deps.svg)
 
-... we have unit tests
+The unit tests are located under the `Test.Cardano.Ledger.Update.UnitTests`
+namespace. We have unit tests for each of the phases of a system update. The
+tests are written in a simple embedded domain-specific language (eDSL) that
+models actions that change the update state and assertions on said state. For
+example, the test that checks that a certain SIP is approved can be expressed as
+follows:
+
+```haskell
+  update <- mkUpdate (SpecId 1) (mkParticipant 0) (`increaseVersion` 1)
+  submit `sip` update
+  tickTillStable
+  reveal `sip` update
+  tickTillStable
+  approve `sip` update
+  tickFor $ Proposal.votingPeriodDuration (getSIP update)
+  tickTillStable
+  tickTillStable
+  stateOf update `shouldBe` SIP (IsStably Approved)
+```
+
+These unit tests provide simple ways of checking that the implementation behaves
+as expected, but more importantly, they provide a way to document the behavior
+of the system in a way that can be executed and checked. For instance, the test
+`implVotesAreNotCarriedOver`, in module
+`Test.Cardano.Ledger.Update.UnitTests.Approval`, describes the expected behavior
+of the system when a proposal undergoes two voting periods. In particular, this
+test expresses the fact that the votes of a proposal are not carried over to the
+next period.
 
 ... explain what are traces
 
