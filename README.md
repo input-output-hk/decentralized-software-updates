@@ -145,7 +145,7 @@ source-repository-package
 
 ```
 
-The repository where the DevOps infrastructure repository
+The Cardano DevOps infrastructure repository
 [`cardano-ops`](https://github.com/input-output-hk/cardano-ops), in commit
 [5c630ba534d0211a12f3a98fb8796b630b7a56e1](https://github.com/input-output-hk/cardano-ops/commit/5c630ba534d0211a12f3a98fb8796b630b7a56e1)
 contains a script for testing the integration, and a script for benchmarking a
@@ -195,7 +195,7 @@ editing the lists `bftNodeRegionNames` and `poolRegionNames` in
 `topologies/pivo.nix`. This repository also:
 
 - provides additional details on how to manipulate the testnet infrastructure
-  read `examples/shelley-testnet/README.md`, in the `cardano-ops` repository.
+  in `examples/shelley-testnet/README.md`, in the `cardano-ops` repository.
 - explains how the tesnet can be run on an AWS cluster, also in
   `examples/shelley-testnet/README.md`.
 
@@ -239,14 +239,14 @@ tail -f voting-process.log
 Upon completion the script copies the relevant logs from the nodes so that
 they can be analyzed.
 
-There is a program that processes the node logs and outputs (among other information):
+There is a program that processes the node logs and outputs (among other
+information):
 - average UTxO transactions submitted during the voting period
 - average latency during the voting period
 
 The log analyzer program can be found in the `menl` directory, in the
 `cardano-ops` repository. It expects the node logs to be in the root directory
-of the `cardano-ops` repository. The log analyzer can be run using `stack` , and
-can be executed as follows:
+of the `cardano-ops` repository. The log analyzer can be run using `stack`:
 
 ```sh
 stack run
@@ -254,6 +254,7 @@ stack run
 
 inside the `menl` directory. This program assumes that the following log files
 are stored in the root directory of `cardano-ops`:
+
 - `bft-node.log`
 - `bft-nodes-tx-submission.log`
 - `voting-timing.log`
