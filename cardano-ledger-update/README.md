@@ -148,9 +148,17 @@ be applied, or the result of applying the data the initial state. Thus, the
 behavior of the system's API can be modeled in terms state evolution. Here the
 state evolves by applying _actions_, which in our context can be slot ticks or
 the application of a certain update payload. Traces are modeled in module
-`Trace`.
+`Trace`. A trace has two type parameters `s` and `t`:
 
-... explain why do we have s and t
+```haskell
+data Trace s t = ...
+```
+
+Here `s` represents the type of the system under test. It is the system under
+test what defines the types of the actions and states of the trace. Systems
+under tests are modeled by the `SUT` class, defined in module `SystemUnderTest`.
+The type `t` represents the type of _scenario_ that accompanies the trace. Below
+we provide an explanation of the concept of scenario.
 
 We provide an example of a trace below:
 
