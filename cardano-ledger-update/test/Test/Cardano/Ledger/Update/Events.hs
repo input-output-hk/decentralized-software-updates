@@ -23,9 +23,9 @@ import           Test.Cardano.Ledger.UpdateSpec
 
 -- | Update events of an update specification.
 --
--- An update event occurs when an the state of update specification, as reported
--- by the update system, changes. The state the update specification changed to
--- is stored in 'eventState'.
+-- An update event occurs when the state of update specification, as reported by
+-- the update system, changes. The state the update specification changed to is
+-- stored in 'eventState'.
 --
 -- An update event has also a trace fragment ('TraceFragment') associated to it,
 -- which contains the actions and state changes __at__ and after the event.

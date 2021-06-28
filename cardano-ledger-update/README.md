@@ -96,7 +96,12 @@ classes. See the corresponding files for more details.
 # Tests
 
 The implementation of the update mechanism contains an extensive series of unit
-and property tests. The module structure of the testing code is show below, and
+and property tests. We use
+[`QuickCheck`](https://hackage.haskell.org/package/QuickCheck) as our property
+based testing library, and this document assumes familiarity with property-based
+testing.
+
+The module structure of the testing code is show below, and
 explained next.
 
 ![Tests module structure](images/test-intra-deps.svg)
@@ -143,26 +148,191 @@ be applied, or the result of applying the data the initial state. Thus, the
 behavior of the system's API can be modeled in terms state evolution. Here the
 state evolves by applying _actions_, which in our context can be slot ticks or
 the application of a certain update payload. Traces are modeled in module
-`Trace`
+`Trace`.
 
-... explain how to get examples of traces ...
+... explain why do we have s and t
 
-... features of our testing framework
-... - simple generators ... where can the generators be found?
+We provide an example of a trace below:
 
-[... # bring the testing framework presentation back here OR link to the .org file here ]
+```haskell
+Initial state:
+--------------------------------------------------------------------------------
+[ Unknown ]
+Events:
+--------------------------------------------------------------------------------
+[
+          ( UpdateAct
+              ( Ideation
+                  ( Submit
+                      ( MockSubmission
+                          { mpSubmissionCommit = MockCommit 1
+                          , mpSubmissionSignatureVerifies = True
+                          }
+                      )
+                  )
+              )
+          , [ SIP Submitted ]
+          )
+      ,
+          ( TickAct
+          , [ SIP Submitted ]
+          )
+      ,
+          ( TickAct
+          , [ SIP StablySubmitted ]
+          )
+      ,
+          ( UpdateAct
+              ( Ideation
+                  ( Reveal
+                      ( MockRevelation
+                          { refersTo = MockCommit 1
+                          , reveals = MockProposal
+                              { mpId = MPId 1
+                              , mpVotingPeriodDuration = SlotNo 0
+                              , mpPayload = ()
+                              }
+                          }
+                      )
+                  )
+              )
+          , [ SIP Revealed ]
+          )
+      ,
+          ( TickAct
+          , [ SIP Revealed ]
+          )
+      ,
+          ( TickAct
+          , [ SIP StablyRevealed ]
+          )
+      ,
+          ( TickAct
+          , [ SIP StablyRevealed ]
+          )
+      ,
+          ( TickAct
+          ,
+              [ SIP ( Is Expired ) ]
+          )
+      ]
+```
 
-... things worth mentioning from the presentation
-  ... system under test
-  ... scenario
+The trace above corresponds to an execution of the update system in which a
+proposal is submitted it expires. The state are abstracted away, and only the
+state of the update proposal is shown in the trace. To get examples of classes
+of update-mechanism traces see module `Test.Cardano.Ledger.Update.Properties`.
 
-... explain the liveness tests
+We test the update-mechanism properties by expressing properties on traces. To
+test them, we need to generate these traces. In our framework, a trace is
+_uniquely determined_ by its `Scenario`:
 
-... explain the state change validity tests
+```haskell
+elaborateTrace :: forall s t . HasScenario s t => Scenario t -> Trace s t
+```
+
+A `Scenario` contains all the information necessary to reconstruct a trace. For
+instance, in the context of the update mechanism, a scenario might contain:
+
+- The network stability parameter.
+- The update proposals.
+- The initial stake distribution of voters an endorsers.
+- The sequence of update actions to be executed.
+
+Once it is possible to generate random scenarios, we can elaborate scenarios
+into traces, and therefore property-test properties on traces. More specifically,
+this can be achieved via the module `Trace.PropertyTesting` function:
+
+```haskell
+forAllTracesShow
+  :: forall s t prop
+   . ( Arbitrary (Scenario t)
+     , HasScenario s t
+     , Testable prop
+     )
+  => (Trace s t -> prop) -> (Trace s t -> String) -> Property
+```
+
+See module `Trace.Scenario` for details on the `HasScenario` typeclass.
+
+The `HasScenario` instance we used for the property tests of the update
+mechanism can be found in module
+`Test.Cardano.Ledger.Update.Properties.SimpleScenario`. A noteworthy feature of
+the scenario generator defined in that module (and therefore of the trace
+generation process) is that the action generators are quite trivial to write and
+they incorporate _no update mechanism logic_. Not only this reduces the effort
+required to write and maintain the generators, but also decouples them from the
+implementation.
+
+[This file](./about-the-testing-framework.org) contains the outline of a
+presentation given in an internal IOG seminar. For more details contact [Damian
+Nadales](mailto:damian.nadales@iohk.io).
+
+## Which properties are tested
+
+We have tests for the following types of properties:
+
+- liveness
+- safety
+- coverage
+
+### Liveness properties
+
+Liveness properties check that certain classes of traces are accepted for the
+update mechanism. For instance, the update mechanism should allow:
+
+- an SIP to be approved
+- an implementation to be approved
+- an approved implementation to be activated
+- an SIP to be rejected
+- an implementation to be rejected
+- an approved implementation not to be activated and be marked as expired
+- etc
+
+Given a class of traces (like the ones exemplified above), our tests use
+`QuickCheck` to (ramdomly) search for traces that fall into that class. If
+`QuickCheck` finds such a trace, it will return a minimal version of that trace
+so that it can be inspected. Of course, this "counterexample" does not
+constitute a failure.
+
+Given a class of traces, if we fail to see examples of traces in this class this
+might point to an error in the generators or a failure in the implementation.
+In any case these liveness tests make sure that such cases are detected so that
+corrective action can be taken.
+
+In addition, by inspecting the examples generated by `QuickCheck` we can get a
+better insight into the system's behavior. For instance, when inspecting a trace
+that showed that an implementation of an SIP could be approved, we found out
+that the system allowed an implementation commit to be submitted even before its
+corresponding SIP was approved. Depending on the requirements, this might be an
+acceptable behavior or not.
+
+### Safety properties
+
+The safety properties we wrote define what are the allowed:
+
+- states of an update proposals
+- transitions between those states
+- conditions when transitioning from one state to another
+
+All the properties are aggregated into a single property, called
+`prop_updateEventTransitionsAreValid` and defined in module
+`Test.Cardano.Ledger.Update.Properties.StateChangeValidity`. Given an
+update-system trace, this property multiplex the trace into event traces per
+each update proposal present in the trace. Here an _update event_ refers to the
+change in the state of an update proposal (e.g., when it goes from "stably
+submitted" to rejected). The notion of update event is defined in module
+`Test.Cardano.Ledger.Update.Events`.
+
+The function `validateTransition` in
+`Test.Cardano.Ledger.Update.Properties.StateChangeValidity` provides an encoding
+of an event transition table that determines the valid event transitions
+(relative to an update proposal), and what which conditions should hold in that
+transition.
+
+### Coverage tests
 
 ... explain the coverage tests
-
-... mention tests module structure
 
 ... # bechmarks
 

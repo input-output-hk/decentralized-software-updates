@@ -183,7 +183,7 @@ implVotesAreNotCarriedOver = do
   approvers <- asks getImplApprovers
   let
     (approvers0, approvers1) = splitAt mid approvers
-    mid             = length approvers `div` 2
+    mid                      = length approvers `div` 2
   vote approvers0 update Proposal.For
   tickFor $ Proposal.votingPeriodDuration (getImpl update)
   tickTillStable
