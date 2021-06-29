@@ -270,21 +270,6 @@ are stored in the root directory of `cardano-ops`:
 These log files are produced by the benchmarking script. When run on an AWS
 cluster, they should be copied to the machine where the logs will be analyzed.
 
-
-## Contributing
-
-Make sure:
-
-- your editor supports [`editorconfig`](https://editorconfig.org/).
-- you have the latest version of
-  [`stylish-haskell`](https://github.com/jaspervdj/stylish-haskell/) installed
-  (we use features that are not in Hackage yet, so make sure to build from
-  source).
-- Make sure your editor runs `stylish-haskell` on save.
-
-We try to adhere to the coding standard explained
-[here](https://github.com/input-output-hk/cardano-wallet/wiki/Coding-Standards)
-
 <hr/>
 
 <p align="center">
