@@ -1,4 +1,4 @@
-This directory contains an implementation of the decentralized system updates
+This directory contains an implementation of the decentralized software updates
 mechanism for stake-based blockchains described in the [design
 specification](../design-spec). This implementation was materialized as a
 Haskell library that was designed to be plugged in the [ledger
@@ -14,7 +14,10 @@ following values:
 - an update payload, and
 - an update system state.
 
-The state update functions are `initialState`, `tick`, and `apply`.
+The state update functions are `initialState`, `tick`, and `apply`. The `apply`
+function returns an error if the function could not be successfully applied to
+the given state. Otherwise `apply` returns a new update state. Functions
+`initialState` and `tick` cannot fail and always return an update state.
 
 The API is polymorphic on the type of environments. The `*.Env.*` namespace
 contains the classes that model restrictions that the update module imposes on
@@ -69,7 +72,7 @@ is elaborated. This would be the responsibility of a component that deals with
 delegation to experts. In this way, the current implementation allows for its
 use in combination with a delegation mechanism.
 
-## Module structure
+# Module structure
 
 The module structure of the implementation is shown below.
 
@@ -98,7 +101,7 @@ classes. See the corresponding files for more details.
 The implementation of the update mechanism contains an extensive series of unit
 and property tests. We use
 [`QuickCheck`](https://hackage.haskell.org/package/QuickCheck) as our property
-based testing library, and this document assumes familiarity with property-based
+based testing library, and this section assumes familiarity with property-based
 testing.
 
 The module structure of the testing code is show below, and
@@ -142,12 +145,12 @@ of _state transforming functions_ of the form:
 :: ( ... ) => st -> d -> Either err st
 ```
 
-This is: given some initial state and some data (in particular a slot or some
-update payload, like a vote), return either an error if the function could not
-be applied, or the result of applying the data the initial state. Thus, the
-behavior of the system's API can be modeled in terms state evolution. Here the
-state evolves by applying _actions_, which in our context can be slot ticks or
-the application of a certain update payload. Traces are modeled in module
+This is: given some state and some data (in particular a slot or some update
+payload, like a vote), return either an error if the function could not be
+applied, or the result of applying the data to the given state. Thus, the
+behavior of the system's API can be modeled in terms of state evolutions. Here
+the state evolves by applying _actions_, which in our context can be slot ticks
+or the application of a certain update payload. Traces are modeled in module
 `Trace`. A trace has two type parameters `s` and `t`:
 
 ```haskell
@@ -157,10 +160,10 @@ data Trace s t = ...
 Here `s` represents the type of the system under test. It is the system under
 test what defines the types of the actions and states of the trace. Systems
 under tests are modeled by the `SUT` class, defined in module `SystemUnderTest`.
-The type `t` represents the type of _scenario_ that accompanies the trace. Below
-we provide an explanation of the concept of scenario.
+The type `t` represents the type of _scenario_ that accompanies the trace.
+We provide an explanation of the concept of scenario later on.
 
-We provide an example of a trace below:
+The following snippet shows an example of an update system trace:
 
 ```haskell
 Initial state:
@@ -169,67 +172,68 @@ Initial state:
 Events:
 --------------------------------------------------------------------------------
 [
-          ( UpdateAct
-              ( Ideation
-                  ( Submit
-                      ( MockSubmission
-                          { mpSubmissionCommit = MockCommit 1
-                          , mpSubmissionSignatureVerifies = True
-                          }
-                      )
-                  )
-              )
-          , [ SIP Submitted ]
-          )
-      ,
-          ( TickAct
-          , [ SIP Submitted ]
-          )
-      ,
-          ( TickAct
-          , [ SIP StablySubmitted ]
-          )
-      ,
-          ( UpdateAct
-              ( Ideation
-                  ( Reveal
-                      ( MockRevelation
-                          { refersTo = MockCommit 1
-                          , reveals = MockProposal
-                              { mpId = MPId 1
-                              , mpVotingPeriodDuration = SlotNo 0
-                              , mpPayload = ()
-                              }
-                          }
-                      )
-                  )
-              )
-          , [ SIP Revealed ]
-          )
-      ,
-          ( TickAct
-          , [ SIP Revealed ]
-          )
-      ,
-          ( TickAct
-          , [ SIP StablyRevealed ]
-          )
-      ,
-          ( TickAct
-          , [ SIP StablyRevealed ]
-          )
-      ,
-          ( TickAct
-          ,
-              [ SIP ( Is Expired ) ]
-          )
-      ]
+    ( UpdateAct
+        ( Ideation
+            ( Submit
+                ( MockSubmission
+                    { mpSubmissionCommit = MockCommit 1
+                    , mpSubmissionSignatureVerifies = True
+                    }
+                )
+            )
+        )
+    , [ SIP Submitted ]
+    )
+,
+    ( TickAct
+    , [ SIP Submitted ]
+    )
+,
+    ( TickAct
+    , [ SIP StablySubmitted ]
+    )
+,
+    ( UpdateAct
+        ( Ideation
+            ( Reveal
+                ( MockRevelation
+                    { refersTo = MockCommit 1
+                    , reveals = MockProposal
+                        { mpId = MPId 1
+                        , mpVotingPeriodDuration = SlotNo 0
+                        , mpPayload = ()
+                        }
+                    }
+                )
+            )
+        )
+    , [ SIP Revealed ]
+    )
+,
+    ( TickAct
+    , [ SIP Revealed ]
+    )
+,
+    ( TickAct
+    , [ SIP StablyRevealed ]
+    )
+,
+    ( TickAct
+    , [ SIP StablyRevealed ]
+    )
+,
+    ( TickAct
+    ,
+        [ SIP ( Is Expired ) ]
+    )
+]
 ```
 
 The trace above corresponds to an execution of the update system in which a
-proposal is submitted it expires. The state are abstracted away, and only the
-state of the update proposal is shown in the trace. To get examples of classes
-of update-mechanism traces see module `Test.Cardano.Ledger.Update.Properties`.
+proposal expires. The states are abstracted away, and only the state of the
+update proposal is shown in the trace. This trace was automatically found by
+`QuickCheck`. To see more examples of classes of update-mechanism traces see
+module `Test.Cardano.Ledger.Update.Properties`.
 
 We test the update-mechanism properties by expressing properties on traces. To
 test them, we need to generate these traces. In our framework, a trace is
@@ -242,14 +246,14 @@ elaborateTrace :: forall s t . HasScenario s t => Scenario t -> Trace s t
 A `Scenario` contains all the information necessary to reconstruct a trace. For
 instance, in the context of the update mechanism, a scenario might contain:
 
-- The network stability parameter.
-- The update proposals.
-- The initial stake distribution of voters an endorsers.
-- The sequence of update actions to be executed.
+- the network stability parameter
+- the update proposals
+- the initial stake distribution of voters an endorsers
+- the sequence of update actions to be executed
 
 Once it is possible to generate random scenarios, we can elaborate scenarios
-into traces, and therefore property-test properties on traces. More specifically,
-this can be achieved via the module `Trace.PropertyTesting` function:
+into traces, and therefore test properties on traces. More specifically, this
+can be achieved via the function:
 
 ```haskell
 forAllTracesShow
@@ -260,6 +264,8 @@ forAllTracesShow
      )
   => (Trace s t -> prop) -> (Trace s t -> String) -> Property
 ```
+
+Function `forAllTraceShow` is defined in module `Trace.PropertyTesting`.
 
 See module `Trace.Scenario` for details on the `HasScenario` typeclass.
 
@@ -286,7 +292,7 @@ We have tests for the following types of properties:
 
 ### Liveness properties
 
-Liveness properties check that certain classes of traces are accepted for the
+Liveness properties check that certain classes of traces are accepted by the
 update mechanism. For instance, the update mechanism should allow:
 
 - an SIP to be approved
@@ -306,7 +312,7 @@ constitute a failure.
 Given a class of traces, if we fail to see examples of traces in this class this
 might point to an error in the generators or a failure in the implementation.
 In any case these liveness tests make sure that such cases are detected so that
-corrective action can be taken.
+corrective actions can be taken.
 
 In addition, by inspecting the examples generated by `QuickCheck` we can get a
 better insight into the system's behavior. For instance, when inspecting a trace
@@ -326,7 +332,7 @@ The safety properties we wrote define what are the allowed:
 All the properties are aggregated into a single property, called
 `prop_updateEventTransitionsAreValid` and defined in module
 `Test.Cardano.Ledger.Update.Properties.StateChangeValidity`. Given an
-update-system trace, this property multiplex the trace into event traces per
+update-system trace, this property multiplexes the trace into event traces per
 each update proposal present in the trace. Here an _update event_ refers to the
 change in the state of an update proposal (e.g., when it goes from "stably
 submitted" to rejected). The notion of update event is defined in module
@@ -335,12 +341,12 @@ submitted" to rejected). The notion of update event is defined in module
 The function `validateTransition` in
 `Test.Cardano.Ledger.Update.Properties.StateChangeValidity` provides an encoding
 of an event transition table that determines the valid event transitions
-(relative to an update proposal), and what which conditions should hold in that
+(relative to an update proposal), and which conditions should hold in that
 transition.
 
 ### Coverage tests
 
-The thoughtfulness of our property tests depend on generating cases for the
+The thoughtfulness of our property tests depends on generating cases for the
 major scenarios (both valid and invalid). For instance, we would like to test
 traces in which a proposal gets revealed before its corresponding commit is
 stable on the chain. Or cases in which a proposal is voted outside its voting
@@ -351,20 +357,20 @@ period. To make sure these cases are generated, we have coverage tests in module
 
 We ran benchmarks to measure the CPU and memory consumed by the tally process.
 This is the part of the protocol that requires the biggest amount of resources,
-therefore the importance of having a good insight into its implementation
+therefore it is important to have a good insight into its implementation
 performance.
 
 The benchmarks can be found in the
-[bench/micro-benchmarking](./bench-microbenchmarking) directory. The
+[bench/micro-benchmarking](./bench/micro-benchmarking) directory. The
 benchmarking results are presented in the [design
 specification](../design-spec).
 
 # Worst case analysis
 
-Next to the benchmarks, we have calculations on the impact the system has on a
-blockchain throughput, which we measure using transaction-bytes-per-second. In
+Next to the benchmarks, we have calculations on the impact the system has on the
+throughput of a given blockchain. In
 [bench/worst-case-analysis](./bench/worst-case-analysis) there is a program that
 carries out the impact calculation for different type of parameters like number
-of participants, number of proposals, and voting period duration. This program
-outputs the results as a LaTeX tables and plots. These results were incorporated
+of participants, number of proposals, and voting period durations. This program
+outputs the results as LaTeX tables and plots. These results were incorporated
 in the [design specification](../design-spec).
