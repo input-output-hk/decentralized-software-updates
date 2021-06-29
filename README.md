@@ -87,21 +87,26 @@ Once in the `nix-shell` the document can be built by running `make` inside the
 `design-spec` directory. When editing the document it is also useful to
 recompile on file changes. To this end use `make watch`.
 
-## Executable specification
+## Implementation
 
-The executable specifications for the update mechanism can be found in the
-[`executable-spec`](executable-spec/) folder. Currently we only support building
-using `nix` because this is the build method used at IOHK.
+The `implementation` directory contains the implementation of the update
+protocol described in the design specification. This implementation does not
+include delegation to experts. This is an orthogonal concept that can be
+incorporated later on, without needing to alter the prototype. See
+[`cardano-ledger-update/README.md`](./cardano-ledger-update/README.md) for more details.
 
-To test the executable specifications enter a `nix` shell use `cabal`:
+Currently we only support building the implementation using `nix` because this
+is the build method used at IOHK.
+
+To test the executable specifications enter a `nix` shell and use `cabal`:
 
 ```sh
 nix-shell
 cabal test all
 ```
 
-Alternatively you can setup [`lorri`](https://github.com/target/lorri) so that
-cabal is available without needing to enter the nix shell.
+Additionally, you can setup [`lorri`](https://github.com/target/lorri) so that
+`cabal` is available without needing to enter the `nix` shell.
 
 ## Integration with Cardano
 

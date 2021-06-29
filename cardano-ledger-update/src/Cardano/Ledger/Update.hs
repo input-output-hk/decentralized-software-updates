@@ -107,7 +107,7 @@ deriving instance
   , Implementation sip impl
   , Eq sip
   , Eq impl
-  , Eq (Application impl)
+  , Eq (NonProtocol impl)
   ) => Eq (State sip impl)
 
 deriving instance
@@ -119,7 +119,7 @@ deriving instance
   , NFData (Id (Voter impl))
   , NFData (Id (Endorser (Protocol impl)))
   , NFData (Protocol impl)
-  , NFData (Application impl)
+  , NFData (NonProtocol impl)
   , NFData (Version (Protocol impl))
   , NFData (Commit (Revelation sip))
   , NFData (Commit (Revelation impl))
@@ -136,7 +136,7 @@ deriving instance
   , NoThunks (Voter sip)
   , NoThunks (Voter impl)
   , NoThunks (Protocol impl)
-  , NoThunks (Application impl)
+  , NoThunks (NonProtocol impl)
   , NoThunks (Version (Protocol impl))
   , NoThunks (Commit (Revelation sip))
   , NoThunks (Commit (Revelation impl))
@@ -151,7 +151,7 @@ deriving instance
   , ToJSONKey (Commit (Revelation sip))
   , ToJSONKey (Commit (Revelation impl))
   , ToJSONKey (Version (Protocol impl))
-  , ToJSON (Application impl)
+  , ToJSON (NonProtocol impl)
   , ToJSONKey (Protocol impl)
   , ToJSONKey (Id sip)
   , ToJSONKey (Id impl)
@@ -170,7 +170,7 @@ deriving instance
   , FromJSONKey (Commit (Revelation sip))
   , FromJSONKey (Commit (Revelation impl))
   , FromJSONKey (Version (Protocol impl))
-  , FromJSON (Application impl)
+  , FromJSON (NonProtocol impl)
   , FromJSONKey (Protocol impl)
   , FromJSONKey (Id sip)
   , FromJSONKey (Id impl)
@@ -298,7 +298,7 @@ instance
   , Activable (Protocol impl)
   , ToCBOR (Protocol impl)
   , ToCBOR (Version (Protocol impl))
-  , ToCBOR (Application impl)
+  , ToCBOR (NonProtocol impl)
   , ToCBOR sip
   , ToCBOR impl
   , ToCBOR (Id sip)
@@ -322,7 +322,7 @@ instance
   , Activable (Protocol impl)
   , FromCBOR (Protocol impl)
   , FromCBOR (Version (Protocol impl))
-  , FromCBOR (Application impl)
+  , FromCBOR (NonProtocol impl)
   , FromCBOR sip
   , FromCBOR impl
   , FromCBOR (Id sip)

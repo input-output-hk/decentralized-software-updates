@@ -32,8 +32,8 @@ module Cardano.Ledger.Update.Activation.State
   , reEnqueueCandidate
   , scheduleCandidate
   , activate
-    -- ** Operations on applications
-  , addApplication
+    -- ** Operations on non-protocol updates
+  , addNonProtocolUpdate
     -- ** Operations on the last applied slot
   , lastAppliedSlot
   , tickLastAppliedSlot
@@ -120,11 +120,11 @@ data State sip impl =
     -- The lower the version the higher the priority. Duplicated versions are
     -- not allowed. Inserting a duplicated version replaces the (implementation
     -- and hash of the) older version.
-  , applicationUpdates :: ![Application impl]
-    -- ^ Approved application updates.
+  , nonProtocolUpdates  :: ![NonProtocol impl]
+    -- ^ Approved non-protocol updates.
     --
     -- TODO: this is a list for now. If needed this can be turned into a set, or
-    -- a map indexed by application names.
+    -- other type of container.
   , lastAppliedSlot    :: !(Maybe SlotNo)
     -- ^ We require that the 'tick' function is applied without skipping any
     -- slot. Therefore we record the last applied slot to check this
@@ -141,26 +141,26 @@ deriving instance Implementation sip impl => Show (State sip impl)
 
 deriving instance
   ( Implementation sip impl
-  , Eq (Application impl)
+  , Eq (NonProtocol impl)
   ) => Eq (State sip impl)
 
 deriving instance
   ( NFData (Protocol impl)
   , NFData (Version (Protocol impl))
-  , NFData (Application impl)
+  , NFData (NonProtocol impl)
   , NFData (Id (Endorser (Protocol impl)))
   ) => NFData (State sip impl)
 
 deriving instance
   ( NoThunks (Protocol impl)
   , NoThunks (Version (Protocol impl))
-  , NoThunks (Application impl)
+  , NoThunks (NonProtocol impl)
   , NoThunks (Id (Endorser (Protocol impl)))
   ) => NoThunks (State sip impl)
 
 deriving instance
   ( ToJSONKey (Protocol impl)
-  , ToJSON (Application impl)
+  , ToJSON (NonProtocol impl)
   , ToJSONKey (Version (Protocol impl))
   , ToJSON (Protocol impl)
   , ToJSON (Id (Endorser (Protocol impl)))
@@ -168,7 +168,7 @@ deriving instance
 
 deriving instance
   ( FromJSON (Protocol impl)
-  , FromJSON (Application impl)
+  , FromJSON (NonProtocol impl)
   , FromJSONKey (Version (Protocol impl))
   , FromJSONKey (Protocol impl)
   , Implementation sip impl
@@ -210,7 +210,7 @@ data MaybeAnEndorsedProposal sip impl
 deriving instance Implementation sip impl => Show (MaybeAnEndorsedProposal sip impl)
 
 deriving instance
-  ( Eq (Application impl)
+  ( Eq (NonProtocol impl)
   , Implementation sip impl
   ) => Eq (MaybeAnEndorsedProposal sip impl)
 
@@ -245,7 +245,7 @@ initialState initialProtocol =
   { activationQueue    = mempty
   , endorsedProposal   = NoProposal
   , currentProtocol    = initialProtocol
-  , applicationUpdates = mempty
+  , nonProtocolUpdates = mempty
   , lastAppliedSlot    = Nothing
   , discarded          = mempty
   }
@@ -421,18 +421,18 @@ activate st =
     _ -> st
 
 --------------------------------------------------------------------------------
--- Operations on applications
+-- Operations on non-protocol updates
 --------------------------------------------------------------------------------
 
-addApplication
+addNonProtocolUpdate
   :: Implementation sip impl
-  => Application impl -> State sip impl -> State sip impl
-addApplication application st
+  => NonProtocol impl -> State sip impl -> State sip impl
+addNonProtocolUpdate npu st
   = assert preconditionsHold
-  $ st { applicationUpdates = application : (applicationUpdates st) }
+  $ st { nonProtocolUpdates = npu : (nonProtocolUpdates st) }
   where
     preconditionsHold =
-      fmap _id (applicationUpdates st) `doesNotContain` _id application
+      fmap _id (nonProtocolUpdates st) `doesNotContain` _id npu
 
 --------------------------------------------------------------------------------
 -- Operations on endorsements
@@ -713,7 +713,7 @@ instance
   , Activable (Protocol impl)
   , ToCBOR (Protocol impl)
   , ToCBOR (Version (Protocol impl))
-  , ToCBOR (Application impl)
+  , ToCBOR (NonProtocol impl)
   , ToCBOR (Id (Endorser (Protocol impl)))
   ) => ToCBOR (State sip impl) where
   toCBOR st
@@ -721,7 +721,7 @@ instance
     <> toCBOR (endorsedProposal st)
     <> toCBOR (currentProtocol st)
     <> toCBOR (activationQueue st)
-    <> toCBOR (applicationUpdates st)
+    <> toCBOR (nonProtocolUpdates st)
     <> toCBOR (lastAppliedSlot st)
     <> toCBOR (discarded st)
 
@@ -731,7 +731,7 @@ instance
   , Activable (Protocol impl)
   , FromCBOR (Protocol impl)
   , FromCBOR (Version (Protocol impl))
-  , FromCBOR (Application impl)
+  , FromCBOR (NonProtocol impl)
   , FromCBOR (Id (Endorser (Protocol impl)))
   ) => FromCBOR (State sip impl) where
   fromCBOR = do
@@ -739,10 +739,10 @@ instance
     ep <- fromCBOR
     cp <- fromCBOR
     aq <- fromCBOR
-    au <- fromCBOR
+    nu <- fromCBOR
     la <- fromCBOR
     di <- fromCBOR
-    return $! State ep cp aq au la di
+    return $! State ep cp aq nu la di
 
 instance
   ( Typeable sip

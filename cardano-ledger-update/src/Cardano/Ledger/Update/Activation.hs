@@ -269,7 +269,7 @@ transferApprovals env approvalSt st = (approvalSt', checkInvariants st')
     -- update and its cancellation at the same time.
     st'                     = (\stx -> foldl' cancel stx cancellations)
                             $ (\stx -> foldl' (addProtocolUpdateProposal env) stx protos)
-                            $ (\stx -> foldl' updateApplication stx apps)
+                            $ (\stx -> foldl' addNonProtocolUpdate stx apps)
                             $ st
 
       where
@@ -277,7 +277,7 @@ transferApprovals env approvalSt st = (approvalSt', checkInvariants st')
           where
             split (as,  ps, css) aProposal =
               case implementationType aProposal of
-                Application  a  -> (a:as, ps  , css    )
+                NonProtocol  a  -> (a:as, ps  , css    )
                 Protocol     p  -> (as  , p:ps, css    )
                 Cancellation cs -> (as  , ps  , cs++css)
 
@@ -448,12 +448,12 @@ cancel st toCancel
           | _id cProtocol == toCancel -> State.discardCandidate State.Canceled st'
         _ -> st'
 
-updateApplication
+addNonProtocolUpdate
   :: (Implementation sip impl)
   => State sip impl
-  -> Application impl
+  -> NonProtocol impl
   -> State sip impl
-updateApplication st application = State.addApplication application st
+addNonProtocolUpdate st npu = State.addNonProtocolUpdate npu st
 
 --------------------------------------------------------------------------------
 -- Update state query operations

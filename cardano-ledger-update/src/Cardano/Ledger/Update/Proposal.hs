@@ -72,9 +72,6 @@ class ( Commitable (Revelation proposal)
 
   votingPeriodDuration :: proposal -> SlotNo
   data Vote proposal :: Type
-  -- NOTE: if we define @Voter@ in this way, the stake distribution will have
-  -- to go from @Voter@ to @Stake@. We will need something similar for
-  -- endorsements. In this case we'd have an @Endorser@ type.
   data Voter proposal :: Type
   voter :: Vote proposal -> Id (Voter proposal)
   candidate :: Vote proposal -> Id proposal
@@ -117,12 +114,12 @@ instance FromCBOR Confidence where
 -- Implementation proposals
 --------------------------------------------------------------------------------
 
--- | An implementation is associated to an predecessor proposal. The type of the
+-- | An implementation is associated to a predecessor proposal. The type of the
 -- implementation uniquely identifies the type of its predecessor.
 class ( Proposal impl
       , Activable (Protocol impl)
-      , Show (Application impl)
-      , Identifiable (Application impl)
+      , Show (NonProtocol impl)
+      , Identifiable (NonProtocol impl)
 
       , Identifiable sip
       ) => Implementation sip impl | impl -> sip where
@@ -132,10 +129,10 @@ class ( Proposal impl
   preProposalId :: impl -> Id sip
 
   implementationType :: impl -> ImplementationType impl
-  -- | Type of protocols the implementation implements.
+  -- | Type of protocols this implementation type implements.
   data Protocol impl :: Type
-  -- | Type of applications the implementation implements.
-  data Application impl :: Type
+  -- | Type of non-protocol related updates this implementation type implements.
+  data NonProtocol impl :: Type
 
 -- | Extract the proposed protocol update, if any.
 proposedProtocolUpdate
@@ -151,10 +148,10 @@ containsAProtocolUpdate = isJust . proposedProtocolUpdate
 
 data ImplementationType impl
   = Cancellation { toCancel :: ![ProtocolId impl] }
-  -- ^ Note that you can't cancel an application update since they enter into
+  -- ^ Note that a non-protocol update can't be canceled since they enter into
   -- effect as soon as they are approved.
   | Protocol !(Protocol impl)
-  | Application !(Application impl)
+  | NonProtocol !(NonProtocol impl)
 
 deriving instance Implementation sip impl => Show (ImplementationType impl)
 
@@ -167,9 +164,6 @@ deriving instance Implementation sip impl => Show (ImplementationType impl)
 class ( Ord (Version protocol)
       , Show (Version protocol)
       , Show (Endorser protocol)
-      -- TODO: check that this is a reasonable constraint on the protocol types.
-      -- It comes quite handy for using protocols as keys of ordered
-      -- collections.
       , Eq protocol
       , Ord protocol
       , Show protocol
@@ -178,10 +172,6 @@ class ( Ord (Version protocol)
       , Identifiable (Endorser protocol)
       ) => Activable protocol where
 
-  -- This would replace @Hash p (VKey p)@. We could unify @Voter@ and @Endorser@
-  -- into a common @Participant@ type, but it seems better to keep them separate.
-  -- For instance, in a concrete instantiation the voting keys might be different
-  -- from the endorsing keys.
   data Endorser protocol
 
   data Version protocol :: Type
@@ -204,20 +194,20 @@ instance
   ( Typeable impl
   , ToCBOR (Protocol impl)
   , ToCBOR (Id (Protocol impl))
-  , ToCBOR (Application impl)
+  , ToCBOR (NonProtocol impl)
   ) => ToCBOR (ImplementationType impl) where
   toCBOR (Cancellation ps) =
     encodeListLen 2 <> encodeWord 0 <> toCBOR ps
   toCBOR (Protocol p) =
     encodeListLen 2 <> encodeWord 1 <> toCBOR p
-  toCBOR (Application a) =
+  toCBOR (NonProtocol a) =
     encodeListLen 2 <> encodeWord 2 <> toCBOR a
 
 instance
   ( Typeable impl
   , FromCBOR (Protocol impl)
   , FromCBOR (Id (Protocol impl))
-  , FromCBOR (Application impl)
+  , FromCBOR (NonProtocol impl)
   ) => FromCBOR (ImplementationType impl) where
   fromCBOR = do
     decodeListLenOf 2
@@ -225,5 +215,5 @@ instance
     case tag of
       0 -> Cancellation <$> fromCBOR
       1 -> Protocol     <$> fromCBOR
-      2 -> Application  <$> fromCBOR
+      2 -> NonProtocol  <$> fromCBOR
       _ -> fail $ "Unknown tag (" <> show tag <> ") when decoding a value of type 'ImplementationType'"
