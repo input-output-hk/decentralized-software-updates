@@ -90,7 +90,7 @@ The `implementation` directory contains the implementation of the update
 protocol described in the design specification. This implementation does not
 include delegation to experts. This is an orthogonal concept that can be
 incorporated later on, without needing to alter the prototype. See
-[`implementation/README.md`](implementation/README.md) for more details.
+[`cardano-ledger-update/README.md`](./cardano-ledger-update/README.md) for more details.
 
 Currently we only support building the implementation using `nix` because this
 is the build method used at IOHK.
