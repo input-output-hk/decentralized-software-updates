@@ -60,7 +60,7 @@ this class define the endorsers and protocol version types.
 State query functions allow to retrieve information about update proposals and
 current protocol without breaking the encapsulation of the update API.
 
-## Plugging delegation
+# Plugging delegation
 
 The stake distribution that some API functions require is provided as a
 parameter, inside the environment. This makes the delegation to experts an
@@ -340,8 +340,31 @@ transition.
 
 ### Coverage tests
 
-... explain the coverage tests
+The thoughtfulness of our property tests depend on generating cases for the
+major scenarios (both valid and invalid). For instance, we would like to test
+traces in which a proposal gets revealed before its corresponding commit is
+stable on the chain. Or cases in which a proposal is voted outside its voting
+period. To make sure these cases are generated, we have coverage tests in module
+`Test.Cardano.Ledger.Update.Properties.Coverage`.
 
-... # bechmarks
+# Bechmarks
 
-... # works case analysis
+We ran benchmarks to measure the CPU and memory consumed by the tally process.
+This is the part of the protocol that requires the biggest amount of resources,
+therefore the importance of having a good insight into its implementation
+performance.
+
+The benchmarks can be found in the
+[bench/micro-benchmarking](./bench-microbenchmarking) directory. The
+benchmarking results are presented in the [design
+specification](../design-spec).
+
+# Worst case analysis
+
+Next to the benchmarks, we have calculations on the impact the system has on a
+blockchain throughput, which we measure using transaction-bytes-per-second. In
+[bench/worst-case-analysis](./bench/worst-case-analysis) there is a program that
+carries out the impact calculation for different type of parameters like number
+of participants, number of proposals, and voting period duration. This program
+outputs the results as a LaTeX tables and plots. These results were incorporated
+in the [design specification](../design-spec).
