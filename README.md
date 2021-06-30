@@ -22,7 +22,7 @@ of software updates, which consists of:
   blockchain.
 
 This work was funded by the [Priviledge](https://priviledge-project.eu/)
-project. This project ended on July 2021, and therefore the work in this
+project. This project ended on July 2021, and therefore the work on this
 repository has stopped as well. The deliverables we produced can be found
 [here](https://priviledge-project.eu/publications/deliverables).
 
