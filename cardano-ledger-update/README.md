@@ -42,10 +42,6 @@ are. Moreover, we abstracted away:
 These abstractions can be found in the `Cardano.Ledger.Update.Proposal` module.
 More specifically:
 
-- the `Signed` class abstracts away data whose signature can be verified. In
-  practice, verifying signatures on the data submitted in a transaction is
-  responsibility of the ledger layer that uses this API, so this class and its
-  usages should be removed.
 - The `Commitable` class introduces the concept of data for which a commit can
   be calculated. This makes it possible to make use of the commit-reveal
   protocol when submitting proposals.
@@ -54,6 +50,12 @@ More specifically:
   means of a `hash` function. In the tests of this library, this calculation was
   realized by unsigned integers instead, which made the execution of the
   property tests considerably faster.
+
+There is also a `Signed` class, which abstracts away data whose signature can be
+verified. In practice, verifying signatures on the data submitted in a
+transaction is responsibility of the ledger layer that uses this API. Therefore
+this class and its instances can and should be removed. Due to time limitations
+the prototype still contains this class.
 
 Some proposals take the form of protocol updates, and can therefore be
 activated. Class `Activable` in `Cardano.Ledger.Update.Proposal` models the
@@ -167,10 +169,9 @@ The following snippet shows an example of an update system trace:
 
 ```haskell
 Initial state:
---------------------------------------------------------------------------------
 [ Unknown ]
+
 Events:
---------------------------------------------------------------------------------
 [
     ( UpdateAct
         ( Ideation

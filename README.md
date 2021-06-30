@@ -14,20 +14,26 @@ executable software) about decentralized software updates for blockchain
 systems. Our research focuses on defining a protocol that covers the life cycle
 of software updates, which consists of:
 
-- ideation: the definition and specification of an update proposal, similar to
+- Ideation: the definition and specification of an update proposal, similar to
   [Bitcoin](https://github.com/bitcoin/bips) or
   [Ethereum](https://github.com/ethereum/EIPs) improvement proposals.
-- implementation: the actual implementation of improvement proposals.
-- activation: the activation of new software version across nodes in the
+- Implementation: the actual implementation of improvement proposals.
+- Activation: the activation of new software version across nodes in the
   blockchain.
 
+This work was funded by the [Priviledge](https://priviledge-project.eu/)
+project. This project ended on July 2021, and therefore the work in this
+repository has stopped as well. The deliverables we produced can be found
+[here](https://priviledge-project.eu/publications/deliverables).
 
-This work is funded by the [Priviledge](https://priviledge-project.eu/) project,
-and these results will be incorporated into the
-[Voltaire](https://cardanoroadmap.com/en/voltaire/) release of Cardano.
+The work carried out in this project helped to
+[prepare the ledger layer](https://github.com/input-output-hk/decentralized-software-updates/issues/153)
+of Cardano to accommodate future work on the
+[Voltaire](https://cardanoroadmap.com/en/voltaire/) era. Other results might be
+incorporated later on.
 
-The research roadmap can be found in [our
-wiki](https://github.com/input-output-hk/decentralized-software-updates/wiki/Roadmap).
+The research roadmap can be found
+[here](https://github.com/input-output-hk/decentralized-software-updates/wiki/Roadmap).
 
 ## Design specification
 
@@ -39,7 +45,7 @@ We use [`nix`](https://nixos.org/nix/download.html) to achieve not only
 reproducible software builds, but also reproducible document builds across
 developers machines. This means that anybody who clones this code should be able
 to build the software and documents without requiring any additional setup other
-than having `nix` installed. But of course, the use of `nix` is not required.
+than having `nix` installed. However, the use of `nix` is not required.
 
 When using `nix` it is recommended that you setup the cache, so that it can
 reuse built artifacts, reducing the compilation times dramatically:
@@ -89,16 +95,16 @@ recompile on file changes. To this end use `make watch`.
 
 ## Implementation
 
-The `implementation` directory contains the implementation of the update
-protocol described in the design specification. This implementation does not
-include delegation to experts. This is an orthogonal concept that can be
-incorporated later on, without needing to alter the prototype. See
-[`cardano-ledger-update/README.md`](./cardano-ledger-update/README.md) for more details.
+The [`./cardano-ledger-update`](./cardano-ledger-update) directory contains the
+implementation of the update protocol described in the design specification.
+This implementation does not include delegation to experts. This is an
+orthogonal concept that can be incorporated later on, without needing to alter
+the prototype. See
+[`cardano-ledger-update/README.md`](./cardano-ledger-update/README.md) for more
+details.
 
-Currently we only support building the implementation using `nix` because this
-is the build method used at IOHK.
-
-To test the executable specifications enter a `nix` shell and use `cabal`:
+If using `nix`, to test the executable specifications enter a `nix` shell and
+use `cabal`:
 
 ```sh
 nix-shell
@@ -111,9 +117,9 @@ Additionally, you can setup [`lorri`](https://github.com/target/lorri) so that
 ## Integration with Cardano
 
 The update protocol implemented in this repository was integrated into Cardano,
-although this was not merged into the `master` branch of any of the its
-components, due to the experimental nature of this work. However, as a result of
-this integration the ledger layer of Cardano was made parametric in the update
+although this was not merged into the `master` branch of any of its components
+(due to the experimental nature of this work). However, as a result of this
+integration the ledger layer of Cardano was made parametric in the update
 protocol. This was a significant change that did get merged into the `master`
 branch of
 [`cardano-ledger-specs`](https://github.com/input-output-hk/cardano-ledger-specs).
@@ -177,11 +183,11 @@ place:
 3. After the SIP is approved, one of the pool nodes submits the implementation.
 4. All the pool nodes vote for the implementation.
 5. After the implementation is approved, all the pool nodes endorse it.
-6. Once the proposal is endorsed, at an epoch change the update is activated.
+6. Once the proposal is endorsed, the update is activated at an epoch change.
 
 In parallel with the steps above, two processes are run:
 
-0. A process that submits a random amount of Lovelace to newly created keys. The
+0. A process that submits random amounts of Lovelace to newly created keys. The
    goal of this process is to show that other transactions can take place
    during and after an update.
 1. A process that monitors the update state of the ledger, printing the results
